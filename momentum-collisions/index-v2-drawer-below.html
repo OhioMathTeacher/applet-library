@@ -29,36 +29,35 @@
       background: var(--bg);
       color: var(--text);
       line-height: 1.6;
-      overflow: hidden;
     }
 
     header {
       background: linear-gradient(135deg, var(--accent), var(--accent2));
       color: white;
-      padding: 1rem 2rem;
+      padding: 1.5rem 2rem;
       text-align: center;
     }
 
-    header h1 { font-size: 1.5rem; margin-bottom: 0.2rem; }
-    header p { opacity: 0.9; font-size: 0.9rem; }
+    header h1 { font-size: 1.8rem; margin-bottom: 0.3rem; }
+    header p { opacity: 0.9; font-size: 1rem; }
     
     .header-controls {
       display: flex;
       gap: 1rem;
       justify-content: center;
-      margin-top: 0.8rem;
+      margin-top: 1rem;
       flex-wrap: wrap;
     }
     
     .header-controls select {
-      padding: 0.4rem 0.8rem;
+      padding: 0.5rem 1rem;
       border-radius: 6px;
       border: 2px solid rgba(255,255,255,0.3);
       background: rgba(255,255,255,0.2);
       color: white;
       font-weight: 600;
       cursor: pointer;
-      font-size: 0.85rem;
+      font-size: 0.9rem;
     }
     
     .header-controls select option {
@@ -66,107 +65,26 @@
     }
 
     .app {
-      display: grid;
-      grid-template-columns: 200px 1fr 200px;
-      gap: 1rem;
-      padding: 1rem;
-      height: calc(100vh - 140px);
+      max-width: 1000px;
+      margin: 0 auto;
+      padding: 1.5rem;
     }
 
-    /* SIDE DRAWERS */
-    .side-drawer {
+    .simulation-panel {
       background: var(--card);
       border-radius: 12px;
+      padding: 1.5rem;
       box-shadow: 0 2px 8px rgba(0,0,0,0.06);
-      overflow: hidden;
-      display: flex;
-      flex-direction: column;
-      transition: all 0.3s ease;
-    }
-
-    .side-drawer.collapsed {
-      width: 50px;
-    }
-
-    .drawer-tab {
-      background: linear-gradient(135deg, var(--accent2), #5a8bad);
-      color: white;
-      padding: 1rem;
-      cursor: pointer;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      user-select: none;
-      writing-mode: horizontal-tb;
-    }
-
-    .side-drawer.collapsed .drawer-tab {
-      writing-mode: vertical-lr;
-      padding: 1rem 0.5rem;
-    }
-
-    .drawer-tab:hover {
-      background: linear-gradient(135deg, #3d6d8c, var(--accent2));
-    }
-
-    .drawer-tab h3 {
-      font-size: 0.9rem;
-      font-weight: 600;
-    }
-
-    .drawer-toggle {
-      font-size: 1rem;
-      transition: transform 0.3s;
-    }
-
-    .side-drawer.collapsed .drawer-toggle {
-      transform: rotate(180deg);
-    }
-
-    .drawer-content {
-      padding: 1rem;
-      overflow-y: auto;
-      flex: 1;
-    }
-
-    .side-drawer.collapsed .drawer-content {
-      display: none;
-    }
-
-    .challenge-drawer .drawer-tab {
-      background: linear-gradient(135deg, var(--challenge-border), #ffb300);
-    }
-
-    .challenge-drawer .drawer-tab:hover {
-      background: linear-gradient(135deg, #ffb300, var(--challenge-border));
-    }
-
-    .notebook-drawer .drawer-tab {
-      background: linear-gradient(135deg, var(--success), #05c190);
-    }
-
-    .notebook-drawer .drawer-tab:hover {
-      background: linear-gradient(135deg, #05c190, var(--success));
-    }
-
-    /* CENTER PANEL */
-    .center-panel {
-      background: var(--card);
-      border-radius: 12px;
-      padding: 1rem;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
+      margin-bottom: 1rem;
     }
 
     .canvas-container {
       background: #1a472a;
       border-radius: 8px;
-      padding: 1rem;
-      margin-bottom: 0.8rem;
+      padding: 1.5rem;
+      margin-bottom: 1rem;
+      position: relative;
       box-shadow: inset 0 2px 12px rgba(0,0,0,0.3);
-      flex-shrink: 0;
     }
 
     canvas {
@@ -176,82 +94,231 @@
       border-radius: 4px;
     }
 
-    /* COMPACT BALL CONTROLS */
-    .ball-controls {
+    .legend {
+      display: flex;
+      gap: 1.5rem;
+      justify-content: center;
+      margin-top: 0.8rem;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.85rem;
+    }
+
+    .legend-ball {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      border: 2px solid rgba(0,0,0,0.3);
+    }
+
+    .stats-panel {
+      background: var(--bg);
+      border-radius: 8px;
+      padding: 1rem;
+      margin-top: 1rem;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 0.8rem;
+    }
+
+    .stat-card {
+      background: white;
+      padding: 0.8rem;
+      border-radius: 6px;
+      text-align: center;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+
+    .stat-label {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      color: var(--muted);
+      letter-spacing: 0.5px;
+      margin-bottom: 0.3rem;
+    }
+
+    .stat-value {
+      font-size: 1.3rem;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .stat-value.conserved {
+      color: var(--success);
+    }
+
+    .info-box {
+      background: linear-gradient(135deg, #e3f2fd, #bbdefb);
+      border-left: 4px solid var(--accent2);
+      padding: 1rem;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      margin-top: 1rem;
+    }
+
+    .info-box strong {
+      color: var(--accent2);
+    }
+
+    /* DRAWER SYSTEM */
+    .drawer-container {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 0.8rem;
-      margin-bottom: 0.8rem;
-      flex-shrink: 0;
+      gap: 1rem;
+      margin-bottom: 1rem;
     }
 
-    .ball-control-group {
-      background: var(--bg);
-      padding: 0.8rem;
-      border-radius: 8px;
+    .drawer {
+      background: var(--card);
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+      overflow: hidden;
+      transition: all 0.3s ease;
     }
 
-    .ball-control-group h4 {
+    .drawer-header {
+      background: linear-gradient(135deg, var(--accent2), #5a8bad);
+      color: white;
+      padding: 1rem 1.5rem;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      user-select: none;
+    }
+
+    .drawer-header:hover {
+      background: linear-gradient(135deg, #3d6d8c, var(--accent2));
+    }
+
+    .drawer-header h3 {
+      font-size: 1rem;
+      font-weight: 600;
+      margin: 0;
+    }
+
+    .drawer-toggle {
+      font-size: 1.2rem;
+      transition: transform 0.3s;
+    }
+
+    .drawer.collapsed .drawer-toggle {
+      transform: rotate(-90deg);
+    }
+
+    .drawer-content {
+      padding: 1.5rem;
+      max-height: 500px;
+      overflow-y: auto;
+      transition: max-height 0.3s ease, padding 0.3s ease;
+    }
+
+    .drawer.collapsed .drawer-content {
+      max-height: 0;
+      padding: 0 1.5rem;
+      overflow: hidden;
+    }
+
+    .challenge-drawer .drawer-header {
+      background: linear-gradient(135deg, var(--challenge-border), #ffb300);
+    }
+
+    .challenge-drawer .drawer-header:hover {
+      background: linear-gradient(135deg, #ffb300, var(--challenge-border));
+    }
+
+    .notebook-drawer .drawer-header {
+      background: linear-gradient(135deg, var(--success), #05c190);
+    }
+
+    .notebook-drawer .drawer-header:hover {
+      background: linear-gradient(135deg, #05c190, var(--success));
+    }
+
+    /* CONTROL STYLES */
+    .control-group {
+      margin-bottom: 1.5rem;
+    }
+
+    .control-group:last-child {
+      margin-bottom: 0;
+    }
+
+    .control-group h4 {
       font-size: 0.85rem;
-      margin-bottom: 0.5rem;
-      color: var(--text);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--muted);
+      margin-bottom: 0.8rem;
+      font-weight: 600;
     }
 
     .control-row {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 0.5rem;
-    }
-
-    .control-row:last-child {
-      margin-bottom: 0;
+      margin-bottom: 0.8rem;
     }
 
     .control-row label {
-      font-size: 0.8rem;
+      font-size: 0.9rem;
       font-weight: 500;
     }
 
     .control-row input[type="range"] {
-      width: 100px;
+      width: 140px;
       accent-color: var(--accent);
     }
 
     .control-row input[type="number"] {
-      width: 50px;
-      padding: 0.2rem 0.4rem;
+      width: 70px;
+      padding: 0.3rem 0.5rem;
       border: 1px solid var(--border);
-      border-radius: 4px;
-      font-size: 0.8rem;
+      border-radius: 6px;
+      font-size: 0.9rem;
+    }
+
+    .control-row select {
+      padding: 0.4rem 0.6rem;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 0.9rem;
+      background: white;
+      cursor: pointer;
+      flex: 1;
     }
 
     .value-display {
-      background: white;
-      padding: 0.2rem 0.5rem;
-      border-radius: 4px;
+      background: var(--bg);
+      padding: 0.3rem 0.6rem;
+      border-radius: 6px;
       font-weight: 600;
-      min-width: 45px;
+      min-width: 60px;
       text-align: center;
-      font-size: 0.8rem;
+      font-size: 0.9rem;
     }
 
-    .action-buttons {
-      display: grid;
-      grid-template-columns: 1fr 1fr 1fr;
+    .button-group {
+      display: flex;
       gap: 0.5rem;
-      margin-bottom: 0.8rem;
-      flex-shrink: 0;
     }
 
     .btn {
-      padding: 0.6rem;
+      flex: 1;
+      padding: 0.7rem 1rem;
       border: none;
-      border-radius: 6px;
+      border-radius: 8px;
       font-weight: 600;
       cursor: pointer;
       transition: all 0.2s;
-      font-size: 0.85rem;
+      font-size: 0.9rem;
     }
 
     .btn-primary {
@@ -275,124 +342,73 @@
     }
 
     .btn-small {
-      padding: 0.4rem 0.6rem;
-      font-size: 0.75rem;
+      padding: 0.4rem 0.8rem;
+      font-size: 0.8rem;
     }
 
-    .stats-panel {
-      background: var(--bg);
-      border-radius: 8px;
-      padding: 0.8rem;
-      margin-bottom: 0.8rem;
-      flex-shrink: 0;
+    .btn-success {
+      background: var(--success);
+      color: white;
     }
 
-    .stats-grid {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 0.5rem;
+    .btn-success:hover {
+      background: #05c897;
     }
 
-    .stat-card {
-      background: white;
-      padding: 0.5rem;
-      border-radius: 4px;
-      text-align: center;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-    }
-
-    .stat-label {
-      font-size: 0.65rem;
-      text-transform: uppercase;
-      color: var(--muted);
-      letter-spacing: 0.3px;
-      margin-bottom: 0.2rem;
-    }
-
-    .stat-value {
-      font-size: 1.1rem;
-      font-weight: 700;
-      color: var(--text);
-    }
-
-    .stat-value.conserved {
-      color: var(--success);
-    }
-
-    .info-box {
-      background: linear-gradient(135deg, #e3f2fd, #bbdefb);
-      border-left: 4px solid var(--accent2);
-      padding: 0.8rem;
-      border-radius: 6px;
-      font-size: 0.85rem;
-      flex-shrink: 1;
-      overflow-y: auto;
-    }
-
-    .info-box strong {
-      color: var(--accent2);
+    .btn-full {
+      width: 100%;
+      margin-bottom: 0.5rem;
     }
 
     /* CHALLENGE STYLES */
     .challenge-box {
       background: var(--challenge-bg);
       border-left: 4px solid var(--challenge-border);
-      padding: 0.8rem;
-      border-radius: 6px;
-      font-size: 0.85rem;
-      margin-bottom: 0.8rem;
+      padding: 1rem;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      margin-bottom: 1rem;
     }
 
     .challenge-box h4 {
       color: #995c00;
-      margin-bottom: 0.4rem;
-      font-size: 0.9rem;
+      margin-bottom: 0.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      text-transform: none;
+      font-size: 1rem;
     }
 
     .challenge-box p {
-      margin: 0.4rem 0;
-      font-size: 0.8rem;
+      margin: 0.5rem 0;
     }
 
     .challenge-box .hint {
-      font-size: 0.75rem;
+      font-size: 0.85rem;
       font-style: italic;
       color: #795000;
-      margin-top: 0.4rem;
-    }
-
-    .control-group {
-      margin-bottom: 1rem;
-    }
-
-    .control-group select {
-      width: 100%;
-      padding: 0.4rem;
-      border: 1px solid var(--border);
-      border-radius: 4px;
-      font-size: 0.8rem;
-      margin-bottom: 0.5rem;
+      margin-top: 0.5rem;
     }
 
     /* NOTEBOOK STYLES */
     .notebook-actions {
       display: flex;
-      flex-direction: column;
       gap: 0.5rem;
-      margin-bottom: 0.8rem;
+      margin-bottom: 1rem;
     }
 
     .captured-data {
       max-height: 400px;
       overflow-y: auto;
-      margin-bottom: 0.5rem;
+      margin-bottom: 1rem;
     }
 
     .data-entry {
       background: var(--bg);
-      border-radius: 4px;
-      padding: 0.6rem;
-      margin-bottom: 0.6rem;
+      border-radius: 6px;
+      padding: 0.8rem;
+      margin-bottom: 0.8rem;
       border-left: 3px solid var(--accent2);
     }
 
@@ -400,11 +416,11 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 0.4rem;
+      margin-bottom: 0.5rem;
     }
 
     .data-entry-time {
-      font-size: 0.7rem;
+      font-size: 0.75rem;
       color: var(--muted);
     }
 
@@ -413,8 +429,8 @@
       border: none;
       color: var(--accent);
       cursor: pointer;
-      font-size: 0.8rem;
-      padding: 0.1rem 0.3rem;
+      font-size: 0.9rem;
+      padding: 0.2rem 0.5rem;
     }
 
     .data-entry-delete:hover {
@@ -423,53 +439,38 @@
 
     .data-values {
       font-family: 'Courier New', monospace;
-      font-size: 0.75rem;
+      font-size: 0.85rem;
       background: white;
-      padding: 0.4rem;
-      border-radius: 3px;
-      margin-bottom: 0.4rem;
+      padding: 0.5rem;
+      border-radius: 4px;
+      margin-bottom: 0.5rem;
     }
 
     .data-values div {
-      margin: 0.1rem 0;
+      margin: 0.2rem 0;
     }
 
     .data-notes {
       width: 100%;
-      min-height: 50px;
-      padding: 0.4rem;
+      min-height: 60px;
+      padding: 0.5rem;
       border: 1px solid var(--border);
       border-radius: 4px;
-      font-size: 0.75rem;
+      font-size: 0.85rem;
       resize: vertical;
       font-family: inherit;
     }
 
     .empty-message {
       color: var(--muted);
-      font-size: 0.8rem;
+      font-size: 0.9rem;
       text-align: center;
-      padding: 1.5rem 0.5rem;
+      padding: 2rem;
     }
 
-    .scenario-buttons {
-      display: flex;
-      flex-direction: column;
-      gap: 0.4rem;
-    }
-
-    @media (max-width: 1200px) {
-      .app {
+    @media (max-width: 900px) {
+      .drawer-container {
         grid-template-columns: 1fr;
-        height: auto;
-      }
-      
-      .side-drawer {
-        width: auto !important;
-      }
-      
-      .side-drawer .drawer-tab {
-        writing-mode: horizontal-tb !important;
       }
     }
   </style>
@@ -493,139 +494,162 @@
   </header>
 
   <div class="app">
-    <!-- LEFT DRAWER: CHALLENGES -->
-    <div class="side-drawer challenge-drawer collapsed" id="challengeDrawer">
-      <div class="drawer-tab" onclick="toggleDrawer('challengeDrawer')">
-        <h3 id="challenges-header">🎯 Challenges</h3>
-        <span class="drawer-toggle">◀</span>
-      </div>
-      <div class="drawer-content">
-        <div id="challengeBox" class="challenge-box" style="display: none;">
-          <h4 id="challenge-title">Challenge</h4>
-          <p id="challenge-description"></p>
-          <p class="hint" id="challenge-hint"></p>
-        </div>
-        
-        <div class="control-group">
-          <select id="challengeSelect">
-            <option value="">-- Select --</option>
-          </select>
-          <button class="btn btn-primary btn-small" id="loadChallengeBtn" style="width: 100%;">
-            <span id="load-challenge-text">Load</span>
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <!-- CENTER PANEL -->
-    <div class="center-panel">
+    <!-- MAIN SIMULATION -->
+    <div class="simulation-panel">
       <div class="canvas-container">
-        <canvas id="canvas" width="700" height="350"></canvas>
+        <canvas id="canvas" width="700" height="400"></canvas>
       </div>
-
-      <!-- COMPACT BALL CONTROLS -->
-      <div class="ball-controls">
-        <div class="ball-control-group">
-          <h4 id="ball1-header">🔴 Ball 1</h4>
-          <div class="control-row">
-            <label id="mass1-label">Mass</label>
-            <input type="number" id="mass1" value="1" min="0.5" max="5" step="0.5">
-          </div>
-          <div class="control-row">
-            <label id="vel1-label">Velocity</label>
-            <input type="range" id="vel1" min="-10" max="10" value="5" step="0.5">
-            <span class="value-display" id="vel1-display">5</span>
-          </div>
+      
+      <div class="legend">
+        <div class="legend-item">
+          <div class="legend-ball" style="background: radial-gradient(circle at 35% 35%, #ff6b6b, #c92a2a);"></div>
+          <span id="ball1-label">Red Ball</span>
         </div>
-
-        <div class="ball-control-group">
-          <h4 id="ball2-header">🟡 Ball 2</h4>
-          <div class="control-row">
-            <label id="mass2-label">Mass</label>
-            <input type="number" id="mass2" value="1" min="0.5" max="5" step="0.5">
-          </div>
-          <div class="control-row">
-            <label id="vel2-label">Velocity</label>
-            <input type="range" id="vel2" min="-10" max="10" value="0" step="0.5">
-            <span class="value-display" id="vel2-display">0</span>
-          </div>
+        <div class="legend-item">
+          <div class="legend-ball" style="background: radial-gradient(circle at 35% 35%, #ffd93d, #f39c12);"></div>
+          <span id="ball2-label">Yellow Ball</span>
         </div>
       </div>
 
-      <!-- ACTION BUTTONS -->
-      <div class="action-buttons">
-        <button class="btn btn-primary" id="startBtn">▶️ <span id="start-text">Start</span></button>
-        <button class="btn btn-secondary" id="resetBtn">↻ <span id="reset-text">Reset</span></button>
-        <button class="btn btn-secondary" id="scenarioBtn" onclick="toggleScenarios()">
-          <span id="scenario-text">Scenarios</span>
-        </button>
-      </div>
-
-      <!-- SCENARIO BUTTONS (HIDDEN BY DEFAULT) -->
-      <div class="scenario-buttons" id="scenarioButtons" style="display: none; margin-bottom: 0.8rem;">
-        <button class="btn btn-secondary btn-small" onclick="loadScenario('equal')">
-          <span id="scenario1-text">Equal Mass</span>
-        </button>
-        <button class="btn btn-secondary btn-small" onclick="loadScenario('headon')">
-          <span id="scenario2-text">Head-On</span>
-        </button>
-        <button class="btn btn-secondary btn-small" onclick="loadScenario('heavy')">
-          <span id="scenario3-text">Heavy→Light</span>
-        </button>
-      </div>
-
-      <!-- STATS PANEL -->
       <div class="stats-panel">
         <div class="stats-grid">
           <div class="stat-card">
-            <div class="stat-label" id="p1-label">Ball 1</div>
+            <div class="stat-label" id="p1-label">Ball 1 Momentum</div>
             <div class="stat-value" id="p1">0</div>
           </div>
           <div class="stat-card">
-            <div class="stat-label" id="p2-label">Ball 2</div>
+            <div class="stat-label" id="p2-label">Ball 2 Momentum</div>
             <div class="stat-value" id="p2">0</div>
           </div>
           <div class="stat-card">
-            <div class="stat-label" id="pBefore-label">Before</div>
+            <div class="stat-label" id="pBefore-label">Total (Before)</div>
             <div class="stat-value conserved" id="pBefore">0</div>
           </div>
           <div class="stat-card">
-            <div class="stat-label" id="pAfter-label">After</div>
+            <div class="stat-label" id="pAfter-label">Total (After)</div>
             <div class="stat-value conserved" id="pAfter">0</div>
           </div>
         </div>
       </div>
 
-      <!-- INFO BOX -->
       <div class="info-box" id="infoBox">
         <strong id="info-title">Conservation of Momentum:</strong>
-        <span id="info-text">In elastic collisions, total momentum before equals total momentum after. Try different masses and velocities!</span>
+        <span id="info-text">In elastic collisions, total momentum before equals total momentum after. Try different masses and velocities to see this principle in action!</span>
       </div>
     </div>
 
-    <!-- RIGHT DRAWER: LAB NOTEBOOK -->
-    <div class="side-drawer notebook-drawer collapsed" id="notebookDrawer">
-      <div class="drawer-tab" onclick="toggleDrawer('notebookDrawer')">
-        <h3 id="scratchpad-title">📝 Lab Notebook</h3>
-        <span class="drawer-toggle">▶</span>
-      </div>
-      <div class="drawer-content">
-        <div class="notebook-actions">
-          <button class="btn btn-primary btn-small" id="captureBtn">
-            📸 <span id="capture-text">Capture</span>
-          </button>
-          <button class="btn btn-secondary btn-small" id="exportBtn">
-            💾 <span id="export-text">Export</span>
-          </button>
-          <button class="btn btn-secondary btn-small" id="clearAllBtn">
-            <span id="clear-all-text">Clear</span>
-          </button>
+    <!-- BALL CONTROLS DRAWER -->
+    <div class="drawer-container">
+      <div class="drawer" id="ball1Drawer">
+        <div class="drawer-header" onclick="toggleDrawer('ball1Drawer')">
+          <h3 id="ball1-header">🔴 Ball 1 (Red)</h3>
+          <span class="drawer-toggle">▼</span>
         </div>
-        
-        <div class="captured-data" id="capturedData">
-          <p class="empty-message" id="empty-message">
-            Click "Capture" to save!
-          </p>
+        <div class="drawer-content">
+          <div class="control-group">
+            <div class="control-row">
+              <label id="mass1-label">Mass (kg)</label>
+              <input type="number" id="mass1" value="1" min="0.5" max="5" step="0.5">
+            </div>
+            <div class="control-row">
+              <label id="vel1-label">Velocity (m/s)</label>
+              <input type="range" id="vel1" min="-10" max="10" value="5" step="0.5">
+              <span class="value-display" id="vel1-display">5</span>
+            </div>
+          </div>
+          <div class="button-group">
+            <button class="btn btn-primary" id="startBtn">▶️ <span id="start-text">Start</span></button>
+            <button class="btn btn-secondary" id="resetBtn">↻ <span id="reset-text">Reset</span></button>
+          </div>
+        </div>
+      </div>
+
+      <div class="drawer" id="ball2Drawer">
+        <div class="drawer-header" onclick="toggleDrawer('ball2Drawer')">
+          <h3 id="ball2-header">🟡 Ball 2 (Yellow)</h3>
+          <span class="drawer-toggle">▼</span>
+        </div>
+        <div class="drawer-content">
+          <div class="control-group">
+            <div class="control-row">
+              <label id="mass2-label">Mass (kg)</label>
+              <input type="number" id="mass2" value="1" min="0.5" max="5" step="0.5">
+            </div>
+            <div class="control-row">
+              <label id="vel2-label">Velocity (m/s)</label>
+              <input type="range" id="vel2" min="-10" max="10" value="0" step="0.5">
+              <span class="value-display" id="vel2-display">0</span>
+            </div>
+          </div>
+          <div class="control-group">
+            <h4 id="scenarios-header">🎬 Quick Scenarios</h4>
+            <button class="btn btn-secondary btn-small btn-full" onclick="loadScenario('equal')">
+              <span id="scenario1-text">Equal Mass, Moving + Stationary</span>
+            </button>
+            <button class="btn btn-secondary btn-small btn-full" onclick="loadScenario('headon')">
+              <span id="scenario2-text">Head-On Collision</span>
+            </button>
+            <button class="btn btn-secondary btn-small btn-full" onclick="loadScenario('heavy')">
+              <span id="scenario3-text">Heavy Hits Light</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CHALLENGES & NOTEBOOK DRAWERS -->
+    <div class="drawer-container">
+      <div class="drawer challenge-drawer collapsed" id="challengeDrawer">
+        <div class="drawer-header" onclick="toggleDrawer('challengeDrawer')">
+          <h3 id="challenges-header">🎯 Challenges</h3>
+          <span class="drawer-toggle">▼</span>
+        </div>
+        <div class="drawer-content">
+          <div id="challengeBox" class="challenge-box" style="display: none;">
+            <h4>
+              <span>🎯</span>
+              <span id="challenge-title">Challenge</span>
+            </h4>
+            <p id="challenge-description"></p>
+            <p class="hint" id="challenge-hint"></p>
+          </div>
+          
+          <div class="control-group">
+            <div class="control-row">
+              <select id="challengeSelect">
+                <option value="">-- Select a Challenge --</option>
+              </select>
+            </div>
+            <button class="btn btn-success btn-small btn-full" id="loadChallengeBtn">
+              <span id="load-challenge-text">Load Challenge</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="drawer notebook-drawer collapsed" id="notebookDrawer">
+        <div class="drawer-header" onclick="toggleDrawer('notebookDrawer')">
+          <h3 id="scratchpad-title">📝 Lab Notebook</h3>
+          <span class="drawer-toggle">▼</span>
+        </div>
+        <div class="drawer-content">
+          <div class="notebook-actions">
+            <button class="btn btn-primary" id="captureBtn" style="flex: 2;">
+              📸 <span id="capture-text">Capture Data</span>
+            </button>
+            <button class="btn btn-secondary" id="exportBtn">
+              💾 <span id="export-text">Export</span>
+            </button>
+            <button class="btn btn-secondary" id="clearAllBtn">
+              <span id="clear-all-text">Clear</span>
+            </button>
+          </div>
+          
+          <div class="captured-data" id="capturedData">
+            <p class="empty-message" id="empty-message">
+              Click "Capture Data" to save observations!
+            </p>
+          </div>
         </div>
       </div>
     </div>
@@ -640,13 +664,8 @@
       drawer.classList.toggle('collapsed');
     }
 
-    function toggleScenarios() {
-      const scenarios = document.getElementById('scenarioButtons');
-      scenarios.style.display = scenarios.style.display === 'none' ? 'flex' : 'none';
-    }
-
     // ============================================
-    // TRANSLATION SYSTEM (abbreviated for space)
+    // TRANSLATION SYSTEM
     // ============================================
     const translations = {
       en: {
@@ -655,14 +674,14 @@
         novice: {
           ball1Label: "Red Ball",
           ball2Label: "Yellow Ball",
-          massLabel: "Weight",
-          velocityLabel: "Speed",
-          p1Label: "Ball 1",
-          p2Label: "Ball 2",
-          pBeforeLabel: "Before",
-          pAfterLabel: "After",
+          massLabel: "Weight (kg)",
+          velocityLabel: "Speed (m/s)",
+          p1Label: "Ball 1 Push",
+          p2Label: "Ball 2 Push",
+          pBeforeLabel: "Total (Before)",
+          pAfterLabel: "Total (After)",
           infoTitle: "What Happens:",
-          infoText: "When balls crash together, the total 'push' stays the same! Try different weights and speeds.",
+          infoText: "When balls crash together, the total 'push' stays the same! Try different weights and speeds to see this.",
           startText: "Start",
           resetText: "Reset",
           pauseText: "Pause",
@@ -671,12 +690,12 @@
         intermediate: {
           ball1Label: "Red Ball",
           ball2Label: "Yellow Ball",
-          massLabel: "Mass",
-          velocityLabel: "Velocity",
-          p1Label: "Ball 1",
-          p2Label: "Ball 2",
-          pBeforeLabel: "Before",
-          pAfterLabel: "After",
+          massLabel: "Mass (kg)",
+          velocityLabel: "Velocity (m/s)",
+          p1Label: "Ball 1 Momentum",
+          p2Label: "Ball 2 Momentum",
+          pBeforeLabel: "Total (Before)",
+          pAfterLabel: "Total (After)",
           infoTitle: "Conservation of Momentum:",
           infoText: "In elastic collisions, total momentum before equals total momentum after. Try different masses and velocities!",
           startText: "Start",
@@ -687,12 +706,12 @@
         experienced: {
           ball1Label: "Object 1",
           ball2Label: "Object 2",
-          massLabel: "m",
-          velocityLabel: "v",
+          massLabel: "m (kg)",
+          velocityLabel: "v (m/s)",
           p1Label: "p₁",
           p2Label: "p₂",
-          pBeforeLabel: "Σp(i)",
-          pAfterLabel: "Σp(f)",
+          pBeforeLabel: "Σp (initial)",
+          pAfterLabel: "Σp (final)",
           infoTitle: "Law of Conservation of Momentum:",
           infoText: "For elastic collisions in an isolated system: Σp_initial = Σp_final. Test with varying mass ratios and relative velocities.",
           startText: "Start",
@@ -702,59 +721,59 @@
         },
         challenges: [
           {
-            title: "Challenge 1: Both Balls Stop",
-            description: "Can you make BOTH balls stop after collision?",
-            hint: "Equal weights, opposite directions..."
+            title: "Challenge 1: Make Both Balls Stop",
+            description: "Can you set the balls so that after they crash, BOTH balls stop completely?",
+            hint: "Think about equal weights moving in opposite directions..."
           },
           {
-            title: "Challenge 2: One Ball Stops",
-            description: "Make the moving ball stop completely.",
-            hint: "Equal weights, one stationary."
+            title: "Challenge 2: Make One Ball Stop",
+            description: "Set it up so the moving ball stops, but the other ball starts moving.",
+            hint: "Try equal weights with one ball not moving at first."
           },
           {
             title: "Challenge 3: Reverse Direction",
-            description: "Make red ball bounce backwards.",
-            hint: "Heavy yellow ball moving?"
+            description: "Make the red ball bounce backwards after the collision.",
+            hint: "What if the yellow ball is heavier and also moving?"
           },
           {
             title: "Challenge 4: Speed Transfer",
-            description: "Yellow moves faster after than red before.",
-            hint: "Heavy red hits light yellow."
+            description: "Make the yellow ball move faster after collision than the red ball was moving before.",
+            hint: "Try a heavy red ball hitting a light yellow ball."
           },
           {
-            title: "Challenge 5: Your Own",
-            description: "Create your own challenge!",
-            hint: "Try extreme mass differences."
+            title: "Challenge 5: Create Your Own",
+            description: "Think of your own challenge! What interesting collision can you create?",
+            hint: "Try to make the total 'push' equal to zero, or try extreme mass differences."
           }
         ],
-        ball1Header: "🔴 Ball 1",
-        ball2Header: "🟡 Ball 2",
+        ball1Header: "🔴 Ball 1 (Red)",
+        ball2Header: "🟡 Ball 2 (Yellow)",
         challengesHeader: "🎯 Challenges",
-        scenarioText: "Scenarios",
-        scenario1Text: "Equal Mass",
-        scenario2Text: "Head-On",
-        scenario3Text: "Heavy→Light",
-        loadChallengeText: "Load",
+        scenariosHeader: "🎬 Quick Scenarios",
+        scenario1Text: "Equal Mass, Moving + Stationary",
+        scenario2Text: "Head-On Collision",
+        scenario3Text: "Heavy Hits Light",
+        loadChallengeText: "Load Challenge",
         scratchpadTitle: "📝 Lab Notebook",
-        captureText: "Capture",
+        captureText: "Capture Data",
         exportText: "Export",
         clearAllText: "Clear",
-        emptyMessage: "Click 'Capture' to save!"
+        emptyMessage: "Click 'Capture Data' to save observations!"
       },
       es: {
-        headerTitle: "Física de Bolas",
-        headerSubtitle: "Explora la Conservación del Momento",
+        headerTitle: "Física de Bolas de Billar",
+        headerSubtitle: "Explora la Conservación del Momento a Través de Colisiones Elásticas",
         novice: {
           ball1Label: "Bola Roja",
           ball2Label: "Bola Amarilla",
-          massLabel: "Peso",
-          velocityLabel: "Rapidez",
-          p1Label: "Bola 1",
-          p2Label: "Bola 2",
-          pBeforeLabel: "Antes",
-          pAfterLabel: "Después",
+          massLabel: "Peso (kg)",
+          velocityLabel: "Rapidez (m/s)",
+          p1Label: "Empuje Bola 1",
+          p2Label: "Empuje Bola 2",
+          pBeforeLabel: "Total (Antes)",
+          pAfterLabel: "Total (Después)",
           infoTitle: "Qué Sucede:",
-          infoText: "¡Cuando las bolas chocan, el 'empuje' total permanece igual!",
+          infoText: "¡Cuando las bolas chocan, el 'empuje' total permanece igual! Prueba diferentes pesos y rapideces.",
           startText: "Iniciar",
           resetText: "Reiniciar",
           pauseText: "Pausar",
@@ -763,14 +782,14 @@
         intermediate: {
           ball1Label: "Bola Roja",
           ball2Label: "Bola Amarilla",
-          massLabel: "Masa",
-          velocityLabel: "Velocidad",
-          p1Label: "Bola 1",
-          p2Label: "Bola 2",
-          pBeforeLabel: "Antes",
-          pAfterLabel: "Después",
+          massLabel: "Masa (kg)",
+          velocityLabel: "Velocidad (m/s)",
+          p1Label: "Momento Bola 1",
+          p2Label: "Momento Bola 2",
+          pBeforeLabel: "Total (Antes)",
+          pAfterLabel: "Total (Después)",
           infoTitle: "Conservación del Momento:",
-          infoText: "En colisiones elásticas, el momento total antes es igual al después.",
+          infoText: "En colisiones elásticas, el momento total antes es igual al momento total después. ¡Prueba diferentes masas y velocidades!",
           startText: "Iniciar",
           resetText: "Reiniciar",
           pauseText: "Pausar",
@@ -779,14 +798,14 @@
         experienced: {
           ball1Label: "Objeto 1",
           ball2Label: "Objeto 2",
-          massLabel: "m",
-          velocityLabel: "v",
+          massLabel: "m (kg)",
+          velocityLabel: "v (m/s)",
           p1Label: "p₁",
           p2Label: "p₂",
-          pBeforeLabel: "Σp(i)",
-          pAfterLabel: "Σp(f)",
-          infoTitle: "Ley de Conservación:",
-          infoText: "Σp_inicial = Σp_final para colisiones elásticas.",
+          pBeforeLabel: "Σp (inicial)",
+          pAfterLabel: "Σp (final)",
+          infoTitle: "Ley de Conservación del Momento:",
+          infoText: "Para colisiones elásticas en un sistema aislado: Σp_inicial = Σp_final. Prueba con diferentes relaciones de masa y velocidades relativas.",
           startText: "Iniciar",
           resetText: "Reiniciar",
           pauseText: "Pausar",
@@ -794,59 +813,59 @@
         },
         challenges: [
           {
-            title: "Desafío 1: Detén Ambas",
-            description: "¿Puedes detener ambas bolas?",
-            hint: "Pesos iguales, direcciones opuestas..."
+            title: "Desafío 1: Detén Ambas Bolas",
+            description: "¿Puedes configurar las bolas para que después de chocar, AMBAS se detengan completamente?",
+            hint: "Piensa en pesos iguales moviéndose en direcciones opuestas..."
           },
           {
-            title: "Desafío 2: Detén Una",
-            description: "Detén la bola en movimiento.",
-            hint: "Pesos iguales, una estacionaria."
+            title: "Desafío 2: Detén Una Bola",
+            description: "Configúralo para que la bola en movimiento se detenga, pero la otra bola comience a moverse.",
+            hint: "Prueba pesos iguales con una bola sin moverse al principio."
           },
           {
-            title: "Desafío 3: Invertir",
-            description: "Bola roja rebota hacia atrás.",
-            hint: "¿Bola amarilla pesada moviéndose?"
+            title: "Desafío 3: Invertir Dirección",
+            description: "Haz que la bola roja rebote hacia atrás después de la colisión.",
+            hint: "¿Qué pasa si la bola amarilla es más pesada y también está en movimiento?"
           },
           {
-            title: "Desafío 4: Transferencia",
-            description: "Amarilla más rápida después.",
-            hint: "Roja pesada golpea amarilla ligera."
+            title: "Desafío 4: Transferencia de Rapidez",
+            description: "Haz que la bola amarilla se mueva más rápido después de la colisión que la bola roja antes.",
+            hint: "Prueba una bola roja pesada golpeando una bola amarilla ligera."
           },
           {
-            title: "Desafío 5: El Tuyo",
-            description: "¡Crea tu propio desafío!",
-            hint: "Diferencias extremas de masa."
+            title: "Desafío 5: Crea el Tuyo",
+            description: "¡Piensa en tu propio desafío! ¿Qué colisión interesante puedes crear?",
+            hint: "Intenta hacer que el 'empuje' total sea igual a cero, o prueba diferencias extremas de masa."
           }
         ],
-        ball1Header: "🔴 Bola 1",
-        ball2Header: "🟡 Bola 2",
+        ball1Header: "🔴 Bola 1 (Roja)",
+        ball2Header: "🟡 Bola 2 (Amarilla)",
         challengesHeader: "🎯 Desafíos",
-        scenarioText: "Escenarios",
-        scenario1Text: "Masa Igual",
-        scenario2Text: "Frontal",
-        scenario3Text: "Pesada→Ligera",
-        loadChallengeText: "Cargar",
-        scratchpadTitle: "📝 Cuaderno",
-        captureText: "Capturar",
+        scenariosHeader: "🎬 Escenarios Rápidos",
+        scenario1Text: "Masa Igual, Movimiento + Estacionaria",
+        scenario2Text: "Colisión Frontal",
+        scenario3Text: "Pesada Golpea Ligera",
+        loadChallengeText: "Cargar Desafío",
+        scratchpadTitle: "📝 Cuaderno de Laboratorio",
+        captureText: "Capturar Datos",
         exportText: "Exportar",
         clearAllText: "Borrar",
-        emptyMessage: "¡Haz clic en 'Capturar'!"
+        emptyMessage: "¡Haz clic en 'Capturar Datos' para guardar observaciones!"
       },
       zh: {
         headerTitle: "台球物理",
-        headerSubtitle: "探索动量守恒",
+        headerSubtitle: "通过弹性碰撞探索动量守恒",
         novice: {
           ball1Label: "红球",
           ball2Label: "黄球",
-          massLabel: "重量",
-          velocityLabel: "速度",
-          p1Label: "球1",
-          p2Label: "球2",
-          pBeforeLabel: "之前",
-          pAfterLabel: "之后",
+          massLabel: "重量 (kg)",
+          velocityLabel: "速度 (m/s)",
+          p1Label: "球1推力",
+          p2Label: "球2推力",
+          pBeforeLabel: "总计（之前）",
+          pAfterLabel: "总计（之后）",
           infoTitle: "发生了什么：",
-          infoText: "当球碰撞时，总'推力'保持不变！",
+          infoText: "当球碰撞在一起时，总'推力'保持不变！尝试不同的重量和速度来观察。",
           startText: "开始",
           resetText: "重置",
           pauseText: "暂停",
@@ -855,14 +874,14 @@
         intermediate: {
           ball1Label: "红球",
           ball2Label: "黄球",
-          massLabel: "质量",
-          velocityLabel: "速度",
-          p1Label: "球1",
-          p2Label: "球2",
-          pBeforeLabel: "之前",
-          pAfterLabel: "之后",
+          massLabel: "质量 (kg)",
+          velocityLabel: "速度 (m/s)",
+          p1Label: "球1动量",
+          p2Label: "球2动量",
+          pBeforeLabel: "总计（之前）",
+          pAfterLabel: "总计（之后）",
           infoTitle: "动量守恒：",
-          infoText: "在弹性碰撞中，碰撞前后的总动量相等。",
+          infoText: "在弹性碰撞中，碰撞前的总动量等于碰撞后的总动量。尝试不同的质量和速度！",
           startText: "开始",
           resetText: "重置",
           pauseText: "暂停",
@@ -871,14 +890,14 @@
         experienced: {
           ball1Label: "物体1",
           ball2Label: "物体2",
-          massLabel: "m",
-          velocityLabel: "v",
+          massLabel: "m (kg)",
+          velocityLabel: "v (m/s)",
           p1Label: "p₁",
           p2Label: "p₂",
-          pBeforeLabel: "Σp(初)",
-          pAfterLabel: "Σp(终)",
+          pBeforeLabel: "Σp（初始）",
+          pAfterLabel: "Σp（最终）",
           infoTitle: "动量守恒定律：",
-          infoText: "孤立系统：Σp初始 = Σp最终。",
+          infoText: "对于孤立系统中的弹性碰撞：Σp初始 = Σp最终。测试不同的质量比和相对速度。",
           startText: "开始",
           resetText: "重置",
           pauseText: "暂停",
@@ -886,44 +905,44 @@
         },
         challenges: [
           {
-            title: "挑战1：两球停止",
-            description: "能让两球都停下来吗？",
-            hint: "相等重量，相反方向..."
+            title: "挑战1：让两球都停下来",
+            description: "你能设置球，使它们碰撞后，两个球都完全停止吗？",
+            hint: "想想相等重量向相反方向移动..."
           },
           {
-            title: "挑战2：一球停止",
-            description: "让移动的球停下来。",
-            hint: "相等重量，一个静止。"
+            title: "挑战2：让一个球停下来",
+            description: "设置它，使移动的球停止，但另一个球开始移动。",
+            hint: "尝试相等重量，一个球开始时不动。"
           },
           {
             title: "挑战3：反转方向",
-            description: "让红球向后弹。",
-            hint: "重的黄球移动？"
+            description: "让红球在碰撞后向后弹。",
+            hint: "如果黄球更重并且也在移动会怎样？"
           },
           {
             title: "挑战4：速度转移",
-            description: "黄球碰后更快。",
-            hint: "重红球撞轻黄球。"
+            description: "让黄球碰撞后移动得比红球碰撞前更快。",
+            hint: "尝试一个重的红球撞击一个轻的黄球。"
           },
           {
-            title: "挑战5：你自己的",
-            description: "创建你的挑战！",
-            hint: "极端质量差异。"
+            title: "挑战5：创建你自己的",
+            description: "想出你自己的挑战！你能创建什么有趣的碰撞？",
+            hint: "尝试使总'推力'等于零，或尝试极端的质量差异。"
           }
         ],
-        ball1Header: "🔴 球1",
-        ball2Header: "🟡 球2",
+        ball1Header: "🔴 球1（红色）",
+        ball2Header: "🟡 球2（黄色）",
         challengesHeader: "🎯 挑战",
-        scenarioText: "场景",
-        scenario1Text: "相等质量",
-        scenario2Text: "正面",
-        scenario3Text: "重→轻",
-        loadChallengeText: "加载",
-        scratchpadTitle: "📝 笔记本",
-        captureText: "捕获",
+        scenariosHeader: "🎬 快速场景",
+        scenario1Text: "相等质量，移动+静止",
+        scenario2Text: "正面碰撞",
+        scenario3Text: "重球撞轻球",
+        loadChallengeText: "加载挑战",
+        scratchpadTitle: "📝 实验笔记本",
+        captureText: "捕获数据",
         exportText: "导出",
         clearAllText: "清除",
-        emptyMessage: "点击'捕获'保存！"
+        emptyMessage: "点击'捕获数据'保存观察结果！"
       }
     };
 
@@ -939,8 +958,8 @@
     const ctx = canvas.getContext('2d');
 
     // Simulation state
-    let ball1 = { x: 150, y: 175, vx: 5, vy: 0, mass: 1, radius: 25, color: '#ff6b6b' };
-    let ball2 = { x: 550, y: 175, vx: 0, vy: 0, mass: 1, radius: 25, color: '#ffd93d' };
+    let ball1 = { x: 150, y: 200, vx: 5, vy: 0, mass: 1, radius: 25, color: '#ff6b6b' };
+    let ball2 = { x: 550, y: 200, vx: 0, vy: 0, mass: 1, radius: 25, color: '#ffd93d' };
     
     let initialState = {};
     let running = false;
@@ -975,7 +994,7 @@
     document.getElementById('captureBtn').addEventListener('click', captureData);
     document.getElementById('exportBtn').addEventListener('click', exportNotes);
     document.getElementById('clearAllBtn').addEventListener('click', clearAllData);
-    document.getElementById('loadChallengeBtn').addEventListener('click', loadSelectedChallenge);
+    document.getElementById('loadChallengeBtn').addEventListener ('click', loadSelectedChallenge);
     
     ['mass1', 'mass2', 'vel1', 'vel2'].forEach(id => {
       document.getElementById(id).addEventListener('input', updateFromControls);
@@ -993,6 +1012,8 @@
       document.getElementById('header-subtitle').textContent = t.headerSubtitle;
       
       // Labels
+      document.getElementById('ball1-label').textContent = level.ball1Label;
+      document.getElementById('ball2-label').textContent = level.ball2Label;
       document.getElementById('mass1-label').textContent = level.massLabel;
       document.getElementById('mass2-label').textContent = level.massLabel;
       document.getElementById('vel1-label').textContent = level.velocityLabel;
@@ -1012,11 +1033,11 @@
       document.getElementById('ball1-header').textContent = t.ball1Header;
       document.getElementById('ball2-header').textContent = t.ball2Header;
       document.getElementById('challenges-header').textContent = t.challengesHeader;
+      document.getElementById('scenarios-header').textContent = t.scenariosHeader;
       
       // Buttons
       document.getElementById('start-text').textContent = level.startText;
       document.getElementById('reset-text').textContent = level.resetText;
-      document.getElementById('scenario-text').textContent = t.scenarioText;
       document.getElementById('scenario1-text').textContent = t.scenario1Text;
       document.getElementById('scenario2-text').textContent = t.scenario2Text;
       document.getElementById('scenario3-text').textContent = t.scenario3Text;
@@ -1035,8 +1056,8 @@
       const t = translations[currentLanguage];
       
       select.innerHTML = '<option value="">-- ' + 
-        (currentLanguage === 'es' ? 'Seleccionar' : 
-         currentLanguage === 'zh' ? '选择' : 'Select') + 
+        (currentLanguage === 'es' ? 'Seleccionar Desafío' : 
+         currentLanguage === 'zh' ? '选择挑战' : 'Select a Challenge') + 
         ' --</option>';
       
       t.challenges.forEach((challenge, index) => {
@@ -1174,7 +1195,7 @@
       
       ball1.x = 150;
       ball2.x = 550;
-      ball1.y = ball2.y = 175;
+      ball1.y = ball2.y = 200;
       
       updateControls();
       draw();
@@ -1285,9 +1306,9 @@
       
       // Mass label
       ctx.fillStyle = 'rgba(0,0,0,0.6)';
-      ctx.font = 'bold 12px sans-serif';
+      ctx.font = 'bold 14px sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText(ball.mass + ' kg', ball.x, ball.y + 4);
+      ctx.fillText(ball.mass + ' kg', ball.x, ball.y + 5);
     }
 
     function drawVelocityVector(ball) {
@@ -1370,11 +1391,11 @@
             <button class="data-entry-delete" onclick="deleteEntry(${entry.id})">✕</button>
           </div>
           <div class="data-values">
-            <div>m₁=${entry.data.m1}, v₁=${entry.data.v1} → p₁=${entry.data.p1}</div>
-            <div>m₂=${entry.data.m2}, v₂=${entry.data.v2} → p₂=${entry.data.p2}</div>
-            <div><strong>Σp = ${entry.data.pTotal}</strong></div>
+            <div>m₁=${entry.data.m1} kg, v₁=${entry.data.v1} m/s → p₁=${entry.data.p1}</div>
+            <div>m₂=${entry.data.m2} kg, v₂=${entry.data.v2} m/s → p₂=${entry.data.p2}</div>
+            <div><strong>Total p = ${entry.data.pTotal}</strong></div>
           </div>
-          <textarea class="data-notes" placeholder="${currentLanguage === 'es' ? 'Notas...' : currentLanguage === 'zh' ? '笔记...' : 'Notes...'}" onchange="updateNotes(${entry.id}, this.value)">${entry.notes}</textarea>
+          <textarea class="data-notes" placeholder="${currentLanguage === 'es' ? 'Añade tus observaciones aquí...' : currentLanguage === 'zh' ? '在此添加您的观察...' : 'Add your observations here...'}" onchange="updateNotes(${entry.id}, this.value)">${entry.notes}</textarea>
         `;
         container.appendChild(div);
       });
@@ -1395,9 +1416,9 @@
     function clearAllData() {
       if (capturedEntries.length === 0) return;
       
-      const confirmText = currentLanguage === 'es' ? '¿Borrar todo?' :
-                         currentLanguage === 'zh' ? '删除全部？' :
-                         'Clear all?';
+      const confirmText = currentLanguage === 'es' ? '¿Borrar todas las entradas?' :
+                         currentLanguage === 'zh' ? '删除所有条目？' :
+                         'Clear all entries?';
       
       if (confirm(confirmText)) {
         capturedEntries = [];
@@ -1407,26 +1428,27 @@
 
     function exportNotes() {
       if (capturedEntries.length === 0) {
-        alert(currentLanguage === 'es' ? 'No hay datos' :
-              currentLanguage === 'zh' ? '没有数据' :
-              'No data');
+        alert(currentLanguage === 'es' ? 'No hay datos para exportar' :
+              currentLanguage === 'zh' ? '没有要导出的数据' :
+              'No data to export');
         return;
       }
       
-      const header = currentLanguage === 'es' ? 'Notas de Física' :
-                    currentLanguage === 'zh' ? '物理笔记' :
-                    'Physics Lab Notes';
+      const header = currentLanguage === 'es' ? 'Notas del Laboratorio de Física - Colisiones de Momento' :
+                    currentLanguage === 'zh' ? '物理实验室笔记 - 动量碰撞' :
+                    'Physics Lab Notes - Momentum Collisions';
       
-      let exportText = `${header}\n${'='.repeat(50)}\n\n`;
+      let exportText = `${header}\n`;
+      exportText += `${'='.repeat(60)}\n\n`;
       
       capturedEntries.reverse().forEach((entry, index) => {
         exportText += `Entry ${index + 1} - ${entry.timestamp}\n`;
-        exportText += `${'-'.repeat(30)}\n`;
-        exportText += `m₁=${entry.data.m1} kg, v₁=${entry.data.v1} m/s, p₁=${entry.data.p1}\n`;
-        exportText += `m₂=${entry.data.m2} kg, v₂=${entry.data.v2} m/s, p₂=${entry.data.p2}\n`;
-        exportText += `Total: ${entry.data.pTotal}\n`;
+        exportText += `${'-'.repeat(40)}\n`;
+        exportText += `Ball 1: m=${entry.data.m1} kg, v=${entry.data.v1} m/s, p=${entry.data.p1}\n`;
+        exportText += `Ball 2: m=${entry.data.m2} kg, v=${entry.data.v2} m/s, p=${entry.data.p2}\n`;
+        exportText += `Total Momentum: ${entry.data.pTotal}\n`;
         if (entry.notes) {
-          exportText += `\nNotes: ${entry.notes}\n`;
+          exportText += `\nNotes:\n${entry.notes}\n`;
         }
         exportText += `\n`;
       });
@@ -1435,7 +1457,7 @@
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = 'momentum-notes.txt';
+      a.download = 'momentum-lab-notes.txt';
       a.click();
       URL.revokeObjectURL(url);
     }
@@ -1444,7 +1466,6 @@
     window.loadScenario = loadScenario;
     window.deleteEntry = deleteEntry;
     window.updateNotes = updateNotes;
-    window.toggleScenarios = toggleScenarios;
   </script>
 </body>
 </html>

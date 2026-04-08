@@ -1,0 +1,1171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sharing the Candy — Integer Partitions Explorer</title>
+  <style>
+    :root {
+      --bg: #faf9f6;
+      --card: #ffffff;
+      --accent: #e85d04;
+      --accent2: #6a4c93;
+      --accent3: #2a9d8f;
+      --text: #2b2d42;
+      --muted: #8d99ae;
+      --border: #dee2e6;
+      --bean-colors: #e63946, #f4a261, #2a9d8f, #457b9d, #6a4c93, #e76f51, #264653, #a8dadc;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+    }
+
+    header {
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      color: white;
+      padding: 1.5rem 2rem;
+      text-align: center;
+    }
+
+    header h1 { font-size: 1.8rem; margin-bottom: 0.3rem; }
+    header p { opacity: 0.9; font-size: 1rem; }
+
+    .app {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 1.5rem;
+    }
+
+    /* Controls bar */
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+      align-items: center;
+      background: var(--card);
+      border-radius: 12px;
+      padding: 1rem 1.5rem;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+      margin-bottom: 1.5rem;
+    }
+
+    .controls label {
+      font-weight: 600;
+      font-size: 0.95rem;
+    }
+
+    .controls input[type="range"] {
+      width: 140px;
+      accent-color: var(--accent);
+    }
+
+    .number-display {
+      background: var(--accent);
+      color: white;
+      font-weight: 700;
+      font-size: 1.4rem;
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .filter-group {
+      display: flex;
+      gap: 0.5rem;
+      margin-left: auto;
+    }
+
+    .filter-btn {
+      padding: 0.4rem 0.9rem;
+      border-radius: 20px;
+      border: 2px solid var(--border);
+      background: white;
+      cursor: pointer;
+      font-size: 0.85rem;
+      font-weight: 500;
+      transition: all 0.2s;
+    }
+
+    .filter-btn:hover { border-color: var(--accent); }
+    .filter-btn.active {
+      background: var(--accent);
+      color: white;
+      border-color: var(--accent);
+    }
+    .filter-btn.active-distinct {
+      background: var(--accent2);
+      color: white;
+      border-color: var(--accent2);
+    }
+    .filter-btn.active-odd {
+      background: var(--accent3);
+      color: white;
+      border-color: var(--accent3);
+    }
+
+    /* Layout: two columns */
+    .main-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.5rem;
+    }
+
+    @media (max-width: 900px) {
+      .main-grid { grid-template-columns: 1fr; }
+    }
+
+    .panel {
+      background: var(--card);
+      border-radius: 12px;
+      padding: 1.25rem;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    }
+
+    .panel h2 {
+      font-size: 1.1rem;
+      margin-bottom: 0.75rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .panel h2 .badge {
+      background: var(--accent);
+      color: white;
+      font-size: 0.8rem;
+      padding: 0.1rem 0.55rem;
+      border-radius: 10px;
+    }
+
+    .panel h2 .badge.distinct { background: var(--accent2); }
+    .panel h2 .badge.odd { background: var(--accent3); }
+
+    /* Jelly Bean Playground */
+    .playground-area {
+      min-height: 200px;
+      border: 2px dashed var(--border);
+      border-radius: 8px;
+      padding: 1rem;
+      margin-bottom: 1rem;
+      position: relative;
+    }
+
+    .bean-source {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-bottom: 1rem;
+      padding: 0.75rem;
+      background: #f8f9fa;
+      border-radius: 8px;
+      min-height: 50px;
+      border: 2px solid var(--border);
+      transition: border-color 0.2s;
+    }
+
+    .bean-source.drag-over {
+      border-color: var(--accent);
+      background: #fff3e0;
+    }
+
+    .bean-source-label {
+      font-size: 0.8rem;
+      color: var(--muted);
+      margin-bottom: 0.3rem;
+    }
+
+    .buckets {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+    }
+
+    .bucket {
+      min-width: 60px;
+      min-height: 70px;
+      border: 2px solid var(--border);
+      border-radius: 8px;
+      padding: 0.5rem;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      align-content: flex-start;
+      position: relative;
+      transition: all 0.2s;
+      background: #fafafa;
+    }
+
+    .bucket.drag-over {
+      border-color: var(--accent);
+      background: #fff8f0;
+      transform: scale(1.03);
+    }
+
+    .bucket-label {
+      position: absolute;
+      bottom: -20px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--muted);
+    }
+
+    .jelly-bean {
+      width: 24px;
+      height: 24px;
+      border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
+      cursor: grab;
+      transition: transform 0.15s;
+      position: relative;
+    }
+
+    .jelly-bean:hover { transform: scale(1.2); }
+    .jelly-bean:active { cursor: grabbing; }
+
+    .jelly-bean::after {
+      content: '';
+      position: absolute;
+      top: 4px;
+      left: 6px;
+      width: 8px;
+      height: 5px;
+      background: rgba(255,255,255,0.4);
+      border-radius: 50%;
+      transform: rotate(-20deg);
+    }
+
+    .add-bucket-btn {
+      min-width: 60px;
+      min-height: 70px;
+      border: 2px dashed var(--muted);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      color: var(--muted);
+      font-size: 1.5rem;
+      transition: all 0.2s;
+      background: transparent;
+    }
+
+    .add-bucket-btn:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .playground-status {
+      text-align: center;
+      padding: 0.5rem;
+      font-weight: 600;
+      border-radius: 6px;
+      font-size: 0.9rem;
+      margin-top: 1.5rem;
+    }
+
+    .playground-status.valid {
+      background: #d4edda;
+      color: #155724;
+    }
+
+    .playground-status.partial {
+      background: #fff3cd;
+      color: #856404;
+    }
+
+    .playground-controls {
+      display: flex;
+      gap: 0.5rem;
+      margin-top: 0.75rem;
+    }
+
+    .playground-controls button {
+      padding: 0.4rem 0.8rem;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: white;
+      cursor: pointer;
+      font-size: 0.85rem;
+      transition: all 0.2s;
+    }
+
+    .playground-controls button:hover {
+      background: var(--accent);
+      color: white;
+      border-color: var(--accent);
+    }
+
+    /* Partition list */
+    .partition-list {
+      max-height: 500px;
+      overflow-y: auto;
+      padding-right: 0.25rem;
+    }
+
+    .partition-item {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.4rem 0.6rem;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background 0.15s;
+      font-size: 0.9rem;
+      border-left: 3px solid transparent;
+    }
+
+    .partition-item:hover {
+      background: #f0f0f0;
+    }
+
+    .partition-item.selected {
+      background: #fff3e0;
+      border-left-color: var(--accent);
+    }
+
+    .partition-item.distinct {
+      border-left-color: var(--accent2);
+    }
+
+    .partition-item.odd-parts {
+      border-right: 3px solid var(--accent3);
+    }
+
+    .partition-item.highlight-distinct {
+      background: rgba(106, 76, 147, 0.08);
+    }
+
+    .partition-item.highlight-odd {
+      background: rgba(42, 157, 143, 0.08);
+    }
+
+    .partition-item .index {
+      color: var(--muted);
+      font-size: 0.75rem;
+      min-width: 24px;
+    }
+
+    .partition-item .notation {
+      font-family: 'Courier New', monospace;
+      font-weight: 500;
+    }
+
+    .partition-item .tags {
+      margin-left: auto;
+      display: flex;
+      gap: 3px;
+    }
+
+    .tag {
+      font-size: 0.65rem;
+      padding: 1px 6px;
+      border-radius: 8px;
+      font-weight: 600;
+    }
+
+    .tag.distinct { background: rgba(106,76,147,0.15); color: var(--accent2); }
+    .tag.odd { background: rgba(42,157,143,0.15); color: var(--accent3); }
+
+    /* Ferrers diagram */
+    .ferrers-container {
+      display: flex;
+      gap: 2rem;
+      align-items: flex-start;
+      flex-wrap: wrap;
+    }
+
+    .ferrers-diagram {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+
+    .ferrers-row {
+      display: flex;
+      gap: 3px;
+    }
+
+    .ferrers-dot {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: var(--accent);
+      transition: all 0.3s;
+    }
+
+    .ferrers-dot.conjugate {
+      background: var(--accent2);
+    }
+
+    .ferrers-label {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--muted);
+      margin-bottom: 0.4rem;
+    }
+
+    .conjugate-arrow {
+      font-size: 2rem;
+      color: var(--muted);
+      align-self: center;
+    }
+
+    /* Discovery table */
+    .discovery-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.85rem;
+    }
+
+    .discovery-table th, .discovery-table td {
+      padding: 0.4rem 0.6rem;
+      text-align: center;
+      border: 1px solid var(--border);
+    }
+
+    .discovery-table th {
+      background: #f8f9fa;
+      font-weight: 600;
+      font-size: 0.8rem;
+    }
+
+    .discovery-table tr:hover { background: #f8f9fa; }
+
+    .discovery-table .total {
+      font-weight: 700;
+      background: #fff3e0;
+    }
+
+    .full-width {
+      grid-column: 1 / -1;
+    }
+
+    /* Question prompts */
+    .question-box {
+      background: linear-gradient(135deg, #fff3e0, #fce4ec);
+      border-radius: 10px;
+      padding: 1rem 1.25rem;
+      margin-top: 1rem;
+      border-left: 4px solid var(--accent);
+    }
+
+    .question-box h3 {
+      font-size: 0.95rem;
+      margin-bottom: 0.5rem;
+      color: var(--accent);
+    }
+
+    .question-box ul {
+      list-style: none;
+      padding: 0;
+    }
+
+    .question-box li {
+      padding: 0.3rem 0;
+      font-size: 0.9rem;
+    }
+
+    .question-box li::before {
+      content: '🤔 ';
+    }
+
+    /* Tabs */
+    .tab-bar {
+      display: flex;
+      gap: 0;
+      border-bottom: 2px solid var(--border);
+      margin-bottom: 1rem;
+    }
+
+    .tab {
+      padding: 0.5rem 1rem;
+      cursor: pointer;
+      font-weight: 500;
+      font-size: 0.9rem;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -2px;
+      transition: all 0.2s;
+      color: var(--muted);
+    }
+
+    .tab:hover { color: var(--text); }
+    .tab.active {
+      color: var(--accent);
+      border-bottom-color: var(--accent);
+    }
+
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+
+    /* Bean color classes */
+    .bean-color-0 { background: #e63946; }
+    .bean-color-1 { background: #f4a261; }
+    .bean-color-2 { background: #2a9d8f; }
+    .bean-color-3 { background: #457b9d; }
+    .bean-color-4 { background: #6a4c93; }
+    .bean-color-5 { background: #e76f51; }
+    .bean-color-6 { background: #264653; }
+    .bean-color-7 { background: #a8dadc; }
+
+    .info-text {
+      font-size: 0.85rem;
+      color: var(--muted);
+      margin-bottom: 1rem;
+    }
+
+    .stats-row {
+      display: flex;
+      gap: 1.5rem;
+      flex-wrap: wrap;
+      margin-bottom: 0.5rem;
+    }
+
+    .stat {
+      text-align: center;
+    }
+
+    .stat .value {
+      font-size: 1.8rem;
+      font-weight: 700;
+      color: var(--accent);
+      line-height: 1;
+    }
+
+    .stat .label {
+      font-size: 0.75rem;
+      color: var(--muted);
+    }
+
+    .stat .value.distinct-color { color: var(--accent2); }
+    .stat .value.odd-color { color: var(--accent3); }
+
+    /* Scrollbar */
+    .partition-list::-webkit-scrollbar { width: 6px; }
+    .partition-list::-webkit-scrollbar-track { background: transparent; }
+    .partition-list::-webkit-scrollbar-thumb { background: #ccc; border-radius: 3px; }
+
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>🍬 Sharing the Candy</h1>
+  <p>Explore integer partitions — how many ways can you split a number into groups?</p>
+</header>
+
+<div class="app">
+
+  <!-- Controls -->
+  <div class="controls">
+    <label for="nSlider">Number of jelly beans:</label>
+    <input type="range" id="nSlider" min="1" max="30" value="10">
+    <div class="number-display" id="nDisplay">10</div>
+
+    <div class="filter-group">
+      <button class="filter-btn" id="filterAll">All</button>
+      <button class="filter-btn" id="filterDistinct">Distinct sizes</button>
+      <button class="filter-btn" id="filterOdd">All odd</button>
+    </div>
+  </div>
+
+  <!-- Stats -->
+  <div class="controls">
+    <div class="stats-row">
+      <div class="stat">
+        <div class="value" id="totalCount">42</div>
+        <div class="label">Total partitions</div>
+      </div>
+      <div class="stat">
+        <div class="value distinct-color" id="distinctCount">10</div>
+        <div class="label">Distinct parts</div>
+      </div>
+      <div class="stat">
+        <div class="value odd-color" id="oddCount">10</div>
+        <div class="label">All odd parts</div>
+      </div>
+    </div>
+    <div style="margin-left:auto; font-size: 0.85rem; color: var(--muted);">
+      <em>Notice: distinct parts = odd parts. Always! Why?</em>
+    </div>
+  </div>
+
+  <!-- Main content -->
+  <div class="main-grid">
+
+    <!-- Left panel: Playground + List -->
+    <div class="panel">
+      <div class="tab-bar">
+        <div class="tab active" data-tab="playground">🫘 Jelly Bean Lab</div>
+        <div class="tab" data-tab="list">📋 All Partitions</div>
+      </div>
+
+      <!-- Playground tab -->
+      <div class="tab-content active" id="tab-playground">
+        <p class="info-text">Drag jelly beans into groups to build partitions. Can you find them all?</p>
+
+        <div class="bean-source-label">Unassigned beans (drag from here):</div>
+        <div class="bean-source" id="beanSource"></div>
+
+        <div style="margin: 1rem 0 0.3rem; font-weight: 600; font-size: 0.9rem;">Groups:</div>
+        <div class="buckets" id="buckets">
+          <div class="bucket" data-bucket="0"></div>
+          <div class="add-bucket-btn" id="addBucket" title="Add a group">+</div>
+        </div>
+
+        <div class="playground-status partial" id="playStatus">
+          Place all beans into groups to make a partition
+        </div>
+
+        <div class="playground-controls">
+          <button id="checkPartition">✓ Check my partition</button>
+          <button id="resetPlayground">↺ Reset</button>
+          <button id="hintBtn">💡 Show a hint</button>
+        </div>
+
+        <div id="foundPartitions" style="margin-top: 1rem;">
+          <div style="font-weight: 600; font-size: 0.9rem;">Your discoveries: <span id="foundCount">0</span> / <span id="foundTotal">42</span></div>
+          <div id="foundList" style="font-size: 0.85rem; color: var(--muted); margin-top: 0.3rem;"></div>
+        </div>
+      </div>
+
+      <!-- List tab -->
+      <div class="tab-content" id="tab-list">
+        <p class="info-text">Click any partition to see its Ferrers diagram. Underlined = all different sizes (like the textbook!).</p>
+        <div class="partition-list" id="partitionList"></div>
+      </div>
+    </div>
+
+    <!-- Right panel: Ferrers + Discovery -->
+    <div class="panel">
+      <div class="tab-bar">
+        <div class="tab active" data-tab="ferrers">⬤ Ferrers Diagram</div>
+        <div class="tab" data-tab="discovery">📊 Discovery Table</div>
+      </div>
+
+      <!-- Ferrers tab -->
+      <div class="tab-content active" id="tab-ferrers">
+        <p class="info-text">A Ferrers diagram shows a partition as rows of dots. Flip rows↔columns to see the <strong>conjugate</strong>.</p>
+
+        <div class="ferrers-container">
+          <div>
+            <div class="ferrers-label" id="ferrersLabel">Select a partition</div>
+            <div class="ferrers-diagram" id="ferrersDiagram"></div>
+          </div>
+          <div class="conjugate-arrow" id="conjugateArrow" style="display:none;">⟷</div>
+          <div>
+            <div class="ferrers-label" id="conjugateLabel" style="display:none;">Conjugate</div>
+            <div class="ferrers-diagram" id="conjugateDiagram"></div>
+          </div>
+        </div>
+
+        <label style="display:block; margin-top:1rem; font-size:0.85rem; cursor:pointer;">
+          <input type="checkbox" id="showConjugate"> Show conjugate (flip rows ↔ columns)
+        </label>
+      </div>
+
+      <!-- Discovery table tab -->
+      <div class="tab-content" id="tab-discovery">
+        <p class="info-text">This table summarizes the partitions — just like the textbook's analysis on page 115.</p>
+        <table class="discovery-table" id="discoveryTable"></table>
+      </div>
+    </div>
+
+    <!-- Full-width question box -->
+    <div class="full-width">
+      <div class="question-box">
+        <h3>Explore & Discover</h3>
+        <ul>
+          <li>For n = 10, there are 42 partitions. How many for n = 11? Can you predict without listing them all?</li>
+          <li>The number of partitions with ALL DISTINCT parts always equals the number with ALL ODD parts. Can you see why using Ferrers diagrams?</li>
+          <li>What happens to the number of partitions as n increases? Does it grow fast or slow?</li>
+          <li>If you flip a Ferrers diagram (conjugate), what partition do you get? When is a partition its OWN conjugate?</li>
+          <li>For n = 100 (the textbook's challenge), there are 190,569,292,356 partitions. That's a LOT of jelly beans!</li>
+        </ul>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// ── Partition Generator ──
+function generatePartitions(n) {
+  const result = [];
+  const current = [];
+
+  function partition(remaining, maxPart) {
+    if (remaining === 0) {
+      result.push([...current]);
+      return;
+    }
+    for (let i = Math.min(remaining, maxPart); i >= 1; i--) {
+      current.push(i);
+      partition(remaining - i, i);
+      current.pop();
+    }
+  }
+
+  partition(n, n);
+  return result;
+}
+
+function isDistinct(parts) {
+  return new Set(parts).size === parts.length;
+}
+
+function isAllOdd(parts) {
+  return parts.every(p => p % 2 === 1);
+}
+
+function getConjugate(parts) {
+  if (parts.length === 0) return [];
+  const max = parts[0];
+  const conj = [];
+  for (let i = 1; i <= max; i++) {
+    conj.push(parts.filter(p => p >= i).length);
+  }
+  return conj;
+}
+
+function partitionToString(parts) {
+  return parts.join(', ');
+}
+
+// ── State ──
+let n = 10;
+let allPartitions = [];
+let selectedPartition = null;
+let activeFilter = 'all';
+let foundByUser = new Set();
+
+// ── DOM refs ──
+const nSlider = document.getElementById('nSlider');
+const nDisplay = document.getElementById('nDisplay');
+const totalCount = document.getElementById('totalCount');
+const distinctCount = document.getElementById('distinctCount');
+const oddCount = document.getElementById('oddCount');
+const partitionList = document.getElementById('partitionList');
+const ferrersDiagram = document.getElementById('ferrersDiagram');
+const conjugateDiagram = document.getElementById('conjugateDiagram');
+const ferrersLabel = document.getElementById('ferrersLabel');
+const conjugateLabel = document.getElementById('conjugateLabel');
+const conjugateArrow = document.getElementById('conjugateArrow');
+const showConjugate = document.getElementById('showConjugate');
+const discoveryTable = document.getElementById('discoveryTable');
+const beanSource = document.getElementById('beanSource');
+const bucketsDiv = document.getElementById('buckets');
+const playStatus = document.getElementById('playStatus');
+const foundCount = document.getElementById('foundCount');
+const foundTotal = document.getElementById('foundTotal');
+const foundList = document.getElementById('foundList');
+
+// ── Tab switching ──
+document.querySelectorAll('.tab-bar').forEach(bar => {
+  bar.querySelectorAll('.tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      const tabName = tab.dataset.tab;
+      const panel = bar.parentElement;
+      bar.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      panel.querySelectorAll('.tab-content').forEach(tc => tc.classList.remove('active'));
+      panel.querySelector(`#tab-${tabName}`).classList.add('active');
+    });
+  });
+});
+
+// ── Filter buttons ──
+document.getElementById('filterAll').addEventListener('click', () => setFilter('all'));
+document.getElementById('filterDistinct').addEventListener('click', () => setFilter('distinct'));
+document.getElementById('filterOdd').addEventListener('click', () => setFilter('odd'));
+
+function setFilter(f) {
+  activeFilter = f;
+  document.querySelectorAll('.filter-btn').forEach(b => {
+    b.classList.remove('active', 'active-distinct', 'active-odd');
+  });
+  if (f === 'all') document.getElementById('filterAll').classList.add('active');
+  else if (f === 'distinct') document.getElementById('filterDistinct').classList.add('active-distinct');
+  else if (f === 'odd') document.getElementById('filterOdd').classList.add('active-odd');
+  renderPartitionList();
+}
+
+// ── Slider ──
+nSlider.addEventListener('input', () => {
+  n = parseInt(nSlider.value);
+  nDisplay.textContent = n;
+  recompute();
+});
+
+// ── Main recompute ──
+function recompute() {
+  allPartitions = generatePartitions(n);
+  selectedPartition = allPartitions[0] || [];
+  foundByUser = new Set();
+
+  const dc = allPartitions.filter(isDistinct).length;
+  const oc = allPartitions.filter(isAllOdd).length;
+  totalCount.textContent = allPartitions.length;
+  distinctCount.textContent = dc;
+  oddCount.textContent = oc;
+
+  renderPartitionList();
+  renderFerrers(selectedPartition);
+  renderDiscoveryTable();
+  resetPlayground();
+
+  foundCount.textContent = '0';
+  foundTotal.textContent = allPartitions.length;
+  foundList.textContent = '';
+
+  setFilter('all');
+}
+
+// ── Partition List ──
+function renderPartitionList() {
+  partitionList.innerHTML = '';
+  allPartitions.forEach((parts, idx) => {
+    const d = isDistinct(parts);
+    const o = isAllOdd(parts);
+
+    if (activeFilter === 'distinct' && !d) return;
+    if (activeFilter === 'odd' && !o) return;
+
+    const div = document.createElement('div');
+    div.className = 'partition-item';
+    if (parts === selectedPartition) div.classList.add('selected');
+    if (d && activeFilter !== 'odd') div.classList.add('highlight-distinct');
+    if (o && activeFilter !== 'distinct') div.classList.add('highlight-odd');
+
+    const idxSpan = document.createElement('span');
+    idxSpan.className = 'index';
+    idxSpan.textContent = idx + 1;
+
+    const notation = document.createElement('span');
+    notation.className = 'notation';
+    notation.textContent = partitionToString(parts);
+    if (d) notation.style.textDecoration = 'underline';
+
+    const tags = document.createElement('span');
+    tags.className = 'tags';
+    if (d) {
+      const tag = document.createElement('span');
+      tag.className = 'tag distinct';
+      tag.textContent = 'distinct';
+      tags.appendChild(tag);
+    }
+    if (o) {
+      const tag = document.createElement('span');
+      tag.className = 'tag odd';
+      tag.textContent = 'odd';
+      tags.appendChild(tag);
+    }
+
+    div.appendChild(idxSpan);
+    div.appendChild(notation);
+    div.appendChild(tags);
+
+    div.addEventListener('click', () => {
+      selectedPartition = parts;
+      renderPartitionList();
+      renderFerrers(parts);
+    });
+
+    partitionList.appendChild(div);
+  });
+}
+
+// ── Ferrers Diagram ──
+function renderFerrers(parts) {
+  ferrersDiagram.innerHTML = '';
+  if (!parts || parts.length === 0) {
+    ferrersLabel.textContent = 'Select a partition';
+    return;
+  }
+
+  ferrersLabel.textContent = `Partition: ${partitionToString(parts)}`;
+
+  parts.forEach(count => {
+    const row = document.createElement('div');
+    row.className = 'ferrers-row';
+    for (let i = 0; i < count; i++) {
+      const dot = document.createElement('div');
+      dot.className = 'ferrers-dot';
+      row.appendChild(dot);
+    }
+    ferrersDiagram.appendChild(row);
+  });
+
+  // Conjugate
+  if (showConjugate.checked) {
+    const conj = getConjugate(parts);
+    conjugateLabel.textContent = `Conjugate: ${partitionToString(conj)}`;
+    conjugateLabel.style.display = '';
+    conjugateArrow.style.display = '';
+    conjugateDiagram.innerHTML = '';
+    conj.forEach(count => {
+      const row = document.createElement('div');
+      row.className = 'ferrers-row';
+      for (let i = 0; i < count; i++) {
+        const dot = document.createElement('div');
+        dot.className = 'ferrers-dot conjugate';
+        row.appendChild(dot);
+      }
+      conjugateDiagram.appendChild(row);
+    });
+  } else {
+    conjugateLabel.style.display = 'none';
+    conjugateArrow.style.display = 'none';
+    conjugateDiagram.innerHTML = '';
+  }
+}
+
+showConjugate.addEventListener('change', () => renderFerrers(selectedPartition));
+
+// ── Discovery Table ──
+function renderDiscoveryTable() {
+  const maxPart = n;
+  const rows = {};
+
+  // Count partitions by largest part
+  for (let i = 1; i <= n; i++) rows[i] = { total: 0, distinct: 0 };
+  allPartitions.forEach(parts => {
+    const largest = parts[0];
+    rows[largest].total++;
+    if (isDistinct(parts)) rows[largest].distinct++;
+  });
+
+  let html = '<thead><tr><th>Largest group</th>';
+  for (let i = n; i >= 1; i--) html += `<th>${i}</th>`;
+  html += '<th>Total</th></tr></thead><tbody>';
+
+  // Total row
+  let grandTotal = 0;
+  html += '<tr><td><strong># of partitions</strong></td>';
+  for (let i = n; i >= 1; i--) {
+    html += `<td>${rows[i].total}</td>`;
+    grandTotal += rows[i].total;
+  }
+  html += `<td class="total">${grandTotal}</td></tr>`;
+
+  // Distinct row
+  let distinctTotal = 0;
+  html += '<tr><td><strong># distinct parts</strong></td>';
+  for (let i = n; i >= 1; i--) {
+    html += `<td>${rows[i].distinct}</td>`;
+    distinctTotal += rows[i].distinct;
+  }
+  html += `<td class="total">${distinctTotal}</td></tr>`;
+
+  html += '</tbody>';
+  discoveryTable.innerHTML = html;
+}
+
+// ── Jelly Bean Playground ──
+let bucketCount = 1;
+
+function resetPlayground() {
+  bucketCount = 1;
+  beanSource.innerHTML = '';
+  // Create beans
+  for (let i = 0; i < n; i++) {
+    const bean = createBean(i);
+    beanSource.appendChild(bean);
+  }
+
+  bucketsDiv.innerHTML = '';
+  addBucketElement();
+  const addBtn = document.createElement('div');
+  addBtn.className = 'add-bucket-btn';
+  addBtn.textContent = '+';
+  addBtn.title = 'Add a group';
+  addBtn.addEventListener('click', () => {
+    addBucketElement();
+    bucketsDiv.appendChild(addBtn); // move add button to end
+  });
+  bucketsDiv.appendChild(addBtn);
+
+  updatePlayStatus();
+}
+
+function createBean(idx) {
+  const bean = document.createElement('div');
+  bean.className = `jelly-bean bean-color-${idx % 8}`;
+  bean.draggable = true;
+  bean.dataset.beanId = idx;
+  bean.addEventListener('dragstart', (e) => {
+    e.dataTransfer.setData('text/plain', idx.toString());
+    e.dataTransfer.effectAllowed = 'move';
+  });
+  return bean;
+}
+
+function addBucketElement() {
+  const bucket = document.createElement('div');
+  bucket.className = 'bucket';
+  bucket.dataset.bucket = bucketCount++;
+
+  bucket.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    bucket.classList.add('drag-over');
+  });
+
+  bucket.addEventListener('dragleave', () => {
+    bucket.classList.remove('drag-over');
+  });
+
+  bucket.addEventListener('drop', (e) => {
+    e.preventDefault();
+    bucket.classList.remove('drag-over');
+    const beanId = e.dataTransfer.getData('text/plain');
+    const bean = document.querySelector(`.jelly-bean[data-bean-id="${beanId}"]`);
+    if (bean) {
+      bucket.appendChild(bean);
+      updatePlayStatus();
+    }
+  });
+
+  // Add right before the + button
+  const addBtn = bucketsDiv.querySelector('.add-bucket-btn');
+  if (addBtn) {
+    bucketsDiv.insertBefore(bucket, addBtn);
+  } else {
+    bucketsDiv.appendChild(bucket);
+  }
+}
+
+// Allow dropping back to source
+beanSource.addEventListener('dragover', (e) => {
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+  beanSource.classList.add('drag-over');
+});
+
+beanSource.addEventListener('dragleave', () => {
+  beanSource.classList.remove('drag-over');
+});
+
+beanSource.addEventListener('drop', (e) => {
+  e.preventDefault();
+  beanSource.classList.remove('drag-over');
+  const beanId = e.dataTransfer.getData('text/plain');
+  const bean = document.querySelector(`.jelly-bean[data-bean-id="${beanId}"]`);
+  if (bean) {
+    beanSource.appendChild(bean);
+    updatePlayStatus();
+  }
+});
+
+function getCurrentPartition() {
+  const buckets = bucketsDiv.querySelectorAll('.bucket');
+  const sizes = [];
+  buckets.forEach(b => {
+    const count = b.querySelectorAll('.jelly-bean').length;
+    if (count > 0) sizes.push(count);
+  });
+  sizes.sort((a, b) => b - a);
+  return sizes;
+}
+
+function updatePlayStatus() {
+  const unassigned = beanSource.querySelectorAll('.jelly-bean').length;
+  const partition = getCurrentPartition();
+  const total = partition.reduce((s, x) => s + x, 0);
+
+  if (unassigned > 0) {
+    playStatus.className = 'playground-status partial';
+    playStatus.textContent = `${unassigned} bean${unassigned !== 1 ? 's' : ''} still unassigned — keep going!`;
+  } else if (total === n) {
+    playStatus.className = 'playground-status valid';
+    playStatus.textContent = `Partition: [${partitionToString(partition)}] — click "Check" to record it!`;
+  }
+
+  // Update bucket labels
+  bucketsDiv.querySelectorAll('.bucket').forEach(b => {
+    let label = b.querySelector('.bucket-label');
+    const count = b.querySelectorAll('.jelly-bean').length;
+    if (!label) {
+      label = document.createElement('div');
+      label.className = 'bucket-label';
+      b.appendChild(label);
+    }
+    label.textContent = count > 0 ? count : '';
+  });
+}
+
+document.getElementById('checkPartition').addEventListener('click', () => {
+  const partition = getCurrentPartition();
+  const total = partition.reduce((s, x) => s + x, 0);
+
+  if (total !== n || partition.length === 0) {
+    playStatus.className = 'playground-status partial';
+    playStatus.textContent = 'Place all beans into groups first!';
+    return;
+  }
+
+  const key = partition.join(',');
+  if (foundByUser.has(key)) {
+    playStatus.className = 'playground-status partial';
+    playStatus.textContent = `You already found [${partitionToString(partition)}] — try a different arrangement!`;
+    return;
+  }
+
+  // Verify it's valid (it always is if sum = n)
+  foundByUser.add(key);
+  foundCount.textContent = foundByUser.size;
+  playStatus.className = 'playground-status valid';
+
+  const d = isDistinct(partition);
+  const o = isAllOdd(partition);
+  let extra = '';
+  if (d) extra += ' ✦ Distinct parts!';
+  if (o) extra += ' ✦ All odd!';
+  playStatus.textContent = `Found: [${partitionToString(partition)}]!${extra}`;
+
+  // Show in found list
+  const item = document.createElement('span');
+  item.textContent = `[${partitionToString(partition)}] `;
+  item.style.marginRight = '0.5rem';
+  if (d) item.style.textDecoration = 'underline';
+  foundList.appendChild(item);
+
+  // Also select it in the Ferrers view
+  selectedPartition = partition;
+  renderFerrers(partition);
+});
+
+document.getElementById('resetPlayground').addEventListener('click', resetPlayground);
+
+document.getElementById('hintBtn').addEventListener('click', () => {
+  // Find a partition not yet found
+  for (const parts of allPartitions) {
+    const key = parts.join(',');
+    if (!foundByUser.has(key)) {
+      playStatus.className = 'playground-status partial';
+      playStatus.textContent = `Hint: try making groups of [${partitionToString(parts)}]`;
+      return;
+    }
+  }
+  playStatus.className = 'playground-status valid';
+  playStatus.textContent = 'Amazing — you found them ALL! 🎉';
+});
+
+// ── Initialize ──
+recompute();
+setFilter('all');
+document.getElementById('filterAll').classList.add('active');
+</script>
+
+</body>
+</html>

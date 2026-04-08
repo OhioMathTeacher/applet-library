@@ -1,0 +1,623 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Billiard Ball Physics — Momentum & Collisions</title>
+  <style>
+    :root {
+      --bg: #faf9f6;
+      --card: #ffffff;
+      --accent: #e63946;
+      --accent2: #457b9d;
+      --text: #2b2d42;
+      --muted: #8d99ae;
+      --border: #dee2e6;
+      --success: #06d6a0;
+      --warning: #ffd60a;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+    }
+
+    header {
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      color: white;
+      padding: 1.5rem 2rem;
+      text-align: center;
+    }
+
+    header h1 { font-size: 1.8rem; margin-bottom: 0.3rem; }
+    header p { opacity: 0.9; font-size: 1rem; }
+
+    .app {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 1.5rem;
+    }
+
+    .main-content {
+      display: grid;
+      grid-template-columns: 1fr 320px;
+      gap: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .simulation-panel {
+      background: var(--card);
+      border-radius: 12px;
+      padding: 1.5rem;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    }
+
+    .canvas-container {
+      background: #1a472a;
+      border-radius: 8px;
+      padding: 1.5rem;
+      margin-bottom: 1rem;
+      position: relative;
+      box-shadow: inset 0 2px 12px rgba(0,0,0,0.3);
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      background: #0d5c2a;
+      border-radius: 4px;
+    }
+
+    .controls-panel {
+      background: var(--card);
+      border-radius: 12px;
+      padding: 1.5rem;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    }
+
+    .control-group {
+      margin-bottom: 1.5rem;
+    }
+
+    .control-group h3 {
+      font-size: 0.9rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--muted);
+      margin-bottom: 0.8rem;
+      font-weight: 600;
+    }
+
+    .control-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.8rem;
+    }
+
+    .control-row label {
+      font-size: 0.9rem;
+      font-weight: 500;
+    }
+
+    .control-row input[type="range"] {
+      width: 140px;
+      accent-color: var(--accent);
+    }
+
+    .control-row input[type="number"] {
+      width: 70px;
+      padding: 0.3rem 0.5rem;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 0.9rem;
+    }
+
+    .value-display {
+      background: var(--bg);
+      padding: 0.3rem 0.6rem;
+      border-radius: 6px;
+      font-weight: 600;
+      min-width: 60px;
+      text-align: center;
+      font-size: 0.9rem;
+    }
+
+    .button-group {
+      display: flex;
+      gap: 0.5rem;
+      margin-top: 1rem;
+    }
+
+    .btn {
+      flex: 1;
+      padding: 0.7rem 1rem;
+      border: none;
+      border-radius: 8px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-size: 0.9rem;
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background: #d62828;
+      transform: translateY(-1px);
+    }
+
+    .btn-secondary {
+      background: var(--bg);
+      color: var(--text);
+      border: 2px solid var(--border);
+    }
+
+    .btn-secondary:hover {
+      border-color: var(--accent2);
+    }
+
+    .stats-panel {
+      background: var(--bg);
+      border-radius: 8px;
+      padding: 1rem;
+      margin-top: 1rem;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 0.8rem;
+    }
+
+    .stat-card {
+      background: white;
+      padding: 0.8rem;
+      border-radius: 6px;
+      text-align: center;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+
+    .stat-label {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      color: var(--muted);
+      letter-spacing: 0.5px;
+      margin-bottom: 0.3rem;
+    }
+
+    .stat-value {
+      font-size: 1.3rem;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .stat-value.conserved {
+      color: var(--success);
+    }
+
+    .legend {
+      display: flex;
+      gap: 1.5rem;
+      justify-content: center;
+      margin-top: 0.8rem;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.85rem;
+    }
+
+    .legend-ball {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      border: 2px solid rgba(0,0,0,0.3);
+    }
+
+    .info-box {
+      background: linear-gradient(135deg, #e3f2fd, #bbdefb);
+      border-left: 4px solid var(--accent2);
+      padding: 1rem;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      margin-top: 1rem;
+    }
+
+    .info-box strong {
+      color: var(--accent2);
+    }
+
+    @media (max-width: 900px) {
+      .main-content {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>🎱 Billiard Ball Physics</h1>
+    <p>Explore Conservation of Momentum Through Elastic Collisions</p>
+  </header>
+
+  <div class="app">
+    <div class="main-content">
+      <div class="simulation-panel">
+        <div class="canvas-container">
+          <canvas id="canvas" width="700" height="400"></canvas>
+        </div>
+        
+        <div class="legend">
+          <div class="legend-item">
+            <div class="legend-ball" style="background: radial-gradient(circle at 35% 35%, #ff6b6b, #c92a2a);"></div>
+            <span>Red Ball</span>
+          </div>
+          <div class="legend-item">
+            <div class="legend-ball" style="background: radial-gradient(circle at 35% 35%, #ffd93d, #f39c12);"></div>
+            <span>Yellow Ball</span>
+          </div>
+        </div>
+
+        <div class="stats-panel">
+          <div class="stats-grid">
+            <div class="stat-card">
+              <div class="stat-label">Ball 1 Momentum</div>
+              <div class="stat-value" id="p1">0</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">Ball 2 Momentum</div>
+              <div class="stat-value" id="p2">0</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">Total (Before)</div>
+              <div class="stat-value conserved" id="pBefore">0</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">Total (After)</div>
+              <div class="stat-value conserved" id="pAfter">0</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="info-box">
+          <strong>Conservation of Momentum:</strong> In elastic collisions, total momentum before equals total momentum after. Try different masses and velocities to see this principle in action!
+        </div>
+      </div>
+
+      <div class="controls-panel">
+        <div class="control-group">
+          <h3>⚙️ Ball 1 (Red)</h3>
+          <div class="control-row">
+            <label>Mass (kg)</label>
+            <input type="number" id="mass1" value="1" min="0.5" max="5" step="0.5">
+          </div>
+          <div class="control-row">
+            <label>Velocity (m/s)</label>
+            <input type="range" id="vel1" min="-10" max="10" value="5" step="0.5">
+            <span class="value-display" id="vel1-display">5</span>
+          </div>
+        </div>
+
+        <div class="control-group">
+          <h3>⚙️ Ball 2 (Yellow)</h3>
+          <div class="control-row">
+            <label>Mass (kg)</label>
+            <input type="number" id="mass2" value="1" min="0.5" max="5" step="0.5">
+          </div>
+          <div class="control-row">
+            <label>Velocity (m/s)</label>
+            <input type="range" id="vel2" min="-10" max="10" value="0" step="0.5">
+            <span class="value-display" id="vel2-display">0</span>
+          </div>
+        </div>
+
+        <div class="button-group">
+          <button class="btn btn-primary" id="startBtn">▶️ Start</button>
+          <button class="btn btn-secondary" id="resetBtn">↻ Reset</button>
+        </div>
+
+        <div class="control-group" style="margin-top: 1.5rem;">
+          <h3>🎯 Quick Scenarios</h3>
+          <button class="btn btn-secondary" style="width: 100%; margin-bottom: 0.5rem;" onclick="loadScenario('equal')">
+            Equal Mass, Moving + Stationary
+          </button>
+          <button class="btn btn-secondary" style="width: 100%; margin-bottom: 0.5rem;" onclick="loadScenario('headon')">
+            Head-On Collision
+          </button>
+          <button class="btn btn-secondary" style="width: 100%;" onclick="loadScenario('heavy')">
+            Heavy Hits Light
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+
+    // Simulation state
+    let ball1 = { x: 150, y: 200, vx: 5, vy: 0, mass: 1, radius: 25, color: '#ff6b6b' };
+    let ball2 = { x: 550, y: 200, vx: 0, vy: 0, mass: 1, radius: 25, color: '#ffd93d' };
+    
+    let initialState = {};
+    let running = false;
+    let collided = false;
+    let animationId = null;
+
+    // Initialize
+    saveInitialState();
+    updateControls();
+    draw();
+
+    // Event listeners
+    document.getElementById('startBtn').addEventListener('click', startSimulation);
+    document.getElementById('resetBtn').addEventListener('click', resetSimulation);
+    
+    ['mass1', 'mass2', 'vel1', 'vel2'].forEach(id => {
+      document.getElementById(id).addEventListener('input', updateFromControls);
+    });
+
+    function saveInitialState() {
+      initialState = {
+        ball1: { ...ball1 },
+        ball2: { ...ball2 }
+      };
+    }
+
+    function updateControls() {
+      document.getElementById('mass1').value = ball1.mass;
+      document.getElementById('mass2').value = ball2.mass;
+      document.getElementById('vel1').value = ball1.vx;
+      document.getElementById('vel2').value = ball2.vx;
+      document.getElementById('vel1-display').textContent = ball1.vx.toFixed(1);
+      document.getElementById('vel2-display').textContent = ball2.vx.toFixed(1);
+      
+      updateMomentumDisplay();
+    }
+
+    function updateFromControls() {
+      if (running) return;
+      
+      ball1.mass = parseFloat(document.getElementById('mass1').value);
+      ball2.mass = parseFloat(document.getElementById('mass2').value);
+      ball1.vx = parseFloat(document.getElementById('vel1').value);
+      ball2.vx = parseFloat(document.getElementById('vel2').value);
+      
+      // Update radius based on mass
+      ball1.radius = 15 + ball1.mass * 5;
+      ball2.radius = 15 + ball2.mass * 5;
+      
+      document.getElementById('vel1-display').textContent = ball1.vx.toFixed(1);
+      document.getElementById('vel2-display').textContent = ball2.vx.toFixed(1);
+      
+      saveInitialState();
+      updateMomentumDisplay();
+      draw();
+    }
+
+    function updateMomentumDisplay() {
+      const p1 = ball1.mass * ball1.vx;
+      const p2 = ball2.mass * ball2.vx;
+      const pTotal = p1 + p2;
+      
+      document.getElementById('p1').textContent = p1.toFixed(2);
+      document.getElementById('p2').textContent = p2.toFixed(2);
+      document.getElementById('pBefore').textContent = collided ? initialState.pTotal.toFixed(2) : pTotal.toFixed(2);
+      document.getElementById('pAfter').textContent = pTotal.toFixed(2);
+      
+      if (!collided) {
+        initialState.pTotal = pTotal;
+      }
+    }
+
+    function startSimulation() {
+      if (!running) {
+        running = true;
+        collided = false;
+        document.getElementById('startBtn').textContent = '⏸️ Pause';
+        animate();
+      } else {
+        running = false;
+        document.getElementById('startBtn').textContent = '▶️ Resume';
+        cancelAnimationFrame(animationId);
+      }
+    }
+
+    function resetSimulation() {
+      running = false;
+      collided = false;
+      cancelAnimationFrame(animationId);
+      
+      ball1 = { ...initialState.ball1 };
+      ball2 = { ...initialState.ball2 };
+      
+      document.getElementById('startBtn').textContent = '▶️ Start';
+      updateMomentumDisplay();
+      draw();
+    }
+
+    function loadScenario(type) {
+      resetSimulation();
+      
+      if (type === 'equal') {
+        ball1.mass = 1;
+        ball2.mass = 1;
+        ball1.vx = 5;
+        ball2.vx = 0;
+      } else if (type === 'headon') {
+        ball1.mass = 1;
+        ball2.mass = 1;
+        ball1.vx = 5;
+        ball2.vx = -5;
+      } else if (type === 'heavy') {
+        ball1.mass = 3;
+        ball2.mass = 1;
+        ball1.vx = 4;
+        ball2.vx = 0;
+      }
+      
+      ball1.x = 150;
+      ball2.x = 550;
+      ball1.y = ball2.y = 200;
+      
+      updateControls();
+      draw();
+    }
+
+    function animate() {
+      if (!running) return;
+      
+      // Update positions
+      ball1.x += ball1.vx;
+      ball2.x += ball2.vx;
+      
+      // Wall collisions
+      if (ball1.x - ball1.radius < 0) {
+        ball1.x = ball1.radius;
+        ball1.vx *= -1;
+      }
+      if (ball1.x + ball1.radius > canvas.width) {
+        ball1.x = canvas.width - ball1.radius;
+        ball1.vx *= -1;
+      }
+      if (ball2.x - ball2.radius < 0) {
+        ball2.x = ball2.radius;
+        ball2.vx *= -1;
+      }
+      if (ball2.x + ball2.radius > canvas.width) {
+        ball2.x = canvas.width - ball2.radius;
+        ball2.vx *= -1;
+      }
+      
+      // Ball collision detection
+      const dx = ball2.x - ball1.x;
+      const dy = ball2.y - ball1.y;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+      
+      if (distance < ball1.radius + ball2.radius) {
+        // Elastic collision formula
+        const v1 = ball1.vx;
+        const v2 = ball2.vx;
+        const m1 = ball1.mass;
+        const m2 = ball2.mass;
+        
+        ball1.vx = ((m1 - m2) * v1 + 2 * m2 * v2) / (m1 + m2);
+        ball2.vx = ((m2 - m1) * v2 + 2 * m1 * v1) / (m1 + m2);
+        
+        // Separate balls to prevent overlap
+        const overlap = (ball1.radius + ball2.radius) - distance;
+        const angle = Math.atan2(dy, dx);
+        ball1.x -= Math.cos(angle) * overlap / 2;
+        ball2.x += Math.cos(angle) * overlap / 2;
+        
+        collided = true;
+      }
+      
+      updateMomentumDisplay();
+      draw();
+      
+      animationId = requestAnimationFrame(animate);
+    }
+
+    function draw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      
+      // Draw velocity vectors
+      drawVelocityVector(ball1);
+      drawVelocityVector(ball2);
+      
+      // Draw balls
+      drawBall(ball1);
+      drawBall(ball2);
+    }
+
+    function drawBall(ball) {
+      // Shadow
+      ctx.fillStyle = 'rgba(0,0,0,0.2)';
+      ctx.beginPath();
+      ctx.ellipse(ball.x + 3, ball.y + ball.radius + 5, ball.radius * 0.8, ball.radius * 0.3, 0, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // Ball with gradient
+      const gradient = ctx.createRadialGradient(
+        ball.x - ball.radius * 0.3,
+        ball.y - ball.radius * 0.3,
+        ball.radius * 0.1,
+        ball.x,
+        ball.y,
+        ball.radius
+      );
+      
+      if (ball.color === '#ff6b6b') {
+        gradient.addColorStop(0, '#ff9999');
+        gradient.addColorStop(1, '#c92a2a');
+      } else {
+        gradient.addColorStop(0, '#fff7cc');
+        gradient.addColorStop(1, '#f39c12');
+      }
+      
+      ctx.fillStyle = gradient;
+      ctx.beginPath();
+      ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // Shine
+      ctx.fillStyle = 'rgba(255,255,255,0.4)';
+      ctx.beginPath();
+      ctx.arc(ball.x - ball.radius * 0.3, ball.y - ball.radius * 0.3, ball.radius * 0.3, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // Mass label
+      ctx.fillStyle = 'rgba(0,0,0,0.6)';
+      ctx.font = 'bold 14px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(ball.mass + ' kg', ball.x, ball.y + 5);
+    }
+
+    function drawVelocityVector(ball) {
+      if (ball.vx === 0) return;
+      
+      const scale = 8;
+      const startX = ball.x;
+      const startY = ball.y;
+      const endX = startX + ball.vx * scale;
+      const endY = startY;
+      
+      ctx.strokeStyle = 'rgba(255,255,255,0.7)';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(startX, startY);
+      ctx.lineTo(endX, endY);
+      ctx.stroke();
+      
+      // Arrowhead
+      const angle = Math.atan2(0, ball.vx);
+      const arrowSize = 8;
+      ctx.fillStyle = 'rgba(255,255,255,0.7)';
+      ctx.beginPath();
+      ctx.moveTo(endX, endY);
+      ctx.lineTo(
+        endX - arrowSize * Math.cos(angle - Math.PI / 6),
+        endY - arrowSize * Math.sin(angle - Math.PI / 6)
+      );
+      ctx.lineTo(
+        endX - arrowSize * Math.cos(angle + Math.PI / 6),
+        endY - arrowSize * Math.sin(angle + Math.PI / 6)
+      );
+      ctx.closePath();
+      ctx.fill();
+    }
+  </script>
+</body>
+</html>

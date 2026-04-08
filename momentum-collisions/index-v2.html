@@ -66,7 +66,7 @@
 
     .app {
       display: grid;
-      grid-template-columns: 600px 1fr 600px;
+      grid-template-columns: 250px 1fr 700px;
       grid-template-rows: 1fr;
       gap: 0.8rem;
       padding: 0.8rem;
@@ -83,19 +83,51 @@
       grid-row: 1 / 2;
     }
 
-    .challenge-drawer h3 {
-      font-size: 0.9rem;
+    .challenge-drawer-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
       margin-bottom: 0.6rem;
+      padding: 0.6rem;
+      background: linear-gradient(135deg, var(--challenge-bg), #fffbf0);
+      border-radius: 6px;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .challenge-drawer-header:hover {
+      background: linear-gradient(135deg, #ffe699, #ffd966);
+    }
+
+    .challenge-drawer-header h3 {
+      font-size: 0.9rem;
       color: var(--accent2);
-      text-align: center;
-      padding-bottom: 0.4rem;
-      border-bottom: 2px solid var(--border);
+      margin: 0;
+    }
+
+    .challenge-toggle {
+      font-size: 1rem;
+      transition: transform 0.3s;
+      color: var(--accent2);
+    }
+
+    .challenge-drawer.collapsed .challenge-toggle {
+      transform: rotate(-90deg);
     }
 
     .challenge-list {
       display: flex;
       flex-direction: column;
       gap: 0.5rem;
+      max-height: 1000px;
+      overflow-y: auto;
+      transition: max-height 0.3s ease, opacity 0.3s ease;
+    }
+
+    .challenge-drawer.collapsed .challenge-list {
+      max-height: 0;
+      opacity: 0;
+      overflow: hidden;
     }
 
     .challenge-item {
@@ -517,7 +549,7 @@
 
     @media (max-width: 1600px) {
       .app {
-        grid-template-columns: 300px 1fr 300px;
+        grid-template-columns: 220px 1fr 500px;
       }
     }
 
@@ -531,7 +563,6 @@
       .challenge-drawer {
         grid-row: 1 / 2;
         grid-column: 1 / 2;
-        max-height: 150px;
       }
       
       .center-panel {
@@ -566,8 +597,11 @@
 
   <div class="app">
     <!-- LEFT: CHALLENGES -->
-    <div class="challenge-drawer">
-      <h3 id="challenges-header">🎯 Challenges</h3>
+    <div class="challenge-drawer collapsed">
+      <div class="challenge-drawer-header" onclick="toggleChallenges()">
+        <h3 id="challenges-header">🎯 Challenges</h3>
+        <span class="challenge-toggle">▼</span>
+      </div>
       <div class="challenge-list" id="challengeList">
         <!-- Populated by JavaScript -->
       </div>
@@ -892,6 +926,10 @@
     // ============================================
     // UI FUNCTIONS
     // ============================================
+    function toggleChallenges() {
+      document.querySelector('.challenge-drawer').classList.toggle('collapsed');
+    }
+
     function toggleSimulation() {
       // Click canvas to start/pause
       if (!running) {
@@ -1258,6 +1296,7 @@
     window.updateNotes = updateNotes;
     window.toggleScenarios = toggleScenarios;
     window.closeModal = closeModal;
+    window.toggleChallenges = toggleChallenges;
     window.toggleSimulation = toggleSimulation;
   </script>
 </body>

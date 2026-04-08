@@ -62,9 +62,16 @@
     }
 
     .app {
-      max-width: 1000px;
+      max-width: 1400px;
       margin: 0 auto;
       padding: 1.5rem;
+    }
+
+    .main-content {
+      display: grid;
+      grid-template-columns: 1fr 320px 350px;
+      gap: 1.5rem;
+      margin-bottom: 1.5rem;
     }
 
     .simulation-panel {
@@ -72,7 +79,6 @@
       border-radius: 12px;
       padding: 1.5rem;
       box-shadow: 0 2px 8px rgba(0,0,0,0.06);
-      margin-bottom: 1rem;
     }
 
     .canvas-container {
@@ -91,25 +97,129 @@
       border-radius: 4px;
     }
 
-    .legend {
+    .controls-panel {
+      background: var(--card);
+      border-radius: 12px;
+      padding: 1.5rem;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    }
+    
+    .scratchpad-panel {
+      background: var(--card);
+      border-radius: 12px;
+      padding: 1.5rem;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
       display: flex;
-      gap: 1.5rem;
-      justify-content: center;
-      margin-top: 0.8rem;
+      flex-direction: column;
+      max-height: 800px;
     }
 
-    .legend-item {
+    .control-group {
+      margin-bottom: 1.5rem;
+    }
+
+    .control-group h3 {
+      font-size: 0.9rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--muted);
+      margin-bottom: 0.8rem;
+      font-weight: 600;
+    }
+
+    .control-row {
       display: flex;
+      justify-content: space-between;
       align-items: center;
-      gap: 0.5rem;
-      font-size: 0.85rem;
+      margin-bottom: 0.8rem;
     }
 
-    .legend-ball {
-      width: 24px;
-      height: 24px;
-      border-radius: 50%;
-      border: 2px solid rgba(0,0,0,0.3);
+    .control-row label {
+      font-size: 0.9rem;
+      font-weight: 500;
+    }
+
+    .control-row input[type="range"] {
+      width: 140px;
+      accent-color: var(--accent);
+    }
+
+    .control-row input[type="number"] {
+      width: 70px;
+      padding: 0.3rem 0.5rem;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 0.9rem;
+    }
+    
+    .control-row select {
+      padding: 0.4rem 0.6rem;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 0.9rem;
+      background: white;
+      cursor: pointer;
+    }
+
+    .value-display {
+      background: var(--bg);
+      padding: 0.3rem 0.6rem;
+      border-radius: 6px;
+      font-weight: 600;
+      min-width: 60px;
+      text-align: center;
+      font-size: 0.9rem;
+    }
+
+    .button-group {
+      display: flex;
+      gap: 0.5rem;
+      margin-top: 1rem;
+    }
+
+    .btn {
+      flex: 1;
+      padding: 0.7rem 1rem;
+      border: none;
+      border-radius: 8px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-size: 0.9rem;
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background: #d62828;
+      transform: translateY(-1px);
+    }
+
+    .btn-secondary {
+      background: var(--bg);
+      color: var(--text);
+      border: 2px solid var(--border);
+    }
+
+    .btn-secondary:hover {
+      border-color: var(--accent2);
+    }
+    
+    .btn-small {
+      padding: 0.4rem 0.8rem;
+      font-size: 0.8rem;
+    }
+    
+    .btn-success {
+      background: var(--success);
+      color: white;
+    }
+    
+    .btn-success:hover {
+      background: #05c897;
     }
 
     .stats-panel {
@@ -151,6 +261,27 @@
       color: var(--success);
     }
 
+    .legend {
+      display: flex;
+      gap: 1.5rem;
+      justify-content: center;
+      margin-top: 0.8rem;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.85rem;
+    }
+
+    .legend-ball {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      border: 2px solid rgba(0,0,0,0.3);
+    }
+
     .info-box {
       background: linear-gradient(135deg, #e3f2fd, #bbdefb);
       border-left: 4px solid var(--accent2);
@@ -163,201 +294,7 @@
     .info-box strong {
       color: var(--accent2);
     }
-
-    /* DRAWER SYSTEM */
-    .drawer-container {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 1rem;
-      margin-bottom: 1rem;
-    }
-
-    .drawer {
-      background: var(--card);
-      border-radius: 12px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
-      overflow: hidden;
-      transition: all 0.3s ease;
-    }
-
-    .drawer-header {
-      background: linear-gradient(135deg, var(--accent2), #5a8bad);
-      color: white;
-      padding: 1rem 1.5rem;
-      cursor: pointer;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      user-select: none;
-    }
-
-    .drawer-header:hover {
-      background: linear-gradient(135deg, #3d6d8c, var(--accent2));
-    }
-
-    .drawer-header h3 {
-      font-size: 1rem;
-      font-weight: 600;
-      margin: 0;
-    }
-
-    .drawer-toggle {
-      font-size: 1.2rem;
-      transition: transform 0.3s;
-    }
-
-    .drawer.collapsed .drawer-toggle {
-      transform: rotate(-90deg);
-    }
-
-    .drawer-content {
-      padding: 1.5rem;
-      max-height: 500px;
-      overflow-y: auto;
-      transition: max-height 0.3s ease, padding 0.3s ease;
-    }
-
-    .drawer.collapsed .drawer-content {
-      max-height: 0;
-      padding: 0 1.5rem;
-      overflow: hidden;
-    }
-
-    .challenge-drawer .drawer-header {
-      background: linear-gradient(135deg, var(--challenge-border), #ffb300);
-    }
-
-    .challenge-drawer .drawer-header:hover {
-      background: linear-gradient(135deg, #ffb300, var(--challenge-border));
-    }
-
-    .notebook-drawer .drawer-header {
-      background: linear-gradient(135deg, var(--success), #05c190);
-    }
-
-    .notebook-drawer .drawer-header:hover {
-      background: linear-gradient(135deg, #05c190, var(--success));
-    }
-
-    /* CONTROL STYLES */
-    .control-group {
-      margin-bottom: 1.5rem;
-    }
-
-    .control-group:last-child {
-      margin-bottom: 0;
-    }
-
-    .control-group h4 {
-      font-size: 0.85rem;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      color: var(--muted);
-      margin-bottom: 0.8rem;
-      font-weight: 600;
-    }
-
-    .control-row {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 0.8rem;
-    }
-
-    .control-row label {
-      font-size: 0.9rem;
-      font-weight: 500;
-    }
-
-    .control-row input[type="range"] {
-      width: 140px;
-      accent-color: var(--accent);
-    }
-
-    .control-row input[type="number"] {
-      width: 70px;
-      padding: 0.3rem 0.5rem;
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      font-size: 0.9rem;
-    }
-
-    .control-row select {
-      padding: 0.4rem 0.6rem;
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      font-size: 0.9rem;
-      background: white;
-      cursor: pointer;
-      flex: 1;
-    }
-
-    .value-display {
-      background: var(--bg);
-      padding: 0.3rem 0.6rem;
-      border-radius: 6px;
-      font-weight: 600;
-      min-width: 60px;
-      text-align: center;
-      font-size: 0.9rem;
-    }
-
-    .button-group {
-      display: flex;
-      gap: 0.5rem;
-    }
-
-    .btn {
-      flex: 1;
-      padding: 0.7rem 1rem;
-      border: none;
-      border-radius: 8px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.2s;
-      font-size: 0.9rem;
-    }
-
-    .btn-primary {
-      background: var(--accent);
-      color: white;
-    }
-
-    .btn-primary:hover {
-      background: #d62828;
-      transform: translateY(-1px);
-    }
-
-    .btn-secondary {
-      background: var(--bg);
-      color: var(--text);
-      border: 2px solid var(--border);
-    }
-
-    .btn-secondary:hover {
-      border-color: var(--accent2);
-    }
-
-    .btn-small {
-      padding: 0.4rem 0.8rem;
-      font-size: 0.8rem;
-    }
-
-    .btn-success {
-      background: var(--success);
-      color: white;
-    }
-
-    .btn-success:hover {
-      background: #05c897;
-    }
-
-    .btn-full {
-      width: 100%;
-      margin-bottom: 0.5rem;
-    }
-
-    /* CHALLENGE STYLES */
+    
     .challenge-box {
       background: var(--challenge-bg);
       border-left: 4px solid var(--challenge-border);
@@ -366,41 +303,46 @@
       font-size: 0.9rem;
       margin-bottom: 1rem;
     }
-
+    
     .challenge-box h4 {
       color: #995c00;
       margin-bottom: 0.5rem;
       display: flex;
       align-items: center;
       gap: 0.5rem;
-      text-transform: none;
-      font-size: 1rem;
     }
-
+    
     .challenge-box p {
       margin: 0.5rem 0;
     }
-
+    
     .challenge-box .hint {
       font-size: 0.85rem;
       font-style: italic;
       color: #795000;
       margin-top: 0.5rem;
     }
-
-    /* NOTEBOOK STYLES */
-    .notebook-actions {
+    
+    .scratchpad-header {
       display: flex;
-      gap: 0.5rem;
+      justify-content: space-between;
+      align-items: center;
       margin-bottom: 1rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 2px solid var(--border);
     }
-
+    
+    .scratchpad-header h3 {
+      font-size: 1rem;
+      color: var(--text);
+    }
+    
     .captured-data {
-      max-height: 400px;
+      flex: 1;
       overflow-y: auto;
       margin-bottom: 1rem;
     }
-
+    
     .data-entry {
       background: var(--bg);
       border-radius: 6px;
@@ -408,19 +350,19 @@
       margin-bottom: 0.8rem;
       border-left: 3px solid var(--accent2);
     }
-
+    
     .data-entry-header {
       display: flex;
       justify-content: space-between;
       align-items: center;
       margin-bottom: 0.5rem;
     }
-
+    
     .data-entry-time {
       font-size: 0.75rem;
       color: var(--muted);
     }
-
+    
     .data-entry-delete {
       background: none;
       border: none;
@@ -429,11 +371,11 @@
       font-size: 0.9rem;
       padding: 0.2rem 0.5rem;
     }
-
+    
     .data-entry-delete:hover {
       text-decoration: underline;
     }
-
+    
     .data-values {
       font-family: 'Courier New', monospace;
       font-size: 0.85rem;
@@ -442,11 +384,11 @@
       border-radius: 4px;
       margin-bottom: 0.5rem;
     }
-
+    
     .data-values div {
       margin: 0.2rem 0;
     }
-
+    
     .data-notes {
       width: 100%;
       min-height: 60px;
@@ -457,16 +399,14 @@
       resize: vertical;
       font-family: inherit;
     }
-
-    .empty-message {
-      color: var(--muted);
-      font-size: 0.9rem;
-      text-align: center;
-      padding: 2rem;
+    
+    .scratchpad-actions {
+      display: flex;
+      gap: 0.5rem;
     }
 
-    @media (max-width: 900px) {
-      .drawer-container {
+    @media (max-width: 1200px) {
+      .main-content {
         grid-template-columns: 1fr;
       }
     }
@@ -491,176 +431,148 @@
   </header>
 
   <div class="app">
-    <!-- MAIN SIMULATION -->
-    <div class="simulation-panel">
-      <div class="canvas-container">
-        <canvas id="canvas" width="700" height="400"></canvas>
+    <div class="main-content">
+      <!-- SIMULATION PANEL -->
+      <div class="simulation-panel">
+        <!-- Challenge Box -->
+        <div id="challengeBox" class="challenge-box" style="display: none;">
+          <h4>
+            <span>🎯</span>
+            <span id="challenge-title">Challenge</span>
+          </h4>
+          <p id="challenge-description"></p>
+          <p class="hint" id="challenge-hint"></p>
+        </div>
+        
+        <div class="canvas-container">
+          <canvas id="canvas" width="700" height="400"></canvas>
+        </div>
+        
+        <div class="legend">
+          <div class="legend-item">
+            <div class="legend-ball" style="background: radial-gradient(circle at 35% 35%, #ff6b6b, #c92a2a);"></div>
+            <span id="ball1-label">Red Ball</span>
+          </div>
+          <div class="legend-item">
+            <div class="legend-ball" style="background: radial-gradient(circle at 35% 35%, #ffd93d, #f39c12);"></div>
+            <span id="ball2-label">Yellow Ball</span>
+          </div>
+        </div>
+
+        <div class="stats-panel">
+          <div class="stats-grid">
+            <div class="stat-card">
+              <div class="stat-label" id="p1-label">Ball 1 Momentum</div>
+              <div class="stat-value" id="p1">0</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label" id="p2-label">Ball 2 Momentum</div>
+              <div class="stat-value" id="p2">0</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label" id="pBefore-label">Total (Before)</div>
+              <div class="stat-value conserved" id="pBefore">0</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label" id="pAfter-label">Total (After)</div>
+              <div class="stat-value conserved" id="pAfter">0</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="info-box" id="infoBox">
+          <strong id="info-title">Conservation of Momentum:</strong>
+          <span id="info-text">In elastic collisions, total momentum before equals total momentum after. Try different masses and velocities to see this principle in action!</span>
+        </div>
+      </div>
+
+      <!-- CONTROLS PANEL -->
+      <div class="controls-panel">
+        <div class="control-group">
+          <h3 id="ball1-header">⚙️ Ball 1 (Red)</h3>
+          <div class="control-row">
+            <label id="mass1-label">Mass (kg)</label>
+            <input type="number" id="mass1" value="1" min="0.5" max="5" step="0.5">
+          </div>
+          <div class="control-row">
+            <label id="vel1-label">Velocity (m/s)</label>
+            <input type="range" id="vel1" min="-10" max="10" value="5" step="0.5">
+            <span class="value-display" id="vel1-display">5</span>
+          </div>
+        </div>
+
+        <div class="control-group">
+          <h3 id="ball2-header">⚙️ Ball 2 (Yellow)</h3>
+          <div class="control-row">
+            <label id="mass2-label">Mass (kg)</label>
+            <input type="number" id="mass2" value="1" min="0.5" max="5" step="0.5">
+          </div>
+          <div class="control-row">
+            <label id="vel2-label">Velocity (m/s)</label>
+            <input type="range" id="vel2" min="-10" max="10" value="0" step="0.5">
+            <span class="value-display" id="vel2-display">0</span>
+          </div>
+        </div>
+
+        <div class="button-group">
+          <button class="btn btn-primary" id="startBtn">▶️ <span id="start-text">Start</span></button>
+          <button class="btn btn-secondary" id="resetBtn">↻ <span id="reset-text">Reset</span></button>
+        </div>
+
+        <div class="control-group" style="margin-top: 1.5rem;">
+          <h3 id="challenges-header">🎯 Challenges</h3>
+          <div class="control-row">
+            <select id="challengeSelect" style="width: 100%;">
+              <option value="">-- Select a Challenge --</option>
+            </select>
+          </div>
+          <button class="btn btn-success btn-small" id="loadChallengeBtn" style="width: 100%; margin-top: 0.5rem;">
+            <span id="load-challenge-text">Load Challenge</span>
+          </button>
+        </div>
+        
+        <div class="control-group">
+          <h3 id="scenarios-header">🎬 Quick Scenarios</h3>
+          <button class="btn btn-secondary btn-small" style="width: 100%; margin-bottom: 0.5rem;" onclick="loadScenario('equal')">
+            <span id="scenario1-text">Equal Mass, Moving + Stationary</span>
+          </button>
+          <button class="btn btn-secondary btn-small" style="width: 100%; margin-bottom: 0.5rem;" onclick="loadScenario('headon')">
+            <span id="scenario2-text">Head-On Collision</span>
+          </button>
+          <button class="btn btn-secondary btn-small" style="width: 100%;" onclick="loadScenario('heavy')">
+            <span id="scenario3-text">Heavy Hits Light</span>
+          </button>
+        </div>
       </div>
       
-      <div class="legend">
-        <div class="legend-item">
-          <div class="legend-ball" style="background: radial-gradient(circle at 35% 35%, #ff6b6b, #c92a2a);"></div>
-          <span id="ball1-label">Red Ball</span>
-        </div>
-        <div class="legend-item">
-          <div class="legend-ball" style="background: radial-gradient(circle at 35% 35%, #ffd93d, #f39c12);"></div>
-          <span id="ball2-label">Yellow Ball</span>
-        </div>
-      </div>
-
-      <div class="stats-panel">
-        <div class="stats-grid">
-          <div class="stat-card">
-            <div class="stat-label" id="p1-label">Ball 1 Momentum</div>
-            <div class="stat-value" id="p1">0</div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-label" id="p2-label">Ball 2 Momentum</div>
-            <div class="stat-value" id="p2">0</div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-label" id="pBefore-label">Total (Before)</div>
-            <div class="stat-value conserved" id="pBefore">0</div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-label" id="pAfter-label">Total (After)</div>
-            <div class="stat-value conserved" id="pAfter">0</div>
-          </div>
-        </div>
-      </div>
-
-      <div class="info-box" id="infoBox">
-        <strong id="info-title">Conservation of Momentum:</strong>
-        <span id="info-text">In elastic collisions, total momentum before equals total momentum after. Try different masses and velocities to see this principle in action!</span>
-      </div>
-    </div>
-
-    <!-- BALL CONTROLS DRAWER -->
-    <div class="drawer-container">
-      <div class="drawer" id="ball1Drawer">
-        <div class="drawer-header" onclick="toggleDrawer('ball1Drawer')">
-          <h3 id="ball1-header">🔴 Ball 1 (Red)</h3>
-          <span class="drawer-toggle">▼</span>
-        </div>
-        <div class="drawer-content">
-          <div class="control-group">
-            <div class="control-row">
-              <label id="mass1-label">Mass (kg)</label>
-              <input type="number" id="mass1" value="1" min="0.5" max="5" step="0.5">
-            </div>
-            <div class="control-row">
-              <label id="vel1-label">Velocity (m/s)</label>
-              <input type="range" id="vel1" min="-10" max="10" value="5" step="0.5">
-              <span class="value-display" id="vel1-display">5</span>
-            </div>
-          </div>
-          <div class="button-group">
-            <button class="btn btn-primary" id="startBtn">▶️ <span id="start-text">Start</span></button>
-            <button class="btn btn-secondary" id="resetBtn">↻ <span id="reset-text">Reset</span></button>
-          </div>
-        </div>
-      </div>
-
-      <div class="drawer" id="ball2Drawer">
-        <div class="drawer-header" onclick="toggleDrawer('ball2Drawer')">
-          <h3 id="ball2-header">🟡 Ball 2 (Yellow)</h3>
-          <span class="drawer-toggle">▼</span>
-        </div>
-        <div class="drawer-content">
-          <div class="control-group">
-            <div class="control-row">
-              <label id="mass2-label">Mass (kg)</label>
-              <input type="number" id="mass2" value="1" min="0.5" max="5" step="0.5">
-            </div>
-            <div class="control-row">
-              <label id="vel2-label">Velocity (m/s)</label>
-              <input type="range" id="vel2" min="-10" max="10" value="0" step="0.5">
-              <span class="value-display" id="vel2-display">0</span>
-            </div>
-          </div>
-          <div class="control-group">
-            <h4 id="scenarios-header">🎬 Quick Scenarios</h4>
-            <button class="btn btn-secondary btn-small btn-full" onclick="loadScenario('equal')">
-              <span id="scenario1-text">Equal Mass, Moving + Stationary</span>
-            </button>
-            <button class="btn btn-secondary btn-small btn-full" onclick="loadScenario('headon')">
-              <span id="scenario2-text">Head-On Collision</span>
-            </button>
-            <button class="btn btn-secondary btn-small btn-full" onclick="loadScenario('heavy')">
-              <span id="scenario3-text">Heavy Hits Light</span>
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- CHALLENGES & NOTEBOOK DRAWERS -->
-    <div class="drawer-container">
-      <div class="drawer challenge-drawer collapsed" id="challengeDrawer">
-        <div class="drawer-header" onclick="toggleDrawer('challengeDrawer')">
-          <h3 id="challenges-header">🎯 Challenges</h3>
-          <span class="drawer-toggle">▼</span>
-        </div>
-        <div class="drawer-content">
-          <div id="challengeBox" class="challenge-box" style="display: none;">
-            <h4>
-              <span>🎯</span>
-              <span id="challenge-title">Challenge</span>
-            </h4>
-            <p id="challenge-description"></p>
-            <p class="hint" id="challenge-hint"></p>
-          </div>
-          
-          <div class="control-group">
-            <div class="control-row">
-              <select id="challengeSelect">
-                <option value="">-- Select a Challenge --</option>
-              </select>
-            </div>
-            <button class="btn btn-success btn-small btn-full" id="loadChallengeBtn">
-              <span id="load-challenge-text">Load Challenge</span>
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <div class="drawer notebook-drawer collapsed" id="notebookDrawer">
-        <div class="drawer-header" onclick="toggleDrawer('notebookDrawer')">
+      <!-- SCRATCHPAD PANEL -->
+      <div class="scratchpad-panel">
+        <div class="scratchpad-header">
           <h3 id="scratchpad-title">📝 Lab Notebook</h3>
-          <span class="drawer-toggle">▼</span>
+          <button class="btn btn-secondary btn-small" id="clearAllBtn">
+            <span id="clear-all-text">Clear All</span>
+          </button>
         </div>
-        <div class="drawer-content">
-          <div class="notebook-actions">
-            <button class="btn btn-primary" id="captureBtn" style="flex: 2;">
-              📸 <span id="capture-text">Capture Data</span>
-            </button>
-            <button class="btn btn-secondary" id="exportBtn">
-              💾 <span id="export-text">Export</span>
-            </button>
-            <button class="btn btn-secondary" id="clearAllBtn">
-              <span id="clear-all-text">Clear</span>
-            </button>
-          </div>
-          
-          <div class="captured-data" id="capturedData">
-            <p class="empty-message" id="empty-message">
-              Click "Capture Data" to save observations!
-            </p>
-          </div>
+        
+        <div class="captured-data" id="capturedData">
+          <p style="color: var(--muted); font-size: 0.9rem; text-align: center; padding: 2rem;" id="empty-message">
+            Click "Capture Data" to save observations!
+          </p>
+        </div>
+        
+        <div class="scratchpad-actions">
+          <button class="btn btn-primary" id="captureBtn" style="flex: 2;">
+            📸 <span id="capture-text">Capture Data</span>
+          </button>
+          <button class="btn btn-secondary" id="exportBtn">
+            💾 <span id="export-text">Export</span>
+          </button>
         </div>
       </div>
     </div>
   </div>
 
   <script>
-    // ============================================
-    // DRAWER TOGGLE
-    // ============================================
-    function toggleDrawer(drawerId) {
-      const drawer = document.getElementById(drawerId);
-      drawer.classList.toggle('collapsed');
-    }
-
     // ============================================
     // TRANSLATION SYSTEM
     // ============================================
@@ -743,8 +655,8 @@
             hint: "Try to make the total 'push' equal to zero, or try extreme mass differences."
           }
         ],
-        ball1Header: "🔴 Ball 1 (Red)",
-        ball2Header: "🟡 Ball 2 (Yellow)",
+        ball1Header: "⚙️ Ball 1 (Red)",
+        ball2Header: "⚙️ Ball 2 (Yellow)",
         challengesHeader: "🎯 Challenges",
         scenariosHeader: "🎬 Quick Scenarios",
         scenario1Text: "Equal Mass, Moving + Stationary",
@@ -754,7 +666,7 @@
         scratchpadTitle: "📝 Lab Notebook",
         captureText: "Capture Data",
         exportText: "Export",
-        clearAllText: "Clear",
+        clearAllText: "Clear All",
         emptyMessage: "Click 'Capture Data' to save observations!"
       },
       es: {
@@ -835,8 +747,8 @@
             hint: "Intenta hacer que el 'empuje' total sea igual a cero, o prueba diferencias extremas de masa."
           }
         ],
-        ball1Header: "🔴 Bola 1 (Roja)",
-        ball2Header: "🟡 Bola 2 (Amarilla)",
+        ball1Header: "⚙️ Bola 1 (Roja)",
+        ball2Header: "⚙️ Bola 2 (Amarilla)",
         challengesHeader: "🎯 Desafíos",
         scenariosHeader: "🎬 Escenarios Rápidos",
         scenario1Text: "Masa Igual, Movimiento + Estacionaria",
@@ -846,7 +758,7 @@
         scratchpadTitle: "📝 Cuaderno de Laboratorio",
         captureText: "Capturar Datos",
         exportText: "Exportar",
-        clearAllText: "Borrar",
+        clearAllText: "Borrar Todo",
         emptyMessage: "¡Haz clic en 'Capturar Datos' para guardar observaciones!"
       },
       zh: {
@@ -927,8 +839,8 @@
             hint: "尝试使总'推力'等于零，或尝试极端的质量差异。"
           }
         ],
-        ball1Header: "🔴 球1（红色）",
-        ball2Header: "🟡 球2（黄色）",
+        ball1Header: "⚙️ 球1（红色）",
+        ball2Header: "⚙️ 球2（黄色）",
         challengesHeader: "🎯 挑战",
         scenariosHeader: "🎬 快速场景",
         scenario1Text: "相等质量，移动+静止",
@@ -938,7 +850,7 @@
         scratchpadTitle: "📝 实验笔记本",
         captureText: "捕获数据",
         exportText: "导出",
-        clearAllText: "清除",
+        clearAllText: "全部清除",
         emptyMessage: "点击'捕获数据'保存观察结果！"
       }
     };
@@ -991,7 +903,7 @@
     document.getElementById('captureBtn').addEventListener('click', captureData);
     document.getElementById('exportBtn').addEventListener('click', exportNotes);
     document.getElementById('clearAllBtn').addEventListener('click', clearAllData);
-    document.getElementById('loadChallengeBtn').addEventListener ('click', loadSelectedChallenge);
+    document.getElementById('loadChallengeBtn').addEventListener('click', loadSelectedChallenge);
     
     ['mass1', 'mass2', 'vel1', 'vel2'].forEach(id => {
       document.getElementById(id).addEventListener('input', updateFromControls);
@@ -1373,7 +1285,7 @@
       
       if (capturedEntries.length === 0) {
         const t = translations[currentLanguage];
-        container.innerHTML = `<p class="empty-message">${t.emptyMessage}</p>`;
+        container.innerHTML = `<p style="color: var(--muted); font-size: 0.9rem; text-align: center; padding: 2rem;">${t.emptyMessage}</p>`;
         return;
       }
       

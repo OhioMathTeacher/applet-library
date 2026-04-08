@@ -1,0 +1,1380 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Billiard Ball Physics — Momentum & Collisions (Enhanced)</title>
+  <style>
+    :root {
+      --bg: #faf9f6;
+      --card: #ffffff;
+      --accent: #e63946;
+      --accent2: #457b9d;
+      --text: #2b2d42;
+      --muted: #8d99ae;
+      --border: #dee2e6;
+      --success: #06d6a0;
+      --warning: #ffd60a;
+      --challenge-bg: #fff3cd;
+      --challenge-border: #ffc107;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+    }
+
+    header {
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      color: white;
+      padding: 1.5rem 2rem;
+      text-align: center;
+    }
+
+    header h1 { font-size: 1.8rem; margin-bottom: 0.3rem; }
+    header p { opacity: 0.9; font-size: 1rem; }
+    
+    .header-controls {
+      display: flex;
+      gap: 1rem;
+      justify-content: center;
+      margin-top: 1rem;
+      flex-wrap: wrap;
+    }
+    
+    .header-controls select {
+      padding: 0.5rem 1rem;
+      border-radius: 6px;
+      border: 2px solid rgba(255,255,255,0.3);
+      background: rgba(255,255,255,0.2);
+      color: white;
+      font-weight: 600;
+      cursor: pointer;
+      font-size: 0.9rem;
+    }
+    
+    .header-controls select option {
+      color: var(--text);
+    }
+
+    .app {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 1.5rem;
+    }
+
+    .main-content {
+      display: grid;
+      grid-template-columns: 1fr 320px 350px;
+      gap: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .simulation-panel {
+      background: var(--card);
+      border-radius: 12px;
+      padding: 1.5rem;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    }
+
+    .canvas-container {
+      background: #1a472a;
+      border-radius: 8px;
+      padding: 1.5rem;
+      margin-bottom: 1rem;
+      position: relative;
+      box-shadow: inset 0 2px 12px rgba(0,0,0,0.3);
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      background: #0d5c2a;
+      border-radius: 4px;
+    }
+
+    .controls-panel {
+      background: var(--card);
+      border-radius: 12px;
+      padding: 1.5rem;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    }
+    
+    .scratchpad-panel {
+      background: var(--card);
+      border-radius: 12px;
+      padding: 1.5rem;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+      display: flex;
+      flex-direction: column;
+      max-height: 800px;
+    }
+
+    .control-group {
+      margin-bottom: 1.5rem;
+    }
+
+    .control-group h3 {
+      font-size: 0.9rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--muted);
+      margin-bottom: 0.8rem;
+      font-weight: 600;
+    }
+
+    .control-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.8rem;
+    }
+
+    .control-row label {
+      font-size: 0.9rem;
+      font-weight: 500;
+    }
+
+    .control-row input[type="range"] {
+      width: 140px;
+      accent-color: var(--accent);
+    }
+
+    .control-row input[type="number"] {
+      width: 70px;
+      padding: 0.3rem 0.5rem;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 0.9rem;
+    }
+    
+    .control-row select {
+      padding: 0.4rem 0.6rem;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 0.9rem;
+      background: white;
+      cursor: pointer;
+    }
+
+    .value-display {
+      background: var(--bg);
+      padding: 0.3rem 0.6rem;
+      border-radius: 6px;
+      font-weight: 600;
+      min-width: 60px;
+      text-align: center;
+      font-size: 0.9rem;
+    }
+
+    .button-group {
+      display: flex;
+      gap: 0.5rem;
+      margin-top: 1rem;
+    }
+
+    .btn {
+      flex: 1;
+      padding: 0.7rem 1rem;
+      border: none;
+      border-radius: 8px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-size: 0.9rem;
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background: #d62828;
+      transform: translateY(-1px);
+    }
+
+    .btn-secondary {
+      background: var(--bg);
+      color: var(--text);
+      border: 2px solid var(--border);
+    }
+
+    .btn-secondary:hover {
+      border-color: var(--accent2);
+    }
+    
+    .btn-small {
+      padding: 0.4rem 0.8rem;
+      font-size: 0.8rem;
+    }
+    
+    .btn-success {
+      background: var(--success);
+      color: white;
+    }
+    
+    .btn-success:hover {
+      background: #05c897;
+    }
+
+    .stats-panel {
+      background: var(--bg);
+      border-radius: 8px;
+      padding: 1rem;
+      margin-top: 1rem;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 0.8rem;
+    }
+
+    .stat-card {
+      background: white;
+      padding: 0.8rem;
+      border-radius: 6px;
+      text-align: center;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+
+    .stat-label {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      color: var(--muted);
+      letter-spacing: 0.5px;
+      margin-bottom: 0.3rem;
+    }
+
+    .stat-value {
+      font-size: 1.3rem;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .stat-value.conserved {
+      color: var(--success);
+    }
+
+    .legend {
+      display: flex;
+      gap: 1.5rem;
+      justify-content: center;
+      margin-top: 0.8rem;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.85rem;
+    }
+
+    .legend-ball {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      border: 2px solid rgba(0,0,0,0.3);
+    }
+
+    .info-box {
+      background: linear-gradient(135deg, #e3f2fd, #bbdefb);
+      border-left: 4px solid var(--accent2);
+      padding: 1rem;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      margin-top: 1rem;
+    }
+
+    .info-box strong {
+      color: var(--accent2);
+    }
+    
+    .challenge-box {
+      background: var(--challenge-bg);
+      border-left: 4px solid var(--challenge-border);
+      padding: 1rem;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      margin-bottom: 1rem;
+    }
+    
+    .challenge-box h4 {
+      color: #995c00;
+      margin-bottom: 0.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    
+    .challenge-box p {
+      margin: 0.5rem 0;
+    }
+    
+    .challenge-box .hint {
+      font-size: 0.85rem;
+      font-style: italic;
+      color: #795000;
+      margin-top: 0.5rem;
+    }
+    
+    .scratchpad-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 2px solid var(--border);
+    }
+    
+    .scratchpad-header h3 {
+      font-size: 1rem;
+      color: var(--text);
+    }
+    
+    .captured-data {
+      flex: 1;
+      overflow-y: auto;
+      margin-bottom: 1rem;
+    }
+    
+    .data-entry {
+      background: var(--bg);
+      border-radius: 6px;
+      padding: 0.8rem;
+      margin-bottom: 0.8rem;
+      border-left: 3px solid var(--accent2);
+    }
+    
+    .data-entry-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.5rem;
+    }
+    
+    .data-entry-time {
+      font-size: 0.75rem;
+      color: var(--muted);
+    }
+    
+    .data-entry-delete {
+      background: none;
+      border: none;
+      color: var(--accent);
+      cursor: pointer;
+      font-size: 0.9rem;
+      padding: 0.2rem 0.5rem;
+    }
+    
+    .data-entry-delete:hover {
+      text-decoration: underline;
+    }
+    
+    .data-values {
+      font-family: 'Courier New', monospace;
+      font-size: 0.85rem;
+      background: white;
+      padding: 0.5rem;
+      border-radius: 4px;
+      margin-bottom: 0.5rem;
+    }
+    
+    .data-values div {
+      margin: 0.2rem 0;
+    }
+    
+    .data-notes {
+      width: 100%;
+      min-height: 60px;
+      padding: 0.5rem;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      font-size: 0.85rem;
+      resize: vertical;
+      font-family: inherit;
+    }
+    
+    .scratchpad-actions {
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    @media (max-width: 1200px) {
+      .main-content {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>🎱 <span id="header-title">Billiard Ball Physics</span></h1>
+    <p id="header-subtitle">Explore Conservation of Momentum Through Elastic Collisions</p>
+    <div class="header-controls">
+      <select id="difficultySelect">
+        <option value="novice">Novice</option>
+        <option value="intermediate">Intermediate</option>
+        <option value="experienced">Experienced</option>
+      </select>
+      <select id="languageSelect">
+        <option value="en">English</option>
+        <option value="es">Español</option>
+        <option value="zh">中文</option>
+      </select>
+    </div>
+  </header>
+
+  <div class="app">
+    <div class="main-content">
+      <!-- SIMULATION PANEL -->
+      <div class="simulation-panel">
+        <!-- Challenge Box -->
+        <div id="challengeBox" class="challenge-box" style="display: none;">
+          <h4>
+            <span>🎯</span>
+            <span id="challenge-title">Challenge</span>
+          </h4>
+          <p id="challenge-description"></p>
+          <p class="hint" id="challenge-hint"></p>
+        </div>
+        
+        <div class="canvas-container">
+          <canvas id="canvas" width="700" height="400"></canvas>
+        </div>
+        
+        <div class="legend">
+          <div class="legend-item">
+            <div class="legend-ball" style="background: radial-gradient(circle at 35% 35%, #ff6b6b, #c92a2a);"></div>
+            <span id="ball1-label">Red Ball</span>
+          </div>
+          <div class="legend-item">
+            <div class="legend-ball" style="background: radial-gradient(circle at 35% 35%, #ffd93d, #f39c12);"></div>
+            <span id="ball2-label">Yellow Ball</span>
+          </div>
+        </div>
+
+        <div class="stats-panel">
+          <div class="stats-grid">
+            <div class="stat-card">
+              <div class="stat-label" id="p1-label">Ball 1 Momentum</div>
+              <div class="stat-value" id="p1">0</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label" id="p2-label">Ball 2 Momentum</div>
+              <div class="stat-value" id="p2">0</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label" id="pBefore-label">Total (Before)</div>
+              <div class="stat-value conserved" id="pBefore">0</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label" id="pAfter-label">Total (After)</div>
+              <div class="stat-value conserved" id="pAfter">0</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="info-box" id="infoBox">
+          <strong id="info-title">Conservation of Momentum:</strong>
+          <span id="info-text">In elastic collisions, total momentum before equals total momentum after. Try different masses and velocities to see this principle in action!</span>
+        </div>
+      </div>
+
+      <!-- CONTROLS PANEL -->
+      <div class="controls-panel">
+        <div class="control-group">
+          <h3 id="ball1-header">⚙️ Ball 1 (Red)</h3>
+          <div class="control-row">
+            <label id="mass1-label">Mass (kg)</label>
+            <input type="number" id="mass1" value="1" min="0.5" max="5" step="0.5">
+          </div>
+          <div class="control-row">
+            <label id="vel1-label">Velocity (m/s)</label>
+            <input type="range" id="vel1" min="-10" max="10" value="5" step="0.5">
+            <span class="value-display" id="vel1-display">5</span>
+          </div>
+        </div>
+
+        <div class="control-group">
+          <h3 id="ball2-header">⚙️ Ball 2 (Yellow)</h3>
+          <div class="control-row">
+            <label id="mass2-label">Mass (kg)</label>
+            <input type="number" id="mass2" value="1" min="0.5" max="5" step="0.5">
+          </div>
+          <div class="control-row">
+            <label id="vel2-label">Velocity (m/s)</label>
+            <input type="range" id="vel2" min="-10" max="10" value="0" step="0.5">
+            <span class="value-display" id="vel2-display">0</span>
+          </div>
+        </div>
+
+        <div class="button-group">
+          <button class="btn btn-primary" id="startBtn">▶️ <span id="start-text">Start</span></button>
+          <button class="btn btn-secondary" id="resetBtn">↻ <span id="reset-text">Reset</span></button>
+        </div>
+
+        <div class="control-group" style="margin-top: 1.5rem;">
+          <h3 id="challenges-header">🎯 Challenges</h3>
+          <div class="control-row">
+            <select id="challengeSelect" style="width: 100%;">
+              <option value="">-- Select a Challenge --</option>
+            </select>
+          </div>
+          <button class="btn btn-success btn-small" id="loadChallengeBtn" style="width: 100%; margin-top: 0.5rem;">
+            <span id="load-challenge-text">Load Challenge</span>
+          </button>
+        </div>
+        
+        <div class="control-group">
+          <h3 id="scenarios-header">🎬 Quick Scenarios</h3>
+          <button class="btn btn-secondary btn-small" style="width: 100%; margin-bottom: 0.5rem;" onclick="loadScenario('equal')">
+            <span id="scenario1-text">Equal Mass, Moving + Stationary</span>
+          </button>
+          <button class="btn btn-secondary btn-small" style="width: 100%; margin-bottom: 0.5rem;" onclick="loadScenario('headon')">
+            <span id="scenario2-text">Head-On Collision</span>
+          </button>
+          <button class="btn btn-secondary btn-small" style="width: 100%;" onclick="loadScenario('heavy')">
+            <span id="scenario3-text">Heavy Hits Light</span>
+          </button>
+        </div>
+      </div>
+      
+      <!-- SCRATCHPAD PANEL -->
+      <div class="scratchpad-panel">
+        <div class="scratchpad-header">
+          <h3 id="scratchpad-title">📝 Lab Notebook</h3>
+          <button class="btn btn-secondary btn-small" id="clearAllBtn">
+            <span id="clear-all-text">Clear All</span>
+          </button>
+        </div>
+        
+        <div class="captured-data" id="capturedData">
+          <p style="color: var(--muted); font-size: 0.9rem; text-align: center; padding: 2rem;" id="empty-message">
+            Click "Capture Data" to save observations!
+          </p>
+        </div>
+        
+        <div class="scratchpad-actions">
+          <button class="btn btn-primary" id="captureBtn" style="flex: 2;">
+            📸 <span id="capture-text">Capture Data</span>
+          </button>
+          <button class="btn btn-secondary" id="exportBtn">
+            💾 <span id="export-text">Export</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ============================================
+    // TRANSLATION SYSTEM
+    // ============================================
+    const translations = {
+      en: {
+        headerTitle: "Billiard Ball Physics",
+        headerSubtitle: "Explore Conservation of Momentum Through Elastic Collisions",
+        novice: {
+          ball1Label: "Red Ball",
+          ball2Label: "Yellow Ball",
+          massLabel: "Weight (kg)",
+          velocityLabel: "Speed (m/s)",
+          p1Label: "Ball 1 Push",
+          p2Label: "Ball 2 Push",
+          pBeforeLabel: "Total (Before)",
+          pAfterLabel: "Total (After)",
+          infoTitle: "What Happens:",
+          infoText: "When balls crash together, the total 'push' stays the same! Try different weights and speeds to see this.",
+          startText: "Start",
+          resetText: "Reset",
+          pauseText: "Pause",
+          resumeText: "Resume"
+        },
+        intermediate: {
+          ball1Label: "Red Ball",
+          ball2Label: "Yellow Ball",
+          massLabel: "Mass (kg)",
+          velocityLabel: "Velocity (m/s)",
+          p1Label: "Ball 1 Momentum",
+          p2Label: "Ball 2 Momentum",
+          pBeforeLabel: "Total (Before)",
+          pAfterLabel: "Total (After)",
+          infoTitle: "Conservation of Momentum:",
+          infoText: "In elastic collisions, total momentum before equals total momentum after. Try different masses and velocities!",
+          startText: "Start",
+          resetText: "Reset",
+          pauseText: "Pause",
+          resumeText: "Resume"
+        },
+        experienced: {
+          ball1Label: "Object 1",
+          ball2Label: "Object 2",
+          massLabel: "m (kg)",
+          velocityLabel: "v (m/s)",
+          p1Label: "p₁",
+          p2Label: "p₂",
+          pBeforeLabel: "Σp (initial)",
+          pAfterLabel: "Σp (final)",
+          infoTitle: "Law of Conservation of Momentum:",
+          infoText: "For elastic collisions in an isolated system: Σp_initial = Σp_final. Test with varying mass ratios and relative velocities.",
+          startText: "Start",
+          resetText: "Reset",
+          pauseText: "Pause",
+          resumeText: "Resume"
+        },
+        challenges: [
+          {
+            title: "Challenge 1: Make Both Balls Stop",
+            description: "Can you set the balls so that after they crash, BOTH balls stop completely?",
+            hint: "Think about equal weights moving in opposite directions..."
+          },
+          {
+            title: "Challenge 2: Make One Ball Stop",
+            description: "Set it up so the moving ball stops, but the other ball starts moving.",
+            hint: "Try equal weights with one ball not moving at first."
+          },
+          {
+            title: "Challenge 3: Reverse Direction",
+            description: "Make the red ball bounce backwards after the collision.",
+            hint: "What if the yellow ball is heavier and also moving?"
+          },
+          {
+            title: "Challenge 4: Speed Transfer",
+            description: "Make the yellow ball move faster after collision than the red ball was moving before.",
+            hint: "Try a heavy red ball hitting a light yellow ball."
+          },
+          {
+            title: "Challenge 5: Create Your Own",
+            description: "Think of your own challenge! What interesting collision can you create?",
+            hint: "Try to make the total 'push' equal to zero, or try extreme mass differences."
+          }
+        ],
+        ball1Header: "⚙️ Ball 1 (Red)",
+        ball2Header: "⚙️ Ball 2 (Yellow)",
+        challengesHeader: "🎯 Challenges",
+        scenariosHeader: "🎬 Quick Scenarios",
+        scenario1Text: "Equal Mass, Moving + Stationary",
+        scenario2Text: "Head-On Collision",
+        scenario3Text: "Heavy Hits Light",
+        loadChallengeText: "Load Challenge",
+        scratchpadTitle: "📝 Lab Notebook",
+        captureText: "Capture Data",
+        exportText: "Export",
+        clearAllText: "Clear All",
+        emptyMessage: "Click 'Capture Data' to save observations!"
+      },
+      es: {
+        headerTitle: "Física de Bolas de Billar",
+        headerSubtitle: "Explora la Conservación del Momento a Través de Colisiones Elásticas",
+        novice: {
+          ball1Label: "Bola Roja",
+          ball2Label: "Bola Amarilla",
+          massLabel: "Peso (kg)",
+          velocityLabel: "Rapidez (m/s)",
+          p1Label: "Empuje Bola 1",
+          p2Label: "Empuje Bola 2",
+          pBeforeLabel: "Total (Antes)",
+          pAfterLabel: "Total (Después)",
+          infoTitle: "Qué Sucede:",
+          infoText: "¡Cuando las bolas chocan, el 'empuje' total permanece igual! Prueba diferentes pesos y rapideces.",
+          startText: "Iniciar",
+          resetText: "Reiniciar",
+          pauseText: "Pausar",
+          resumeText: "Continuar"
+        },
+        intermediate: {
+          ball1Label: "Bola Roja",
+          ball2Label: "Bola Amarilla",
+          massLabel: "Masa (kg)",
+          velocityLabel: "Velocidad (m/s)",
+          p1Label: "Momento Bola 1",
+          p2Label: "Momento Bola 2",
+          pBeforeLabel: "Total (Antes)",
+          pAfterLabel: "Total (Después)",
+          infoTitle: "Conservación del Momento:",
+          infoText: "En colisiones elásticas, el momento total antes es igual al momento total después. ¡Prueba diferentes masas y velocidades!",
+          startText: "Iniciar",
+          resetText: "Reiniciar",
+          pauseText: "Pausar",
+          resumeText: "Continuar"
+        },
+        experienced: {
+          ball1Label: "Objeto 1",
+          ball2Label: "Objeto 2",
+          massLabel: "m (kg)",
+          velocityLabel: "v (m/s)",
+          p1Label: "p₁",
+          p2Label: "p₂",
+          pBeforeLabel: "Σp (inicial)",
+          pAfterLabel: "Σp (final)",
+          infoTitle: "Ley de Conservación del Momento:",
+          infoText: "Para colisiones elásticas en un sistema aislado: Σp_inicial = Σp_final. Prueba con diferentes relaciones de masa y velocidades relativas.",
+          startText: "Iniciar",
+          resetText: "Reiniciar",
+          pauseText: "Pausar",
+          resumeText: "Continuar"
+        },
+        challenges: [
+          {
+            title: "Desafío 1: Detén Ambas Bolas",
+            description: "¿Puedes configurar las bolas para que después de chocar, AMBAS se detengan completamente?",
+            hint: "Piensa en pesos iguales moviéndose en direcciones opuestas..."
+          },
+          {
+            title: "Desafío 2: Detén Una Bola",
+            description: "Configúralo para que la bola en movimiento se detenga, pero la otra bola comience a moverse.",
+            hint: "Prueba pesos iguales con una bola sin moverse al principio."
+          },
+          {
+            title: "Desafío 3: Invertir Dirección",
+            description: "Haz que la bola roja rebote hacia atrás después de la colisión.",
+            hint: "¿Qué pasa si la bola amarilla es más pesada y también está en movimiento?"
+          },
+          {
+            title: "Desafío 4: Transferencia de Rapidez",
+            description: "Haz que la bola amarilla se mueva más rápido después de la colisión que la bola roja antes.",
+            hint: "Prueba una bola roja pesada golpeando una bola amarilla ligera."
+          },
+          {
+            title: "Desafío 5: Crea el Tuyo",
+            description: "¡Piensa en tu propio desafío! ¿Qué colisión interesante puedes crear?",
+            hint: "Intenta hacer que el 'empuje' total sea igual a cero, o prueba diferencias extremas de masa."
+          }
+        ],
+        ball1Header: "⚙️ Bola 1 (Roja)",
+        ball2Header: "⚙️ Bola 2 (Amarilla)",
+        challengesHeader: "🎯 Desafíos",
+        scenariosHeader: "🎬 Escenarios Rápidos",
+        scenario1Text: "Masa Igual, Movimiento + Estacionaria",
+        scenario2Text: "Colisión Frontal",
+        scenario3Text: "Pesada Golpea Ligera",
+        loadChallengeText: "Cargar Desafío",
+        scratchpadTitle: "📝 Cuaderno de Laboratorio",
+        captureText: "Capturar Datos",
+        exportText: "Exportar",
+        clearAllText: "Borrar Todo",
+        emptyMessage: "¡Haz clic en 'Capturar Datos' para guardar observaciones!"
+      },
+      zh: {
+        headerTitle: "台球物理",
+        headerSubtitle: "通过弹性碰撞探索动量守恒",
+        novice: {
+          ball1Label: "红球",
+          ball2Label: "黄球",
+          massLabel: "重量 (kg)",
+          velocityLabel: "速度 (m/s)",
+          p1Label: "球1推力",
+          p2Label: "球2推力",
+          pBeforeLabel: "总计（之前）",
+          pAfterLabel: "总计（之后）",
+          infoTitle: "发生了什么：",
+          infoText: "当球碰撞在一起时，总'推力'保持不变！尝试不同的重量和速度来观察。",
+          startText: "开始",
+          resetText: "重置",
+          pauseText: "暂停",
+          resumeText: "继续"
+        },
+        intermediate: {
+          ball1Label: "红球",
+          ball2Label: "黄球",
+          massLabel: "质量 (kg)",
+          velocityLabel: "速度 (m/s)",
+          p1Label: "球1动量",
+          p2Label: "球2动量",
+          pBeforeLabel: "总计（之前）",
+          pAfterLabel: "总计（之后）",
+          infoTitle: "动量守恒：",
+          infoText: "在弹性碰撞中，碰撞前的总动量等于碰撞后的总动量。尝试不同的质量和速度！",
+          startText: "开始",
+          resetText: "重置",
+          pauseText: "暂停",
+          resumeText: "继续"
+        },
+        experienced: {
+          ball1Label: "物体1",
+          ball2Label: "物体2",
+          massLabel: "m (kg)",
+          velocityLabel: "v (m/s)",
+          p1Label: "p₁",
+          p2Label: "p₂",
+          pBeforeLabel: "Σp（初始）",
+          pAfterLabel: "Σp（最终）",
+          infoTitle: "动量守恒定律：",
+          infoText: "对于孤立系统中的弹性碰撞：Σp初始 = Σp最终。测试不同的质量比和相对速度。",
+          startText: "开始",
+          resetText: "重置",
+          pauseText: "暂停",
+          resumeText: "继续"
+        },
+        challenges: [
+          {
+            title: "挑战1：让两球都停下来",
+            description: "你能设置球，使它们碰撞后，两个球都完全停止吗？",
+            hint: "想想相等重量向相反方向移动..."
+          },
+          {
+            title: "挑战2：让一个球停下来",
+            description: "设置它，使移动的球停止，但另一个球开始移动。",
+            hint: "尝试相等重量，一个球开始时不动。"
+          },
+          {
+            title: "挑战3：反转方向",
+            description: "让红球在碰撞后向后弹。",
+            hint: "如果黄球更重并且也在移动会怎样？"
+          },
+          {
+            title: "挑战4：速度转移",
+            description: "让黄球碰撞后移动得比红球碰撞前更快。",
+            hint: "尝试一个重的红球撞击一个轻的黄球。"
+          },
+          {
+            title: "挑战5：创建你自己的",
+            description: "想出你自己的挑战！你能创建什么有趣的碰撞？",
+            hint: "尝试使总'推力'等于零，或尝试极端的质量差异。"
+          }
+        ],
+        ball1Header: "⚙️ 球1（红色）",
+        ball2Header: "⚙️ 球2（黄色）",
+        challengesHeader: "🎯 挑战",
+        scenariosHeader: "🎬 快速场景",
+        scenario1Text: "相等质量，移动+静止",
+        scenario2Text: "正面碰撞",
+        scenario3Text: "重球撞轻球",
+        loadChallengeText: "加载挑战",
+        scratchpadTitle: "📝 实验笔记本",
+        captureText: "捕获数据",
+        exportText: "导出",
+        clearAllText: "全部清除",
+        emptyMessage: "点击'捕获数据'保存观察结果！"
+      }
+    };
+
+    // ============================================
+    // STATE MANAGEMENT
+    // ============================================
+    let currentLanguage = 'en';
+    let currentDifficulty = 'novice';
+    let capturedEntries = [];
+    let entryCounter = 0;
+
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+
+    // Simulation state
+    let ball1 = { x: 150, y: 200, vx: 5, vy: 0, mass: 1, radius: 25, color: '#ff6b6b' };
+    let ball2 = { x: 550, y: 200, vx: 0, vy: 0, mass: 1, radius: 25, color: '#ffd93d' };
+    
+    let initialState = {};
+    let running = false;
+    let collided = false;
+    let animationId = null;
+
+    // ============================================
+    // INITIALIZATION
+    // ============================================
+    saveInitialState();
+    updateControls();
+    updateLanguage();
+    populateChallenges();
+    draw();
+
+    // ============================================
+    // EVENT LISTENERS
+    // ============================================
+    document.getElementById('languageSelect').addEventListener('change', (e) => {
+      currentLanguage = e.target.value;
+      updateLanguage();
+      populateChallenges();
+    });
+
+    document.getElementById('difficultySelect').addEventListener('change', (e) => {
+      currentDifficulty = e.target.value;
+      updateLanguage();
+    });
+
+    document.getElementById('startBtn').addEventListener('click', startSimulation);
+    document.getElementById('resetBtn').addEventListener('click', resetSimulation);
+    document.getElementById('captureBtn').addEventListener('click', captureData);
+    document.getElementById('exportBtn').addEventListener('click', exportNotes);
+    document.getElementById('clearAllBtn').addEventListener('click', clearAllData);
+    document.getElementById('loadChallengeBtn').addEventListener('click', loadSelectedChallenge);
+    
+    ['mass1', 'mass2', 'vel1', 'vel2'].forEach(id => {
+      document.getElementById(id).addEventListener('input', updateFromControls);
+    });
+
+    // ============================================
+    // TRANSLATION FUNCTIONS
+    // ============================================
+    function updateLanguage() {
+      const t = translations[currentLanguage];
+      const level = t[currentDifficulty];
+      
+      // Header
+      document.getElementById('header-title').textContent = t.headerTitle;
+      document.getElementById('header-subtitle').textContent = t.headerSubtitle;
+      
+      // Labels
+      document.getElementById('ball1-label').textContent = level.ball1Label;
+      document.getElementById('ball2-label').textContent = level.ball2Label;
+      document.getElementById('mass1-label').textContent = level.massLabel;
+      document.getElementById('mass2-label').textContent = level.massLabel;
+      document.getElementById('vel1-label').textContent = level.velocityLabel;
+      document.getElementById('vel2-label').textContent = level.velocityLabel;
+      
+      // Stats
+      document.getElementById('p1-label').textContent = level.p1Label;
+      document.getElementById('p2-label').textContent = level.p2Label;
+      document.getElementById('pBefore-label').textContent = level.pBeforeLabel;
+      document.getElementById('pAfter-label').textContent = level.pAfterLabel;
+      
+      // Info box
+      document.getElementById('info-title').textContent = level.infoTitle;
+      document.getElementById('info-text').textContent = level.infoText;
+      
+      // Control headers
+      document.getElementById('ball1-header').textContent = t.ball1Header;
+      document.getElementById('ball2-header').textContent = t.ball2Header;
+      document.getElementById('challenges-header').textContent = t.challengesHeader;
+      document.getElementById('scenarios-header').textContent = t.scenariosHeader;
+      
+      // Buttons
+      document.getElementById('start-text').textContent = level.startText;
+      document.getElementById('reset-text').textContent = level.resetText;
+      document.getElementById('scenario1-text').textContent = t.scenario1Text;
+      document.getElementById('scenario2-text').textContent = t.scenario2Text;
+      document.getElementById('scenario3-text').textContent = t.scenario3Text;
+      document.getElementById('load-challenge-text').textContent = t.loadChallengeText;
+      
+      // Scratchpad
+      document.getElementById('scratchpad-title').textContent = t.scratchpadTitle;
+      document.getElementById('capture-text').textContent = t.captureText;
+      document.getElementById('export-text').textContent = t.exportText;
+      document.getElementById('clear-all-text').textContent = t.clearAllText;
+      document.getElementById('empty-message').textContent = t.emptyMessage;
+    }
+
+    function populateChallenges() {
+      const select = document.getElementById('challengeSelect');
+      const t = translations[currentLanguage];
+      
+      select.innerHTML = '<option value="">-- ' + 
+        (currentLanguage === 'es' ? 'Seleccionar Desafío' : 
+         currentLanguage === 'zh' ? '选择挑战' : 'Select a Challenge') + 
+        ' --</option>';
+      
+      t.challenges.forEach((challenge, index) => {
+        const option = document.createElement('option');
+        option.value = index;
+        option.textContent = challenge.title;
+        select.appendChild(option);
+      });
+    }
+
+    function loadSelectedChallenge() {
+      const select = document.getElementById('challengeSelect');
+      const index = select.value;
+      
+      if (index === '') {
+        document.getElementById('challengeBox').style.display = 'none';
+        return;
+      }
+      
+      const t = translations[currentLanguage];
+      const challenge = t.challenges[index];
+      
+      document.getElementById('challenge-title').textContent = challenge.title;
+      document.getElementById('challenge-description').textContent = challenge.description;
+      document.getElementById('challenge-hint').textContent = challenge.hint;
+      document.getElementById('challengeBox').style.display = 'block';
+      
+      resetSimulation();
+    }
+
+    // ============================================
+    // SIMULATION FUNCTIONS
+    // ============================================
+    function saveInitialState() {
+      initialState = {
+        ball1: { ...ball1 },
+        ball2: { ...ball2 }
+      };
+    }
+
+    function updateControls() {
+      document.getElementById('mass1').value = ball1.mass;
+      document.getElementById('mass2').value = ball2.mass;
+      document.getElementById('vel1').value = ball1.vx;
+      document.getElementById('vel2').value = ball2.vx;
+      document.getElementById('vel1-display').textContent = ball1.vx.toFixed(1);
+      document.getElementById('vel2-display').textContent = ball2.vx.toFixed(1);
+      
+      updateMomentumDisplay();
+    }
+
+    function updateFromControls() {
+      if (running) return;
+      
+      ball1.mass = parseFloat(document.getElementById('mass1').value);
+      ball2.mass = parseFloat(document.getElementById('mass2').value);
+      ball1.vx = parseFloat(document.getElementById('vel1').value);
+      ball2.vx = parseFloat(document.getElementById('vel2').value);
+      
+      // Update radius based on mass
+      ball1.radius = 15 + ball1.mass * 5;
+      ball2.radius = 15 + ball2.mass * 5;
+      
+      document.getElementById('vel1-display').textContent = ball1.vx.toFixed(1);
+      document.getElementById('vel2-display').textContent = ball2.vx.toFixed(1);
+      
+      saveInitialState();
+      updateMomentumDisplay();
+      draw();
+    }
+
+    function updateMomentumDisplay() {
+      const p1 = ball1.mass * ball1.vx;
+      const p2 = ball2.mass * ball2.vx;
+      const pTotal = p1 + p2;
+      
+      document.getElementById('p1').textContent = p1.toFixed(2);
+      document.getElementById('p2').textContent = p2.toFixed(2);
+      document.getElementById('pBefore').textContent = collided ? initialState.pTotal.toFixed(2) : pTotal.toFixed(2);
+      document.getElementById('pAfter').textContent = pTotal.toFixed(2);
+      
+      if (!collided) {
+        initialState.pTotal = pTotal;
+      }
+    }
+
+    function startSimulation() {
+      const level = translations[currentLanguage][currentDifficulty];
+      
+      if (!running) {
+        running = true;
+        collided = false;
+        document.getElementById('start-text').textContent = level.pauseText;
+        animate();
+      } else {
+        running = false;
+        document.getElementById('start-text').textContent = level.resumeText;
+        cancelAnimationFrame(animationId);
+      }
+    }
+
+    function resetSimulation() {
+      const level = translations[currentLanguage][currentDifficulty];
+      running = false;
+      collided = false;
+      cancelAnimationFrame(animationId);
+      
+      ball1 = { ...initialState.ball1 };
+      ball2 = { ...initialState.ball2 };
+      
+      document.getElementById('start-text').textContent = level.startText;
+      updateMomentumDisplay();
+      draw();
+    }
+
+    function loadScenario(type) {
+      resetSimulation();
+      
+      if (type === 'equal') {
+        ball1.mass = 1;
+        ball2.mass = 1;
+        ball1.vx = 5;
+        ball2.vx = 0;
+      } else if (type === 'headon') {
+        ball1.mass = 1;
+        ball2.mass = 1;
+        ball1.vx = 5;
+        ball2.vx = -5;
+      } else if (type === 'heavy') {
+        ball1.mass = 3;
+        ball2.mass = 1;
+        ball1.vx = 4;
+        ball2.vx = 0;
+      }
+      
+      ball1.x = 150;
+      ball2.x = 550;
+      ball1.y = ball2.y = 200;
+      
+      updateControls();
+      draw();
+    }
+
+    function animate() {
+      if (!running) return;
+      
+      // Update positions
+      ball1.x += ball1.vx;
+      ball2.x += ball2.vx;
+      
+      // Wall collisions
+      if (ball1.x - ball1.radius < 0) {
+        ball1.x = ball1.radius;
+        ball1.vx *= -1;
+      }
+      if (ball1.x + ball1.radius > canvas.width) {
+        ball1.x = canvas.width - ball1.radius;
+        ball1.vx *= -1;
+      }
+      if (ball2.x - ball2.radius < 0) {
+        ball2.x = ball2.radius;
+        ball2.vx *= -1;
+      }
+      if (ball2.x + ball2.radius > canvas.width) {
+        ball2.x = canvas.width - ball2.radius;
+        ball2.vx *= -1;
+      }
+      
+      // Ball collision detection
+      const dx = ball2.x - ball1.x;
+      const dy = ball2.y - ball1.y;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+      
+      if (distance < ball1.radius + ball2.radius) {
+        // Elastic collision formula
+        const v1 = ball1.vx;
+        const v2 = ball2.vx;
+        const m1 = ball1.mass;
+        const m2 = ball2.mass;
+        
+        ball1.vx = ((m1 - m2) * v1 + 2 * m2 * v2) / (m1 + m2);
+        ball2.vx = ((m2 - m1) * v2 + 2 * m1 * v1) / (m1 + m2);
+        
+        // Separate balls to prevent overlap
+        const overlap = (ball1.radius + ball2.radius) - distance;
+        const angle = Math.atan2(dy, dx);
+        ball1.x -= Math.cos(angle) * overlap / 2;
+        ball2.x += Math.cos(angle) * overlap / 2;
+        
+        collided = true;
+      }
+      
+      updateMomentumDisplay();
+      draw();
+      
+      animationId = requestAnimationFrame(animate);
+    }
+
+    function draw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      
+      // Draw velocity vectors
+      drawVelocityVector(ball1);
+      drawVelocityVector(ball2);
+      
+      // Draw balls
+      drawBall(ball1);
+      drawBall(ball2);
+    }
+
+    function drawBall(ball) {
+      // Shadow
+      ctx.fillStyle = 'rgba(0,0,0,0.2)';
+      ctx.beginPath();
+      ctx.ellipse(ball.x + 3, ball.y + ball.radius + 5, ball.radius * 0.8, ball.radius * 0.3, 0, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // Ball with gradient
+      const gradient = ctx.createRadialGradient(
+        ball.x - ball.radius * 0.3,
+        ball.y - ball.radius * 0.3,
+        ball.radius * 0.1,
+        ball.x,
+        ball.y,
+        ball.radius
+      );
+      
+      if (ball.color === '#ff6b6b') {
+        gradient.addColorStop(0, '#ff9999');
+        gradient.addColorStop(1, '#c92a2a');
+      } else {
+        gradient.addColorStop(0, '#fff7cc');
+        gradient.addColorStop(1, '#f39c12');
+      }
+      
+      ctx.fillStyle = gradient;
+      ctx.beginPath();
+      ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // Shine
+      ctx.fillStyle = 'rgba(255,255,255,0.4)';
+      ctx.beginPath();
+      ctx.arc(ball.x - ball.radius * 0.3, ball.y - ball.radius * 0.3, ball.radius * 0.3, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // Mass label
+      ctx.fillStyle = 'rgba(0,0,0,0.6)';
+      ctx.font = 'bold 14px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(ball.mass + ' kg', ball.x, ball.y + 5);
+    }
+
+    function drawVelocityVector(ball) {
+      if (ball.vx === 0) return;
+      
+      const scale = 8;
+      const startX = ball.x;
+      const startY = ball.y;
+      const endX = startX + ball.vx * scale;
+      const endY = startY;
+      
+      ctx.strokeStyle = 'rgba(255,255,255,0.7)';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(startX, startY);
+      ctx.lineTo(endX, endY);
+      ctx.stroke();
+      
+      // Arrowhead
+      const angle = Math.atan2(0, ball.vx);
+      const arrowSize = 8;
+      ctx.fillStyle = 'rgba(255,255,255,0.7)';
+      ctx.beginPath();
+      ctx.moveTo(endX, endY);
+      ctx.lineTo(
+        endX - arrowSize * Math.cos(angle - Math.PI / 6),
+        endY - arrowSize * Math.sin(angle - Math.PI / 6)
+      );
+      ctx.lineTo(
+        endX - arrowSize * Math.cos(angle + Math.PI / 6),
+        endY - arrowSize * Math.sin(angle + Math.PI / 6)
+      );
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    // ============================================
+    // SCRATCHPAD FUNCTIONS
+    // ============================================
+    function captureData() {
+      entryCounter++;
+      const timestamp = new Date().toLocaleTimeString();
+      
+      const entry = {
+        id: entryCounter,
+        timestamp: timestamp,
+        data: {
+          m1: ball1.mass,
+          v1: ball1.vx,
+          m2: ball2.mass,
+          v2: ball2.vx,
+          p1: (ball1.mass * ball1.vx).toFixed(2),
+          p2: (ball2.mass * ball2.vx).toFixed(2),
+          pTotal: (ball1.mass * ball1.vx + ball2.mass * ball2.vx).toFixed(2)
+        },
+        notes: ''
+      };
+      
+      capturedEntries.unshift(entry);
+      renderScratchpad();
+    }
+
+    function renderScratchpad() {
+      const container = document.getElementById('capturedData');
+      
+      if (capturedEntries.length === 0) {
+        const t = translations[currentLanguage];
+        container.innerHTML = `<p style="color: var(--muted); font-size: 0.9rem; text-align: center; padding: 2rem;">${t.emptyMessage}</p>`;
+        return;
+      }
+      
+      container.innerHTML = '';
+      
+      capturedEntries.forEach(entry => {
+        const div = document.createElement('div');
+        div.className = 'data-entry';
+        div.innerHTML = `
+          <div class="data-entry-header">
+            <span class="data-entry-time">${entry.timestamp}</span>
+            <button class="data-entry-delete" onclick="deleteEntry(${entry.id})">✕</button>
+          </div>
+          <div class="data-values">
+            <div>m₁=${entry.data.m1} kg, v₁=${entry.data.v1} m/s → p₁=${entry.data.p1}</div>
+            <div>m₂=${entry.data.m2} kg, v₂=${entry.data.v2} m/s → p₂=${entry.data.p2}</div>
+            <div><strong>Total p = ${entry.data.pTotal}</strong></div>
+          </div>
+          <textarea class="data-notes" placeholder="${currentLanguage === 'es' ? 'Añade tus observaciones aquí...' : currentLanguage === 'zh' ? '在此添加您的观察...' : 'Add your observations here...'}" onchange="updateNotes(${entry.id}, this.value)">${entry.notes}</textarea>
+        `;
+        container.appendChild(div);
+      });
+    }
+
+    function deleteEntry(id) {
+      capturedEntries = capturedEntries.filter(e => e.id !== id);
+      renderScratchpad();
+    }
+
+    function updateNotes(id, notes) {
+      const entry = capturedEntries.find(e => e.id === id);
+      if (entry) {
+        entry.notes = notes;
+      }
+    }
+
+    function clearAllData() {
+      if (capturedEntries.length === 0) return;
+      
+      const confirmText = currentLanguage === 'es' ? '¿Borrar todas las entradas?' :
+                         currentLanguage === 'zh' ? '删除所有条目？' :
+                         'Clear all entries?';
+      
+      if (confirm(confirmText)) {
+        capturedEntries = [];
+        renderScratchpad();
+      }
+    }
+
+    function exportNotes() {
+      if (capturedEntries.length === 0) {
+        alert(currentLanguage === 'es' ? 'No hay datos para exportar' :
+              currentLanguage === 'zh' ? '没有要导出的数据' :
+              'No data to export');
+        return;
+      }
+      
+      const header = currentLanguage === 'es' ? 'Notas del Laboratorio de Física - Colisiones de Momento' :
+                    currentLanguage === 'zh' ? '物理实验室笔记 - 动量碰撞' :
+                    'Physics Lab Notes - Momentum Collisions';
+      
+      let exportText = `${header}\n`;
+      exportText += `${'='.repeat(60)}\n\n`;
+      
+      capturedEntries.reverse().forEach((entry, index) => {
+        exportText += `Entry ${index + 1} - ${entry.timestamp}\n`;
+        exportText += `${'-'.repeat(40)}\n`;
+        exportText += `Ball 1: m=${entry.data.m1} kg, v=${entry.data.v1} m/s, p=${entry.data.p1}\n`;
+        exportText += `Ball 2: m=${entry.data.m2} kg, v=${entry.data.v2} m/s, p=${entry.data.p2}\n`;
+        exportText += `Total Momentum: ${entry.data.pTotal}\n`;
+        if (entry.notes) {
+          exportText += `\nNotes:\n${entry.notes}\n`;
+        }
+        exportText += `\n`;
+      });
+      
+      const blob = new Blob([exportText], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'momentum-lab-notes.txt';
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    // Make functions available globally
+    window.loadScenario = loadScenario;
+    window.deleteEntry = deleteEntry;
+    window.updateNotes = updateNotes;
+  </script>
+</body>
+</html>

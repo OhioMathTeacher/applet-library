@@ -68,11 +68,28 @@
 
     .app {
       display: grid;
-      grid-template-columns: 490px 1fr 490px;
-      grid-template-rows: 1fr;
+      grid-template-columns: 1fr 1fr;
+      grid-template-rows: auto 1fr;
       gap: 0.8rem;
       padding: 0.8rem;
       height: calc(100vh - 130px);
+    }
+
+    .center-panel {
+      grid-column: 1 / 3;
+      grid-row: 1 / 2;
+    }
+
+    .challenge-drawer {
+      grid-column: 1 / 2;
+      grid-row: 2 / 3;
+      overflow-y: auto;
+    }
+
+    .notebook-drawer {
+      grid-column: 2 / 3;
+      grid-row: 2 / 3;
+      overflow-y: auto;
     }
 
     /* CHALLENGE DRAWER */
@@ -80,9 +97,7 @@
       background: var(--card);
       border-radius: 8px;
       box-shadow: 0 2px 8px rgba(0,0,0,0.06);
-      overflow-y: auto;
       padding: 0.8rem;
-      grid-row: 1 / 2;
       display: flex;
       flex-direction: column;
     }
@@ -107,14 +122,11 @@
 
 
     .challenge-list {
-      display: flex;
-      flex-direction: column;
-      gap: 0.6rem;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      grid-template-rows: auto repeat(4, 1fr);
+      gap: 0.5rem;
       overflow-y: auto;
-    }
-
-    .challenge-section {
-      margin-bottom: 0.4rem;
     }
 
     .challenge-section-label {
@@ -122,60 +134,62 @@
       font-weight: 700;
       text-transform: uppercase;
       letter-spacing: 0.5px;
-      margin-bottom: 0.4rem;
-      padding: 0.3rem 0.5rem;
+      padding: 0.4rem;
       border-radius: 4px;
       text-align: center;
+      grid-row: 1;
     }
 
     .challenge-section-label.easy {
       background: var(--challenge-easy);
       color: #166534;
+      grid-column: 1;
     }
 
     .challenge-section-label.medium {
       background: var(--challenge-medium);
       color: #92400e;
+      grid-column: 2;
     }
 
     .challenge-section-label.hard {
       background: var(--challenge-hard);
       color: #991b1b;
+      grid-column: 3;
     }
 
     .challenge-item {
-      padding: 0.7rem;
+      padding: 0.6rem;
       border-radius: 4px;
       cursor: pointer;
       transition: all 0.2s;
-      font-size: 0.9rem;
-      border-left: 4px solid;
+      font-size: 0.85rem;
+      border: 2px solid;
+      text-align: center;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 60px;
     }
 
     .challenge-item.easy {
       background: linear-gradient(135deg, #dcfce7, #f0fdf4);
-      border-left-color: var(--challenge-easy);
+      border-color: var(--challenge-easy);
     }
 
     .challenge-item.medium {
       background: linear-gradient(135deg, #fef3c7, #fffbeb);
-      border-left-color: var(--challenge-medium);
+      border-color: var(--challenge-medium);
     }
 
     .challenge-item.hard {
       background: linear-gradient(135deg, #fee2e2, #fef2f2);
-      border-left-color: var(--challenge-hard);
+      border-color: var(--challenge-hard);
     }
 
     .challenge-item:hover {
-      transform: translateX(3px);
-      box-shadow: 0 2px 6px rgba(0,0,0,0.15);
-    }
-
-    .challenge-item strong {
-      display: block;
-      margin-bottom: 0.2rem;
-      font-size: 0.95rem;
+      transform: scale(1.03);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
     }
 
     /* CENTER PANEL */
@@ -221,6 +235,35 @@
       border-radius: 4px;
     }
 
+    /* SNAPSHOT OVERLAY */
+    .snapshot-overlay {
+      position: absolute;
+      bottom: 1rem;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(255, 255, 255, 0.92);
+      color: #555;
+      padding: 0.6rem 1.2rem;
+      border-radius: 6px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+      border: 2px solid rgba(200, 200, 200, 0.5);
+      display: none;
+      z-index: 100;
+      pointer-events: none;
+      animation: fadeIn 0.2s ease-out;
+    }
+
+    .snapshot-overlay.active {
+      display: block;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateX(-50%) translateY(10px); }
+      to { opacity: 1; transform: translateX(-50%) translateY(0); }
+    }
+
     /* BALL CONTROLS */
     .ball-controls {
       display: grid;
@@ -231,17 +274,22 @@
     }
 
     .ball-control-group {
-      background: var(--bg);
       padding: 0.8rem;
       border-radius: 6px;
       border: 2px solid var(--border);
     }
 
+    /* Subtle color coding for ball controls */
+    .ball-control-group:first-child {
+      background: rgba(255, 107, 107, 0.18);
+    }
+
+    .ball-control-group:last-child {
+      background: rgba(243, 156, 18, 0.15);
+    }
+
     .ball-control-group h4 {
-      font-size: 1rem;
-      margin-bottom: 0.6rem;
-      color: var(--text);
-      text-align: center;
+      display: none;
     }
 
     .control-row {
@@ -270,8 +318,17 @@
 
     .control-row input[type="range"] {
       flex: 1;
-      accent-color: var(--accent);
       height: 8px;
+    }
+
+    /* Red slider for Ball 1 */
+    .ball-control-group:first-child .control-row input[type="range"] {
+      accent-color: var(--accent);
+    }
+
+    /* Gold slider for Ball 2 */
+    .ball-control-group:last-child .control-row input[type="range"] {
+      accent-color: #f39c12;
     }
 
     .control-row input[type="number"] {
@@ -296,9 +353,14 @@
       border-radius: 4px;
       font-weight: 700;
       min-width: 60px;
+      max-width: 60px;
       text-align: center;
       font-size: 1rem;
       border: 2px solid var(--accent);
+      flex-shrink: 0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     .action-buttons {
@@ -395,8 +457,6 @@
       border-radius: 8px;
       box-shadow: 0 2px 8px rgba(0,0,0,0.06);
       padding: 0.8rem;
-      grid-column: 3 / 4;
-      grid-row: 1 / 2;
       display: flex;
       flex-direction: column;
       overflow: hidden;
@@ -608,31 +668,36 @@
     }
 
     @media (max-width: 1600px) {
-      .app {
-        grid-template-columns: 350px 1fr 350px;
-      }
+      /* Layout already optimized */
+    }
+
+    /* Remove portrait-specific layout since we're using it everywhere */
+    @media (max-aspect-ratio: 9/10) {
+      /* Already using optimal layout */
     }
 
     @media (max-width: 1200px) {
       .app {
         grid-template-columns: 1fr;
-        grid-template-rows: auto 1fr auto;
+        grid-template-rows: auto auto auto;
         height: auto;
       }
       
-      .challenge-drawer {
+      .center-panel {
         grid-row: 1 / 2;
         grid-column: 1 / 2;
       }
       
-      .center-panel {
+      .challenge-drawer {
         grid-row: 2 / 3;
         grid-column: 1 / 2;
+        max-height: 50vh;
       }
       
       .notebook-drawer {
         grid-column: 1 / 2;
         grid-row: 3 / 4;
+        max-height: 50vh;
       }
     }
   </style>
@@ -665,6 +730,9 @@
     <div class="center-panel">
       <div class="canvas-container" id="canvasContainer" onclick="toggleSimulation()">
         <canvas id="canvas" width="600" height="280"></canvas>
+        <div class="snapshot-overlay" id="snapshotOverlay">
+          <span id="snapshot-message">📸 Press any key to continue...</span>
+        </div>
       </div>
 
       <!-- BALL CONTROLS -->
@@ -891,7 +959,8 @@
         captureText: "Capture Data",
         exportText: "Export Notes",
         clearAllText: "Clear All",
-        emptyMessage: "Click 'Capture Data' to save observations!"
+        emptyMessage: "Click 'Capture Data' to save observations!",
+        snapshotMessage: "📸 Press any key to continue..."
       },
       es: {
         headerTitle: "Física de Bolas de Billar",
@@ -987,7 +1056,8 @@
         captureText: "Capturar Datos",
         exportText: "Exportar Notas",
         clearAllText: "Borrar Todo",
-        emptyMessage: "¡Haz clic en 'Capturar Datos' para guardar observaciones!"
+        emptyMessage: "¡Haz clic en 'Capturar Datos' para guardar observaciones!",
+        snapshotMessage: "📸 Presiona cualquier tecla para continuar..."
       },
       zh: {
         headerTitle: "台球物理",
@@ -1083,7 +1153,8 @@
         captureText: "捕获数据",
         exportText: "导出笔记",
         clearAllText: "清除全部",
-        emptyMessage: "点击'捕获数据'保存观察！"
+        emptyMessage: "点击'捕获数据'保存观察！",
+        snapshotMessage: "📸 按任意键继续..."
       }
     };
 
@@ -1165,44 +1236,51 @@
       
       container.innerHTML = '';
       
-      // Easy challenges
-      const easySection = document.createElement('div');
-      easySection.className = 'challenge-section';
-      easySection.innerHTML = `<div class="challenge-section-label easy">${t.easyLabel}</div>`;
-      t.challenges.easy.forEach((challenge, index) => {
-        const div = document.createElement('div');
-        div.className = 'challenge-item easy';
-        div.onclick = () => showChallengeModal('easy', index);
-        div.innerHTML = `<strong>${index + 1}.</strong> ${challenge.title}`;
-        easySection.appendChild(div);
-      });
-      container.appendChild(easySection);
+      // Column headers
+      const easyLabel = document.createElement('div');
+      easyLabel.className = 'challenge-section-label easy';
+      easyLabel.textContent = t.easyLabel;
+      container.appendChild(easyLabel);
       
-      // Medium challenges
-      const mediumSection = document.createElement('div');
-      mediumSection.className = 'challenge-section';
-      mediumSection.innerHTML = `<div class="challenge-section-label medium">${t.mediumLabel}</div>`;
-      t.challenges.medium.forEach((challenge, index) => {
-        const div = document.createElement('div');
-        div.className = 'challenge-item medium';
-        div.onclick = () => showChallengeModal('medium', index);
-        div.innerHTML = `<strong>${index + 5}.</strong> ${challenge.title}`;
-        mediumSection.appendChild(div);
-      });
-      container.appendChild(mediumSection);
+      const mediumLabel = document.createElement('div');
+      mediumLabel.className = 'challenge-section-label medium';
+      mediumLabel.textContent = t.mediumLabel;
+      container.appendChild(mediumLabel);
       
-      // Hard challenges
-      const hardSection = document.createElement('div');
-      hardSection.className = 'challenge-section';
-      hardSection.innerHTML = `<div class="challenge-section-label hard">${t.hardLabel}</div>`;
-      t.challenges.hard.forEach((challenge, index) => {
-        const div = document.createElement('div');
-        div.className = 'challenge-item hard';
-        div.onclick = () => showChallengeModal('hard', index);
-        div.innerHTML = `<strong>${index + 9}.</strong> ${challenge.title}`;
-        hardSection.appendChild(div);
-      });
-      container.appendChild(hardSection);
+      const hardLabel = document.createElement('div');
+      hardLabel.className = 'challenge-section-label hard';
+      hardLabel.textContent = t.hardLabel;
+      container.appendChild(hardLabel);
+      
+      // Create 4 rows with 3 challenges each
+      for (let row = 0; row < 4; row++) {
+        // Easy challenge
+        const easyDiv = document.createElement('div');
+        easyDiv.className = 'challenge-item easy';
+        easyDiv.onclick = () => showChallengeModal('easy', row);
+        easyDiv.textContent = t.challenges.easy[row].title;
+        easyDiv.style.gridColumn = '1';
+        easyDiv.style.gridRow = row + 2;
+        container.appendChild(easyDiv);
+        
+        // Medium challenge
+        const mediumDiv = document.createElement('div');
+        mediumDiv.className = 'challenge-item medium';
+        mediumDiv.onclick = () => showChallengeModal('medium', row);
+        mediumDiv.textContent = t.challenges.medium[row].title;
+        mediumDiv.style.gridColumn = '2';
+        mediumDiv.style.gridRow = row + 2;
+        container.appendChild(mediumDiv);
+        
+        // Hard challenge
+        const hardDiv = document.createElement('div');
+        hardDiv.className = 'challenge-item hard';
+        hardDiv.onclick = () => showChallengeModal('hard', row);
+        hardDiv.textContent = t.challenges.hard[row].title;
+        hardDiv.style.gridColumn = '3';
+        hardDiv.style.gridRow = row + 2;
+        container.appendChild(hardDiv);
+      }
     }
 
     function updateLanguage() {
@@ -1232,6 +1310,7 @@
       document.getElementById('export-text').textContent = t.exportText;
       document.getElementById('clear-all-text').textContent = t.clearAllText;
       document.getElementById('empty-message').textContent = t.emptyMessage;
+      document.getElementById('snapshot-message').textContent = t.snapshotMessage;
     }
 
     // ============================================
@@ -1470,7 +1549,74 @@
     // ============================================
     // NOTEBOOK
     // ============================================
+    let wasRunningBeforeSnapshot = false;
+
+    // Play camera shutter sound effect
+    function playShutterSound() {
+      try {
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        const currentTime = audioContext.currentTime;
+        
+        // Create oscillator for the "click" part
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        
+        // Sharp, quick sound
+        oscillator.frequency.setValueAtTime(800, currentTime);
+        oscillator.frequency.exponentialRampToValueAtTime(400, currentTime + 0.01);
+        
+        // Quick envelope for click/snap effect
+        gainNode.gain.setValueAtTime(0.3, currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, currentTime + 0.05);
+        
+        oscillator.start(currentTime);
+        oscillator.stop(currentTime + 0.05);
+        
+        // Add second layer for mechanical sound
+        const noise = audioContext.createBufferSource();
+        const noiseBuffer = audioContext.createBuffer(1, audioContext.sampleRate * 0.04, audioContext.sampleRate);
+        const noiseData = noiseBuffer.getChannelData(0);
+        for (let i = 0; i < noiseData.length; i++) {
+          noiseData[i] = Math.random() * 2 - 1;
+        }
+        noise.buffer = noiseBuffer;
+        
+        const noiseGain = audioContext.createGain();
+        noise.connect(noiseGain);
+        noiseGain.connect(audioContext.destination);
+        
+        noiseGain.gain.setValueAtTime(0.1, currentTime);
+        noiseGain.gain.exponentialRampToValueAtTime(0.01, currentTime + 0.04);
+        
+        noise.start(currentTime);
+        noise.stop(currentTime + 0.04);
+      } catch (e) {
+        // Silently fail if Web Audio API not supported
+        console.log('Audio not available');
+      }
+    }
+
     function captureData() {
+      // Play shutter sound
+      playShutterSound();
+      // Play shutter sound
+      playShutterSound();
+      
+      // Pause simulation and show snapshot overlay
+      if (running) {
+        wasRunningBeforeSnapshot = true;
+        running = false;
+        cancelAnimationFrame(animationId);
+        setControlsEnabled(true);
+        document.getElementById('start-text').textContent = translations[currentLanguage].startText;
+      } else {
+        wasRunningBeforeSnapshot = false;
+      }
+
+      // Capture the data
       entryCounter++;
       const entry = {
         id: entryCounter,
@@ -1486,6 +1632,19 @@
       };
       capturedEntries.unshift(entry);
       renderScratchpad();
+
+      // Show snapshot overlay
+      const overlay = document.getElementById('snapshotOverlay');
+      overlay.classList.add('active');
+
+      // Set up one-time keypress listener to resume
+      const resumeHandler = (e) => {
+        overlay.classList.remove('active');
+        document.removeEventListener('keydown', resumeHandler);
+        // Only auto-resume if simulation was running before snapshot
+        // User can manually start if they want
+      };
+      document.addEventListener('keydown', resumeHandler);
     }
 
     function renderScratchpad() {

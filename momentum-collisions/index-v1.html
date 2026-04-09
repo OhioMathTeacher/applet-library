@@ -120,6 +120,13 @@
       font-size: 0.9rem;
     }
 
+    .control-row input[type="range"]:disabled,
+    .control-row input[type="number"]:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+      filter: grayscale(100%);
+    }
+
     .value-display {
       background: var(--bg);
       padding: 0.3rem 0.6rem;
@@ -424,14 +431,23 @@
       }
     }
 
+    function setControlsEnabled(enabled) {
+      document.getElementById('mass1').disabled = !enabled;
+      document.getElementById('mass2').disabled = !enabled;
+      document.getElementById('vel1').disabled = !enabled;
+      document.getElementById('vel2').disabled = !enabled;
+    }
+
     function startSimulation() {
       if (!running) {
         running = true;
         collided = false;
+        setControlsEnabled(false);
         document.getElementById('startBtn').textContent = '⏸️ Pause';
         animate();
       } else {
         running = false;
+        setControlsEnabled(true);
         document.getElementById('startBtn').textContent = '▶️ Resume';
         cancelAnimationFrame(animationId);
       }
@@ -445,6 +461,7 @@
       ball1 = { ...initialState.ball1 };
       ball2 = { ...initialState.ball2 };
       
+      setControlsEnabled(true);
       document.getElementById('startBtn').textContent = '▶️ Start';
       updateMomentumDisplay();
       draw();

@@ -283,6 +283,13 @@
       text-align: center;
     }
 
+    .control-row input[type="range"]:disabled,
+    .control-row input[type="number"]:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+      filter: grayscale(100%);
+    }
+
     .value-display {
       background: white;
       padding: 0.4rem 0.7rem;
@@ -1287,15 +1294,27 @@
       document.getElementById('pAfter').textContent = pTotal.toFixed(2);
     }
 
+    function setControlsEnabled(enabled) {
+      document.getElementById('mass1').disabled = !enabled;
+      document.getElementById('mass2').disabled = !enabled;
+      document.getElementById('vel1').disabled = !enabled;
+      document.getElementById('vel2').disabled = !enabled;
+      // Disable scenario buttons when running
+      const scenarioBtns = document.querySelectorAll('.scenario-buttons button');
+      scenarioBtns.forEach(btn => btn.disabled = !enabled);
+    }
+
     function startSimulation() {
       const t = translations[currentLanguage];
       if (!running) {
         running = true;
         collided = false;
+        setControlsEnabled(false);
         document.getElementById('start-text').textContent = t.pauseText;
         animate();
       } else {
         running = false;
+        setControlsEnabled(true);
         document.getElementById('start-text').textContent = t.startText;
         cancelAnimationFrame(animationId);
       }
@@ -1308,6 +1327,7 @@
       cancelAnimationFrame(animationId);
       ball1 = { ...initialState.ball1 };
       ball2 = { ...initialState.ball2 };
+      setControlsEnabled(true);
       document.getElementById('start-text').textContent = t.startText;
       updateControls();
       draw();

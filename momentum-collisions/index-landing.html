@@ -64,7 +64,7 @@
 
     .versions {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
       gap: 2rem;
       margin-bottom: 3rem;
     }
@@ -215,6 +215,12 @@
       background: var(--muted);
     }
 
+    .version-card h4 {
+      font-size: 1rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
     @media (max-width: 768px) {
       .versions {
         grid-template-columns: 1fr;
@@ -224,96 +230,147 @@
         font-size: 2rem;
       }
     }
+
+    @media (min-width: 769px) and (max-width: 1200px) {
+      .versions {
+        grid-template-columns: repeat(2, 1fr);
+      }
+      
+      .version-card:last-child {
+        grid-column: 1 / -1;
+        max-width: 650px;
+        margin: 0 auto;
+      }
+    }
   </style>
 </head>
 <body>
   <div class="container">
     <header>
       <h1>🎱 Momentum & Collisions Applet</h1>
-      <p class="subtitle">Explore the Evolution of Educational Technology</p>
+      <p class="subtitle">A Case Study in Iterative Design</p>
     </header>
 
     <div class="intro">
-      <p><strong>Welcome!</strong> This applet demonstrates how interactive simulations can evolve from simple tools to rich inquiry-based learning environments.</p>
-      <p>Choose a version below to see the progression from basic simulation to comprehensive learning tool.</p>
+      <p><strong>Great design isn't a flash of inspiration—it's iteration.</strong></p>
+      <p>This applet went through three major iterations, each revealing something essential about how students actually learn physics.</p>
+      <p>Follow the journey from "physics simulation" → "feature-rich tool" → "actually usable learning experience."</p>
     </div>
 
     <div class="comparison">
-      <h3>🎓 Why Two Versions?</h3>
-      <p>Comparing these versions shows students and educators the power of thoughtful design. Version 1 is a solid physics simulation. Version 2 transforms that simulation into a complete inquiry-based learning tool with:</p>
-      <ul style="margin-left: 2rem; margin-top: 1rem;">
-        <li>Guided challenges that scaffold student thinking</li>
-        <li>Adaptive difficulty levels for different learners</li>
-        <li>Multi-language support for diverse classrooms</li>
-        <li>A digital lab notebook for capturing and reflecting on data</li>
-      </ul>
-      <p style="margin-top: 1rem;"><em>This is what's possible when we design for learning, not just demonstration.</em></p>
+      <h3>🎓 The Design Journey</h3>
+      <p>Each iteration taught us something we couldn't have known without building it, testing it, and watching students use it. Good educational software emerges from observation, not assumption.</p>
+      <p style="margin-top: 1rem;"><em>This is what happens when you actually test your designs with real learners.</em></p>
     </div>
 
     <div class="versions">
-      <!-- VERSION 1 -->
+      <!-- ITERATION 1 -->
       <div class="version-card">
         <div class="version-header">
           <div class="version-number">v1</div>
           <div class="version-title">
-            <h2>Basic Simulation</h2>
-            <p>Clean, focused physics demonstration</p>
+            <h2>Iteration 1: Foundation</h2>
+            <p>"Let's build a clean physics simulation"</p>
           </div>
         </div>
         
         <span class="badge basic">Foundation</span>
         
+        <h4 style="margin-bottom: 0.8rem; color: var(--accent);">What We Built:</h4>
         <ul class="features">
           <li>Interactive billiard ball collision simulation</li>
           <li>Adjustable mass and velocity controls</li>
           <li>Real-time momentum calculations</li>
           <li>Visual velocity vectors</li>
           <li>Conservation of momentum display</li>
-          <li>Three quick scenario buttons</li>
           <li>Elastic collision physics engine</li>
         </ul>
 
-        <a href="index-v1.html" class="btn btn-primary">Launch Version 1 →</a>
+        <h4 style="margin: 1.5rem 0 0.8rem; color: var(--accent2);">What We Learned:</h4>
+        <p style="margin-bottom: 1.5rem; padding: 1rem; background: #f8f9fa; border-radius: 8px; font-style: italic;">
+          "The physics works, but students need scaffolding. We need challenges, multiple languages, and a way to capture data."
+        </p>
+
+        <a href="index-v1.html" class="btn btn-primary">Launch v1 →</a>
       </div>
 
-      <!-- VERSION 2 -->
+      <!-- ITERATION 2 -->
       <div class="version-card">
         <div class="version-header">
           <div class="version-number">v2</div>
           <div class="version-title">
-            <h2>Inquiry-Based Learning Tool</h2>
-            <p>Full educational experience</p>
+            <h2>Iteration 2: Ambition</h2>
+            <p>"Add all the educational features!"</p>
           </div>
         </div>
         
-        <span class="badge">Enhanced</span>
+        <span class="badge">Feature-Rich</span>
         
+        <h4 style="margin-bottom: 0.8rem; color: var(--accent);">What We Added:</h4>
         <ul class="features">
-          <li>Everything from Version 1, PLUS:</li>
-          <li class="new">5 Guided Challenge Problems</li>
-          <li class="new">3 Difficulty Levels (Novice/Intermediate/Experienced)</li>
-          <li class="new">Adaptive Language & Terminology</li>
+          <li class="new">12 Guided Challenge Problems</li>
+          <li class="new">3 Difficulty Levels (Easy/Medium/Hard)</li>
           <li class="new">3 Languages (English/Español/中文)</li>
-          <li class="new">Interactive Lab Notebook/Scratchpad</li>
+          <li class="new">Interactive Lab Notebook</li>
           <li class="new">Capture & Annotate Data Snapshots</li>
           <li class="new">Export Notes as Text File</li>
           <li class="new">Challenge-Specific Hints</li>
         </ul>
 
-        <a href="index-v2.html" class="btn btn-secondary">Launch Version 2 →</a>
+        <h4 style="margin: 1.5rem 0 0.8rem; color: var(--accent2);">What We Learned:</h4>
+        <p style="margin-bottom: 1.5rem; padding: 1rem; background: #f8f9fa; border-radius: 8px; font-style: italic;">
+          "We thought we were done! Then we actually USED it with students... and discovered the UX had serious problems."
+        </p>
+
+        <a href="index-v2-old.html" class="btn btn-secondary">Launch v2 (Original) →</a>
+      </div>
+
+      <!-- ITERATION 3 -->
+      <div class="version-card" style="border: 3px solid var(--success);">
+        <div class="version-header">
+          <div class="version-number" style="color: var(--success);">v3</div>
+          <div class="version-title">
+            <h2>Iteration 3: Reality Check</h2>
+            <p>"Wait, students can't actually USE this..."</p>
+          </div>
+        </div>
+        
+        <span class="badge">Current Version</span>
+        
+        <h4 style="margin-bottom: 0.8rem; color: var(--accent);">What We Fixed:</h4>
+        <ul class="features">
+          <li class="new"><strong>Freeze-frame snapshots</strong> with camera shutter sound—students now know exactly when data is captured</li>
+          <li class="new"><strong>3×4 challenge grid</strong>—scannable at a glance, not an overwhelming vertical list</li>
+          <li class="new"><strong>Smart color coding</strong>—subtle 18% red/15% gold backgrounds guide the eye without distraction</li>
+          <li class="new"><strong>Momentum in control boxes</strong>—see each ball's momentum right where you set the speed</li>
+          <li class="new"><strong>Dynamic sliders</strong>—adjust ball speed WHILE it's moving, see physics in real-time</li>
+          <li class="new"><strong>Delayed auto-start</strong>—600ms grace period lets you set both balls before simulation starts</li>
+          <li class="new"><strong>Discovery-based learning</strong>—momentum values hidden until you click Start, students discover conservation themselves</li>
+        </ul>
+
+        <h4 style="margin: 1.5rem 0 0.8rem; color: var(--accent2);">What We Learned:</h4>
+        <p style="margin-bottom: 1.5rem; padding: 1rem; background: #e8f5e9; border-radius: 8px; font-style: italic; border-left: 4px solid var(--success);">
+          "Direct manipulation beats buttons. Dragging a slider and seeing the velocity arrow change = concrete understanding. Let students discover patterns rather than explaining them. Test early, test often."
+        </p>
+
+        <a href="index-v2.html" class="btn btn-secondary" style="background: var(--success);">Launch v3 (Current) →</a>
       </div>
     </div>
 
     <div style="background: white; padding: 2rem; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); text-align: center;">
-      <h3 style="margin-bottom: 1rem; color: var(--accent2);">💡 For Educators</h3>
-      <p style="margin-bottom: 1rem;">Use this comparison to discuss with students:</p>
-      <ul style="list-style: none; text-align: left; max-width: 600px; margin: 0 auto; line-height: 2;">
-        <li>✦ How does scaffolding support learning?</li>
-        <li>✦ Why might adaptive difficulty levels matter?</li>
-        <li>✦ What value does language localization add to education?</li>
-        <li>✦ How does a digital notebook change the learning experience?</li>
-        <li>✦ When is "simple" better than "feature-rich"?</li>
+      <h3 style="margin-bottom: 1rem; color: var(--accent2);">💡 Design Lessons for Students</h3>
+      <p style="margin-bottom: 1rem;">This iterative journey reveals key principles of user-centered design:</p>
+      <ul style="list-style: none; text-align: left; max-width: 700px; margin: 0 auto; line-height: 2;">
+        <li>✦ <strong>Specs don't reveal UX problems:</strong> The "collect sample" button worked perfectly—but students didn't know WHEN to press it</li>
+        <li>✦ <strong>Features can obscure purpose:</strong> 12 challenges in a vertical list felt overwhelming; a 3×4 grid is scannable</li>
+        <li>✦ <strong>Direct manipulation > buttons:</strong> Dragging a slider and watching the ball move teaches more than clicking "Set Velocity"</li>
+        <li>✦ <strong>Let patterns emerge:</strong> Don't TELL students "momentum is conserved"—hide the values, let them discover it</li>
+        <li>✦ <strong>Test early, test often:</strong> Iteration 2 looked "complete" on paper, but 10 minutes with students revealed 7 critical UX flaws</li>
+        <li>✦ <strong>Good design compounds:</strong> Each small fix (freeze-frame, color coding, dynamic sliders) reinforced the others</li>
       </ul>
+      <p style="margin-top: 1.5rem; padding: 1rem; background: #f8f9fa; border-radius: 8px; font-style: italic; color: var(--muted);">
+        "The best teaching tools aren't built—they're refined through observation, iteration, and humility." — This project, 2026
+      </p>
     </div>
   </div>
 </body>

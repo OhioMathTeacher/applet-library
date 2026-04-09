@@ -292,6 +292,27 @@
       display: none;
     }
 
+    .momentum-display {
+      margin-top: 0.6rem;
+      padding-top: 0.6rem;
+      border-top: 2px solid rgba(0,0,0,0.1);
+      text-align: center;
+    }
+
+    .momentum-display .momentum-label {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--muted);
+      margin-bottom: 0.2rem;
+    }
+
+    .momentum-display .momentum-value {
+      font-size: 1.3rem;
+      font-weight: 700;
+      color: var(--text);
+    }
+
     .control-row {
       display: flex;
       flex-direction: column;
@@ -407,41 +428,38 @@
     }
 
     .stats-panel {
-      background: var(--bg);
+      background: linear-gradient(135deg, #f0fdfa, #ccfbf1);
       border-radius: 6px;
-      padding: 0.6rem;
+      padding: 1rem;
       flex-shrink: 0;
+      border: 2px solid var(--success);
     }
 
     .stats-grid {
       display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 0.5rem;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.8rem;
     }
 
     .stat-card {
       background: white;
-      padding: 0.6rem;
+      padding: 0.8rem;
       border-radius: 4px;
       text-align: center;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
     }
 
     .stat-label {
-      font-size: 0.75rem;
+      font-size: 0.8rem;
       text-transform: uppercase;
       color: var(--muted);
       letter-spacing: 0.3px;
-      margin-bottom: 0.2rem;
+      margin-bottom: 0.3rem;
     }
 
     .stat-value {
-      font-size: 1.1rem;
+      font-size: 1.4rem;
       font-weight: 700;
-      color: var(--text);
-    }
-
-    .stat-value.conserved {
       color: var(--success);
     }
 
@@ -746,9 +764,13 @@
           <div class="control-row">
             <label id="vel1-label">Speed (m/s)</label>
             <div class="slider-container">
-              <input type="range" id="vel1" min="-10" max="10" value="5" step="0.5" oninput="updateFromSlider(1)">
-              <span class="value-display" id="vel1-display">5.0</span>
+              <input type="range" id="vel1" min="-10" max="10" value="0" step="0.5" oninput="updateFromSlider(1)">
+              <span class="value-display" id="vel1-display">0.0</span>
             </div>
+          </div>
+          <div class="momentum-display">
+            <div class="momentum-label">Momentum (kg⋅m/s)</div>
+            <div class="momentum-value" id="p1">—</div>
           </div>
         </div>
 
@@ -764,6 +786,10 @@
               <input type="range" id="vel2" min="-10" max="10" value="0" step="0.5" oninput="updateFromSlider(2)">
               <span class="value-display" id="vel2-display">0.0</span>
             </div>
+          </div>
+          <div class="momentum-display">
+            <div class="momentum-label">Momentum (kg⋅m/s)</div>
+            <div class="momentum-value" id="p2">—</div>
           </div>
         </div>
       </div>
@@ -794,24 +820,18 @@
         </button>
       </div>
 
-      <!-- STATS PANEL -->
+      <!-- TOTAL MOMENTUM DISPLAY -->
       <div class="stats-panel">
         <div class="stats-grid">
           <div class="stat-card">
-            <div class="stat-label" id="p1-label">Ball 1</div>
-            <div class="stat-value" id="p1">0</div>
+            <div class="stat-label" id="pBefore-label">Before Collision</div>
+            <div class="stat-value" id="pBefore">—</div>
+            <div class="stat-label">kg⋅m/s</div>
           </div>
           <div class="stat-card">
-            <div class="stat-label" id="p2-label">Ball 2</div>
-            <div class="stat-value" id="p2">0</div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-label" id="pBefore-label">Before</div>
-            <div class="stat-value conserved" id="pBefore">0</div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-label" id="pAfter-label">After</div>
-            <div class="stat-value conserved" id="pAfter">0</div>
+            <div class="stat-label" id="pAfter-label">After Collision</div>
+            <div class="stat-value" id="pAfter">—</div>
+            <div class="stat-label">kg⋅m/s</div>
           </div>
         </div>
       </div>
@@ -872,8 +892,8 @@
         velocityLabel: "Speed (m/s)",
         p1Label: "Ball 1",
         p2Label: "Ball 2",
-        pBeforeLabel: "Before",
-        pAfterLabel: "After",
+        pBeforeLabel: "Before Collision",
+        pAfterLabel: "After Collision",
         startText: "Start",
         resetText: "Reset",
         pauseText: "Pause",
@@ -960,7 +980,7 @@
         exportText: "Export Notes",
         clearAllText: "Clear All",
         emptyMessage: "Click 'Capture Data' to save observations!",
-        snapshotMessage: "📸 Press any key to continue..."
+        snapshotMessage: "📸 Press, click or tap to continue..."
       },
       es: {
         headerTitle: "Física de Bolas de Billar",
@@ -969,8 +989,8 @@
         velocityLabel: "Velocidad (m/s)",
         p1Label: "Bola 1",
         p2Label: "Bola 2",
-        pBeforeLabel: "Antes",
-        pAfterLabel: "Después",
+        pBeforeLabel: "Antes de la Colisión",
+        pAfterLabel: "Después de la Colisión",
         startText: "Iniciar",
         resetText: "Reiniciar",
         pauseText: "Pausar",
@@ -1057,7 +1077,7 @@
         exportText: "Exportar Notas",
         clearAllText: "Borrar Todo",
         emptyMessage: "¡Haz clic en 'Capturar Datos' para guardar observaciones!",
-        snapshotMessage: "📸 Presiona cualquier tecla para continuar..."
+        snapshotMessage: "📸 Presiona, clic o toca para continuar..."
       },
       zh: {
         headerTitle: "台球物理",
@@ -1066,8 +1086,8 @@
         velocityLabel: "速度 (m/s)",
         p1Label: "球 1",
         p2Label: "球 2",
-        pBeforeLabel: "之前",
-        pAfterLabel: "之后",
+        pBeforeLabel: "碰撞之前",
+        pAfterLabel: "碰撞之后",
         startText: "开始",
         resetText: "重置",
         pauseText: "暂停",
@@ -1154,7 +1174,7 @@
         exportText: "导出笔记",
         clearAllText: "清除全部",
         emptyMessage: "点击'捕获数据'保存观察！",
-        snapshotMessage: "📸 按任意键继续..."
+        snapshotMessage: "📸 按键、点击或轻触继续..."
       }
     };
 
@@ -1168,13 +1188,15 @@
     const canvas = document.getElementById('canvas');
     const ctx = canvas.getContext('2d');
 
-    let ball1 = { x: 120, y: 140, vx: 5, vy: 0, mass: 1, radius: 22, color: '#ff6b6b' };
+    let ball1 = { x: 120, y: 140, vx: 0, vy: 0, mass: 1, radius: 22, color: '#ff6b6b' };
     let ball2 = { x: 480, y: 140, vx: 0, vy: 0, mass: 1, radius: 22, color: '#ffd93d' };
     
     let initialState = {};
     let running = false;
     let collided = false;
     let animationId = null;
+    let hasStarted = false; // Track if simulation has ever been started
+    let autoStartTimer = null; // Delay auto-start to allow slider adjustment
 
     // ============================================
     // INIT
@@ -1292,8 +1314,6 @@
       document.getElementById('mass2-label').textContent = t.massLabel;
       document.getElementById('vel1-label').textContent = t.velocityLabel;
       document.getElementById('vel2-label').textContent = t.velocityLabel;
-      document.getElementById('p1-label').textContent = t.p1Label;
-      document.getElementById('p2-label').textContent = t.p2Label;
       document.getElementById('pBefore-label').textContent = t.pBeforeLabel;
       document.getElementById('pAfter-label').textContent = t.pAfterLabel;
       document.getElementById('ball1-header').textContent = t.ball1Header;
@@ -1335,7 +1355,7 @@
     }
 
     function updateFromSlider(ballNum) {
-      if (running) return;
+      // Allow adjustment even while running for dynamic control
       if (ballNum === 1) {
         ball1.vx = parseFloat(document.getElementById('vel1').value);
         document.getElementById('vel1-display').textContent = ball1.vx.toFixed(1);
@@ -1343,9 +1363,28 @@
         ball2.vx = parseFloat(document.getElementById('vel2').value);
         document.getElementById('vel2-display').textContent = ball2.vx.toFixed(1);
       }
-      saveInitialState();
+      
+      // Only update initial state if not running
+      if (!running) {
+        saveInitialState();
+      }
+      
       updateMomentumDisplay();
       draw();
+      
+      // Auto-start if either ball has velocity and simulation hasn't started
+      if (!running && !hasStarted && (ball1.vx !== 0 || ball2.vx !== 0)) {
+        // Clear any pending auto-start
+        if (autoStartTimer) {
+          clearTimeout(autoStartTimer);
+        }
+        
+        autoStartTimer = setTimeout(() => {
+          if (!running) {
+            startSimulation();
+          }
+        }, 600);
+      }
     }
 
     function updateFromControls() {
@@ -1367,17 +1406,27 @@
       const p1 = ball1.mass * ball1.vx;
       const p2 = ball2.mass * ball2.vx;
       const pTotal = p1 + p2;
-      document.getElementById('p1').textContent = p1.toFixed(2);
-      document.getElementById('p2').textContent = p2.toFixed(2);
-      document.getElementById('pBefore').textContent = initialState.pTotal.toFixed(2);
-      document.getElementById('pAfter').textContent = pTotal.toFixed(2);
+      
+      // Only show momentum values if simulation has been started
+      if (hasStarted) {
+        document.getElementById('p1').textContent = p1.toFixed(2);
+        document.getElementById('p2').textContent = p2.toFixed(2);
+        document.getElementById('pBefore').textContent = initialState.pTotal.toFixed(2);
+        document.getElementById('pAfter').textContent = pTotal.toFixed(2);
+      } else {
+        document.getElementById('p1').textContent = '—';
+        document.getElementById('p2').textContent = '—';
+        document.getElementById('pBefore').textContent = '—';
+        document.getElementById('pAfter').textContent = '—';
+      }
     }
 
     function setControlsEnabled(enabled) {
       document.getElementById('mass1').disabled = !enabled;
       document.getElementById('mass2').disabled = !enabled;
-      document.getElementById('vel1').disabled = !enabled;
-      document.getElementById('vel2').disabled = !enabled;
+      // Keep velocity sliders always enabled for dynamic adjustment
+      // document.getElementById('vel1').disabled = !enabled;
+      // document.getElementById('vel2').disabled = !enabled;
       // Disable scenario buttons when running
       const scenarioBtns = document.querySelectorAll('.scenario-buttons button');
       scenarioBtns.forEach(btn => btn.disabled = !enabled);
@@ -1387,6 +1436,7 @@
       const t = translations[currentLanguage];
       if (!running) {
         running = true;
+        hasStarted = true; // Mark that simulation has started
         collided = false;
         setControlsEnabled(false);
         document.getElementById('start-text').textContent = t.pauseText;
@@ -1403,6 +1453,7 @@
       const t = translations[currentLanguage];
       running = false;
       collided = false;
+      hasStarted = false; // Reset the started flag
       cancelAnimationFrame(animationId);
       ball1 = { ...initialState.ball1 };
       ball2 = { ...initialState.ball2 };
@@ -1637,14 +1688,16 @@
       const overlay = document.getElementById('snapshotOverlay');
       overlay.classList.add('active');
 
-      // Set up one-time keypress listener to resume
+      // Set up one-time event listeners to resume (keypress, click, or tap)
       const resumeHandler = (e) => {
         overlay.classList.remove('active');
         document.removeEventListener('keydown', resumeHandler);
-        // Only auto-resume if simulation was running before snapshot
-        // User can manually start if they want
+        document.removeEventListener('click', resumeHandler);
+        document.removeEventListener('touchstart', resumeHandler);
       };
       document.addEventListener('keydown', resumeHandler);
+      document.addEventListener('click', resumeHandler);
+      document.addEventListener('touchstart', resumeHandler);
     }
 
     function renderScratchpad() {

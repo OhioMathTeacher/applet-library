@@ -742,7 +742,7 @@
     <h1>🎱 <span id="header-title">Billiard Ball Physics</span></h1>
     <p id="header-subtitle">Explore Conservation of Momentum Through Elastic Collisions</p>
     <div class="header-controls">
-      <a href="index-landing.html">← Home</a>
+      <a href="index-landing.html" id="home-link">← Home</a>
       <select id="languageSelect">
         <option value="en">English</option>
         <option value="es">Español</option>
@@ -998,7 +998,8 @@
         exportText: "Export Notes",
         clearAllText: "Clear All",
         emptyMessage: "Click 'Capture Data' to save observations!",
-        snapshotMessage: "📸 Press, click or tap to continue..."
+        snapshotMessage: "📸 Press, click or tap to continue...",
+        homeLabel: "← Home"
       },
       es: {
         headerTitle: "Física de Bolas de Billar",
@@ -1095,7 +1096,8 @@
         exportText: "Exportar Notas",
         clearAllText: "Borrar Todo",
         emptyMessage: "¡Haz clic en 'Capturar Datos' para guardar observaciones!",
-        snapshotMessage: "📸 Presiona, clic o toca para continuar..."
+        snapshotMessage: "📸 Presiona, clic o toca para continuar...",
+        homeLabel: "← Inicio"
       },
       zh: {
         headerTitle: "台球物理",
@@ -1192,7 +1194,8 @@
         exportText: "导出笔记",
         clearAllText: "清除全部",
         emptyMessage: "点击'捕获数据'保存观察！",
-        snapshotMessage: "📸 按键、点击或轻触继续..."
+        snapshotMessage: "📸 按键、点击或轻触继续...",
+        homeLabel: "← 主页"
       }
     };
 
@@ -1349,6 +1352,7 @@
       document.getElementById('clear-all-text').textContent = t.clearAllText;
       document.getElementById('empty-message').textContent = t.emptyMessage;
       document.getElementById('snapshot-message').textContent = t.snapshotMessage;
+      document.getElementById('home-link').textContent = t.homeLabel;
     }
 
     // ============================================

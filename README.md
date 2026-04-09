@@ -6,11 +6,11 @@ A collection of interactive web applets for mathematics education.
 
 ## Applets
 
-### [🍬 Integer Partitioning](./integer-partitioning/)
+### 🍬 [Integer Partitioning](https://ohiomathteacher.github.io/applet-library/integer-partitioning/)
 Explore integer partitions through jelly bean distribution, Ferrers diagrams, and constraint filters.
 
-### [🎱 Momentum & Collisions](./momentum-collisions/)
-Interactive billiard ball physics demonstrating conservation of momentum in elastic collisions. Adjust masses and velocities to explore how momentum transfers between objects.
+### 🎱 [Momentum & Collisions](https://ohiomathteacher.github.io/applet-library/momentum-collisions/index-landing.html)
+Interactive billiard ball physics demonstrating conservation of momentum in elastic collisions. Compare v1 (basic simulation) and v2 (inquiry-based learning tool with challenges, adaptive difficulty, and lab notebook).
 
 ---
 

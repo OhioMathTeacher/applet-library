@@ -2,7 +2,7 @@
 
 An interactive web applet for exploring **integer partitions** — the fundamental question: "How many ways can you split a number into groups?"
 
-**Live Demo:** https://ohiomathteacher.github.io/integer-partitioning/
+**Live Demo:** https://ohiomathteacher.github.io/applet-library/integer-partitioning/
 
 ---
 

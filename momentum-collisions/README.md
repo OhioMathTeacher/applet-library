@@ -10,13 +10,13 @@ An interactive web applet for exploring **conservation of momentum** through ela
 
 This applet comes in two versions to demonstrate the evolution from basic simulation to comprehensive inquiry-based learning tool:
 
-### **[Version 1: Basic Simulation](index-v1.html)**
+### **[Version 1: Basic Simulation](https://ohiomathteacher.github.io/applet-library/momentum-collisions/index-v1.html)**
 Clean, focused physics demonstration with essential features
 
-### **[Version 2: Inquiry-Based Learning Tool](index-v2.html)** ⭐ Enhanced
+### **[Version 2: Inquiry-Based Learning Tool](https://ohiomathteacher.github.io/applet-library/momentum-collisions/index-v2.html)** ⭐ Enhanced
 Complete educational experience with challenges, adaptive difficulty, multi-language support, and lab notebook
 
-**[📊 Compare Versions](index.html)** — Interactive comparison landing page
+**[📊 Compare Versions](https://ohiomathteacher.github.io/applet-library/momentum-collisions/index-landing.html)** — Interactive comparison landing page
 
 ---
 

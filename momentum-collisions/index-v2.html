@@ -172,40 +172,13 @@
 
     .challenge-list {
       display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      grid-template-rows: auto repeat(4, 1fr);
+      grid-template-columns: repeat(2, 1fr);
+      grid-template-rows: repeat(6, 1fr);
       gap: 0.5rem;
       overflow-y: auto;
     }
 
-    .challenge-section-label {
-      font-size: 0.75rem;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      padding: 0.4rem;
-      border-radius: 4px;
-      text-align: center;
-      grid-row: 1;
-    }
-
-    .challenge-section-label.easy {
-      background: #4ade80;
-      color: #166534;
-      grid-column: 1;
-    }
-
-    .challenge-section-label.medium {
-      background: #fbbf24;
-      color: #92400e;
-      grid-column: 2;
-    }
-
-    .challenge-section-label.hard {
-      background: #f87171;
-      color: #991b1b;
-      grid-column: 3;
-    }
+    .challenge-section-label { display: none; }
 
     .challenge-item {
       padding: 0.6rem;
@@ -1332,52 +1305,25 @@
       const t = translations[currentLanguage];
       
       container.innerHTML = '';
-      
-      // Column headers
-      const easyLabel = document.createElement('div');
-      easyLabel.className = 'challenge-section-label easy';
-      easyLabel.textContent = t.easyLabel;
-      container.appendChild(easyLabel);
-      
-      const mediumLabel = document.createElement('div');
-      mediumLabel.className = 'challenge-section-label medium';
-      mediumLabel.textContent = t.mediumLabel;
-      container.appendChild(mediumLabel);
-      
-      const hardLabel = document.createElement('div');
-      hardLabel.className = 'challenge-section-label hard';
-      hardLabel.textContent = t.hardLabel;
-      container.appendChild(hardLabel);
-      
-      // Create 4 rows with 3 challenges each
-      for (let row = 0; row < 4; row++) {
-        // Easy challenge
-        const easyDiv = document.createElement('div');
-        easyDiv.className = 'challenge-item easy';
-        easyDiv.onclick = () => showChallengeModal('easy', row);
-        easyDiv.textContent = t.challenges.easy[row].title;
-        easyDiv.style.gridColumn = '1';
-        easyDiv.style.gridRow = row + 2;
-        container.appendChild(easyDiv);
-        
-        // Medium challenge
-        const mediumDiv = document.createElement('div');
-        mediumDiv.className = 'challenge-item medium';
-        mediumDiv.onclick = () => showChallengeModal('medium', row);
-        mediumDiv.textContent = t.challenges.medium[row].title;
-        mediumDiv.style.gridColumn = '2';
-        mediumDiv.style.gridRow = row + 2;
-        container.appendChild(mediumDiv);
-        
-        // Hard challenge
-        const hardDiv = document.createElement('div');
-        hardDiv.className = 'challenge-item hard';
-        hardDiv.onclick = () => showChallengeModal('hard', row);
-        hardDiv.textContent = t.challenges.hard[row].title;
-        hardDiv.style.gridColumn = '3';
-        hardDiv.style.gridRow = row + 2;
-        container.appendChild(hardDiv);
-      }
+
+      // 6×2 grid: all 12 challenges in reading order, color = difficulty
+      // Order: easy[0], easy[1], easy[2], easy[3], medium[0], medium[1],
+      //        medium[2], medium[3], hard[0], hard[1], hard[2], hard[3]
+      const all = [
+        ...t.challenges.easy.map((c, i)  => ({ diff: 'easy',   idx: i, title: c.title })),
+        ...t.challenges.medium.map((c, i) => ({ diff: 'medium', idx: i, title: c.title })),
+        ...t.challenges.hard.map((c, i)   => ({ diff: 'hard',   idx: i, title: c.title })),
+      ];
+
+      all.forEach(({ diff, idx, title }) => {
+        const div = document.createElement('div');
+        div.className = `challenge-item ${diff}`;
+        div.onclick = () => showChallengeModal(diff, idx);
+        div.textContent = title;
+        div.style.gridColumn = '';
+        div.style.gridRow = '';
+        container.appendChild(div);
+      });
     }
 
     function updateLanguage() {

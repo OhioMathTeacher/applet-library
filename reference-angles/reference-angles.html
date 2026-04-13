@@ -252,6 +252,17 @@ function drawSpiral() {
   ctx.lineWidth   = 2;
   ctx.stroke();
 
+  // Degree label in gold, offset outward from the arrowhead tip
+  const radDx  = ax2 - OX, radDy = ay2 - OY;
+  const radLen = Math.hypot(radDx, radDy) || 1;
+  const lOff   = SZ * 0.055;
+  const lx     = ax2 + (radDx / radLen) * lOff;
+  const ly     = ay2 + (radDy / radLen) * lOff;
+  ctx.textAlign = 'center';
+  ctx.font      = `bold ${SZ * 0.032}px Georgia`;
+  ctx.fillStyle = '#f59e0b';
+  ctx.fillText(`${thetaDeg.toFixed(1)}°`, lx, ly + 4);
+
   // If angle exceeds the visual cap, note the extra rotations
   if (absRad > maxVisRad) {
     const extraTurns = Math.floor((absRad - maxVisRad) / (2 * Math.PI));

@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Reference Angles &amp; Trig Ratios</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  background: #0f172a;
+  color: #e2e8f0;
+  font-family: Georgia, serif;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  user-select: none;
+  gap: 10px;
+}
+canvas { cursor: crosshair; display: block; touch-action: none; }
+.tabs {
+  display: flex;
+  border: 1px solid #334155;
+  border-radius: 8px;
+  overflow: hidden;
+}
+.tabs button {
+  background: none;
+  border: none;
+  border-right: 1px solid #334155;
+  color: #64748b;
+  padding: 8px 26px;
+  cursor: pointer;
+  font: 16px Georgia, serif;
+  transition: background 0.15s, color 0.15s;
+}
+.tabs button:last-child { border-right: none; }
+.tabs button.on { background: #1e3a5f; color: #93c5fd; }
+.tabs button:hover:not(.on) { background: #1e293b; color: #cbd5e1; }
+.hint { font-size: 11px; color: #334155; letter-spacing: 0.05em; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div class="tabs">
+  <button id="bSin" class="on">sin</button>
+  <button id="bCos">cos</button>
+  <button id="bTan">tan</button>
+</div>
+<div class="hint">drag the point · click anywhere</div>
+
+<script>
+const cv = document.getElementById('c');
+const ctx = cv.getContext('2d');
+
+const SZ = Math.min(window.innerWidth - 16, window.innerHeight - 110, 560);
+cv.width = SZ; cv.height = SZ;
+
+const OX = SZ / 2, OY = SZ / 2, R = SZ * 0.365;
+
+let theta = Math.PI / 6;   // 30°
+let mode  = 'sin';
+let drag  = false;
+
+const P = {
+  axis:   '#334155',
+  circle: '#475569',
+  grid:   '#1e293b',
+  radius: '#60a5fa',
+  ref:    '#f59e0b',
+  pos:    '#34d399',
+  neg:    '#f87171',
+  white:  '#f1f5f9',
+  dim:    '#475569',
+};
+
+function normalize(a) { return ((a % (Math.PI*2)) + Math.PI*2) % (Math.PI*2); }
+
+function refOf(a) {
+  const n = normalize(a);
+  if (n <= Math.PI/2)        return n;
+  if (n <= Math.PI)          return Math.PI - n;
+  if (n <= 3*Math.PI/2)      return n - Math.PI;
+  return Math.PI*2 - n;
+}
+
+function quadOf(a) {
+  const n = normalize(a);
+  if (n < Math.PI/2)    return 1;
+  if (n < Math.PI)      return 2;
+  if (n < 3*Math.PI/2)  return 3;
+  return 4;
+}
+
+function pt(angle, r) {
+  return { x: OX + r * Math.cos(angle), y: OY - r * Math.sin(angle) };
+}
+
+function segment(x1,y1,x2,y2, color, lw, dash=[]) {
+  ctx.beginPath();
+  ctx.setLineDash(dash);
+  ctx.moveTo(x1,y1); ctx.lineTo(x2,y2);
+  ctx.strokeStyle = color; ctx.lineWidth = lw;
+  ctx.stroke();
+  ctx.setLineDash([]);
+}
+
+function draw() {
+  ctx.clearRect(0, 0, SZ, SZ);
+
+  const norm = normalize(theta);
+  const ref  = refOf(theta);
+  const q    = quadOf(theta);
+
+  const sinV = Math.sin(norm),  cosV = Math.cos(norm);
+  const sinR = Math.sin(ref),   cosR = Math.cos(ref);
+
+  const cur  = pt(norm, R);
+  const refP = pt(ref,  R);
+
+  [0.33, 0.67].forEach(f => {
+    ctx.beginPath(); ctx.arc(OX, OY, R*f, 0, Math.PI*2);
+    ctx.strokeStyle = P.grid; ctx.lineWidth = 1; ctx.stroke();
+  });
+
+  ctx.strokeStyle = P.axis; ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(OX - R*1.2, OY); ctx.lineTo(OX + R*1.2, OY);
+  ctx.moveTo(OX, OY - R*1.2); ctx.lineTo(OX, OY + R*1.2);
+  ctx.stroke();
+
+  ctx.fillStyle = P.dim; ctx.font = `${SZ*.03}px Georgia`; ctx.textAlign='center';
+  ctx.fillText('x', OX + R*1.17, OY - 6);
+  ctx.fillText('y', OX + 10,     OY - R*1.15);
+
+  ctx.beginPath();
+  ctx.moveTo(OX, OY); ctx.lineTo(refP.x, OY); ctx.lineTo(refP.x, refP.y);
+  ctx.closePath();
+  ctx.fillStyle = 'rgba(245,158,11,0.07)'; ctx.fill();
+  ctx.strokeStyle = 'rgba(245,158,11,0.35)'; ctx.lineWidth = 1;
+  ctx.setLineDash([3,4]); ctx.stroke(); ctx.setLineDash([]);
+
+  const pos = (mode==='sin') ? sinV >= 0 : (mode==='cos') ? cosV >= 0 :
+              (Math.abs(Math.tan(norm)) > 100 || (sinV >= 0) === (cosV >= 0));
+  const vc = pos ? P.pos : P.neg;
+  const vFill = pos ? 'rgba(52,211,153,0.12)' : 'rgba(248,113,113,0.12)';
+
+  if (mode === 'sin') {
+    ctx.beginPath(); ctx.moveTo(OX,OY); ctx.lineTo(cur.x,OY); ctx.lineTo(cur.x,cur.y);
+    ctx.closePath(); ctx.fillStyle = vFill; ctx.fill();
+
+    if (q !== 1 && Math.abs(sinV) > 0.015)
+      segment(refP.x, refP.y, cur.x, cur.y, 'rgba(255,255,255,0.12)', 1, [5,5]);
+
+    if (q !== 1) segment(refP.x, OY, refP.x, refP.y, P.ref, 2.5);
+    segment(cur.x, OY, cur.x, cur.y, vc, 4.5);
+
+    if (q !== 1 && Math.abs(sinV) > 0.05) {
+      [[cur.x, OY, cur.y], [refP.x, OY, refP.y]].forEach(([lx, by, ty]) => {
+        const col = lx === cur.x ? vc : P.ref;
+        segment(lx - 5, (by+ty)/2, lx + 5, (by+ty)/2, col, 1.5);
+      });
+    }
+
+  } else if (mode === 'cos') {
+    ctx.beginPath(); ctx.moveTo(OX,OY); ctx.lineTo(OX,cur.y); ctx.lineTo(cur.x,cur.y);
+    ctx.closePath(); ctx.fillStyle = vFill; ctx.fill();
+
+    if (q !== 1 && Math.abs(cosV) > 0.015)
+      segment(refP.x, refP.y, cur.x, cur.y, 'rgba(255,255,255,0.12)', 1, [5,5]);
+
+    if (q !== 1) segment(OX, refP.y, refP.x, refP.y, P.ref, 2.5);
+    segment(OX, cur.y, cur.x, cur.y, vc, 4.5);
+
+  } else {
+    ctx.beginPath(); ctx.moveTo(OX,OY); ctx.lineTo(cur.x,OY); ctx.lineTo(cur.x,cur.y);
+    ctx.closePath(); ctx.fillStyle = vFill; ctx.fill();
+    segment(cur.x, OY, cur.x, cur.y, vc, 4.5);
+    segment(OX, OY, cur.x, OY, vc+'88', 2);
+
+    if (Math.abs(Math.tan(norm)) < 12) {
+      const tx = OX + R * Math.sign(cosV || 1);
+      const ty = OY - R * Math.tan(norm) * Math.sign(cosV || 1);
+      segment(tx, OY, tx, ty, vc+'55', 2, [3,4]);
+      ctx.beginPath(); ctx.arc(tx, ty, 5, 0, Math.PI*2);
+      ctx.fillStyle = vc+'99'; ctx.fill();
+    }
+  }
+
+  segment(OX, OY, cur.x, cur.y, P.radius, 2.5);
+
+  ctx.beginPath(); ctx.arc(OX, OY, R*.13, 0, -norm, norm > Math.PI);
+  ctx.strokeStyle = P.radius; ctx.lineWidth = 1.5; ctx.stroke();
+  ctx.beginPath(); ctx.arc(OX, OY, R*.09, 0, -ref, false);
+  ctx.strokeStyle = P.ref; ctx.lineWidth = 1.5; ctx.stroke();
+
+  ctx.beginPath(); ctx.arc(OX, OY, R, 0, Math.PI*2);
+  ctx.strokeStyle = P.circle; ctx.lineWidth = 1.5; ctx.stroke();
+
+  if (q !== 1) {
+    ctx.beginPath(); ctx.arc(refP.x, refP.y, 7, 0, Math.PI*2);
+    ctx.fillStyle = 'rgba(245,158,11,0.5)'; ctx.fill();
+    ctx.strokeStyle = P.ref; ctx.lineWidth = 1.5; ctx.stroke();
+  }
+
+  ctx.beginPath(); ctx.arc(cur.x, cur.y, 11, 0, Math.PI*2);
+  ctx.fillStyle = P.radius; ctx.fill();
+  ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.stroke();
+
+  const degNorm = (norm * 180 / Math.PI).toFixed(1);
+  const degRef  = (ref  * 180 / Math.PI).toFixed(1);
+
+  let val, label;
+  if (mode === 'sin')      { val = sinV;             label = 'sin'; }
+  else if (mode === 'cos') { val = cosV;             label = 'cos'; }
+  else                     { val = Math.tan(norm);   label = 'tan'; }
+
+  const overflow = mode === 'tan' && Math.abs(val) > 99;
+  const absStr   = overflow ? '∞' : Math.abs(val).toFixed(3);
+  const sign     = val >= 0 ? '+' : '−';
+  const signChar = val >= 0 ? '' : '−';
+
+  ctx.textAlign = 'left';
+  ctx.font = `bold ${SZ*.047}px Georgia`;
+  ctx.fillStyle = pos ? P.pos : P.neg;
+  ctx.fillText(`${label} ${degNorm}°  =  ${sign}${absStr}`, 14, 42);
+
+  if (q !== 1 && !overflow) {
+    const refValAbs = Math.abs(mode==='sin' ? sinR : mode==='cos' ? cosR : Math.tan(ref));
+    ctx.font = `${SZ*.032}px Georgia`;
+    ctx.fillStyle = '#94a3b8';
+    ctx.fillText(`= ${signChar}${label} ${degRef}°  =  ${sign}${refValAbs.toFixed(3)}`, 14, 42 + SZ*.047);
+  }
+
+  const lp = pt(norm/2, R*.23);
+  ctx.font = `italic ${SZ*.03}px Georgia`; ctx.fillStyle = P.radius;
+  ctx.textAlign = 'center';
+  ctx.fillText('θ', lp.x, lp.y + 4);
+
+  if (q !== 1) {
+    const rp = pt(ref/2, R*.17);
+    ctx.font = `italic ${SZ*.027}px Georgia`; ctx.fillStyle = P.ref;
+    ctx.fillText('α', rp.x, rp.y + 4);
+  }
+
+  const qNames = ['','I','II','III','IV'];
+  ctx.font = `${SZ*.045}px Georgia`; ctx.fillStyle = 'rgba(148,163,184,0.08)';
+  ctx.textAlign = 'right';
+  ctx.fillText(qNames[q], SZ - 14, SZ - 12);
+}
+
+function angleFrom(e) {
+  const r = cv.getBoundingClientRect();
+  const sx = SZ / r.width, sy = SZ / r.height;
+  const cx = e.touches ? e.touches[0].clientX : e.clientX;
+  const cy2 = e.touches ? e.touches[0].clientY : e.clientY;
+  return Math.atan2(-((cy2 - r.top)*sy - OY), (cx - r.left)*sx - OX);
+}
+
+cv.addEventListener('mousedown',  e => { drag = true;  theta = angleFrom(e); draw(); });
+cv.addEventListener('mousemove',  e => { if (drag) { theta = angleFrom(e); draw(); } });
+document.addEventListener('mouseup', () => drag = false);
+cv.addEventListener('touchstart', e => { e.preventDefault(); drag=true; theta=angleFrom(e); draw(); }, {passive:false});
+cv.addEventListener('touchmove',  e => { e.preventDefault(); if(drag){theta=angleFrom(e);draw();} }, {passive:false});
+document.addEventListener('touchend', () => drag = false);
+
+['Sin','Cos','Tan'].forEach(m => {
+  document.getElementById('b'+m).addEventListener('click', () => {
+    mode = m.toLowerCase();
+    document.querySelectorAll('.tabs button').forEach(b => b.classList.remove('on'));
+    document.getElementById('b'+m).classList.add('on');
+    draw();
+  });
+});
+
+draw();
+</script>
+</body>
+</html>
+

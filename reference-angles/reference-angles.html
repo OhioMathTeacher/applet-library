@@ -190,9 +190,9 @@ function draw() {
 
   segment(OX, OY, cur.x, cur.y, P.radius, 2.5);
 
-  ctx.beginPath(); ctx.arc(OX, OY, R*.13, 0, -norm, norm > Math.PI);
+  ctx.beginPath(); ctx.arc(OX, OY, R*.13, 0, -norm, true);
   ctx.strokeStyle = P.radius; ctx.lineWidth = 1.5; ctx.stroke();
-  ctx.beginPath(); ctx.arc(OX, OY, R*.09, 0, -ref, false);
+  ctx.beginPath(); ctx.arc(OX, OY, R*.09, 0, -ref, true);
   ctx.strokeStyle = P.ref; ctx.lineWidth = 1.5; ctx.stroke();
 
   ctx.beginPath(); ctx.arc(OX, OY, R, 0, Math.PI*2);

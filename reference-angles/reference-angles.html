@@ -74,6 +74,7 @@ canvas { cursor: crosshair; display: block; touch-action: none; }
 .ref-label:hover { background: #273449; color: #cbd5e1; }
 .ref-label.on { background: rgba(245,158,11,0.15); border-color: #f59e0b; color: #fde68a; }
 .ref-label input[type="checkbox"] { display: none; }
+#bRadiusOnly.on { background: rgba(148,163,184,0.15); border-color: #94a3b8; color: #e2e8f0; }
 </style>
 </head>
 <body>
@@ -92,6 +93,7 @@ canvas { cursor: crosshair; display: block; touch-action: none; }
   <button id="bCos" data-ratio="cos">cos</button>
   <button id="bTan" data-ratio="tan">tan</button>
   <span class="sep">|</span>
+  <button id="bRadiusOnly">Radius only</button>
   <button id="bReset">↺ Reset</button>
 </div>
 <div class="angle-row">
@@ -127,6 +129,7 @@ const show         = { 2: false, 3: false, 4: false };
 const activeRatios = new Set();
 let showRef        = false;   // whether the Q1 reference triangle is visible
 let viewRefAngles  = false;   // when true: show reference-angle arcs; when false: show full-angle spiral
+let radiusOnly     = false;   // when true: draw only hypotenuse + dot (no fill/sides/tick marks)
 
 // ── Angle helpers ─────────────────────────────────────────────────────
 function normalize(a) { return ((a % (2*Math.PI)) + 2*Math.PI) % (2*Math.PI); }
@@ -157,6 +160,9 @@ const QC = {
   3: { fill: 'rgba(167,139,250,0.11)', stroke: '#a78bfa', dot: '#a78bfa', text: '#c4b5fd' },
   4: { fill: 'rgba(52,211,153,0.11)',  stroke: '#34d399', dot: '#34d399', text: '#6ee7b7' },
 };
+// All non-Q1 triangles share one consistent color (gold Q1 stays special as the reference)
+const TC = { fill: 'rgba(96,165,250,0.12)', stroke: '#60a5fa', dot: '#93c5fd', text: '#bfdbfe' };
+function quadColor(q) { return q === 1 ? QC[1] : TC; }
 
 const RC = {
   sin: { oppPos: '#f87171', oppNeg: '#7f1d1d', hyp: '#60a5fa' },
@@ -275,7 +281,8 @@ function drawAngleArc(q) {
 
   ctx.beginPath();
   ctx.arc(OX, OY, arcR, sa, ea, acw);
-  ctx.strokeStyle = q === 1 ? '#f59e0b' : QC[q].stroke;
+  const qc = quadColor(q);
+  ctx.strokeStyle = qc.stroke;
   ctx.lineWidth   = q === 1 ? 2 : 1.5;
   ctx.stroke();
 
@@ -296,7 +303,7 @@ function drawAngleArc(q) {
   const refDeg = (alpha * 180 / Math.PI).toFixed(1);
   ctx.textAlign = 'center';
   ctx.font      = `bold ${SZ * 0.032}px Georgia`;
-  ctx.fillStyle = q === 1 ? '#f59e0b' : QC[q].text;
+  ctx.fillStyle = qc.text;
   ctx.fillText(`${refDeg}°`, lx, ly + 5);
 }
 
@@ -311,7 +318,18 @@ function drawTriangle(q, isTerminal) {
   const ey = OY - R * sy * sinA;
   const fx = ex, fy = OY;
 
-  const c      = QC[q];
+  const c      = quadColor(q);
+  const dotR   = (q === 1 || isTerminal) ? 11 : 9;
+
+  // Radius-only mode: show just the hypotenuse and endpoint dot
+  if (radiusOnly) {
+    segment(OX, OY, ex, ey, c.stroke, 2.5);
+    ctx.beginPath(); ctx.arc(ex, ey, dotR, 0, Math.PI * 2);
+    ctx.fillStyle = c.dot; ctx.fill();
+    ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.stroke();
+    return;
+  }
+
   const hlMode = activeRatios.size > 0;
 
   const hlOpp = activeRatios.has('sin') || activeRatios.has('tan');
@@ -357,7 +375,6 @@ function drawTriangle(q, isTerminal) {
   }
 
   // Dot — slightly larger for Q1 reference and the terminal angle
-  const dotR = (q === 1 || isTerminal) ? 11 : 9;
   ctx.beginPath(); ctx.arc(ex, ey, dotR, 0, Math.PI * 2);
   ctx.fillStyle = c.dot; ctx.fill();
   ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.stroke();
@@ -387,7 +404,7 @@ function drawCoordLabel(q, cosA, sinA) {
   else        lx = Math.max(lx, tw + pad);
   ly = Math.max(pad * 2, Math.min(SZ - pad, ly));
 
-  ctx.fillStyle = QC[q].text;
+  ctx.fillStyle = quadColor(q).text;
   ctx.fillText(text, lx, ly + 4);
 }
 
@@ -554,6 +571,19 @@ document.getElementById('bReset').addEventListener('click', () => {
 document.getElementById('cbRef').addEventListener('change', e => {
   showRef = e.target.checked;
   document.getElementById('lRef').classList.toggle('on', showRef);
+  // Viewing the Q1 reference triangle requires reference angles to be visible
+  if (showRef && !viewRefAngles) {
+    viewRefAngles = true;
+    document.getElementById('cbViewRef').checked = true;
+    document.getElementById('lViewRef').classList.add('on');
+  }
+  draw();
+});
+
+// ── Radius only button ────────────────────────────────────────────────
+document.getElementById('bRadiusOnly').addEventListener('click', () => {
+  radiusOnly = !radiusOnly;
+  document.getElementById('bRadiusOnly').classList.toggle('on', radiusOnly);
   draw();
 });
 

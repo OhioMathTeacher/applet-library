@@ -20,7 +20,7 @@ body {
   padding: 6px;
 }
 canvas { cursor: crosshair; display: block; touch-action: none; }
-.btn-row { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+.btn-row { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; align-items: center; }
 .btn-row button {
   background: #1e293b;
   border: 1px solid #334155;
@@ -32,14 +32,31 @@ canvas { cursor: crosshair; display: block; touch-action: none; }
   transition: background 0.15s, color 0.15s, border-color 0.15s;
 }
 .btn-row button:hover:not(.on) { background: #273449; color: #cbd5e1; }
-/* Quadrant buttons */
 [data-q="2"].on { background: rgba(96,165,250,0.15);  border-color: #60a5fa; color: #93c5fd; }
 [data-q="3"].on { background: rgba(167,139,250,0.15); border-color: #a78bfa; color: #c4b5fd; }
 [data-q="4"].on { background: rgba(52,211,153,0.15);  border-color: #34d399; color: #6ee7b7; }
-/* Ratio buttons */
 [data-ratio="sin"].on { background: rgba(248,113,113,0.15); border-color: #f87171; color: #fca5a5; }
 [data-ratio="cos"].on { background: rgba(52,211,153,0.15);  border-color: #34d399; color: #6ee7b7; }
 [data-ratio="tan"].on { background: rgba(250,204,21,0.15);  border-color: #facc15; color: #fde047; }
+.sep { color: #334155; padding: 0 2px; font-size: 20px; line-height: 1; }
+.angle-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font: 15px Georgia, serif;
+  color: #94a3b8;
+}
+.angle-row input {
+  background: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 8px;
+  color: #e2e8f0;
+  padding: 7px 10px;
+  font: 15px Georgia, serif;
+  width: 100px;
+  text-align: right;
+}
+.angle-row input:focus { outline: none; border-color: #60a5fa; }
 .hint { font-size: 11px; color: #334155; letter-spacing: 0.05em; }
 </style>
 </head>
@@ -54,24 +71,57 @@ canvas { cursor: crosshair; display: block; touch-action: none; }
   <button id="bSin" data-ratio="sin">sin</button>
   <button id="bCos" data-ratio="cos">cos</button>
   <button id="bTan" data-ratio="tan">tan</button>
+  <span class="sep">|</span>
+  <button id="bReset">↺ Reset</button>
 </div>
-<div class="hint">drag the point · click anywhere in quadrant I</div>
+<div class="angle-row">
+  <span>θ =</span>
+  <input id="angleInput" type="number" value="45" min="-7200" max="7200" step="1">
+  <span>°</span>
+</div>
+<div class="hint">drag the point anywhere on the circle</div>
 
 <script>
 const cv  = document.getElementById('c');
 const ctx = cv.getContext('2d');
 
-const SZ  = Math.min(window.innerWidth - 16, window.innerHeight - 160, 520);
+const SZ  = Math.min(window.innerWidth - 16, window.innerHeight - 200, 500);
 cv.width  = SZ;
 cv.height = SZ;
 
 const OX = SZ / 2, OY = SZ / 2, R = SZ * 0.365;
 
-let alpha = Math.PI / 4;
-let drag  = false;
+// thetaDeg: the displayed angle in degrees (any value, -7200 to 7200 from input, 0-360 from drag)
+// alpha:    the reference angle in radians (always in Q1), derived from thetaDeg; global so
+//           drawTriangle / drawAngleArc can read it without needing an extra parameter
+let thetaDeg = 45;
+let alpha    = Math.PI / 4;
+let drag     = false;
 
 const show         = { 2: false, 3: false, 4: false };
-const activeRatios = new Set();     // any subset of 'sin', 'cos', 'tan'
+const activeRatios = new Set();
+
+// ── Angle helpers ─────────────────────────────────────────────────────
+function normalize(a) { return ((a % (2*Math.PI)) + 2*Math.PI) % (2*Math.PI); }
+
+function refOf(a) {
+  const n = normalize(a);
+  if (n <= Math.PI/2)       return n;
+  if (n <= Math.PI)         return Math.PI - n;
+  if (n <= 3*Math.PI/2)     return n - Math.PI;
+  return 2*Math.PI - n;
+}
+
+function quadOf(a) {
+  const n = normalize(a);
+  if (n < Math.PI/2)    return 1;
+  if (n < Math.PI)      return 2;
+  if (n < 3*Math.PI/2)  return 3;
+  return 4;
+}
+
+// Normalized radians from current thetaDeg (always in [0, 2π))
+function normRad() { return normalize(thetaDeg * Math.PI / 180); }
 
 // ── Quadrant color palette ────────────────────────────────────────────
 const QC = {
@@ -81,16 +131,13 @@ const QC = {
   4: { fill: 'rgba(52,211,153,0.11)',  stroke: '#34d399', dot: '#34d399', text: '#6ee7b7' },
 };
 
-// Ratio highlight colours — positive (bright) and negative (dim) versions
 const RC = {
   sin: { oppPos: '#f87171', oppNeg: '#7f1d1d', hyp: '#60a5fa' },
   cos: { adjPos: '#34d399', adjNeg: '#166534', hyp: '#60a5fa' },
-  tan: { oppPos: '#f87171', oppNeg: '#7f1d1d',
-         adjPos: '#34d399', adjNeg: '#166534' },
 };
-const DIM_SIDE = '#1e3a5f';   // colour for non-highlighted sides in ratio mode
+const DIM_SIDE = '#1e3a5f';
 
-// ── Primitive drawing helpers ────────────────────────────────────────
+// ── Drawing helpers ───────────────────────────────────────────────────
 function segment(x1, y1, x2, y2, color, lw, dash = []) {
   ctx.beginPath();
   ctx.setLineDash(dash);
@@ -119,13 +166,12 @@ function rightAngleMark(fx, fy, hDir, vDir) {
   ctx.stroke();
 }
 
-// ── Angle arc + degree label for one quadrant ────────────────────────
-// Arc always shows the reference angle (= alpha) at the origin.
-// Arc formulas verified: each sweeps exactly alpha radians to the correct side.
-//   Q1: counterclockwise from 0     → sweeps alpha upward
-//   Q2: clockwise       from π     → sweeps alpha downward-left toward Q2 hyp
-//   Q3: counterclockwise from π     → sweeps alpha downward toward Q3 hyp
-//   Q4: clockwise       from 0     → sweeps alpha downward toward Q4 hyp
+// ── Angle arc + degree label ──────────────────────────────────────────
+// Each arc shows the REFERENCE angle (alpha) measured from the nearest
+// x-axis — so all four arcs span the same number of degrees.
+// Arc direction formulas (each sweeps exactly alpha radians):
+//   Q1: ccw from 0          Q2: cw  from π
+//   Q3: ccw from π          Q4: cw  from 0
 function drawAngleArc(q) {
   const arcR = R * 0.13;
 
@@ -141,61 +187,53 @@ function drawAngleArc(q) {
   ctx.lineWidth   = q === 1 ? 2 : 1.5;
   ctx.stroke();
 
-  // Degree label at the geometric midpoint of each arc.
-  // Canvas angle at midpoint:
-  //   Q1: -alpha/2          (upper-right)
-  //   Q2: π + alpha/2       (upper-left)
-  //   Q3: π - alpha/2       (lower-left)
-  //   Q4: alpha/2           (lower-right)
+  // Degree label at midpoint of arc (canvas angles):
+  //   Q1: −α/2   Q2: π+α/2   Q3: π−α/2   Q4: α/2
   let midCA;
   if      (q === 1) midCA = -alpha / 2;
   else if (q === 2) midCA = Math.PI + alpha / 2;
   else if (q === 3) midCA = Math.PI - alpha / 2;
   else              midCA = alpha / 2;
 
-  const lR = R * 0.28;
-  const lx     = OX + lR * Math.cos(midCA);
-  const lyRaw  = OY + lR * Math.sin(midCA);
+  const lR    = R * 0.28;
+  const lx    = OX + lR * Math.cos(midCA);
+  const lyRaw = OY + lR * Math.sin(midCA);
+  const gap   = SZ * 0.022;
+  const ly    = (q === 1 || q === 2) ? Math.min(OY - gap, lyRaw) : Math.max(OY + gap, lyRaw);
 
-  // Keep label off the x-axis (min gap = SZ*0.022) so it stays readable
-  // for small alpha. Q1/Q2 are above the axis (ly < OY), Q3/Q4 are below.
-  const gap = SZ * 0.022;
-  const ly  = (q === 1 || q === 2)
-    ? Math.min(OY - gap, lyRaw)
-    : Math.max(OY + gap, lyRaw);
-
-  const deg = (alpha * 180 / Math.PI).toFixed(1);
+  const refDeg = (alpha * 180 / Math.PI).toFixed(1);
   ctx.textAlign = 'center';
   ctx.font      = `bold ${SZ * 0.032}px Georgia`;
   ctx.fillStyle = q === 1 ? '#f59e0b' : QC[q].text;
-  ctx.fillText(`${deg}°`, lx, ly + 5);
+  ctx.fillText(`${refDeg}°`, lx, ly + 5);
 }
 
-// ── Triangle (fill + sides + dot) ────────────────────────────────────
-function drawTriangle(q) {
+// ── Triangle ─────────────────────────────────────────────────────────
+// isTerminal: true for the quadrant the user's angle actually lands in
+function drawTriangle(q, isTerminal) {
   const cosA = Math.cos(alpha), sinA = Math.sin(alpha);
   const sx   = (q === 1 || q === 4) ? 1 : -1;
   const sy   = (q === 1 || q === 2) ? 1 : -1;
 
-  const ex = OX + R * sx * cosA;   // endpoint (on circle)
+  const ex = OX + R * sx * cosA;
   const ey = OY - R * sy * sinA;
-  const fx = ex, fy = OY;          // foot of perpendicular
+  const fx = ex, fy = OY;
 
   const c      = QC[q];
   const hlMode = activeRatios.size > 0;
 
-  // ── Which sides are highlighted by the active ratio buttons ──────────
-  const oppPos      = (sy === 1);   // vertical leg positive when above x-axis
-  const adjPos      = (sx === 1);   // horizontal leg positive when right of y-axis
+  const oppPos    = (sy === 1);
+  const adjPos    = (sx === 1);
   const hlOpp = activeRatios.has('sin') || activeRatios.has('tan');
   const hlAdj = activeRatios.has('cos') || activeRatios.has('tan');
   const hlHyp = activeRatios.has('sin') || activeRatios.has('cos');
 
-  const HL = 5;
+  const HL  = 5;
+  const baseLW = (q === 1 || isTerminal) ? 1 : 0;  // line-width bonus for primary triangles
   let fillC, hypC, adjC, oppC;
-  let hypLW = q === 1 ? 3   : 2.5;
-  let adjLW = q === 1 ? 2.5 : 2;
-  let oppLW = q === 1 ? 3.5 : 3;
+  let hypLW = 2.5 + baseLW;
+  let adjLW = 2   + baseLW;
+  let oppLW = 3   + baseLW;
 
   if (hlMode) {
     fillC = 'rgba(100,116,139,0.07)';
@@ -210,38 +248,36 @@ function drawTriangle(q) {
     hypC = adjC = oppC = c.stroke;
   }
 
-  // ── Fill ─────────────────────────────────────────────────────────
+  // Fill
   ctx.beginPath();
   ctx.moveTo(OX, OY); ctx.lineTo(fx, fy); ctx.lineTo(ex, ey);
   ctx.closePath();
   ctx.fillStyle = fillC; ctx.fill();
 
-  // ── Right-angle mark ─────────────────────────────────────────────
   rightAngleMark(fx, fy, -sx, sy === 1 ? -1 : 1);
 
-  // ── Sides ────────────────────────────────────────────────────────
-  segment(OX, OY, ex, ey, hypC, hypLW);         // hypotenuse
+  segment(OX, OY, ex, ey, hypC, hypLW);
 
   if (cosA > 0.06) {
-    segment(OX, OY, fx, fy, adjC, adjLW);       // adjacent (horizontal)
+    segment(OX, OY, fx, fy, adjC, adjLW);
     if (!hlMode) tickMark(OX, OY, fx, fy, c.stroke);
   }
   if (sinA > 0.06) {
-    segment(fx, fy, ex, ey, oppC, oppLW);       // opposite (vertical)
+    segment(fx, fy, ex, ey, oppC, oppLW);
     if (!hlMode) tickMark(fx, fy, ex, ey, c.stroke);
   }
 
-  // ── Endpoint dot ─────────────────────────────────────────────────
-  ctx.beginPath(); ctx.arc(ex, ey, q === 1 ? 11 : 9, 0, Math.PI * 2);
-  ctx.fillStyle   = c.dot; ctx.fill();
+  // Dot — slightly larger for Q1 reference and the terminal angle
+  const dotR = (q === 1 || isTerminal) ? 11 : 9;
+  ctx.beginPath(); ctx.arc(ex, ey, dotR, 0, Math.PI * 2);
+  ctx.fillStyle = c.dot; ctx.fill();
   ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.stroke();
 }
 
-// ── Coordinate label floating near each endpoint dot ────────────────
+// ── Coordinate label floating near each endpoint dot ─────────────────
 function drawCoordLabel(q, cosA, sinA) {
-  const sx = (q === 1 || q === 4) ? 1 : -1;
-  const sy = (q === 1 || q === 2) ? 1 : -1;
-
+  const sx  = (q === 1 || q === 4) ? 1 : -1;
+  const sy  = (q === 1 || q === 2) ? 1 : -1;
   const ex  = OX + R * sx * cosA;
   const ey  = OY - R * sy * sinA;
   const off = SZ * 0.075;
@@ -256,10 +292,14 @@ function drawCoordLabel(q, cosA, sinA) {
   ctx.fillText(`(${xPart},  ${yPart} )`, lx, ly + 4);
 }
 
-// ── Main render ──────────────────────────────────────────────────────
+// ── Main render ───────────────────────────────────────────────────────
 function draw() {
   ctx.clearRect(0, 0, SZ, SZ);
 
+  // Derive current reference angle and terminal quadrant
+  const nr   = normRad();
+  alpha      = refOf(nr);
+  const qCur = quadOf(nr);
   const cosA = Math.cos(alpha), sinA = Math.sin(alpha);
 
   // Faint grid rings
@@ -291,46 +331,83 @@ function draw() {
   ctx.beginPath(); ctx.arc(OX, OY, R, 0, Math.PI * 2);
   ctx.strokeStyle = '#475569'; ctx.lineWidth = 1.5; ctx.stroke();
 
-  // Triangles — draw back to front so Q1 is always on top
-  if (show[3]) drawTriangle(3);
-  if (show[2]) drawTriangle(2);
-  if (show[4]) drawTriangle(4);
-  drawTriangle(1);
+  // Build the set of quadrants to draw.
+  // Q1 (reference) is always shown. The terminal quadrant is always shown.
+  // Toggle buttons add comparison quadrants.
+  const visible = new Set([1]);
+  if (qCur !== 1) visible.add(qCur);
+  [2, 3, 4].forEach(q => { if (show[q]) visible.add(q); });
 
-  // Angle arcs — drawn on top of triangles; Q1 last so its label wins
-  if (show[4]) drawAngleArc(4);
-  if (show[3]) drawAngleArc(3);
-  if (show[2]) drawAngleArc(2);
-  drawAngleArc(1);
-
-  // Coordinate labels — topmost layer
-  ctx.font = `${SZ * 0.027}px Georgia`;
-  [1, 2, 3, 4].forEach(q => {
-    if (q !== 1 && !show[q]) return;
-    drawCoordLabel(q, cosA, sinA);
+  // Draw triangles: comparison first, then Q1 reference, then terminal on top
+  [3, 2, 4].forEach(q => {
+    if (visible.has(q) && q !== 1 && q !== qCur) drawTriangle(q, false);
   });
+  drawTriangle(1, qCur === 1);           // isTerminal only if current angle is in Q1
+  if (qCur !== 1) drawTriangle(qCur, true);
+
+  // Angle arcs: same order
+  [4, 3, 2].forEach(q => {
+    if (visible.has(q) && q !== 1 && q !== qCur) drawAngleArc(q);
+  });
+  drawAngleArc(1);
+  if (qCur !== 1) drawAngleArc(qCur);
+
+  // θ label — shows the actual input angle (may differ from reference for large/negative values)
+  ctx.textAlign = 'left';
+  ctx.font      = `bold ${SZ * 0.038}px Georgia`;
+  ctx.fillStyle = '#cbd5e1';
+  ctx.fillText(`θ = ${thetaDeg.toFixed(1)}°`, 14, 34);
+
+  // Coordinate labels
+  ctx.font = `${SZ * 0.027}px Georgia`;
+  visible.forEach(q => drawCoordLabel(q, cosA, sinA));
 }
 
+// ── Sync the angle input box ──────────────────────────────────────────
+const angleInput = document.getElementById('angleInput');
 
-// ── Input helpers ────────────────────────────────────────────────────
-function clampToQ1(a) { return Math.max(0.02, Math.min(Math.PI / 2 - 0.02, a)); }
+function syncInput() {
+  angleInput.value = thetaDeg.toFixed(1);
+}
 
-function angleFrom(e) {
+// ── Drag interaction ──────────────────────────────────────────────────
+function angleFromEvent(e) {
   const rect = cv.getBoundingClientRect();
   const scx  = SZ / rect.width, scy = SZ / rect.height;
   const cx   = e.touches ? e.touches[0].clientX : e.clientX;
   const cy   = e.touches ? e.touches[0].clientY : e.clientY;
-  return clampToQ1(Math.atan2(-((cy - rect.top) * scy - OY), (cx - rect.left) * scx - OX));
+  // atan2 returns −π to π; normalize to 0–360°
+  const raw  = Math.atan2(-((cy - rect.top) * scy - OY), (cx - rect.left) * scx - OX);
+  return ((raw * 180 / Math.PI) % 360 + 360) % 360;
 }
 
-cv.addEventListener('mousedown',  e => { drag = true; alpha = angleFrom(e); draw(); });
-cv.addEventListener('mousemove',  e => { if (!drag) return; alpha = angleFrom(e); draw(); });
+cv.addEventListener('mousedown',  e => { drag = true; thetaDeg = angleFromEvent(e); syncInput(); draw(); });
+cv.addEventListener('mousemove',  e => { if (!drag) return; thetaDeg = angleFromEvent(e); syncInput(); draw(); });
 document.addEventListener('mouseup',  () => { drag = false; });
-cv.addEventListener('touchstart', e => { e.preventDefault(); drag = true; alpha = angleFrom(e); draw(); }, { passive: false });
-cv.addEventListener('touchmove',  e => { e.preventDefault(); if (!drag) return; alpha = angleFrom(e); draw(); }, { passive: false });
+cv.addEventListener('touchstart', e => { e.preventDefault(); drag = true; thetaDeg = angleFromEvent(e); syncInput(); draw(); }, { passive: false });
+cv.addEventListener('touchmove',  e => { e.preventDefault(); if (!drag) return; thetaDeg = angleFromEvent(e); syncInput(); draw(); }, { passive: false });
 document.addEventListener('touchend', () => { drag = false; });
 
-// ── Button wiring ────────────────────────────────────────────────────
+// ── Angle input ───────────────────────────────────────────────────────
+angleInput.addEventListener('change', () => {
+  const val = parseFloat(angleInput.value);
+  if (!isNaN(val) && val >= -7200 && val <= 7200) {
+    thetaDeg = val;
+  } else {
+    syncInput();   // restore if out of range / invalid
+  }
+  draw();
+});
+
+// ── Reset button ──────────────────────────────────────────────────────
+document.getElementById('bReset').addEventListener('click', () => {
+  // Snap to the reference angle in Q1
+  thetaDeg = refOf(normRad()) * 180 / Math.PI;
+  syncInput();
+  draw();
+});
+
+// ── Quadrant toggle buttons ───────────────────────────────────────────
 document.querySelectorAll('[data-q]').forEach(btn => {
   const q = Number(btn.dataset.q);
   btn.addEventListener('click', () => {
@@ -340,6 +417,7 @@ document.querySelectorAll('[data-q]').forEach(btn => {
   });
 });
 
+// ── Ratio toggle buttons ──────────────────────────────────────────────
 document.querySelectorAll('[data-ratio]').forEach(btn => {
   btn.addEventListener('click', () => {
     const r = btn.dataset.ratio;

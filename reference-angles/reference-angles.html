@@ -97,6 +97,7 @@ const OX = SZ / 2, OY = SZ / 2, R = SZ * 0.365;
 let thetaDeg = 45;
 let alpha    = Math.PI / 4;
 let drag     = false;
+let prevRaw  = null;   // last raw 0–360° angle seen during a drag, for delta accumulation
 
 const show         = { 2: false, 3: false, 4: false };
 const activeRatios = new Set();
@@ -222,24 +223,21 @@ function drawTriangle(q, isTerminal) {
   const c      = QC[q];
   const hlMode = activeRatios.size > 0;
 
-  const oppPos    = (sy === 1);
-  const adjPos    = (sx === 1);
   const hlOpp = activeRatios.has('sin') || activeRatios.has('tan');
   const hlAdj = activeRatios.has('cos') || activeRatios.has('tan');
   const hlHyp = activeRatios.has('sin') || activeRatios.has('cos');
 
-  const HL  = 5;
-  const baseLW = (q === 1 || isTerminal) ? 1 : 0;  // line-width bonus for primary triangles
+  const HL = 5;
+  let hypLW = 2.5;
+  let adjLW = 2;
+  let oppLW = 3;
   let fillC, hypC, adjC, oppC;
-  let hypLW = 2.5 + baseLW;
-  let adjLW = 2   + baseLW;
-  let oppLW = 3   + baseLW;
 
   if (hlMode) {
     fillC = 'rgba(100,116,139,0.07)';
-    oppC  = hlOpp ? (oppPos ? RC.sin.oppPos : RC.sin.oppNeg) : DIM_SIDE;
-    adjC  = hlAdj ? (adjPos ? RC.cos.adjPos : RC.cos.adjNeg) : DIM_SIDE;
-    hypC  = hlHyp ? RC.sin.hyp                               : DIM_SIDE;
+    oppC  = hlOpp ? RC.sin.oppPos : DIM_SIDE;
+    adjC  = hlAdj ? RC.cos.adjPos : DIM_SIDE;
+    hypC  = hlHyp ? RC.sin.hyp   : DIM_SIDE;
     if (hlOpp) oppLW = HL;
     if (hlAdj) adjLW = HL;
     if (hlHyp) hypLW = HL;
@@ -281,15 +279,25 @@ function drawCoordLabel(q, cosA, sinA) {
   const ex  = OX + R * sx * cosA;
   const ey  = OY - R * sy * sinA;
   const off = SZ * 0.075;
-  const lx  = ex + sx * cosA * off;
-  const ly  = ey - sy * sinA * off;
+  let lx    = ex + sx * cosA * off;
+  let ly    = ey - sy * sinA * off;
 
   const xPart = sx > 0 ? ` ${cosA.toFixed(3)}` : `−${cosA.toFixed(3)}`;
   const yPart = sy > 0 ? ` ${sinA.toFixed(3)}` : `−${sinA.toFixed(3)}`;
+  const text  = `( ${xPart},  ${yPart} )`;
 
+  ctx.font = `${SZ * 0.027}px Georgia`;
+  const tw  = ctx.measureText(text).width;
+  const pad = SZ * 0.018;
+
+  // Clamp so text stays fully inside canvas
   ctx.textAlign = sx > 0 ? 'left' : 'right';
+  if (sx > 0) lx = Math.min(lx, SZ - tw - pad);
+  else        lx = Math.max(lx, tw + pad);
+  ly = Math.max(pad * 2, Math.min(SZ - pad, ly));
+
   ctx.fillStyle = QC[q].text;
-  ctx.fillText(`(${xPart},  ${yPart} )`, lx, ly + 4);
+  ctx.fillText(text, lx, ly + 4);
 }
 
 // ── Main render ───────────────────────────────────────────────────────
@@ -358,8 +366,7 @@ function draw() {
   ctx.fillStyle = '#cbd5e1';
   ctx.fillText(`θ = ${thetaDeg.toFixed(1)}°`, 14, 34);
 
-  // Coordinate labels
-  ctx.font = `${SZ * 0.027}px Georgia`;
+  // Coordinate labels (font is set inside drawCoordLabel)
   visible.forEach(q => drawCoordLabel(q, cosA, sinA));
 }
 
@@ -381,12 +388,51 @@ function angleFromEvent(e) {
   return ((raw * 180 / Math.PI) % 360 + 360) % 360;
 }
 
-cv.addEventListener('mousedown',  e => { drag = true; thetaDeg = angleFromEvent(e); syncInput(); draw(); });
-cv.addEventListener('mousemove',  e => { if (!drag) return; thetaDeg = angleFromEvent(e); syncInput(); draw(); });
-document.addEventListener('mouseup',  () => { drag = false; });
-cv.addEventListener('touchstart', e => { e.preventDefault(); drag = true; thetaDeg = angleFromEvent(e); syncInput(); draw(); }, { passive: false });
-cv.addEventListener('touchmove',  e => { e.preventDefault(); if (!drag) return; thetaDeg = angleFromEvent(e); syncInput(); draw(); }, { passive: false });
-document.addEventListener('touchend', () => { drag = false; });
+// Snap thetaDeg to the clicked position while preserving accumulated full-rotation count.
+function snapToRaw(rawDeg) {
+  const norm = ((thetaDeg % 360) + 360) % 360;
+  let delta  = rawDeg - norm;
+  if (delta >  180) delta -= 360;
+  if (delta < -180) delta += 360;
+  thetaDeg = Math.max(-7200, Math.min(7200, thetaDeg + delta));
+}
+
+// Accumulate delta from previous raw angle so dragging past 0°/360° keeps counting.
+function accumulateDrag(rawDeg) {
+  let delta = rawDeg - prevRaw;
+  if (delta >  180) delta -= 360;
+  if (delta < -180) delta += 360;
+  thetaDeg = Math.max(-7200, Math.min(7200, thetaDeg + delta));
+  prevRaw  = rawDeg;
+}
+
+cv.addEventListener('mousedown', e => {
+  drag    = true;
+  prevRaw = angleFromEvent(e);
+  snapToRaw(prevRaw);
+  syncInput(); draw();
+});
+cv.addEventListener('mousemove', e => {
+  if (!drag) return;
+  accumulateDrag(angleFromEvent(e));
+  syncInput(); draw();
+});
+document.addEventListener('mouseup',  () => { drag = false; prevRaw = null; });
+
+cv.addEventListener('touchstart', e => {
+  e.preventDefault();
+  drag    = true;
+  prevRaw = angleFromEvent(e);
+  snapToRaw(prevRaw);
+  syncInput(); draw();
+}, { passive: false });
+cv.addEventListener('touchmove', e => {
+  e.preventDefault();
+  if (!drag) return;
+  accumulateDrag(angleFromEvent(e));
+  syncInput(); draw();
+}, { passive: false });
+document.addEventListener('touchend', () => { drag = false; prevRaw = null; });
 
 // ── Angle input ───────────────────────────────────────────────────────
 angleInput.addEventListener('change', () => {

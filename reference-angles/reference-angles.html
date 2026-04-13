@@ -79,7 +79,7 @@ canvas { cursor: crosshair; display: block; touch-action: none; }
 <body>
 <div class="btn-row">
   <label id="lRef" class="ref-label">
-    <input type="checkbox" id="cbRef"> View Reference Angle
+    <input type="checkbox" id="cbRef"> View Quadrant I Reference
   </label>
   <span class="sep">|</span>
   <button id="bII"  data-q="2">Quadrant II</button>
@@ -98,6 +98,10 @@ canvas { cursor: crosshair; display: block; touch-action: none; }
   <span>θ =</span>
   <input id="angleInput" type="number" value="45" min="-7200" max="7200" step="1">
   <span>°</span>
+  <span class="sep">|</span>
+  <label id="lViewRef" class="ref-label">
+    <input type="checkbox" id="cbViewRef"> View Reference Angles
+  </label>
 </div>
 <div class="hint">drag the point anywhere on the circle</div>
 
@@ -122,6 +126,7 @@ let prevRaw  = null;   // last raw 0–360° angle seen during a drag, for delta
 const show         = { 2: false, 3: false, 4: false };
 const activeRatios = new Set();
 let showRef        = false;   // whether the Q1 reference triangle is visible
+let viewRefAngles  = false;   // when true: show reference-angle arcs; when false: show full-angle spiral
 
 // ── Angle helpers ─────────────────────────────────────────────────────
 function normalize(a) { return ((a % (2*Math.PI)) + 2*Math.PI) % (2*Math.PI); }
@@ -186,6 +191,71 @@ function rightAngleMark(fx, fy, hDir, vDir) {
   ctx.strokeStyle = 'rgba(148,163,184,0.35)';
   ctx.lineWidth = 1;
   ctx.stroke();
+}
+
+// ── Full-angle spiral ─────────────────────────────────────────────────
+// Draws an Archimedean spiral from 0° to thetaDeg showing the full winding.
+// Positive angles wind counterclockwise (standard math); negative → clockwise.
+function drawSpiral() {
+  const totalRad = thetaDeg * Math.PI / 180;
+  const absRad   = Math.abs(totalRad);
+  if (absRad < 0.01) return;
+
+  const sign = totalRad >= 0 ? 1 : -1;
+
+  // Cap the visual spiral at 5 full turns so it doesn't fill the canvas
+  const maxVisRad   = 10 * Math.PI;
+  const drawRad     = Math.min(absRad, maxVisRad);
+
+  // Spiral radius grows by R*0.045 each full revolution
+  const rMin            = R * 0.07;
+  const rGrowthPerRad   = (R * 0.045) / (2 * Math.PI);
+
+  const steps = Math.max(80, Math.ceil(drawRad * 30));
+
+  ctx.beginPath();
+  ctx.setLineDash([]);
+  for (let i = 0; i <= steps; i++) {
+    const phi = (i / steps) * drawRad;
+    const r   = rMin + rGrowthPerRad * phi;
+    // Positive math angle → canvas angle decreases (y-axis flip)
+    const ca  = -sign * phi;
+    const x   = OX + r * Math.cos(ca);
+    const y   = OY + r * Math.sin(ca);
+    if (i === 0) ctx.moveTo(x, y);
+    else         ctx.lineTo(x, y);
+  }
+  ctx.strokeStyle = 'rgba(245,158,11,0.75)';
+  ctx.lineWidth   = 1.8;
+  ctx.stroke();
+
+  // Arrowhead at the endpoint — direction from finite difference
+  const eps  = 0.05;
+  const phi1 = drawRad - eps, phi2 = drawRad;
+  const r1   = rMin + rGrowthPerRad * phi1;
+  const r2   = rMin + rGrowthPerRad * phi2;
+  const ax1  = OX + r1 * Math.cos(-sign * phi1), ay1 = OY + r1 * Math.sin(-sign * phi1);
+  const ax2  = OX + r2 * Math.cos(-sign * phi2), ay2 = OY + r2 * Math.sin(-sign * phi2);
+  const tAng = Math.atan2(ay2 - ay1, ax2 - ax1);
+  const wL   = 9, spread = 0.45;
+  ctx.beginPath();
+  ctx.moveTo(ax2, ay2);
+  ctx.lineTo(ax2 + wL * Math.cos(tAng + Math.PI - spread), ay2 + wL * Math.sin(tAng + Math.PI - spread));
+  ctx.moveTo(ax2, ay2);
+  ctx.lineTo(ax2 + wL * Math.cos(tAng + Math.PI + spread), ay2 + wL * Math.sin(tAng + Math.PI + spread));
+  ctx.strokeStyle = '#f59e0b';
+  ctx.lineWidth   = 2;
+  ctx.stroke();
+
+  // If angle exceeds the visual cap, note the extra rotations
+  if (absRad > maxVisRad) {
+    const extraTurns = Math.floor((absRad - maxVisRad) / (2 * Math.PI));
+    const label = `+${extraTurns + 5} rev`;
+    ctx.font      = `${SZ * 0.024}px Georgia`;
+    ctx.textAlign = 'center';
+    ctx.fillStyle = 'rgba(245,158,11,0.55)';
+    ctx.fillText(label, OX, OY + R * 0.18);
+  }
 }
 
 // ── Angle arc + degree label ──────────────────────────────────────────
@@ -368,6 +438,9 @@ function draw() {
   if (showRef && qCur !== 1) visible.add(1);
   [2, 3, 4].forEach(q => { if (show[q]) visible.add(q); });
 
+  // Spiral drawn behind everything when reference angles are hidden
+  if (!viewRefAngles) drawSpiral();
+
   // Draw order: extra comparison quadrants → Q1 reference → terminal on top
   [3, 2, 4].forEach(q => {
     if (visible.has(q) && q !== 1 && q !== qCur) drawTriangle(q, false);
@@ -375,12 +448,14 @@ function draw() {
   if (visible.has(1) && qCur !== 1) drawTriangle(1, false);   // Q1 reference (not terminal)
   drawTriangle(qCur, true);                                     // terminal always on top
 
-  // Angle arcs in same order
-  [4, 3, 2].forEach(q => {
-    if (visible.has(q) && q !== 1 && q !== qCur) drawAngleArc(q);
-  });
-  if (visible.has(1) && qCur !== 1) drawAngleArc(1);
-  drawAngleArc(qCur);
+  // Reference-angle arcs with degree labels — only when viewRefAngles is on
+  if (viewRefAngles) {
+    [4, 3, 2].forEach(q => {
+      if (visible.has(q) && q !== 1 && q !== qCur) drawAngleArc(q);
+    });
+    if (visible.has(1) && qCur !== 1) drawAngleArc(1);
+    drawAngleArc(qCur);
+  }
 
   // θ label — shows the actual input angle (may differ from reference for large/negative values)
   ctx.textAlign = 'left';
@@ -475,10 +550,17 @@ document.getElementById('bReset').addEventListener('click', () => {
   draw();
 });
 
-// ── Reference angle checkbox ──────────────────────────────────────────
+// ── Quadrant I Reference checkbox ─────────────────────────────────────
 document.getElementById('cbRef').addEventListener('change', e => {
   showRef = e.target.checked;
   document.getElementById('lRef').classList.toggle('on', showRef);
+  draw();
+});
+
+// ── View Reference Angles checkbox ────────────────────────────────────
+document.getElementById('cbViewRef').addEventListener('change', e => {
+  viewRefAngles = e.target.checked;
+  document.getElementById('lViewRef').classList.toggle('on', viewRefAngles);
   draw();
 });
 

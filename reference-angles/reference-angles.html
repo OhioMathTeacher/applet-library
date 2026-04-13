@@ -198,40 +198,38 @@ function draw() {
   ctx.beginPath(); ctx.arc(OX, OY, R * 0.13, 0, -alpha, true);
   ctx.strokeStyle = '#f59e0b'; ctx.lineWidth = 2; ctx.stroke();
 
-  // α label
-  const lp = {
-    x: OX + R * 0.22 * Math.cos(alpha / 2),
-    y: OY - R * 0.22 * Math.sin(alpha / 2),
-  };
-  ctx.font = `italic ${SZ*.034}px Georgia`; ctx.fillStyle = '#f59e0b';
-  ctx.textAlign = 'center';
-  ctx.fillText('α', lp.x, lp.y + 4);
-
-  // ── Info panel ───────────────────────────────────────────────
+  // Degree label inside the arc
   const deg  = (alpha * 180 / Math.PI).toFixed(1);
   const cStr = cosA.toFixed(3);
   const sStr = sinA.toFixed(3);
+  const midA = alpha / 2;
+  const arcLabelR = R * 0.32;
+  ctx.font = `bold ${SZ*.044}px Georgia`; ctx.fillStyle = '#f59e0b';
+  ctx.textAlign = 'center';
+  ctx.fillText(`${deg}°`,
+    OX + arcLabelR * Math.cos(midA),
+    OY - Math.max(arcLabelR * Math.sin(midA), SZ * 0.025) + 6);
 
-  ctx.textAlign = 'left';
-  ctx.font = `bold ${SZ*.044}px Georgia`;
-  ctx.fillStyle = '#f59e0b';
-  ctx.fillText(`α = ${deg}°`, 14, 42);
-
-  // Coordinate pairs for each visible quadrant
-  const rows = [
-    [1,  `( ${cStr},  ${sStr} )`, true],
-    [2,  `(−${cStr},  ${sStr} )`, show[2]],
-    [3,  `(−${cStr}, −${sStr} )`, show[3]],
-    [4,  `( ${cStr}, −${sStr} )`, show[4]],
-  ];
-
+  // Coordinate labels floating near each endpoint dot
+  const offset = SZ * 0.075;
   ctx.font = `${SZ*.028}px Georgia`;
-  let yOff = 42 + SZ * 0.05;
-  rows.forEach(([q, label, visible]) => {
+  [
+    [1, ` ${cStr}`,  ` ${sStr}`,  true   ],
+    [2, `−${cStr}`,  ` ${sStr}`,  show[2]],
+    [3, `−${cStr}`, `−${sStr}`,  show[3]],
+    [4, ` ${cStr}`, `−${sStr}`,  show[4]],
+  ].forEach(([q, xPart, yPart, visible]) => {
     if (!visible) return;
+    const sx = (q === 1 || q === 4) ? 1 : -1;
+    const sy = (q === 1 || q === 2) ? 1 : -1;
+    const ex = OX + R * sx * cosA;
+    const ey = OY - R * sy * sinA;
+    // Offset radially outward from the origin
+    const lx = ex + sx * cosA * offset;
+    const ly = ey - sy * sinA * offset;
+    ctx.textAlign = sx > 0 ? 'left' : 'right';
     ctx.fillStyle = QC[q].text;
-    ctx.fillText(label, 14, yOff);
-    yOff += SZ * 0.036;
+    ctx.fillText(`(${xPart},  ${yPart} )`, lx, ly + 4);
   });
 }
 

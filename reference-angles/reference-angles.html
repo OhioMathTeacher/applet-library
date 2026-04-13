@@ -32,6 +32,7 @@ canvas { cursor: crosshair; display: block; touch-action: none; }
   transition: background 0.15s, color 0.15s, border-color 0.15s;
 }
 .btn-row button:hover:not(.on) { background: #273449; color: #cbd5e1; }
+[data-q="1"].on { background: rgba(245,158,11,0.15);  border-color: #f59e0b; color: #fde68a; }
 [data-q="2"].on { background: rgba(96,165,250,0.15);  border-color: #60a5fa; color: #93c5fd; }
 [data-q="3"].on { background: rgba(167,139,250,0.15); border-color: #a78bfa; color: #c4b5fd; }
 [data-q="4"].on { background: rgba(52,211,153,0.15);  border-color: #34d399; color: #6ee7b7; }
@@ -79,13 +80,11 @@ canvas { cursor: crosshair; display: block; touch-action: none; }
 </head>
 <body>
 <div class="btn-row">
-  <label id="lRef" class="ref-label">
-    <input type="checkbox" id="cbRef"> View Quadrant I Reference
-  </label>
+  <button data-q="1">View Q1 Reference</button>
   <span class="sep">|</span>
-  <button id="bII"  data-q="2">Quadrant II</button>
-  <button id="bIII" data-q="3">Quadrant III</button>
-  <button id="bIV"  data-q="4">Quadrant IV</button>
+  <button data-q="2">Quadrant II</button>
+  <button data-q="3">Quadrant III</button>
+  <button data-q="4">Quadrant IV</button>
 </div>
 <canvas id="c"></canvas>
 <div class="btn-row">
@@ -125,9 +124,8 @@ let alpha    = Math.PI / 4;
 let drag     = false;
 let prevRaw  = null;   // last raw 0–360° angle seen during a drag, for delta accumulation
 
-const show         = { 2: false, 3: false, 4: false };
 const activeRatios = new Set();
-let showRef        = false;   // whether the Q1 reference triangle is visible
+let viewQuad       = null;    // null = show terminal; 1/2/3/4 = show that quadrant's triangle instead
 let viewRefAngles  = false;   // when true: show reference-angle arcs; when false: show full-angle spiral
 let radiusOnly     = false;   // when true: draw only hypotenuse + dot (no fill/sides/tick marks)
 
@@ -447,32 +445,15 @@ function draw() {
   ctx.beginPath(); ctx.arc(OX, OY, R, 0, Math.PI * 2);
   ctx.strokeStyle = '#475569'; ctx.lineWidth = 1.5; ctx.stroke();
 
-  // Build the set of quadrants to draw.
-  // Terminal quadrant is always shown.
-  // Q1 reference triangle only shown when showRef is true (or when terminal IS Q1).
-  // Toggle buttons add optional comparison quadrants.
-  const visible = new Set([qCur]);
-  if (showRef && qCur !== 1) visible.add(1);
-  [2, 3, 4].forEach(q => { if (show[q]) visible.add(q); });
+  // One triangle at a time: use the comparison quadrant if selected, else the terminal
+  const displayQ = viewQuad !== null ? viewQuad : qCur;
 
-  // Spiral drawn behind everything when reference angles are hidden
-  if (!viewRefAngles) drawSpiral();
+  // Spiral only when viewing the terminal angle with ref angles hidden
+  if (viewQuad === null && !viewRefAngles) drawSpiral();
 
-  // Draw order: extra comparison quadrants → Q1 reference → terminal on top
-  [3, 2, 4].forEach(q => {
-    if (visible.has(q) && q !== 1 && q !== qCur) drawTriangle(q, false);
-  });
-  if (visible.has(1) && qCur !== 1) drawTriangle(1, false);   // Q1 reference (not terminal)
-  drawTriangle(qCur, true);                                     // terminal always on top
+  drawTriangle(displayQ, displayQ === qCur);
 
-  // Reference-angle arcs with degree labels — only when viewRefAngles is on
-  if (viewRefAngles) {
-    [4, 3, 2].forEach(q => {
-      if (visible.has(q) && q !== 1 && q !== qCur) drawAngleArc(q);
-    });
-    if (visible.has(1) && qCur !== 1) drawAngleArc(1);
-    drawAngleArc(qCur);
-  }
+  if (viewRefAngles) drawAngleArc(displayQ);
 
   // θ label — shows the actual input angle (may differ from reference for large/negative values)
   ctx.textAlign = 'left';
@@ -480,8 +461,8 @@ function draw() {
   ctx.fillStyle = '#cbd5e1';
   ctx.fillText(`θ = ${thetaDeg.toFixed(1)}°`, 14, 34);
 
-  // Coordinate labels (font is set inside drawCoordLabel)
-  visible.forEach(q => drawCoordLabel(q, cosA, sinA));
+  // Coordinate label for the one visible triangle
+  drawCoordLabel(displayQ, cosA, sinA);
 }
 
 // ── Sync the angle input box ──────────────────────────────────────────
@@ -567,17 +548,24 @@ document.getElementById('bReset').addEventListener('click', () => {
   draw();
 });
 
-// ── Quadrant I Reference checkbox ─────────────────────────────────────
-document.getElementById('cbRef').addEventListener('change', e => {
-  showRef = e.target.checked;
-  document.getElementById('lRef').classList.toggle('on', showRef);
-  // Viewing the Q1 reference triangle requires reference angles to be visible
-  if (showRef && !viewRefAngles) {
+// ── Quadrant selector (radio-style: one triangle at a time) ──────────
+function selectQuad(q) {
+  viewQuad = (viewQuad === q) ? null : q;   // toggle: same button again → back to terminal
+  // Sync all button highlight states
+  document.querySelectorAll('[data-q]').forEach(b => {
+    b.classList.toggle('on', Number(b.dataset.q) === viewQuad);
+  });
+  // Viewing any comparison quad implicitly needs reference angles visible
+  if (viewQuad !== null && !viewRefAngles) {
     viewRefAngles = true;
     document.getElementById('cbViewRef').checked = true;
     document.getElementById('lViewRef').classList.add('on');
   }
   draw();
+}
+
+document.querySelectorAll('[data-q]').forEach(btn => {
+  btn.addEventListener('click', () => selectQuad(Number(btn.dataset.q)));
 });
 
 // ── Radius only button ────────────────────────────────────────────────
@@ -592,16 +580,6 @@ document.getElementById('cbViewRef').addEventListener('change', e => {
   viewRefAngles = e.target.checked;
   document.getElementById('lViewRef').classList.toggle('on', viewRefAngles);
   draw();
-});
-
-// ── Quadrant toggle buttons ───────────────────────────────────────────
-document.querySelectorAll('[data-q]').forEach(btn => {
-  const q = Number(btn.dataset.q);
-  btn.addEventListener('click', () => {
-    show[q] = !show[q];
-    btn.classList.toggle('on', show[q]);
-    draw();
-  });
 });
 
 // ── Ratio toggle buttons ──────────────────────────────────────────────

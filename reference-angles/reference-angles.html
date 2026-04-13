@@ -70,10 +70,8 @@ const OX = SZ / 2, OY = SZ / 2, R = SZ * 0.365;
 let alpha = Math.PI / 4;
 let drag  = false;
 
-const show = { 2: false, 3: false, 4: false };
-let ratio        = null;            // 'sin' | 'cos' | 'tan' | null
-let revealedQuads = new Set();      // quadrants lit up so far in animation
-let animTimers    = [];
+const show         = { 2: false, 3: false, 4: false };
+const activeRatios = new Set();     // any subset of 'sin', 'cos', 'tan'
 
 // ── Quadrant color palette ────────────────────────────────────────────
 const QC = {
@@ -91,7 +89,6 @@ const RC = {
          adjPos: '#34d399', adjNeg: '#166534' },
 };
 const DIM_SIDE = '#1e3a5f';   // colour for non-highlighted sides in ratio mode
-const DIM_ALL  = '#172033';   // colour for a fully dimmed (not-yet-revealed) triangle
 
 // ── Primitive drawing helpers ────────────────────────────────────────
 function segment(x1, y1, x2, y2, color, lw, dash = []) {
@@ -130,8 +127,7 @@ function rightAngleMark(fx, fy, hDir, vDir) {
 //   Q3: counterclockwise from π     → sweeps alpha downward toward Q3 hyp
 //   Q4: clockwise       from 0     → sweeps alpha downward toward Q4 hyp
 function drawAngleArc(q) {
-  const arcR   = R * 0.13;
-  const dimmed = ratio && !revealedQuads.has(q);
+  const arcR = R * 0.13;
 
   let sa, ea, acw;
   if      (q === 1) { sa = 0;        ea = -alpha;          acw = true;  }
@@ -141,11 +137,9 @@ function drawAngleArc(q) {
 
   ctx.beginPath();
   ctx.arc(OX, OY, arcR, sa, ea, acw);
-  ctx.strokeStyle = dimmed ? DIM_ALL : (q === 1 ? '#f59e0b' : QC[q].stroke);
+  ctx.strokeStyle = q === 1 ? '#f59e0b' : QC[q].stroke;
   ctx.lineWidth   = q === 1 ? 2 : 1.5;
   ctx.stroke();
-
-  if (dimmed) return;
 
   // Degree label at the geometric midpoint of each arc.
   // Canvas angle at midpoint:
@@ -159,7 +153,7 @@ function drawAngleArc(q) {
   else if (q === 3) midCA = Math.PI - alpha / 2;
   else              midCA = alpha / 2;
 
-  const lR     = q === 1 ? R * 0.32 : R * 0.27;
+  const lR = R * 0.28;
   const lx     = OX + lR * Math.cos(midCA);
   const lyRaw  = OY + lR * Math.sin(midCA);
 
@@ -187,42 +181,30 @@ function drawTriangle(q) {
   const ey = OY - R * sy * sinA;
   const fx = ex, fy = OY;          // foot of perpendicular
 
-  const c       = QC[q];
-  const dimmed  = ratio  && !revealedQuads.has(q);
-  const hlMode  = ratio  &&  revealedQuads.has(q);
+  const c      = QC[q];
+  const hlMode = activeRatios.size > 0;
 
-  // ── Compute side colours and widths ───────────────────────────────
-  const oppPos = (sy === 1);   // vertical leg positive when above x-axis
-  const adjPos = (sx === 1);   // horizontal leg positive when right of y-axis
+  // ── Which sides are highlighted by the active ratio buttons ──────────
+  const oppPos      = (sy === 1);   // vertical leg positive when above x-axis
+  const adjPos      = (sx === 1);   // horizontal leg positive when right of y-axis
+  const hlOpp = activeRatios.has('sin') || activeRatios.has('tan');
+  const hlAdj = activeRatios.has('cos') || activeRatios.has('tan');
+  const hlHyp = activeRatios.has('sin') || activeRatios.has('cos');
 
+  const HL = 5;
   let fillC, hypC, adjC, oppC;
   let hypLW = q === 1 ? 3   : 2.5;
   let adjLW = q === 1 ? 2.5 : 2;
   let oppLW = q === 1 ? 3.5 : 3;
 
-  if (dimmed) {
-    fillC = 'rgba(0,0,0,0)';
-    hypC = adjC = oppC = DIM_ALL;
-    hypLW = adjLW = oppLW = 1;
-  } else if (hlMode) {
+  if (hlMode) {
     fillC = 'rgba(100,116,139,0.07)';
-    const HL = 5;
-    if (ratio === 'sin') {
-      oppC  = oppPos ? RC.sin.oppPos : RC.sin.oppNeg;
-      hypC  = RC.sin.hyp;
-      adjC  = DIM_SIDE;
-      oppLW = HL; hypLW = HL; adjLW = 1;
-    } else if (ratio === 'cos') {
-      adjC  = adjPos ? RC.cos.adjPos : RC.cos.adjNeg;
-      hypC  = RC.cos.hyp;
-      oppC  = DIM_SIDE;
-      adjLW = HL; hypLW = HL; oppLW = 1;
-    } else {   // tan = opp / adj, no hypotenuse needed
-      oppC  = oppPos ? RC.tan.oppPos : RC.tan.oppNeg;
-      adjC  = adjPos ? RC.tan.adjPos : RC.tan.adjNeg;
-      hypC  = DIM_SIDE;
-      oppLW = HL; adjLW = HL; hypLW = 1;
-    }
+    oppC  = hlOpp ? (oppPos ? RC.sin.oppPos : RC.sin.oppNeg) : DIM_SIDE;
+    adjC  = hlAdj ? (adjPos ? RC.cos.adjPos : RC.cos.adjNeg) : DIM_SIDE;
+    hypC  = hlHyp ? RC.sin.hyp                               : DIM_SIDE;
+    if (hlOpp) oppLW = HL;
+    if (hlAdj) adjLW = HL;
+    if (hlHyp) hypLW = HL;
   } else {
     fillC = c.fill;
     hypC = adjC = oppC = c.stroke;
@@ -235,34 +217,30 @@ function drawTriangle(q) {
   ctx.fillStyle = fillC; ctx.fill();
 
   // ── Right-angle mark ─────────────────────────────────────────────
-  if (!dimmed) rightAngleMark(fx, fy, -sx, sy === 1 ? -1 : 1);
+  rightAngleMark(fx, fy, -sx, sy === 1 ? -1 : 1);
 
   // ── Sides ────────────────────────────────────────────────────────
   segment(OX, OY, ex, ey, hypC, hypLW);         // hypotenuse
 
   if (cosA > 0.06) {
     segment(OX, OY, fx, fy, adjC, adjLW);       // adjacent (horizontal)
-    if (!ratio) tickMark(OX, OY, fx, fy, c.stroke);
+    if (!hlMode) tickMark(OX, OY, fx, fy, c.stroke);
   }
   if (sinA > 0.06) {
     segment(fx, fy, ex, ey, oppC, oppLW);       // opposite (vertical)
-    if (!ratio) tickMark(fx, fy, ex, ey, c.stroke);
+    if (!hlMode) tickMark(fx, fy, ex, ey, c.stroke);
   }
 
   // ── Endpoint dot ─────────────────────────────────────────────────
-  const dotR = dimmed ? 6 : (q === 1 ? 11 : 9);
-  ctx.beginPath(); ctx.arc(ex, ey, dotR, 0, Math.PI * 2);
-  ctx.fillStyle   = dimmed ? '#1e293b' : c.dot;
-  ctx.fill();
-  ctx.strokeStyle = dimmed ? '#334155' : '#fff';
-  ctx.lineWidth   = 2; ctx.stroke();
+  ctx.beginPath(); ctx.arc(ex, ey, q === 1 ? 11 : 9, 0, Math.PI * 2);
+  ctx.fillStyle   = c.dot; ctx.fill();
+  ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.stroke();
 }
 
 // ── Coordinate label floating near each endpoint dot ────────────────
 function drawCoordLabel(q, cosA, sinA) {
-  const sx     = (q === 1 || q === 4) ? 1 : -1;
-  const sy     = (q === 1 || q === 2) ? 1 : -1;
-  const dimmed = ratio && !revealedQuads.has(q);
+  const sx = (q === 1 || q === 4) ? 1 : -1;
+  const sy = (q === 1 || q === 2) ? 1 : -1;
 
   const ex  = OX + R * sx * cosA;
   const ey  = OY - R * sy * sinA;
@@ -274,7 +252,7 @@ function drawCoordLabel(q, cosA, sinA) {
   const yPart = sy > 0 ? ` ${sinA.toFixed(3)}` : `−${sinA.toFixed(3)}`;
 
   ctx.textAlign = sx > 0 ? 'left' : 'right';
-  ctx.fillStyle = dimmed ? '#2a3a4d' : QC[q].text;
+  ctx.fillStyle = QC[q].text;
   ctx.fillText(`(${xPart},  ${yPart} )`, lx, ly + 4);
 }
 
@@ -333,19 +311,6 @@ function draw() {
   });
 }
 
-// ── Animation ────────────────────────────────────────────────────────
-// When a ratio is selected, Q1 is highlighted immediately, then each
-// visible non-Q1 quadrant is revealed at 600 ms intervals.
-function startRatioAnimation() {
-  animTimers.forEach(clearTimeout);
-  animTimers = [];
-  revealedQuads = new Set([1, 2, 3, 4]);
-  draw();
-  // Cascade animation commented out — reveals all quadrants instantly instead
-  // [2, 3, 4].filter(q => show[q]).forEach((q, i) => {
-  //   animTimers.push(setTimeout(() => { revealedQuads.add(q); draw(); }, (i + 1) * 600));
-  // });
-}
 
 // ── Input helpers ────────────────────────────────────────────────────
 function clampToQ1(a) { return Math.max(0.02, Math.min(Math.PI / 2 - 0.02, a)); }
@@ -371,10 +336,6 @@ document.querySelectorAll('[data-q]').forEach(btn => {
   btn.addEventListener('click', () => {
     show[q] = !show[q];
     btn.classList.toggle('on', show[q]);
-    // In ratio mode: reveal immediately if toggled on, hide if toggled off
-    if (ratio) {
-      show[q] ? revealedQuads.add(q) : revealedQuads.delete(q);
-    }
     draw();
   });
 });
@@ -382,19 +343,8 @@ document.querySelectorAll('[data-q]').forEach(btn => {
 document.querySelectorAll('[data-ratio]').forEach(btn => {
   btn.addEventListener('click', () => {
     const r = btn.dataset.ratio;
-    if (ratio === r) {
-      // Toggle off
-      ratio = null;
-      revealedQuads = new Set();
-      animTimers.forEach(clearTimeout);
-      animTimers = [];
-    } else {
-      ratio = r;
-      startRatioAnimation();
-    }
-    document.querySelectorAll('[data-ratio]').forEach(b => {
-      b.classList.toggle('on', b.dataset.ratio === ratio);
-    });
+    activeRatios.has(r) ? activeRatios.delete(r) : activeRatios.add(r);
+    btn.classList.toggle('on', activeRatios.has(r));
     draw();
   });
 });

@@ -125,9 +125,10 @@ let drag     = false;
 let prevRaw  = null;   // last raw 0–360° angle seen during a drag, for delta accumulation
 
 const activeRatios = new Set();
-let viewQuad       = null;    // null = show terminal; 1/2/3/4 = show that quadrant's triangle instead
-let viewRefAngles  = false;   // when true: show reference-angle arcs; when false: show full-angle spiral
-let radiusOnly     = false;   // when true: draw only hypotenuse + dot (no fill/sides/tick marks)
+let viewQuad       = null;    // null or 1/2/3/4 — tracks which button is highlighted
+let savedTheta     = null;    // thetaDeg before a comparison button was pressed
+let viewRefAngles  = false;
+let radiusOnly     = false;
 
 // ── Angle helpers ─────────────────────────────────────────────────────
 function normalize(a) { return ((a % (2*Math.PI)) + 2*Math.PI) % (2*Math.PI); }
@@ -445,24 +446,20 @@ function draw() {
   ctx.beginPath(); ctx.arc(OX, OY, R, 0, Math.PI * 2);
   ctx.strokeStyle = '#475569'; ctx.lineWidth = 1.5; ctx.stroke();
 
-  // One triangle at a time: use the comparison quadrant if selected, else the terminal
-  const displayQ = viewQuad !== null ? viewQuad : qCur;
+  // One point, one triangle — always driven by thetaDeg
+  if (!viewRefAngles) drawSpiral();
 
-  // Spiral only when viewing the terminal angle with ref angles hidden
-  if (viewQuad === null && !viewRefAngles) drawSpiral();
+  drawTriangle(qCur, true);
 
-  drawTriangle(displayQ, displayQ === qCur);
+  if (viewRefAngles) drawAngleArc(qCur);
 
-  if (viewRefAngles) drawAngleArc(displayQ);
-
-  // θ label — shows the actual input angle (may differ from reference for large/negative values)
+  // θ label
   ctx.textAlign = 'left';
   ctx.font      = `bold ${SZ * 0.038}px Georgia`;
   ctx.fillStyle = '#cbd5e1';
   ctx.fillText(`θ = ${thetaDeg.toFixed(1)}°`, 14, 34);
 
-  // Coordinate label for the one visible triangle
-  drawCoordLabel(displayQ, cosA, sinA);
+  drawCoordLabel(qCur, cosA, sinA);
 }
 
 // ── Sync the angle input box ──────────────────────────────────────────
@@ -502,6 +499,7 @@ function accumulateDrag(rawDeg) {
 }
 
 cv.addEventListener('mousedown', e => {
+  exitComparison();   // dragging always returns control to the student
   drag    = true;
   prevRaw = angleFromEvent(e);
   snapToRaw(prevRaw);
@@ -516,6 +514,7 @@ document.addEventListener('mouseup',  () => { drag = false; prevRaw = null; });
 
 cv.addEventListener('touchstart', e => {
   e.preventDefault();
+  exitComparison();
   drag    = true;
   prevRaw = angleFromEvent(e);
   snapToRaw(prevRaw);
@@ -531,36 +530,51 @@ document.addEventListener('touchend', () => { drag = false; prevRaw = null; });
 
 // ── Angle input ───────────────────────────────────────────────────────
 angleInput.addEventListener('change', () => {
+  exitComparison();   // typing a new angle exits comparison mode
   const val = parseFloat(angleInput.value);
   if (!isNaN(val) && val >= -7200 && val <= 7200) {
     thetaDeg = val;
   } else {
-    syncInput();   // restore if out of range / invalid
+    syncInput();
   }
   draw();
 });
 
 // ── Reset button ──────────────────────────────────────────────────────
 document.getElementById('bReset').addEventListener('click', () => {
-  // Snap to the reference angle in Q1
+  exitComparison();
   thetaDeg = refOf(normRad()) * 180 / Math.PI;
   syncInput();
   draw();
 });
 
-// ── Quadrant selector (radio-style: one triangle at a time) ──────────
+// ── Quadrant selector — teleports the point; press again to return ────
+function exitComparison() {
+  if (savedTheta !== null) { thetaDeg = savedTheta; savedTheta = null; }
+  viewQuad = null;
+  document.querySelectorAll('[data-q]').forEach(b => b.classList.remove('on'));
+}
+
 function selectQuad(q) {
-  viewQuad = (viewQuad === q) ? null : q;   // toggle: same button again → back to terminal
-  // Sync all button highlight states
-  document.querySelectorAll('[data-q]').forEach(b => {
-    b.classList.toggle('on', Number(b.dataset.q) === viewQuad);
-  });
-  // Viewing any comparison quad implicitly needs reference angles visible
-  if (viewQuad !== null && !viewRefAngles) {
-    viewRefAngles = true;
-    document.getElementById('cbViewRef').checked = true;
-    document.getElementById('lViewRef').classList.add('on');
+  if (viewQuad === q) {
+    // Same button again → restore original position
+    exitComparison();
+  } else {
+    if (savedTheta === null) savedTheta = thetaDeg;   // save only on first press
+    viewQuad = q;
+
+    // Move the point to that quadrant's equivalent angle
+    const refDeg = refOf(normRad()) * 180 / Math.PI;
+    if      (q === 1) thetaDeg = refDeg;
+    else if (q === 2) thetaDeg = 180 - refDeg;
+    else if (q === 3) thetaDeg = 180 + refDeg;
+    else              thetaDeg = 360 - refDeg;
+
+    document.querySelectorAll('[data-q]').forEach(b => {
+      b.classList.toggle('on', Number(b.dataset.q) === q);
+    });
   }
+  syncInput();
   draw();
 }
 

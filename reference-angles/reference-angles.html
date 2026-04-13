@@ -58,10 +58,30 @@ canvas { cursor: crosshair; display: block; touch-action: none; }
 }
 .angle-row input:focus { outline: none; border-color: #60a5fa; }
 .hint { font-size: 11px; color: #334155; letter-spacing: 0.05em; }
+.ref-label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: #64748b;
+  cursor: pointer;
+  font: 15px Georgia, serif;
+  padding: 7px 14px;
+  background: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 8px;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.ref-label:hover { background: #273449; color: #cbd5e1; }
+.ref-label.on { background: rgba(245,158,11,0.15); border-color: #f59e0b; color: #fde68a; }
+.ref-label input[type="checkbox"] { display: none; }
 </style>
 </head>
 <body>
 <div class="btn-row">
+  <label id="lRef" class="ref-label">
+    <input type="checkbox" id="cbRef"> View Reference Angle
+  </label>
+  <span class="sep">|</span>
   <button id="bII"  data-q="2">Quadrant II</button>
   <button id="bIII" data-q="3">Quadrant III</button>
   <button id="bIV"  data-q="4">Quadrant IV</button>
@@ -101,6 +121,7 @@ let prevRaw  = null;   // last raw 0–360° angle seen during a drag, for delta
 
 const show         = { 2: false, 3: false, 4: false };
 const activeRatios = new Set();
+let showRef        = false;   // whether the Q1 reference triangle is visible
 
 // ── Angle helpers ─────────────────────────────────────────────────────
 function normalize(a) { return ((a % (2*Math.PI)) + 2*Math.PI) % (2*Math.PI); }
@@ -340,25 +361,26 @@ function draw() {
   ctx.strokeStyle = '#475569'; ctx.lineWidth = 1.5; ctx.stroke();
 
   // Build the set of quadrants to draw.
-  // Q1 (reference) is always shown. The terminal quadrant is always shown.
-  // Toggle buttons add comparison quadrants.
-  const visible = new Set([1]);
-  if (qCur !== 1) visible.add(qCur);
+  // Terminal quadrant is always shown.
+  // Q1 reference triangle only shown when showRef is true (or when terminal IS Q1).
+  // Toggle buttons add optional comparison quadrants.
+  const visible = new Set([qCur]);
+  if (showRef && qCur !== 1) visible.add(1);
   [2, 3, 4].forEach(q => { if (show[q]) visible.add(q); });
 
-  // Draw triangles: comparison first, then Q1 reference, then terminal on top
+  // Draw order: extra comparison quadrants → Q1 reference → terminal on top
   [3, 2, 4].forEach(q => {
     if (visible.has(q) && q !== 1 && q !== qCur) drawTriangle(q, false);
   });
-  drawTriangle(1, qCur === 1);           // isTerminal only if current angle is in Q1
-  if (qCur !== 1) drawTriangle(qCur, true);
+  if (visible.has(1) && qCur !== 1) drawTriangle(1, false);   // Q1 reference (not terminal)
+  drawTriangle(qCur, true);                                     // terminal always on top
 
-  // Angle arcs: same order
+  // Angle arcs in same order
   [4, 3, 2].forEach(q => {
     if (visible.has(q) && q !== 1 && q !== qCur) drawAngleArc(q);
   });
-  drawAngleArc(1);
-  if (qCur !== 1) drawAngleArc(qCur);
+  if (visible.has(1) && qCur !== 1) drawAngleArc(1);
+  drawAngleArc(qCur);
 
   // θ label — shows the actual input angle (may differ from reference for large/negative values)
   ctx.textAlign = 'left';
@@ -450,6 +472,13 @@ document.getElementById('bReset').addEventListener('click', () => {
   // Snap to the reference angle in Q1
   thetaDeg = refOf(normRad()) * 180 / Math.PI;
   syncInput();
+  draw();
+});
+
+// ── Reference angle checkbox ──────────────────────────────────────────
+document.getElementById('cbRef').addEventListener('change', e => {
+  showRef = e.target.checked;
+  document.getElementById('lRef').classList.toggle('on', showRef);
   draw();
 });
 

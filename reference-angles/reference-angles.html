@@ -172,7 +172,7 @@ function drawAngleArc(q) {
 
   const deg = (alpha * 180 / Math.PI).toFixed(1);
   ctx.textAlign = 'center';
-  ctx.font      = `bold ${q === 1 ? SZ * 0.044 : SZ * 0.028}px Georgia`;
+  ctx.font      = `bold ${SZ * 0.032}px Georgia`;
   ctx.fillStyle = q === 1 ? '#f59e0b' : QC[q].text;
   ctx.fillText(`${deg}°`, lx, ly + 5);
 }
@@ -339,11 +339,12 @@ function draw() {
 function startRatioAnimation() {
   animTimers.forEach(clearTimeout);
   animTimers = [];
-  revealedQuads = new Set([1]);
+  revealedQuads = new Set([1, 2, 3, 4]);
   draw();
-  [2, 3, 4].filter(q => show[q]).forEach((q, i) => {
-    animTimers.push(setTimeout(() => { revealedQuads.add(q); draw(); }, (i + 1) * 600));
-  });
+  // Cascade animation commented out — reveals all quadrants instantly instead
+  // [2, 3, 4].filter(q => show[q]).forEach((q, i) => {
+  //   animTimers.push(setTimeout(() => { revealedQuads.add(q); draw(); }, (i + 1) * 600));
+  // });
 }
 
 // ── Input helpers ────────────────────────────────────────────────────

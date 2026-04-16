@@ -32,6 +32,10 @@ header h1 {
   font-size: 1.2rem;
   font-weight: 600;
 }
+header .nav-links {
+  display: flex;
+  gap: 0.5rem;
+}
 header a {
   padding: 0.35rem 0.7rem;
   border-radius: 4px;
@@ -63,7 +67,7 @@ canvas { cursor: crosshair; display: block; touch-action: none; position: relati
   background: #1e293b;
   border: 1px solid #334155;
   border-radius: 8px;
-  color: #64748b;
+  color: #ffffff;
   padding: 7px 18px;
   cursor: pointer;
   font: 15px Georgia, serif;
@@ -96,12 +100,12 @@ canvas { cursor: crosshair; display: block; touch-action: none; position: relati
   text-align: right;
 }
 .angle-row input:focus { outline: none; border-color: #60a5fa; }
-.hint { font-size: 11px; color: #334155; letter-spacing: 0.05em; }
+.hint { font-size: 11px; color: #1e293b; letter-spacing: 0.05em; }
 .ref-label {
   display: flex;
   align-items: center;
   gap: 7px;
-  color: #64748b;
+  color: #ffffff;
   cursor: pointer;
   font: 15px Georgia, serif;
   padding: 7px 14px;
@@ -182,7 +186,10 @@ canvas { cursor: crosshair; display: block; touch-action: none; position: relati
 <body>
 <header>
   <h1>📐 Reference Angles v2</h1>
-  <a href="pedagogical-notes.html">← Home</a>
+  <div class="nav-links">
+    <a href="https://ohiomathteacher.github.io/applet-library/">← Library</a>
+    <a href="pedagogical-notes.html">← Home</a>
+  </div>
 </header>
 
 <div class="main-content">
@@ -915,11 +922,11 @@ draw();
 </script>
 
 <!-- Feedback Section -->
-<div style="width: 100%; max-width: 900px; margin: 1rem auto; padding: 1rem; background: rgba(255,255,255,0.05); border: 1px solid rgba(168,85,247,0.3); border-radius: 8px; backdrop-filter: blur(10px); text-align: center;">
-  <h3 style="color: #c4b5fd; margin-bottom: 0.5rem; font-size: 1.1rem;">💭 Student Feedback</h3>
-  <p style="color: #94a3b8; margin-bottom: 0.8rem; font-size: 0.9rem;">What did you notice? What was confusing? What would make this better?</p>
-  <a href="https://docs.google.com/document/d/1VAuNHqtX3PsmgBXXVYokeslFWV3K1YZtjRU4OF9HVK4/edit?usp=sharing" target="_blank" style="display: inline-block; background: rgba(168,85,247,0.25); color: #c4b5fd; text-decoration: none; padding: 10px 24px; border-radius: 6px; font-weight: 600; font-size: 0.95rem; border: 1px solid rgba(168,85,247,0.4); transition: background 0.2s;">📝 Add Your Feedback (Google Doc)</a>
-  <p style="color: #94a3b8; margin-top: 0.6rem; font-size: 0.85rem;">Click above to open the shared feedback document. Your instructor will review all responses this weekend.</p>
+<div style="width: 100%; max-width: 900px; margin: 1rem auto; padding: 1rem; background: #f8f9fa; border: 1px solid #e2e8f0; border-radius: 8px; text-align: center;">
+  <h3 style="color: #a855f7; margin-bottom: 0.5rem; font-size: 1.1rem;">💭 Student Feedback</h3>
+  <p style="color: #475569; margin-bottom: 0.8rem; font-size: 0.9rem;">What did you notice? What was confusing? What would make this better?</p>
+  <a href="https://docs.google.com/document/d/1VAuNHqtX3PsmgBXXVYokeslFWV3K1YZtjRU4OF9HVK4/edit?usp=sharing" target="_blank" style="display: inline-block; background: #a855f7; color: white; text-decoration: none; padding: 10px 24px; border-radius: 6px; font-weight: 600; font-size: 0.95rem; transition: background 0.2s;">📝 Add Your Feedback (Google Doc)</a>
+  <p style="color: #64748b; margin-top: 0.6rem; font-size: 0.85rem;">Click above to open the shared feedback document. Your instructor will review all responses this weekend.</p>
 </div>
 
 </body>

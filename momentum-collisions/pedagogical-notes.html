@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Momentum & Collisions — Pedagogical Notes</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+      background: linear-gradient(135deg, #0f2027 0%, #203a43 50%, #2c5364 100%);
+      color: #e2e8f0;
+      line-height: 1.6;
+      min-height: 100vh;
+      padding: 2rem;
+    }
+
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+
+    .nav-links {
+      margin-bottom: 2rem;
+      display: flex;
+      gap: 1.5rem;
+    }
+
+    .nav-links a {
+      color: #14b8a6;
+      text-decoration: none;
+      font-weight: 500;
+      transition: color 0.2s;
+    }
+
+    .nav-links a:hover {
+      color: #5eead4;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 3rem;
+    }
+
+    h1 {
+      font-size: 2.5rem;
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+      color: #fff;
+    }
+
+    .subtitle {
+      font-size: 1.2rem;
+      color: #94a3b8;
+      margin-bottom: 2rem;
+    }
+
+    .launch-button {
+      display: inline-block;
+      background: #14b8a6;
+      color: #fff;
+      padding: 1rem 2.5rem;
+      border-radius: 8px;
+      text-decoration: none;
+      font-weight: 600;
+      font-size: 1.1rem;
+      transition: all 0.3s;
+      box-shadow: 0 4px 12px rgba(20, 184, 166, 0.3);
+    }
+
+    .launch-button:hover {
+      background: #0d9488;
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(20, 184, 166, 0.4);
+    }
+
+    .panes-container {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+      gap: 2rem;
+      align-items: start;
+    }
+
+    .pane {
+      background: rgba(255, 255, 255, 0.05);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
+      padding: 2rem;
+    }
+
+    h2 {
+      font-size: 1.5rem;
+      margin-bottom: 1rem;
+      color: #14b8a6;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    h3 {
+      font-size: 1.1rem;
+      margin-top: 1.5rem;
+      margin-bottom: 0.8rem;
+      color: #5eead4;
+    }
+
+    p {
+      margin-bottom: 1rem;
+      color: #cbd5e1;
+    }
+
+    ul, ol {
+      margin-left: 1.5rem;
+      margin-bottom: 1rem;
+    }
+
+    li {
+      margin-bottom: 0.5rem;
+      color: #cbd5e1;
+    }
+
+    strong {
+      color: #fff;
+      font-weight: 600;
+    }
+
+    .highlight {
+      background: rgba(20, 184, 166, 0.15);
+      border-left: 3px solid #14b8a6;
+      padding: 1rem;
+      margin: 1rem 0;
+      border-radius: 4px;
+    }
+
+    @media (max-width: 768px) {
+      body {
+        padding: 1rem;
+      }
+
+      h1 {
+        font-size: 2rem;
+      }
+
+      .panes-container {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="nav-links">
+      <a href="https://ohiomathteacher.github.io/applet-library/">← Library</a>
+    </div>
+
+    <header>
+      <h1>🎱 Momentum & Collisions Applet</h1>
+      <p class="subtitle">Discovery Learning Through Direct Manipulation</p>
+      <a href="index-v2.html" class="launch-button">Launch Applet →</a>
+    </header>
+
+    <div class="panes-container">
+      <!-- Pane 1: Where This Came From -->
+      <div class="pane">
+        <h2>📍 Where This Came From</h2>
+        
+        <p>This applet was created in response to <strong>McKenzie Sorce's</strong> observations during her field teaching experience at Hamilton High School. McKenzie was teaching Newton's Second Law (F = ma) using Hot Wheels cars and ramps, and she turned to PhET simulations when equipment limitations became a barrier.</p>
+
+        <div class="highlight">
+          <p><strong>McKenzie's Core Insight:</strong> PhET simulations excel at discovery learning and direct manipulation, but sometimes lack the specific constraints needed for classroom inquiry tasks.</p>
+        </div>
+
+        <p>This applet is a <strong>companion to the Forces on a Ramp applet</strong> (also built from McKenzie's feedback). Together, they demonstrate the PhET philosophy in action:</p>
+        
+        <ul>
+          <li><strong>Direct manipulation over preset scenarios</strong> — Students control all variables</li>
+          <li><strong>Discovery before instruction</strong> — See patterns emerge through experimentation</li>
+          <li><strong>Visual representation of invisible forces</strong> — Momentum becomes tangible</li>
+          <li><strong>Real-time feedback loops</strong> — Immediate cause-and-effect relationships</li>
+        </ul>
+
+        <p>McKenzie's teaching context specifically called for momentum conservation exploration in elastic collisions—a perfect application of the PhET approach to physics learning.</p>
+      </div>
+
+      <!-- Pane 2: Design Decisions -->
+      <div class="pane">
+        <h2>🎨 Design Decisions</h2>
+
+        <p>This applet went through <strong>three major iterations</strong>, each revealing something essential about how students actually learn physics. The current <strong>Version 3 "Reality Check"</strong> represents what we learned from UX testing with real students.</p>
+
+        <h3>1. Freeze-Frame Snapshots for Analysis</h3>
+        <p><strong>The Problem:</strong> In v2, students struggled to capture "the moment" during fast collisions. They needed to analyze before/after states but the action was too quick.</p>
+        <p><strong>The Solution:</strong> Added snapshot capture system with freeze-frame analysis. Students can now pause physics at any moment, examine vectors and values, and build their lab notebook evidence step-by-step.</p>
+
+        <h3>2. Progressive Discovery Structure</h3>
+        <p><strong>What Changed:</strong> v2 had 12 guided challenges across three difficulty levels. Students reported feeling "assigned homework" rather than "discovering physics."</p>
+        <p><strong>v3 Approach:</strong> Streamlined to open exploration with optional prompts. The applet suggests patterns to investigate ("What happens when masses are equal?" "Can you make one ball stop?") but doesn't gate access or score responses. Students drive their own inquiry.</p>
+
+        <h3>3. Direct Manipulation Philosophy</h3>
+        <p><strong>Core Design Principle:</strong> Every parameter is adjustable <em>during</em> simulation—mass, velocity, position. No "setup then run" workflow. This mirrors McKenzie's observation that PhET's strength is letting students "play with physics" rather than march through predetermined scenarios.</p>
+
+        <div class="highlight">
+          <p><strong>Key Learning from v2 → v3:</strong> Features don't equal usability. v2 had more capabilities but created cognitive load. v3 stripped back to essentials: billiard balls, sliders, vectors, and a place to record observations.</p>
+        </div>
+
+        <p>The result: An applet that feels like a <strong>physics playground</strong>, not a digital worksheet.</p>
+      </div>
+
+      <!-- Pane 3: Known Limitations -->
+      <div class="pane">
+        <h2>⚠️ Known Limitations</h2>
+
+        <h3>From v2 UX Testing</h3>
+        <ul>
+          <li><strong>Notebook panel was overwhelming</strong> — Students ignored the lab notebook feature entirely in early tests, treating it as "extra work" rather than helpful scaffolding.</li>
+          <li><strong>Challenge prompts felt like homework</strong> — The structured challenge system (even with "skip" options) created a sense of evaluation pressure rather than exploration freedom.</li>
+          <li><strong>Too many simultaneous features</strong> — Language selector, difficulty levels, hints panel, and notebook all competed for attention. Students didn't know where to start.</li>
+        </ul>
+
+        <h3>Current v3 Trade-offs</h3>
+        <ul>
+          <li><strong>Simplified = Less Scaffolding:</strong> By removing structured challenges, we also removed built-in support for students who need more guidance. Teacher facilitation becomes more critical.</li>
+          <li><strong>Real-time only:</strong> Still lacks the full "scrub through time" replay that would let students review collisions frame-by-frame. Snapshot system helps but isn't perfect.</li>
+          <li><strong>2D Billiard Balls Only:</strong> Doesn't extend to 3D collisions, rotational momentum, or inelastic collisions. Focused scope by design (per McKenzie's specific teaching context).</li>
+        </ul>
+
+        <h3>Technical Constraints</h3>
+        <ul>
+          <li><strong>High-speed collisions can be "blinky"</strong> — Visual vectors at extreme velocities refresh so fast they're hard to track. Not a physics problem (calculations are correct) but a display limitation.</li>
+          <li><strong>Mobile touch controls less precise</strong> — Dragging balls and using sliders works better on desktop/trackpad than on phone screens.</li>
+          <li><strong>No data export yet:</strong> Unlike v2, the simplified v3 doesn't have CSV export for quantitative analysis. Trade-off for reduced complexity.</li>
+        </ul>
+
+        <div class="highlight">
+          <p><strong>The Iterative Design Lesson:</strong> You can't know what students actually need until you watch them use it. V1 → v2 added features. V2 → v3 subtracted them. Both were necessary steps.</p>
+        </div>
+
+        <p>This applet is <strong>still evolving</strong>. Feedback from students and teachers continues to shape what it becomes. That's the real lesson McKenzie's field observations taught us: great teaching tools emerge from observation, not assumption.</p>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

@@ -97,9 +97,20 @@
       min-height: 0;
     }
 
-    .center-panel {
+    .simulation-layout {
       grid-column: 2 / 3;
       grid-row: 1 / 2;
+      display: grid;
+      grid-template-columns: minmax(620px, 760px) 340px;
+      gap: 0.8rem;
+      justify-content: center;
+      align-items: start;
+      min-width: 0;
+    }
+
+    .center-panel {
+      grid-column: 1 / 2;
+      width: 100%;
     }
 
     .challenge-drawer {
@@ -194,7 +205,19 @@
       display: flex;
       flex-direction: column;
       overflow: hidden;
-      grid-row: 1 / 2;
+    }
+
+    .controls-panel {
+      grid-column: 2 / 3;
+      background: var(--card);
+      border-radius: 8px;
+      padding: 0.8rem;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+      display: flex;
+      flex-direction: column;
+      gap: 0.6rem;
+      overflow-y: auto;
+      min-height: 0;
     }
 
     .canvas-container {
@@ -223,9 +246,11 @@
 
     canvas {
       display: block;
-      width: 100%;
+      width: 600px;
+      max-width: 100%;
       background: #0d5c2a;
       border-radius: 4px;
+      margin: 0 auto;
     }
 
     /* SNAPSHOT OVERLAY */
@@ -260,9 +285,9 @@
     /* BALL CONTROLS */
     .ball-controls {
       display: grid;
-      grid-template-columns: 1fr 1fr;
+      grid-template-columns: 1fr;
       gap: 0.8rem;
-      margin-bottom: 0.6rem;
+      margin-bottom: 0.2rem;
       flex-shrink: 0;
     }
 
@@ -583,7 +608,14 @@
         height: auto;
       }
 
+      .simulation-layout {
+        grid-column: 1 / 2;
+        grid-row: 1 / 2;
+        grid-template-columns: 1fr;
+      }
+
       .center-panel  { grid-row: 1 / 2; grid-column: 1 / 2; }
+      .controls-panel { grid-row: 2 / 3; grid-column: 1 / 2; }
       .challenge-drawer  { grid-row: 2 / 3; grid-column: 1 / 2; max-height: 60vh; }
     }
 
@@ -602,7 +634,7 @@
       }
 
       .challenge-drawer  { grid-column: 1 / 2; grid-row: 1 / 2; max-height: none; }
-      .center-panel      { grid-column: 2 / 3; grid-row: 1 / 2; }
+      .simulation-layout { grid-column: 2 / 3; grid-row: 1 / 2; }
     }
 
     /* =============================================
@@ -618,8 +650,12 @@
         height: calc(100vh - 160px);
       }
 
+      .simulation-layout {
+        grid-template-columns: 1fr;
+      }
+
       .challenge-drawer  { grid-column: 1 / 2; grid-row: 1 / 2; max-height: none; }
-      .center-panel      { grid-column: 2 / 3; grid-row: 1 / 2; }
+      .simulation-layout { grid-column: 2 / 3; grid-row: 1 / 2; }
     }
   </style>
 </head>
@@ -649,97 +685,98 @@
       </div>
     </div>
 
-    <!-- CENTER PANEL -->
-    <div class="center-panel">
-      <div class="canvas-container" id="canvasContainer" onclick="toggleSimulation()">
-        <canvas id="canvas" width="600" height="280"></canvas>
-        <div class="snapshot-overlay" id="snapshotOverlay">
-          <span id="snapshot-message">📸 Press any key to continue...</span>
+    <div class="simulation-layout">
+      <!-- CENTER PANEL -->
+      <div class="center-panel">
+        <div class="canvas-container" id="canvasContainer" onclick="toggleSimulation()">
+          <canvas id="canvas" width="600" height="280"></canvas>
+          <div class="snapshot-overlay" id="snapshotOverlay">
+            <span id="snapshot-message">📸 Press any key to continue...</span>
+          </div>
         </div>
       </div>
 
-      <!-- BALL CONTROLS -->
-      <div class="ball-controls">
-        <div class="ball-control-group">
-          <h4 id="ball1-header">🔴 Ball 1</h4>
-          <div class="control-row">
-            <label id="mass1-label">Mass (kg)</label>
-            <input type="number" id="mass1" value="1" min="0.5" max="5" step="0.5" onchange="updateFromControls()">
-          </div>
-          <div class="control-row">
-            <label id="vel1-label">Speed (m/s)</label>
-            <div class="slider-container">
-              <input type="range" id="vel1" min="-10" max="10" value="0" step="0.5" oninput="updateFromSlider(1)">
-              <span class="value-display" id="vel1-display">0.0</span>
+      <!-- RIGHT: CONTROLS -->
+      <aside class="controls-panel">
+        <div class="ball-controls">
+          <div class="ball-control-group">
+            <h4 id="ball1-header">🔴 Ball 1</h4>
+            <div class="control-row">
+              <label id="mass1-label">Mass (kg)</label>
+              <input type="number" id="mass1" value="1" min="0.5" max="5" step="0.5" onchange="updateFromControls()">
+            </div>
+            <div class="control-row">
+              <label id="vel1-label">Speed (m/s)</label>
+              <div class="slider-container">
+                <input type="range" id="vel1" min="-10" max="10" value="0" step="0.5" oninput="updateFromSlider(1)">
+                <span class="value-display" id="vel1-display">0.0</span>
+              </div>
+            </div>
+            <div class="momentum-display">
+              <div class="momentum-label">Momentum (kg⋅m/s)</div>
+              <div class="momentum-value" id="p1">—</div>
             </div>
           </div>
-          <div class="momentum-display">
-            <div class="momentum-label">Momentum (kg⋅m/s)</div>
-            <div class="momentum-value" id="p1">—</div>
-          </div>
-        </div>
 
-        <div class="ball-control-group">
-          <h4 id="ball2-header">🟡 Ball 2</h4>
-          <div class="control-row">
-            <label id="mass2-label">Mass (kg)</label>
-            <input type="number" id="mass2" value="1" min="0.5" max="5" step="0.5" onchange="updateFromControls()">
-          </div>
-          <div class="control-row">
-            <label id="vel2-label">Speed (m/s)</label>
-            <div class="slider-container">
-              <input type="range" id="vel2" min="-10" max="10" value="0" step="0.5" oninput="updateFromSlider(2)">
-              <span class="value-display" id="vel2-display">0.0</span>
+          <div class="ball-control-group">
+            <h4 id="ball2-header">🟡 Ball 2</h4>
+            <div class="control-row">
+              <label id="mass2-label">Mass (kg)</label>
+              <input type="number" id="mass2" value="1" min="0.5" max="5" step="0.5" onchange="updateFromControls()">
+            </div>
+            <div class="control-row">
+              <label id="vel2-label">Speed (m/s)</label>
+              <div class="slider-container">
+                <input type="range" id="vel2" min="-10" max="10" value="0" step="0.5" oninput="updateFromSlider(2)">
+                <span class="value-display" id="vel2-display">0.0</span>
+              </div>
+            </div>
+            <div class="momentum-display">
+              <div class="momentum-label">Momentum (kg⋅m/s)</div>
+              <div class="momentum-value" id="p2">—</div>
             </div>
           </div>
-          <div class="momentum-display">
-            <div class="momentum-label">Momentum (kg⋅m/s)</div>
-            <div class="momentum-value" id="p2">—</div>
+        </div>
+
+        <div class="action-buttons">
+          <button class="btn btn-secondary" id="resetBtn" onclick="resetSimulation()" title="Reset to initial conditions">
+            ↻ <span id="reset-text">Reset</span>
+          </button>
+          <button class="btn btn-secondary" id="scenarioBtn" onclick="toggleScenarios()" title="Load preset scenarios">
+            <span id="scenario-text">Scenarios</span>
+          </button>
+          <button class="btn btn-primary" id="startBtn" onclick="startSimulation()" title="Start or pause the simulation">
+            ▶️ <span id="start-text">Start</span>
+          </button>
+        </div>
+
+        <div class="scenario-buttons" id="scenarioButtons" style="display: none;">
+          <button class="btn btn-secondary btn-small" onclick="loadScenario('equal')" title="Equal masses, one moving">
+            <span id="scenario1-text">Equal Mass</span>
+          </button>
+          <button class="btn btn-secondary btn-small" onclick="loadScenario('headon')" title="Equal masses, head-on collision">
+            <span id="scenario2-text">Head-On</span>
+          </button>
+          <button class="btn btn-secondary btn-small" onclick="loadScenario('heavy')" title="Heavy ball hits light ball">
+            <span id="scenario3-text">Heavy→Light</span>
+          </button>
+        </div>
+
+        <div class="stats-panel">
+          <div class="stats-grid">
+            <div class="stat-card">
+              <div class="stat-label" id="pBefore-label">Before Collision</div>
+              <div class="stat-value" id="pBefore">—</div>
+              <div class="stat-label">kg⋅m/s</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label" id="pAfter-label">After Collision</div>
+              <div class="stat-value" id="pAfter">—</div>
+              <div class="stat-label">kg⋅m/s</div>
+            </div>
           </div>
         </div>
-      </div>
-
-      <!-- ACTION BUTTONS -->
-      <div class="action-buttons">
-        <button class="btn btn-secondary" id="resetBtn" onclick="resetSimulation()" title="Reset to initial conditions">
-          ↻ <span id="reset-text">Reset</span>
-        </button>
-        <button class="btn btn-secondary" id="scenarioBtn" onclick="toggleScenarios()" title="Load preset scenarios">
-          <span id="scenario-text">Scenarios</span>
-        </button>
-        <button class="btn btn-primary" id="startBtn" onclick="startSimulation()" title="Start or pause the simulation">
-          ▶️ <span id="start-text">Start</span>
-        </button>
-      </div>
-
-      <!-- SCENARIO BUTTONS (HIDDEN BY DEFAULT) -->
-      <div class="scenario-buttons" id="scenarioButtons" style="display: none;">
-        <button class="btn btn-secondary btn-small" onclick="loadScenario('equal')" title="Equal masses, one moving">
-          <span id="scenario1-text">Equal Mass</span>
-        </button>
-        <button class="btn btn-secondary btn-small" onclick="loadScenario('headon')" title="Equal masses, head-on collision">
-          <span id="scenario2-text">Head-On</span>
-        </button>
-        <button class="btn btn-secondary btn-small" onclick="loadScenario('heavy')" title="Heavy ball hits light ball">
-          <span id="scenario3-text">Heavy→Light</span>
-        </button>
-      </div>
-
-      <!-- TOTAL MOMENTUM DISPLAY -->
-      <div class="stats-panel">
-        <div class="stats-grid">
-          <div class="stat-card">
-            <div class="stat-label" id="pBefore-label">Before Collision</div>
-            <div class="stat-value" id="pBefore">—</div>
-            <div class="stat-label">kg⋅m/s</div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-label" id="pAfter-label">After Collision</div>
-            <div class="stat-value" id="pAfter">—</div>
-            <div class="stat-label">kg⋅m/s</div>
-          </div>
-        </div>
-      </div>
+      </aside>
     </div>
 
   </div>

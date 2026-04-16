@@ -73,14 +73,14 @@ canvas { cursor: crosshair; display: block; touch-action: none; position: relati
   font: 15px Georgia, serif;
   transition: background 0.15s, color 0.15s, border-color 0.15s;
 }
-.btn-row button:hover:not(.on) { background: #273449; color: #cbd5e1; }
-[data-q="1"].on { background: rgba(245,158,11,0.15);  border-color: #f59e0b; color: #fde68a; }
-[data-q="2"].on { background: rgba(96,165,250,0.15);  border-color: #60a5fa; color: #93c5fd; }
-[data-q="3"].on { background: rgba(167,139,250,0.15); border-color: #a78bfa; color: #c4b5fd; }
-[data-q="4"].on { background: rgba(52,211,153,0.15);  border-color: #34d399; color: #6ee7b7; }
-[data-ratio="sin"].on { background: rgba(248,113,113,0.15); border-color: #f87171; color: #fca5a5; }
-[data-ratio="cos"].on { background: rgba(52,211,153,0.15);  border-color: #34d399; color: #6ee7b7; }
-[data-ratio="tan"].on { background: rgba(250,204,21,0.15);  border-color: #facc15; color: #fde047; }
+.btn-row button:hover:not(.on) { background: #273449; color: #ffffff; }
+[data-q="1"].on { background: rgba(245,158,11,0.22);  border-color: #f59e0b; color: #ffffff; }
+[data-q="2"].on { background: rgba(96,165,250,0.22);  border-color: #60a5fa; color: #ffffff; }
+[data-q="3"].on { background: rgba(167,139,250,0.22); border-color: #a78bfa; color: #ffffff; }
+[data-q="4"].on { background: rgba(52,211,153,0.22);  border-color: #34d399; color: #ffffff; }
+[data-ratio="sin"].on { background: rgba(248,113,113,0.22); border-color: #f87171; color: #ffffff; }
+[data-ratio="cos"].on { background: rgba(52,211,153,0.22);  border-color: #34d399; color: #ffffff; }
+[data-ratio="tan"].on { background: rgba(250,204,21,0.22);  border-color: #facc15; color: #ffffff; }
 .sep { color: #334155; padding: 0 2px; font-size: 20px; line-height: 1; }
 .angle-row {
   display: flex;
@@ -114,11 +114,11 @@ canvas { cursor: crosshair; display: block; touch-action: none; position: relati
   border-radius: 8px;
   transition: background 0.15s, color 0.15s, border-color 0.15s;
 }
-.ref-label:hover { background: #273449; color: #cbd5e1; }
-.ref-label.on { background: rgba(245,158,11,0.15); border-color: #f59e0b; color: #fde68a; }
+.ref-label:hover { background: #273449; color: #ffffff; }
+.ref-label.on { background: rgba(245,158,11,0.22); border-color: #f59e0b; color: #ffffff; }
 .ref-label input[type="checkbox"] { display: none; }
-#bRadiusOnly.on { background: rgba(148,163,184,0.15); border-color: #94a3b8; color: #e2e8f0; }
-#bPredict.on { background: rgba(168,85,247,0.15); border-color: #a855f7; color: #c4b5fd; }
+#bRadiusOnly.on { background: rgba(148,163,184,0.22); border-color: #94a3b8; color: #ffffff; }
+#bPredict.on { background: rgba(168,85,247,0.22); border-color: #a855f7; color: #ffffff; }
 
 /* Predict panel */
 .predict-panel {
@@ -140,7 +140,7 @@ canvas { cursor: crosshair; display: block; touch-action: none; position: relati
 .predict-row:last-of-type { margin-bottom: 16px; }
 .predict-label {
   font: bold 16px Georgia, serif;
-  color: #94a3b8;
+  color: #ffffff;
   min-width: 50px;
 }
 .predict-btns {
@@ -151,7 +151,7 @@ canvas { cursor: crosshair; display: block; touch-action: none; position: relati
   background: #1e293b;
   border: 2px solid #475569;
   border-radius: 8px;
-  color: #94a3b8;
+  color: #ffffff;
   padding: 8px 20px;
   cursor: pointer;
   font: bold 18px Georgia, serif;
@@ -159,10 +159,10 @@ canvas { cursor: crosshair; display: block; touch-action: none; position: relati
   transition: all 0.2s;
 }
 .sign-btn:hover { background: #273449; border-color: #64748b; }
-.sign-btn.selected { background: rgba(168,85,247,0.2); border-color: #a855f7; color: #c4b5fd; }
-.sign-btn.correct { background: rgba(34,197,94,0.2); border-color: #22c55e; color: #86efac; }
-.sign-btn.wrong { background: rgba(239,68,68,0.2); border-color: #ef4444; color: #fca5a5; }
-.sign-btn.missed { background: rgba(250,204,21,0.2); border-color: #facc15; color: #fde047; }
+.sign-btn.selected { background: rgba(168,85,247,0.3); border-color: #a855f7; color: #ffffff; }
+.sign-btn.correct { background: rgba(34,197,94,0.3); border-color: #22c55e; color: #ffffff; }
+.sign-btn.wrong { background: rgba(239,68,68,0.3); border-color: #ef4444; color: #ffffff; }
+.sign-btn.missed { background: rgba(250,204,21,0.3); border-color: #facc15; color: #111827; }
 #btnCheckPredictions {
   width: 100%;
   background: #a855f7;
@@ -178,7 +178,7 @@ canvas { cursor: crosshair; display: block; touch-action: none; position: relati
 #btnCheckPredictions:disabled {
   background: #334155;
   border-color: #475569;
-  color: #64748b;
+  color: #e5e7eb;
   cursor: not-allowed;
 }
 </style>
@@ -435,7 +435,7 @@ function drawSpiral() {
     const label = `+${extraTurns + 5} rev`;
     ctx.font      = `${SZ * 0.024}px Georgia`;
     ctx.textAlign = 'center';
-    ctx.fillStyle = 'rgba(245,158,11,0.55)';
+    ctx.fillStyle = '#000000';
     ctx.fillText(label, OX, OY + R * 0.18);
   }
 }
@@ -594,10 +594,11 @@ function drawCoordLabel(q, cosA, sinA) {
     ctx.fillStyle = quadColor(q).text;
     ctx.fillText(exactText, lx, ly);
 
-    // Decimal form below (smaller, muted)
+    // Decimal form below (smaller, but still readable on white background)
     const decText = `( ${xVal.toFixed(3)},  ${yVal.toFixed(3)} )`;
     ctx.font = `${SZ * 0.022}px Georgia`;
-    ctx.globalAlpha = 0.45;
+    ctx.fillStyle = '#000000';
+    ctx.globalAlpha = 0.85;
     ctx.fillText(decText, lx, ly + SZ * 0.028);
     ctx.globalAlpha = 1;
   } else {
@@ -648,7 +649,7 @@ function draw() {
   ctx.fillText('y', OX + 10,       OY - R * 1.15);
 
   // Quadrant labels
-  ctx.font = `${SZ * 0.04}px Georgia`; ctx.fillStyle = 'rgba(0,0,0,0.14)';
+  ctx.font = `${SZ * 0.04}px Georgia`; ctx.fillStyle = 'rgba(0,0,0,0.28)';
   ctx.textAlign = 'right'; ctx.fillText('I',   OX + R * 1.1, OY - R * 0.8);
   ctx.textAlign = 'left';  ctx.fillText('II',  OX - R * 1.1, OY - R * 0.8);
   ctx.textAlign = 'left';  ctx.fillText('III', OX - R * 1.1, OY + R * 0.92);

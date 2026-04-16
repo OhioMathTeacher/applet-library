@@ -1,0 +1,792 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mortgage Payment Visualizer</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg: #0f172a;
+      --panel: #1e293b;
+      --border: #334155;
+      --text: #e2e8f0;
+      --muted: #94a3b8;
+      --accent: #22c55e;
+      --principal: #34d399;
+      --interest: #f87171;
+      --balance: #f59e0b;
+      --shadow: rgba(0, 0, 0, 0.28);
+    }
+
+    body {
+      font-family: Georgia, serif;
+      background: radial-gradient(circle at 20% 10%, #1e293b 0%, #0f172a 55%, #0b1022 100%);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    header {
+      background: linear-gradient(135deg, #16a34a, #15803d 55%, #166534);
+      box-shadow: 0 2px 8px var(--shadow);
+      padding: 0.8rem 1.2rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.8rem;
+    }
+
+    h1 {
+      font-size: 1.2rem;
+      font-weight: 700;
+      letter-spacing: 0.01em;
+      color: #f0fdf4;
+    }
+
+    .header-link {
+      color: #f0fdf4;
+      text-decoration: none;
+      border: 2px solid rgba(255, 255, 255, 0.34);
+      border-radius: 6px;
+      padding: 0.35rem 0.7rem;
+      background: rgba(255, 255, 255, 0.14);
+      font-size: 0.92rem;
+      font-weight: 600;
+      transition: all 0.2s ease;
+    }
+
+    .header-link:hover {
+      background: rgba(255, 255, 255, 0.26);
+      border-color: rgba(255, 255, 255, 0.6);
+    }
+
+    .layout {
+      width: min(1280px, 98vw);
+      margin: 1rem auto;
+      display: grid;
+      grid-template-columns: 320px minmax(0, 1fr);
+      gap: 1rem;
+      align-items: start;
+      padding-bottom: 1rem;
+    }
+
+    .panel {
+      background: linear-gradient(180deg, rgba(30, 41, 59, 0.94), rgba(15, 23, 42, 0.96));
+      border: 2px solid var(--border);
+      border-radius: 12px;
+      box-shadow: 0 10px 20px rgba(2, 6, 23, 0.35);
+      padding: 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.95rem;
+      position: sticky;
+      top: 0.8rem;
+    }
+
+    .section-title {
+      color: #dcfce7;
+      font-size: 1rem;
+      font-weight: 700;
+      margin-bottom: 0.25rem;
+    }
+
+    .control {
+      display: flex;
+      flex-direction: column;
+      gap: 0.45rem;
+      border: 1px solid #2b3a50;
+      border-radius: 8px;
+      padding: 0.6rem;
+      background: rgba(15, 23, 42, 0.5);
+    }
+
+    .label-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.6rem;
+      font-size: 0.95rem;
+      line-height: 1.2;
+    }
+
+    .label-row .value {
+      color: #f8fafc;
+      font-weight: 700;
+      text-align: right;
+      min-width: 100px;
+    }
+
+    .term {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: #334155;
+      border: 1px solid #64748b;
+      color: #f8fafc;
+      font-size: 0.7rem;
+      font-weight: 700;
+      cursor: help;
+      margin-left: 0.2rem;
+    }
+
+    .term .tip {
+      position: absolute;
+      bottom: 125%;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 200px;
+      background: white;
+      color: #0f172a;
+      border-radius: 8px;
+      padding: 0.5rem 0.55rem;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
+      font-family: Arial, sans-serif;
+      font-size: 0.78rem;
+      line-height: 1.25;
+      display: none;
+      z-index: 15;
+    }
+
+    .term:hover .tip,
+    .term:focus-within .tip {
+      display: block;
+    }
+
+    input[type="range"] {
+      width: 100%;
+      accent-color: var(--accent);
+      cursor: pointer;
+    }
+
+    .term-buttons {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0.4rem;
+    }
+
+    .term-button {
+      border: 1px solid #4b5f7a;
+      background: #172132;
+      color: var(--text);
+      border-radius: 8px;
+      padding: 0.45rem;
+      cursor: pointer;
+      font: 600 0.95rem Georgia, serif;
+      transition: all 0.2s ease;
+    }
+
+    .term-button.active {
+      border-color: #22c55e;
+      box-shadow: inset 0 0 0 1px #22c55e;
+      background: rgba(34, 197, 94, 0.16);
+      color: #f0fdf4;
+    }
+
+    .readouts {
+      border: 1px solid #2b3a50;
+      border-radius: 10px;
+      background: rgba(15, 23, 42, 0.55);
+      padding: 0.65rem;
+      display: grid;
+      gap: 0.45rem;
+    }
+
+    .readout {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.7rem;
+      font-size: 0.93rem;
+    }
+
+    .readout strong {
+      font-size: 0.98rem;
+      color: #f8fafc;
+      text-align: right;
+    }
+
+    .readout.highlight {
+      border-bottom: 1px solid #2d4359;
+      padding-bottom: 0.4rem;
+      margin-bottom: 0.1rem;
+    }
+
+    .readout.highlight strong {
+      font-size: 1.08rem;
+      color: #bbf7d0;
+    }
+
+    .feedback {
+      margin-top: 0.3rem;
+      display: block;
+      text-align: center;
+      text-decoration: none;
+      border-radius: 9px;
+      border: 2px solid #16a34a;
+      background: linear-gradient(180deg, #22c55e, #16a34a);
+      color: #f0fdf4;
+      padding: 0.65rem;
+      font-weight: 700;
+      transition: transform 0.2s ease, filter 0.2s ease;
+    }
+
+    .feedback:hover {
+      transform: translateY(-1px);
+      filter: brightness(1.08);
+    }
+
+    .chart-card {
+      background: linear-gradient(180deg, rgba(30, 41, 59, 0.92), rgba(15, 23, 42, 0.94));
+      border: 2px solid var(--border);
+      border-radius: 12px;
+      box-shadow: 0 10px 20px rgba(2, 6, 23, 0.35);
+      padding: 0.8rem;
+      position: relative;
+    }
+
+    .chart-title {
+      margin-bottom: 0.5rem;
+      color: #f8fafc;
+      font-size: 1.06rem;
+      font-weight: 700;
+    }
+
+    #chart {
+      width: 100%;
+      height: auto;
+      border: 1px solid #2f4157;
+      border-radius: 10px;
+      background: linear-gradient(180deg, #122035 0%, #0f172a 100%);
+      display: block;
+    }
+
+    .legend {
+      margin-top: 0.65rem;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.8rem;
+      font-size: 0.9rem;
+      color: var(--muted);
+    }
+
+    .legend-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+    }
+
+    .swatch {
+      width: 14px;
+      height: 14px;
+      border-radius: 3px;
+      border: 1px solid rgba(255, 255, 255, 0.3);
+    }
+
+    .tooltip {
+      position: absolute;
+      pointer-events: none;
+      background: rgba(248, 250, 252, 0.97);
+      color: #0f172a;
+      border-radius: 8px;
+      border: 1px solid #cbd5e1;
+      box-shadow: 0 10px 18px rgba(0, 0, 0, 0.3);
+      padding: 0.55rem;
+      font-family: Arial, sans-serif;
+      font-size: 0.79rem;
+      line-height: 1.3;
+      min-width: 190px;
+      display: none;
+      z-index: 20;
+    }
+
+    .footer-note {
+      margin-top: 0.55rem;
+      color: var(--muted);
+      font-size: 0.86rem;
+      line-height: 1.35;
+    }
+
+    @media (max-width: 980px) {
+      .layout {
+        grid-template-columns: 1fr;
+      }
+
+      .panel {
+        position: static;
+      }
+
+      .term-buttons {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 520px) {
+      header {
+        padding: 0.7rem 0.8rem;
+      }
+
+      h1 {
+        font-size: 1.02rem;
+      }
+
+      .header-link {
+        font-size: 0.82rem;
+        padding: 0.3rem 0.55rem;
+      }
+
+      .label-row {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
+      .label-row .value {
+        min-width: 0;
+      }
+
+      .readout {
+        font-size: 0.88rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>💰 Mortgage Payment Visualizer</h1>
+    <a class="header-link" href="https://ohiomathteacher.github.io/applet-library/">← Library</a>
+  </header>
+
+  <main class="layout">
+    <aside class="panel">
+      <div>
+        <p class="section-title">Loan Inputs</p>
+      </div>
+
+      <div class="control">
+        <div class="label-row">
+          <span>Principal
+            <span class="term" tabindex="0">?
+              <span class="tip">The original amount borrowed.</span>
+            </span>
+          </span>
+          <span class="value" id="principalValue">$250,000</span>
+        </div>
+        <input id="principal" type="range" min="50000" max="500000" step="10000" value="250000">
+      </div>
+
+      <div class="control">
+        <div class="label-row">
+          <span>Down Payment</span>
+          <span class="value" id="downValue">20% ($50,000)</span>
+        </div>
+        <input id="downPayment" type="range" min="0" max="50" step="5" value="20">
+      </div>
+
+      <div class="control">
+        <div class="label-row">
+          <span>Interest Rate (APR)
+            <span class="term" tabindex="0">?
+              <span class="tip">Annual Percentage Rate: yearly interest rate.</span>
+            </span>
+          </span>
+          <span class="value" id="rateValue">6.50%</span>
+        </div>
+        <input id="rate" type="range" min="2" max="10" step="0.25" value="6.5">
+      </div>
+
+      <div class="control">
+        <div class="label-row">
+          <span>Loan Term
+            <span class="term" tabindex="0">?
+              <span class="tip">The length of time to repay the loan.</span>
+            </span>
+          </span>
+          <span class="value" id="termValue">30 years</span>
+        </div>
+        <div class="term-buttons" id="termButtons">
+          <button class="term-button" data-years="15">15 years</button>
+          <button class="term-button" data-years="20">20 years</button>
+          <button class="term-button active" data-years="30">30 years</button>
+        </div>
+      </div>
+
+      <section class="readouts">
+        <div class="readout highlight">
+          <span>Loan Amount</span>
+          <strong id="loanAmountOut">$200,000</strong>
+        </div>
+        <div class="readout">
+          <span>Monthly Payment</span>
+          <strong id="monthlyOut">$1,264.14</strong>
+        </div>
+        <div class="readout">
+          <span>Total Paid</span>
+          <strong id="totalPaidOut">$455,091.75</strong>
+        </div>
+        <div class="readout">
+          <span>Total Interest
+            <span class="term" tabindex="0">?
+              <span class="tip">The cost of borrowing money, paid to the lender.</span>
+            </span>
+          </span>
+          <strong id="totalInterestOut">$255,091.75</strong>
+        </div>
+        <div class="readout">
+          <span>Interest-to-Principal Ratio
+            <span class="term" tabindex="0">?
+              <span class="tip">How many times your original loan amount you pay in interest.</span>
+            </span>
+          </span>
+          <strong id="ratioOut">1.28×</strong>
+        </div>
+        <div class="readout">
+          <span>Amortization
+            <span class="term" tabindex="0">?
+              <span class="tip">Gradually paying off a loan over time.</span>
+            </span>
+          </span>
+          <strong id="monthsOut">360 months</strong>
+        </div>
+      </section>
+
+      <a class="feedback" href="https://docs.google.com/document/d/1F-2y-f4hhoRS1CSzuErIhxrUw7CCZf2dXIGkfHibfag/edit?usp=sharing" target="_blank" rel="noopener noreferrer">📝 Give Feedback</a>
+    </aside>
+
+    <section class="chart-card">
+      <p class="chart-title">Yearly Payment Split (stacked bars) + Remaining Balance (line)</p>
+      <canvas id="chart" width="960" height="600"></canvas>
+      <div class="tooltip" id="tooltip"></div>
+      <div class="legend">
+        <span class="legend-item"><span class="swatch" style="background: #34d399;"></span>Principal portion</span>
+        <span class="legend-item"><span class="swatch" style="background: #f87171;"></span>Interest portion</span>
+        <span class="legend-item"><span class="swatch" style="background: #f59e0b;"></span>Remaining balance line</span>
+      </div>
+      <p class="footer-note">Hover each bar to inspect year-by-year averages and see how the principal-interest ratio flips over time.</p>
+    </section>
+  </main>
+
+  <script>
+    const principalInput = document.getElementById('principal');
+    const downInput = document.getElementById('downPayment');
+    const rateInput = document.getElementById('rate');
+    const termButtons = document.getElementById('termButtons');
+
+    const principalValue = document.getElementById('principalValue');
+    const downValue = document.getElementById('downValue');
+    const rateValue = document.getElementById('rateValue');
+    const termValue = document.getElementById('termValue');
+
+    const loanAmountOut = document.getElementById('loanAmountOut');
+    const monthlyOut = document.getElementById('monthlyOut');
+    const totalPaidOut = document.getElementById('totalPaidOut');
+    const totalInterestOut = document.getElementById('totalInterestOut');
+    const ratioOut = document.getElementById('ratioOut');
+    const monthsOut = document.getElementById('monthsOut');
+
+    const canvas = document.getElementById('chart');
+    const ctx = canvas.getContext('2d');
+    const tooltip = document.getElementById('tooltip');
+
+    const state = {
+      principal: 250000,
+      downPercent: 20,
+      rate: 6.5,
+      termYears: 30,
+      yearlyData: [],
+      barRects: []
+    };
+
+    function currency(value) {
+      return value.toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 2 });
+    }
+
+    function number(value) {
+      return value.toLocaleString('en-US', { maximumFractionDigits: 2 });
+    }
+
+    function calculateMonthlyPayment(principal, annualRate, years) {
+      const monthlyRate = annualRate / 12 / 100;
+      const numPayments = years * 12;
+
+      if (monthlyRate === 0) {
+        return principal / numPayments;
+      }
+
+      const factor = Math.pow(1 + monthlyRate, numPayments);
+      return principal * ((monthlyRate * factor) / (factor - 1));
+    }
+
+    function generateAmortizationSchedule(loanAmount, annualRate, years, monthlyPayment) {
+      const schedule = [];
+      let remainingBalance = loanAmount;
+      const monthlyRate = annualRate / 12 / 100;
+      const numPayments = years * 12;
+
+      for (let month = 1; month <= numPayments; month++) {
+        const interestPayment = remainingBalance * monthlyRate;
+        let principalPayment = monthlyPayment - interestPayment;
+
+        if (month === numPayments || principalPayment > remainingBalance) {
+          principalPayment = remainingBalance;
+        }
+
+        remainingBalance -= principalPayment;
+
+        if (remainingBalance < 0.01) {
+          remainingBalance = 0;
+        }
+
+        schedule.push({
+          month,
+          principal: principalPayment,
+          interest: interestPayment,
+          balance: remainingBalance
+        });
+      }
+
+      return schedule;
+    }
+
+    function yearlyAverages(schedule, years) {
+      const yearsData = [];
+      for (let y = 0; y < years; y++) {
+        const start = y * 12;
+        const chunk = schedule.slice(start, start + 12);
+        if (chunk.length === 0) continue;
+
+        const principalAvg = chunk.reduce((sum, m) => sum + m.principal, 0) / chunk.length;
+        const interestAvg = chunk.reduce((sum, m) => sum + m.interest, 0) / chunk.length;
+        const endBalance = chunk[chunk.length - 1].balance;
+
+        yearsData.push({
+          year: y + 1,
+          principalAvg,
+          interestAvg,
+          endBalance,
+          payment: principalAvg + interestAvg
+        });
+      }
+      return yearsData;
+    }
+
+    function setActiveTermButton() {
+      const buttons = termButtons.querySelectorAll('.term-button');
+      buttons.forEach((btn) => {
+        btn.classList.toggle('active', Number(btn.dataset.years) === state.termYears);
+      });
+    }
+
+    function computeAndRender() {
+      const downAmount = state.principal * (state.downPercent / 100);
+      const loanAmount = Math.max(0, state.principal - downAmount);
+
+      const monthlyPayment = calculateMonthlyPayment(loanAmount, state.rate, state.termYears);
+      const schedule = generateAmortizationSchedule(loanAmount, state.rate, state.termYears, monthlyPayment);
+      const totalPaid = monthlyPayment * state.termYears * 12;
+      const totalInterest = totalPaid - loanAmount;
+
+      state.yearlyData = yearlyAverages(schedule, state.termYears);
+
+      principalValue.textContent = currency(state.principal).replace('.00', '');
+      downValue.textContent = `${state.downPercent}% (${currency(downAmount).replace('.00', '')})`;
+      rateValue.textContent = `${state.rate.toFixed(2)}%`;
+      termValue.textContent = `${state.termYears} years`;
+
+      loanAmountOut.textContent = currency(loanAmount);
+      monthlyOut.textContent = currency(monthlyPayment);
+      totalPaidOut.textContent = currency(totalPaid);
+      totalInterestOut.textContent = currency(totalInterest);
+      ratioOut.textContent = `${(totalInterest / Math.max(loanAmount, 1)).toFixed(2)}×`;
+      monthsOut.textContent = `${state.termYears * 12} months`;
+
+      drawChart(state.yearlyData, loanAmount);
+    }
+
+    function drawChart(yearData, initialLoanAmount) {
+      const parent = canvas.parentElement;
+      const availableWidth = Math.max(620, parent.clientWidth - 20);
+      canvas.width = availableWidth;
+      canvas.height = 600;
+
+      const w = canvas.width;
+      const h = canvas.height;
+
+      ctx.clearRect(0, 0, w, h);
+      ctx.fillStyle = '#0f172a';
+      ctx.fillRect(0, 0, w, h);
+
+      const margin = { top: 34, right: 22, bottom: 68, left: 74 };
+      const chartW = w - margin.left - margin.right;
+      const chartH = h - margin.top - margin.bottom;
+
+      const maxPayment = Math.max(...yearData.map((d) => d.payment), 1);
+      const yTicks = 5;
+
+      ctx.strokeStyle = '#1f3046';
+      ctx.lineWidth = 1;
+      ctx.fillStyle = '#93a5bb';
+      ctx.font = '12px Arial, sans-serif';
+
+      for (let i = 0; i <= yTicks; i++) {
+        const y = margin.top + (chartH / yTicks) * i;
+        const value = maxPayment * (1 - i / yTicks);
+        ctx.beginPath();
+        ctx.moveTo(margin.left, y);
+        ctx.lineTo(w - margin.right, y);
+        ctx.stroke();
+
+        ctx.fillText(currency(value).replace('.00', ''), 8, y + 4);
+      }
+
+      ctx.strokeStyle = '#6c84a0';
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.moveTo(margin.left, margin.top);
+      ctx.lineTo(margin.left, h - margin.bottom);
+      ctx.lineTo(w - margin.right, h - margin.bottom);
+      ctx.stroke();
+
+      ctx.fillStyle = '#a9bdd3';
+      ctx.font = '13px Georgia, serif';
+      ctx.fillText('Payment Amount', 8, margin.top - 10);
+      ctx.fillText('Years', w - margin.right - 40, h - 14);
+
+      const barGap = Math.max(2, Math.min(8, chartW / (yearData.length * 4)));
+      const barWidth = (chartW - barGap * (yearData.length - 1)) / yearData.length;
+      state.barRects = [];
+
+      yearData.forEach((d, i) => {
+        const x = margin.left + i * (barWidth + barGap);
+        const principalH = (d.principalAvg / maxPayment) * chartH;
+        const interestH = (d.interestAvg / maxPayment) * chartH;
+        const yBase = h - margin.bottom;
+
+        const principalY = yBase - principalH;
+        const interestY = principalY - interestH;
+
+        ctx.fillStyle = '#34d399';
+        ctx.fillRect(x, principalY, barWidth, principalH);
+
+        ctx.fillStyle = '#f87171';
+        ctx.fillRect(x, interestY, barWidth, interestH);
+
+        if (yearData.length <= 30 && (i % 2 === 0 || yearData.length <= 20)) {
+          ctx.save();
+          ctx.translate(x + barWidth * 0.5, yBase + 17);
+          ctx.rotate(-Math.PI / 5.5);
+          ctx.fillStyle = '#9fb0c4';
+          ctx.font = '11px Arial, sans-serif';
+          ctx.fillText(String(d.year), -8, 0);
+          ctx.restore();
+        }
+
+        state.barRects.push({
+          x,
+          y: interestY,
+          width: barWidth,
+          height: principalH + interestH,
+          data: d
+        });
+      });
+
+      ctx.beginPath();
+      ctx.strokeStyle = '#f59e0b';
+      ctx.lineWidth = 2.2;
+
+      yearData.forEach((d, i) => {
+        const x = margin.left + i * (barWidth + barGap) + barWidth / 2;
+        const y = margin.top + (d.endBalance / Math.max(initialLoanAmount, 1)) * chartH;
+
+        if (i === 0) {
+          ctx.moveTo(x, y);
+        } else {
+          ctx.lineTo(x, y);
+        }
+      });
+      ctx.stroke();
+
+      yearData.forEach((d, i) => {
+        const x = margin.left + i * (barWidth + barGap) + barWidth / 2;
+        const y = margin.top + (d.endBalance / Math.max(initialLoanAmount, 1)) * chartH;
+        ctx.fillStyle = '#fbbf24';
+        ctx.beginPath();
+        ctx.arc(x, y, 2.3, 0, Math.PI * 2);
+        ctx.fill();
+      });
+
+      ctx.fillStyle = '#cde0f4';
+      ctx.font = '13px Georgia, serif';
+      ctx.fillText('Remaining Balance', margin.left + 12, margin.top + 14);
+    }
+
+    function updateTooltip(event) {
+      const rect = canvas.getBoundingClientRect();
+      const x = event.clientX - rect.left;
+      const y = event.clientY - rect.top;
+
+      const bar = state.barRects.find((r) => {
+        return x >= r.x && x <= r.x + r.width && y >= r.y && y <= r.y + r.height;
+      });
+
+      if (!bar) {
+        tooltip.style.display = 'none';
+        return;
+      }
+
+      const d = bar.data;
+      tooltip.innerHTML = [
+        `<strong>Year ${d.year}</strong>`,
+        `Avg principal: ${currency(d.principalAvg)}`,
+        `Avg interest: ${currency(d.interestAvg)}`,
+        `End balance: ${currency(d.endBalance)}`
+      ].join('<br>');
+
+      tooltip.style.left = `${event.pageX + 14}px`;
+      tooltip.style.top = `${event.pageY - 12}px`;
+      tooltip.style.display = 'block';
+    }
+
+    function attachEvents() {
+      principalInput.addEventListener('input', () => {
+        state.principal = Number(principalInput.value);
+        computeAndRender();
+      });
+
+      downInput.addEventListener('input', () => {
+        state.downPercent = Number(downInput.value);
+        computeAndRender();
+      });
+
+      rateInput.addEventListener('input', () => {
+        state.rate = Number(rateInput.value);
+        computeAndRender();
+      });
+
+      termButtons.addEventListener('click', (event) => {
+        const button = event.target.closest('button[data-years]');
+        if (!button) return;
+        state.termYears = Number(button.dataset.years);
+        setActiveTermButton();
+        computeAndRender();
+      });
+
+      canvas.addEventListener('mousemove', updateTooltip);
+      canvas.addEventListener('mouseleave', () => {
+        tooltip.style.display = 'none';
+      });
+
+      window.addEventListener('resize', () => {
+        computeAndRender();
+      });
+    }
+
+    setActiveTermButton();
+    attachEvents();
+    computeAndRender();
+  </script>
+</body>
+</html>

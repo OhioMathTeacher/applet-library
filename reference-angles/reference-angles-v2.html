@@ -162,7 +162,7 @@ canvas { cursor: crosshair; display: block; touch-action: none; position: relati
 .sign-btn.selected { background: rgba(168,85,247,0.3); border-color: #a855f7; color: #ffffff; }
 .sign-btn.correct { background: rgba(34,197,94,0.3); border-color: #22c55e; color: #ffffff; }
 .sign-btn.wrong { background: rgba(239,68,68,0.3); border-color: #ef4444; color: #ffffff; }
-.sign-btn.missed { background: rgba(250,204,21,0.3); border-color: #facc15; color: #111827; }
+.sign-btn.missed { background: rgba(250,204,21,0.3); border-color: #facc15; color: #ffffff; }
 #btnCheckPredictions {
   width: 100%;
   background: #a855f7;
@@ -178,7 +178,8 @@ canvas { cursor: crosshair; display: block; touch-action: none; position: relati
 #btnCheckPredictions:disabled {
   background: #334155;
   border-color: #475569;
-  color: #e5e7eb;
+  color: #ffffff;
+  opacity: 1;
   cursor: not-allowed;
 }
 </style>
@@ -649,7 +650,7 @@ function draw() {
   ctx.fillText('y', OX + 10,       OY - R * 1.15);
 
   // Quadrant labels
-  ctx.font = `${SZ * 0.04}px Georgia`; ctx.fillStyle = 'rgba(0,0,0,0.28)';
+  ctx.font = `${SZ * 0.04}px Georgia`; ctx.fillStyle = '#111827';
   ctx.textAlign = 'right'; ctx.fillText('I',   OX + R * 1.1, OY - R * 0.8);
   ctx.textAlign = 'left';  ctx.fillText('II',  OX - R * 1.1, OY - R * 0.8);
   ctx.textAlign = 'left';  ctx.fillText('III', OX - R * 1.1, OY + R * 0.92);

@@ -13,7 +13,6 @@
   --text: #2b2d42;
   --muted: #64748b;
   --border: #e2e8f0;
-  --highlight: #fef3c7;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -22,130 +21,124 @@ body {
   font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
   background: var(--bg);
   color: var(--text);
-  line-height: 1.7;
-  padding: 2rem;
-}
-
-.container {
-  max-width: 900px;
-  margin: 0 auto;
+  line-height: 1.5;
+  padding: 1.5rem;
+  height: 100vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 header {
   text-align: center;
-  margin-bottom: 3rem;
- padding-bottom: 2rem;
+  padding-bottom: 1rem;
   border-bottom: 3px solid var(--accent);
+  margin-bottom: 1.5rem;
 }
 
 h1 {
-  font-size: 2.5rem;
+  font-size: 2rem;
   color: var(--accent);
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.3rem;
 }
 
 .subtitle {
-  font-size: 1.1rem;
+  font-size: 0.95rem;
   color: var(--muted);
-  margin-bottom: 1.5rem;
+  margin-bottom: 0.8rem;
 }
 
 .launch-btn {
   display: inline-block;
-  padding: 0.8rem 2rem;
+  padding: 0.6rem 1.5rem;
   background: var(--accent);
   color: white;
   text-decoration: none;
-  border-radius: 8px;
+  border-radius: 6px;
   font-weight: 600;
-  font-size: 1.1rem;
+  font-size: 1rem;
   transition: background 0.2s, transform 0.2s;
-  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
+  box-shadow: 0 2px 6px rgba(59, 130, 246, 0.3);
 }
 
 .launch-btn:hover {
   background: #2563eb;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+  transform: translateY(-1px);
 }
 
-section {
+.panes-container {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 1.5rem;
+  margin-bottom: 1.5rem;
+  flex: 1;
+  overflow: hidden;
+}
+
+.pane {
   background: white;
-  padding: 2rem;
-  border-radius: 12px;
+  border-radius: 8px;
+  padding: 1.2rem;
   box-shadow: 0 2px 8px rgba(0,0,0,0.06);
-  margin-bottom: 2rem;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
 }
 
-h2 {
+.pane h2 {
   color: var(--accent);
-  margin-bottom: 1rem;
-  font-size: 1.8rem;
-  border-bottom: 2px solid var(--border);
-  padding-bottom: 0.5rem;
-}
-
-h3 {
-  color: var(--accent2);
-  margin-top: 1.5rem;
+  font-size: 1.1rem;
   margin-bottom: 0.8rem;
-  font-size: 1.3rem;
+  border-bottom: 2px solid var(--border);
+  padding-bottom: 0.4rem;
 }
 
-ul, ol {
-  margin-left: 1.5rem;
-  margin-bottom: 1rem;
+.pane ul {
+  margin-left: 1.2rem;
+  font-size: 0.9rem;
 }
 
-li {
+.pane li {
   margin-bottom: 0.5rem;
 }
 
-.context-box {
-  background: var(--highlight);
-  border-left: 4px solid #f59e0b;
-  padding: 1rem 1.5rem;
-  margin: 1rem 0;
-  border-radius: 4px;
+.pane p {
+  font-size: 0.9rem;
+  margin-bottom: 0.6rem;
 }
 
-.design-decision {
-  background: #f0f9ff;
-  border-left: 4px solid var(--accent);
-  padding: 1rem 1.5rem;
-  margin: 1rem 0;
-  border-radius: 4px;
-}
-
-.needs-work {
-  background: #fef2f2;
-  border-left: 4px solid #dc2626;
-  padding: 1rem 1.5rem;
-  margin: 1rem 0;
-  border-radius: 4px;
-}
-
-strong {
+.pane strong {
   color: var(--accent2);
 }
 
-.reflection-area {
-  background: #f8fafc;
-  border: 2px solid var(--border);
+.feedback-area {
+  background: white;
   border-radius: 8px;
-  padding: 1.5rem;
+  padding: 1.2rem;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+}
+
+.feedback-area h2 {
+  color: var(--accent);
+  font-size: 1.1rem;
+  margin-bottom: 0.8rem;
+}
+
+.feedback-controls {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
 }
 
 textarea {
-  width: 100%;
-  min-height: 150px;
-  padding: 1rem;
+  flex: 1;
+  min-height: 80px;
+  padding: 0.8rem;
   border: 2px solid var(--border);
   border-radius: 6px;
   font-family: inherit;
-  font-size: 1rem;
-  resize: vertical;
-  margin-bottom: 1rem;
+  font-size: 0.9rem;
+  resize: none;
 }
 
 textarea:focus {
@@ -157,12 +150,13 @@ button {
   background: var(--accent2);
   color: white;
   border: none;
-  padding: 0.6rem 1.5rem;
+  padding: 0.8rem 1.2rem;
   border-radius: 6px;
   font-weight: 600;
   cursor: pointer;
-  font-size: 1rem;
+  font-size: 0.9rem;
   transition: background 0.2s;
+  white-space: nowrap;
 }
 
 button:hover {
@@ -170,10 +164,8 @@ button:hover {
 }
 
 .save-status {
-  display: inline-block;
-  margin-left: 1rem;
   color: var(--muted);
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   font-style: italic;
 }
 
@@ -181,158 +173,78 @@ button:hover {
   color: #059669;
 }
 
-code {
-  background: #f1f5f9;
-  padding: 0.2rem 0.4rem;
-  border-radius: 3px;
-  font-family: 'Courier New', monospace;
-  font-size: 0.9em;
+.hint {
+  font-size: 0.8rem;
+  color: var(--muted);
+  margin-top: 0.4rem;
 }
 </style>
 </head>
 <body>
-<div class="container">
-  <header>
-    <h1>📐 Forces on a Ramp</h1>
-    <p class="subtitle">Student-Centered Design Notes & Lesson Context</p>
-    <a href="forces-on-ramp.html" class="launch-btn">🚀 Launch the Applet</a>
-  </header>
+<header>
+  <h1>📐 Forces on a Ramp</h1>
+  <p class="subtitle">Pedagogical Notes for McKenzie Sorce's Hot Wheels F=ma Lesson</p>
+  <a href="forces-on-ramp.html" class="launch-btn">🚀 Launch Applet</a>
+</header>
 
-  <section>
+<div class="panes-container">
+  <!-- Pane 1: Origin -->
+  <div class="pane">
     <h2>🎯 Where This Came From</h2>
-    <div class="context-box">
-      <p><strong>Original Lesson Context:</strong> This applet was designed to support McKenzie Sorce's Hot Wheels F=ma lesson, which she taught during her field placement. In her original lesson, students used a PhET simulation to explore forces on inclined planes, but McKenzie identified several problems:</p>
-      <ul>
-        <li>The PhET sim was <strong>too long</strong> — students didn't finish during class time</li>
-        <li>Students <strong>procrastinated</strong> on completing the simulation questions</li>
-        <li>Even engaged students gave <strong>one-word answers</strong> instead of explanations</li>
-        <li>The connection between the simulation and real-world F=ma was unclear</li>
-      </ul>
-      <p>McKenzie wanted a tool that was <strong>more focused, more visual, and more directly connected to the physics concepts</strong> her students were learning.</p>
-    </div>
-
-    <h3>What We Kept from PhET</h3>
+    <p><strong>McKenzie's original lesson:</strong> Students used PhET simulation to explore forces on inclined planes.</p>
+    <p><strong>Problems identified:</strong></p>
     <ul>
-      <li>✅ Interactive force vector visualization</li>
-      <li>✅ Adjustable parameters (angle, mass, friction)</li>
-      <li>✅ Real-time physics calculations</li>
+      <li>PhET sim <strong>too long</strong> — students didn't finish</li>
+      <li>Students <strong>procrastinated</strong></li>
+      <li>Even strong students gave <strong>one-word answers</strong></li>
+      <li>Weak connection to F=ma</li>
     </ul>
+    <p><strong>Design goal:</strong> More focused, more visual, directly connected to physics concepts.</p>
+  </div>
 
-    <h3>What We Cut</h3>
+  <!-- Pane 2: Design Decisions -->
+  <div class="pane">
+    <h2>🛠️ Design Decisions</h2>
     <ul>
-      <li>❌ Overly detailed controls that distract from core concepts</li>
-      <li>❌ Lengthy question prompts embedded in the simulation</li>
-      <li>❌ Features not directly related to F=ma (like thermal energy displays)</li>
+      <li><strong>PhET-style visuals:</strong> Familiar interface reduces cognitive load</li>
+      <li><strong>Draggable crate + Release:</strong> Students predict before testing (inquiry loop)</li>
+      <li><strong>Dynamic vector scaling:</strong> Forces auto-scale to fit canvas at any mass/angle</li>
+      <li><strong>Friction feedback message:</strong> "Too strong!" turns confusion into teaching moment</li>
+      <li><strong>Energy bar (PE→KE):</strong> Real-time visualization of energy conservation</li>
+      <li><strong>Side panel controls:</strong> Keeps all tools visible while manipulating</li>
     </ul>
-  </section>
+  </div>
 
-  <section>
-    <h2>🛠️ Design Decisions & Rationale</h2>
-    
-    <div class="design-decision">
-      <h3>1. PhET-Style Visual Design</h3>
-      <p><strong>Why:</strong> McKenzie's students were already familiar with PhET simulations. Using similar visual language (realistic textures, sky-blue background, wooden crate) reduces cognitive load and helps students transfer their existing mental models.</p>
-      <p><strong>Alternative considered:</strong> Abstract geometric design with dark theme — rejected because it felt too "math-tool" and less relatable to physical Hot Wheels experiments.</p>
-    </div>
-
-    <div class="design-decision">
-      <h3>2. Draggable Crate + "Release!" Button</h3>
-      <p><strong>Why:</strong> Students learn by <em>doing</em>, not just observing. Dragging the crate to set potential energy makes energy conservation <strong>tangible</strong> — they see PE → KE conversion happen in real-time on the energy bar.</p>
-      <p><strong>Pedagogical goal:</strong> Students should predict what will happen <em>before</em> pressing Release, then compare their prediction to the simulation. This builds the inquiry loop: Predict → Test → Explain.</p>
-    </div>
-
-    <div class="design-decision">
-      <h3>3. Dynamic Force Vector Scaling</h3>
-      <p><strong>Why:</strong> At high masses (100 kg) or steep angles (45°), force vectors would extend off-screen if drawn at a fixed scale. The applet automatically scales vectors to fit the canvas while maintaining visual proportions.</p>
-      <p><strong>Trade-off:</strong> Students might not realize the vectors are scaled. Consider adding a note in class discussion about proportional vs. absolute magnitude.</p>
-    </div>
-
-    <div class="design-decision">
-      <h3>4. Friction Feedback Message</h3>
-      <p><strong>Why:</strong> When friction is too strong (high μ<sub>k</sub>, low angle), the crate won't move — but students might think the simulation is broken. The yellow message box ("💪 Friction is too strong! The crate won't budge.") turns a potential point of confusion into a <strong>teaching moment</strong> about static vs. kinetic friction.</p>
-    </div>
-
-    <div class="design-decision">
-      <h3>5. Side Control Panel (Instead of Below)</h3>
-      <p><strong>Why:</strong> Keeps controls visible while manipulating the simulation. Students don't have to scroll to adjust parameters, which maintains focus on the physics rather than the interface.</p>
-    </div>
-  </section>
-
-  <section>
-    <h2>⚠️ Known Limitations & Areas for Improvement</h2>
-    
-    <div class="needs-work">
-      <h3>Issues We Know About</h3>
-      <ol>
-        <li><strong>Angle labeling is unclear</strong> — The degree marker (e.g., "25°") doesn't clearly indicate what's being measured. Could benefit from a more intuitive visual cue (maybe a small horizontal reference line?). <em>UPDATE: We added a dashed horizontal line, but Todd still wasn't happy with it. Consider revising.</em></li>
-        
-        <li><strong>No guidance on what questions to ask</strong> — The applet provides tools but doesn't scaffold inquiry. McKenzie's students gave one-word answers in the original lesson, partly because they didn't know what to look for. Consider adding:
-          <ul>
-            <li>Sentence starters ("When I increase the angle, I notice that...")</li>
-            <li>Prediction prompts ("Before releasing, I predict the crate will...")</li>
-            <li>Conceptual challenge questions embedded in the interface</li>
-          </ul>
-        </li>
-
-        <li><strong>Static friction isn't modeled accurately</strong> — The simulation uses a simple check (is g sin θ ≤ μ<sub>k</sub> g cos θ?) but real static friction has a higher coefficient than kinetic friction. For advanced classes, this could be misleading.</li>
-
-        <li><strong>Energy bar doesn't account for friction losses</strong> — When friction is enabled, energy is converted to heat (not shown). The energy bar will appear to "lose" total energy, which might confuse students unless explicitly discussed.</li>
-
-        <li><strong>No data export</strong> — Students can't capture screenshots or export force/energy data for analysis. Consider adding a "Snapshot" button that logs current values.</li>
-
-        <li><strong>Free Body Diagram vectors scale independently</strong> — The FBD uses its own scaling to fit the 200×200px box, which means vector lengths don't directly correspond to the main simulation vectors. Could be confusing for close comparisons.</li>
-      </ol>
-    </div>
-
-    <h3>Questions for Classroom Testing</h3>
+  <!-- Pane 3: Limitations -->
+  <div class="pane">
+    <h2>⚠️ Known Limitations</h2>
     <ul>
-      <li>Do students understand what the energy bar is showing? (Should we label "Total Energy" somewhere?)</li>
-      <li>Is the friction coefficient slider clear enough? (μ<sub>k</sub> notation might be unfamiliar)</li>
-      <li>Can students connect the simulation back to the Hot Wheels experiment? (What scaffolding would help?)</li>
-      <li>Do students naturally explore edge cases (0° angle, max friction), or do they need prompts?</li>
+      <li><strong>Angle label unclear:</strong> Degree marking doesn't clearly show what's being measured</li>
+      <li><strong>No question scaffolding:</strong> Students don't know what to look for (consider sentence starters)</li>
+      <li><strong>Static friction oversimplified:</strong> Real μ<sub>s</sub> > μ<sub>k</sub></li>
+      <li><strong>Energy bar confusion:</strong> With friction on, total energy appears to "disappear" (heat not shown)</li>
+      <li><strong>No data export:</strong> Can't capture screenshots or values for analysis</li>
+      <li><strong>FBD scales independently:</strong> Vectors don't match main simulation scale</li>
     </ul>
-  </section>
+  </div>
+</div>
 
-  <section>
-    <h2>💭 Your Turn: Student Feedback & Observations</h2>
-    <p style="color: var(--muted); margin-bottom: 1rem;">
-      If you're a student using this applet in class, we want to hear from you! What did you notice? What was confusing? What would make this tool more useful?
-    </p>
-    
-    <div class="reflection-area">
-      <textarea id="studentNotes" placeholder="Type your observations here... What did you learn? What was confusing? What would you change about this applet?
-
-Examples:
-- I wish I could see the velocity vector on the crate
-- The angle marker should be bigger
-- It would be cool if I could compare two different angles side-by-side
-- The friction slider is hard to use on my phone
-
-Your notes are saved automatically in your browser (they won't disappear if you refresh)."></textarea>
-      <button onclick="saveNotes()">💾 Save My Notes</button>
+<!-- Feedback Area -->
+<div class="feedback-area">
+  <h2>💭 Student Feedback</h2>
+  <p style="color: var(--muted); margin-bottom: 0.8rem; font-size: 0.9rem;">
+    What did you notice? What was confusing? What would make this better?
+  </p>
+  <div class="feedback-controls">
+    <textarea id="studentNotes" placeholder="Your observations (saved privately in your browser)..."></textarea>
+    <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+      <button onclick="saveNotes()">💾 Save</button>
       <span class="save-status" id="saveStatus"></span>
-      
-      <p style="margin-top: 1rem; font-size: 0.9rem; color: var(--muted);">
-        <strong>Note:</strong> Your notes are stored locally in your browser only (using localStorage). They won't be sent anywhere or shared automatically. If you want to share your feedback with your instructor, copy your notes and email them or post to your class discussion board.
-      </p>
     </div>
-  </section>
-
-  <section>
-    <h2>📚 Related Resources</h2>
-    <ul>
-      <li><a href="https://phet.colorado.edu/en/simulations/ramp-forces-and-motion" target="_blank">Original PhET "Ramp: Forces and Motion" Simulation</a></li>
-      <li><a href="https://github.com/ohiomathteacher/applet-library" target="_blank">Applet Library GitHub Repository</a></li>
-      <li><a href="../README.md">Back to Applet Library Home</a></li>
-    </ul>
-  </section>
-
-  <footer style="text-align: center; margin-top: 3rem; padding-top: 2rem; border-top: 2px solid var(--border); color: var(--muted);">
-    <p>Created for TCE 432: Mathematics Methods (Spring 2026)</p>
-    <p style="font-size: 0.9rem; margin-top: 0.5rem;">
-      Designed in collaboration with McKenzie Sorce based on her Hot Wheels F=ma field lesson
-    </p>
-  </footer>
+  </div>
+  <p class="hint">
+    Notes saved locally only (not shared). Copy/paste to email if you want to send feedback.
+  </p>
 </div>
 
 <script>

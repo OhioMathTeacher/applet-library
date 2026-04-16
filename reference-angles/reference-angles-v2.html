@@ -13,9 +13,47 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
   min-height: 100vh;
   user-select: none;
+  gap: 10px;
+  padding: 0;
+}
+header {
+  width: 100%;
+  background: linear-gradient(135deg, #a78bfa, #8b5cf6);
+  color: white;
+  padding: 0.6rem 1.5rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+}
+header h1 {
+  font-size: 1.2rem;
+  font-weight: 600;
+}
+header a {
+  padding: 0.35rem 0.7rem;
+  border-radius: 4px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  font-weight: 600;
+  text-decoration: none;
+  font-size: 0.9rem;
+  transition: all 0.2s;
+  font-family: Arial, sans-serif;
+}
+header a:hover {
+  background: rgba(255, 255, 255, 0.3);
+  border-color: rgba(255, 255, 255, 0.5);
+}
+.main-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
   gap: 10px;
   padding: 6px;
 }
@@ -142,6 +180,12 @@ canvas { cursor: crosshair; display: block; touch-action: none; position: relati
 </style>
 </head>
 <body>
+<header>
+  <h1>📐 Reference Angles v2</h1>
+  <a href="../README.md">← Library</a>
+</header>
+
+<div class="main-content">
 <div class="btn-row">
   <button data-q="1">View Q1 Reference</button>
   <span class="sep">|</span>
@@ -169,6 +213,9 @@ canvas { cursor: crosshair; display: block; touch-action: none; position: relati
   </label>
 </div>
 <div class="hint">drag the point anywhere on the circle</div>
+<div class="btn-row" style="margin-top: 8px;">
+  <a href="https://docs.google.com/document/d/1VAuNHqtX3PsmgBXXVYokeslFWV3K1YZtjRU4OF9HVK4/edit?usp=sharing" target="_blank" style="display: inline-block; background: rgba(168,85,247,0.25); color: #c4b5fd; text-decoration: none; padding: 6px 14px; border-radius: 6px; font-size: 13px; border: 1px solid rgba(168,85,247,0.4); font-family: Arial, sans-serif; transition: background 0.15s;">📝 Give Feedback</a>
+</div>
 
 <!-- Predict Signs Panel -->
 <div id="predictPanel" class="predict-panel">
@@ -194,6 +241,7 @@ canvas { cursor: crosshair; display: block; touch-action: none; position: relati
     </div>
   </div>
   <button id="btnCheckPredictions" disabled>Check my answers</button>
+</div>
 </div>
 
 <script>

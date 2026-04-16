@@ -6,6 +6,9 @@ A collection of interactive web applets for mathematics education.
 
 ## Applets
 
+### 📐 [Forces on a Ramp](https://ohiomathteacher.github.io/applet-library/forces-on-ramp/)
+Interactive physics simulation for exploring forces on inclined planes. Visualize force decomposition, friction effects, and energy conservation with draggable objects and real-time physics.
+
 ### 🍬 [Integer Partitioning](https://ohiomathteacher.github.io/applet-library/integer-partitioning/)
 Explore integer partitions through jelly bean distribution, Ferrers diagrams, and constraint filters.
 

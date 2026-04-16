@@ -1,0 +1,933 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Forces on a Ramp</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  background: linear-gradient(to bottom, #e0f2fe 0%, #bae6fd 100%);
+  color: #1e293b;
+  font-family: Arial, sans-serif;
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  justify-content: center;
+  min-height: 100vh;
+  user-select: none;
+  gap: 16px;
+  padding: 20px;
+}
+.main-canvas-container {
+  flex: 1;
+  max-width: 800px;
+}
+canvas { 
+  cursor: default; 
+  display: block; 
+  touch-action: none;
+  border: 2px solid #94a3b8;
+  border-radius: 4px;
+  background: linear-gradient(to bottom, #dbeafe 0%, #e0f2fe 50%, #86efac 100%);
+  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+.controls {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 320px;
+  background: white;
+  padding: 16px;
+  border: 2px solid #94a3b8;
+  border-radius: 8px;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+.control-section {
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  padding: 12px;
+  background: #f8fafc;
+}
+.control-section h3 {
+  font-size: 14px;
+  font-weight: bold;
+  margin-bottom: 10px;
+  color: #334155;
+  font-family: Arial, sans-serif;
+}
+.control-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.slider-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+}
+.slider-group label {
+  font-size: 13px;
+  color: #475569;
+  min-width: 50px;
+  font-family: Arial, sans-serif;
+}
+input[type="range"] {
+  flex: 1;
+  height: 6px;
+  border-radius: 3px;
+  background: #cbd5e1;
+  outline: none;
+  -webkit-appearance: none;
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #3b82f6;
+  cursor: pointer;
+  transition: background 0.15s;
+  border: 2px solid white;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+input[type="range"]::-webkit-slider-thumb:hover {
+  background: #2563eb;
+}
+input[type="range"]::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #3b82f6;
+  cursor: pointer;
+  border: 2px solid white;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+.value-display {
+  font-size: 13px;
+  color: #0f172a;
+  min-width: 50px;
+  text-align: right;
+  font-family: Arial, sans-serif;
+  font-weight: bold;
+}
+.checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+.checkbox-row input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+.checkbox-row label {
+  font-size: 13px;
+  color: #1e293b;
+  cursor: pointer;
+  font-family: Arial, sans-serif;
+}
+.readout-line {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+  margin-bottom: 4px;
+  color: #475569;
+  font-family: Arial, sans-serif;
+}
+.readout-value {
+  color: #0f172a;
+  font-weight: bold;
+}
+.play-section {
+  display: flex;
+  gap: 8px;
+}
+.play-section button {
+  flex: 1;
+  padding: 10px;
+  border: 2px solid #94a3b8;
+  border-radius: 6px;
+  font: bold 14px Arial;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+#btnRelease {
+  background: #22c55e;
+  color: white;
+  border-color: #16a34a;
+}
+#btnRelease:hover { background: #16a34a; }
+#btnRelease:disabled { background: #94a3b8; border-color: #94a3b8; cursor: not-allowed; }
+#btnReset {
+  background: #f8fafc;
+  color: #475569;
+}
+#btnReset:hover { background: #e2e8f0; }
+.energy-bar {
+  height: 24px;
+  border-radius: 4px;
+  overflow: hidden;
+  display: flex;
+  border: 1px solid #cbd5e1;
+  margin-top: 4px;
+}
+.energy-pe {
+  background: #3b82f6;
+  transition: width 0.05s;
+}
+.energy-ke {
+  background: #ef4444;
+  transition: width 0.05s;
+}
+.energy-label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: #64748b;
+  margin-top: 2px;
+}
+.energy-legend {
+  display: flex;
+  gap: 12px;
+  font-size: 12px;
+  color: #475569;
+  margin-bottom: 4px;
+}
+.energy-legend span {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  display: inline-block;
+}
+.speed-display {
+  font-size: 18px;
+  font-weight: bold;
+  color: #1e293b;
+  text-align: center;
+  padding: 4px 0;
+}
+.friction-message {
+  background: #fef3c7;
+  border: 1px solid #fbbf24;
+  border-radius: 4px;
+  padding: 8px;
+  margin-top: 8px;
+  font-size: 12px;
+  color: #92400e;
+  text-align: center;
+  display: none;
+}
+.friction-message.show {
+  display: block;
+}
+</style>
+</head>
+<body>
+<div class="main-canvas-container">
+  <canvas id="c"></canvas>
+</div>
+
+<div class="controls">
+  <div class="control-section">
+    <h3>Vectors</h3>
+    <div class="checkbox-row">
+      <input type="checkbox" id="chkForces" checked>
+      <label for="chkForces">Force Vectors</label>
+    </div>
+    <div class="checkbox-row">
+      <input type="checkbox" id="chkComponents">
+      <label for="chkComponents">Show Components</label>
+    </div>
+    <div class="checkbox-row">
+      <input type="checkbox" id="chkFBD">
+      <label for="chkFBD">Free Body Diagram</label>
+    </div>
+  </div>
+
+  <div class="control-section">
+    <h3>Ramp Angle</h3>
+    <div class="slider-group">
+      <label>θ:</label>
+      <input type="range" id="angleSlider" min="0" max="45" value="25" step="1">
+      <span class="value-display"><span id="angleVal">25</span>°</span>
+    </div>
+  </div>
+  
+  <div class="control-section">
+    <h3>Object</h3>
+    <div class="slider-group">
+      <label>Mass:</label>
+      <input type="range" id="massSlider" min="10" max="100" value="40" step="5">
+      <span class="value-display"><span id="massVal">40</span> kg</span>
+    </div>
+  </div>
+  
+  <div class="control-section">
+    <h3>Friction</h3>
+    <div class="checkbox-row">
+      <input type="checkbox" id="chkFriction">
+      <label for="chkFriction">Enable Friction</label>
+    </div>
+    <div class="slider-group" id="frictionSliderRow" style="opacity: 0.4;">
+      <label>μ<sub>k</sub>:</label>
+      <input type="range" id="frictionSlider" min="0" max="0.5" value="0.2" step="0.01" disabled>
+      <span class="value-display" id="frictionVal">0.20</span>
+    </div>
+  </div>
+
+  <div class="control-section">
+    <h3>Forces</h3>
+    <div class="readout-line">
+      <span>Gravity (mg):</span>
+      <span class="readout-value" id="dispGrav">392 N</span>
+    </div>
+    <div class="readout-line">
+      <span>Normal (N):</span>
+      <span class="readout-value" id="dispNormal">355 N</span>
+    </div>
+    <div class="readout-line">
+      <span>Parallel (mg sin θ):</span>
+      <span class="readout-value" id="dispPar">166 N</span>
+    </div>
+    <div class="readout-line" id="frictionForceRow" style="display: none;">
+      <span>Friction (f):</span>
+      <span class="readout-value" id="dispFriction">0 N</span>
+    </div>
+    <div class="readout-line">
+      <span>Net Force:</span>
+      <span class="readout-value" id="dispNet">166 N</span>
+    </div>
+    <div class="readout-line">
+      <span>Acceleration (a):</span>
+      <span class="readout-value" id="dispAccel">4.15 m/s²</span>
+    </div>
+  </div>
+
+  <div class="control-section">
+    <h3>Simulation</h3>
+    <div class="play-section">
+      <button id="btnRelease">▶ Release!</button>
+      <button id="btnReset">↺ Reset</button>
+    </div>
+    <div class="speed-display">v = <span id="dispSpeed">0.0</span> m/s</div>
+    <div class="energy-legend">
+      <span><span class="legend-dot" style="background:#3b82f6"></span> PE</span>
+      <span><span class="legend-dot" style="background:#ef4444"></span> KE</span>
+    </div>
+    <div class="energy-bar">
+      <div class="energy-pe" id="barPE" style="width: 100%"></div>
+      <div class="energy-ke" id="barKE" style="width: 0%"></div>
+    </div>
+    <div class="energy-label">
+      <span id="dispPE">PE: 0 J</span>
+      <span id="dispKE">KE: 0 J</span>
+    </div>
+    <div style="font-size: 11px; color: #94a3b8; text-align: center; margin-top: 8px;">
+      Drag the crate to set position
+    </div>
+    <div id="frictionMsg" class="friction-message">
+      💪 Friction is too strong! The crate won't budge.
+    </div>
+  </div>
+</div>
+
+<script>
+const cv = document.getElementById('c');
+const ctx = cv.getContext('2d');
+
+const WIDTH = 800;
+const HEIGHT = 600;
+cv.width = WIDTH;
+cv.height = HEIGHT;
+
+const g = 9.8;
+
+let angle = 25;
+let mass = 40;
+let showForces = true;
+let showComponents = false;
+let showFBD = false;
+let hasFriction = false;
+let friction = 0.2;
+
+// Simulation state
+let crateT = 0.45;      // 0 = bottom of ramp, 1 = top
+let velocity = 0;        // m/s along ramp (positive = up)
+let isRunning = false;
+let isDragging = false;
+let lastTime = 0;
+const rampLengthMeters = 8; // physical length of ramp in meters
+
+function rad(deg) { return deg * Math.PI / 180; }
+
+// Draw a filled polygon with wood-like appearance
+function drawWoodPoly(pts, darkColor, lightColor) {
+  ctx.beginPath();
+  ctx.moveTo(pts[0].x, pts[0].y);
+  for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
+  ctx.closePath();
+  ctx.fillStyle = lightColor;
+  ctx.fill();
+  ctx.strokeStyle = darkColor;
+  ctx.lineWidth = 3;
+  ctx.stroke();
+}
+
+// Compute a point offset perpendicular (leftward) to direction along->
+function perpPoint(px, py, theta, dist) {
+  return {
+    x: px - dist * Math.sin(theta),
+    y: py - dist * Math.cos(theta)
+  };
+}
+
+function drawArrow(x1, y1, x2, y2, color, label, thickness) {
+  const dx = x2 - x1, dy = y2 - y1;
+  const len = Math.sqrt(dx*dx + dy*dy);
+  if (len < 3) return;
+  const a = Math.atan2(dy, dx);
+
+  ctx.strokeStyle = color;
+  ctx.lineWidth = thickness;
+  ctx.beginPath();
+  ctx.moveTo(x1, y1);
+  ctx.lineTo(x2, y2);
+  ctx.stroke();
+
+  const h = 12;
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.moveTo(x2, y2);
+  ctx.lineTo(x2 - h*Math.cos(a - 0.4), y2 - h*Math.sin(a - 0.4));
+  ctx.lineTo(x2 - h*Math.cos(a + 0.4), y2 - h*Math.sin(a + 0.4));
+  ctx.closePath();
+  ctx.fill();
+
+  if (label) {
+    const pa = a - Math.PI/2;
+    const lx = (x1+x2)/2 + 22*Math.cos(pa);
+    const ly = (y1+y2)/2 + 22*Math.sin(pa);
+    ctx.font = 'bold 15px Arial';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    const m = ctx.measureText(label);
+    ctx.fillStyle = 'rgba(255,255,255,0.85)';
+    ctx.fillRect(lx - m.width/2 - 4, ly - 11, m.width + 8, 22);
+    ctx.fillStyle = color;
+    ctx.fillText(label, lx, ly);
+  }
+}
+
+function draw() {
+  ctx.clearRect(0, 0, WIDTH, HEIGHT);
+
+  const theta = rad(angle);
+  const cosT = Math.cos(theta), sinT = Math.sin(theta);
+  const mg = mass * g;
+
+  // --- Ground ---
+  const groundY = HEIGHT - 60;
+  ctx.fillStyle = '#86efac';
+  ctx.fillRect(0, groundY, WIDTH, HEIGHT - groundY);
+  ctx.strokeStyle = '#4ade80';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(0, groundY);
+  ctx.lineTo(WIDTH, groundY);
+  ctx.stroke();
+
+  // --- Ramp as a solid wedge (triangle) ---
+  const rampBaseLeft = 60;
+  const rampBaseRight = 620;
+  const rampBaseWidth = rampBaseRight - rampBaseLeft;
+  const rampPeakX = rampBaseLeft;
+  const rampPeakY = groundY - rampBaseWidth * sinT;
+  const rampThickness = 18; // ramp plank thickness
+
+  // Surface of the ramp (top edge)
+  const surfBotX = rampBaseRight;
+  const surfBotY = groundY;
+  const surfTopX = rampPeakX;
+  const surfTopY = rampPeakY;
+
+  // Bottom edge of ramp plank (offset perpendicular below surface)
+  const botBotX = surfBotX - rampThickness * sinT;
+  const botBotY = surfBotY + rampThickness * cosT;
+  const botTopX = surfTopX - rampThickness * sinT;
+  const botTopY = surfTopY + rampThickness * cosT;
+
+  // Vertical support at bottom-right
+  ctx.fillStyle = '#78716c';
+  ctx.fillRect(surfBotX - 18, surfBotY - 6, 20, 10);
+
+  // Vertical support at top-left
+  if (angle > 5) {
+    ctx.fillStyle = '#78716c';
+    ctx.fillRect(surfTopX - 2, surfTopY, 20, groundY - surfTopY);
+  }
+
+  // Draw the ramp plank
+  const rampPts = [
+    {x: surfBotX, y: surfBotY},
+    {x: surfTopX, y: surfTopY},
+    {x: botTopX,  y: botTopY},
+    {x: botBotX,  y: botBotY}
+  ];
+  drawWoodPoly(rampPts, '#654321', '#a07850');
+
+  // Wood grain along ramp
+  ctx.strokeStyle = 'rgba(101, 67, 33, 0.25)';
+  ctx.lineWidth = 1;
+  for (let i = 1; i <= 5; i++) {
+    const t = i / 6;
+    const x1 = surfBotX + t * (surfTopX - surfBotX);
+    const y1 = surfBotY + t * (surfTopY - surfBotY);
+    const x2 = botBotX  + t * (botTopX  - botBotX);
+    const y2 = botBotY  + t * (botTopY  - botBotY);
+    ctx.beginPath();
+    ctx.moveTo(x1, y1);
+    ctx.lineTo(x2, y2);
+    ctx.stroke();
+  }
+
+  // --- Angle arc and label ---
+  // Arc showing angle between horizontal ground and ramp
+  ctx.strokeStyle = '#475569';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(surfBotX, surfBotY, 60, Math.PI, Math.PI + theta, false);
+  ctx.stroke();
+  
+  // Draw horizontal reference line
+  ctx.strokeStyle = '#94a3b8';
+  ctx.lineWidth = 1;
+  ctx.setLineDash([4, 4]);
+  ctx.beginPath();
+  ctx.moveTo(surfBotX - 80, surfBotY);
+  ctx.lineTo(surfBotX, surfBotY);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  
+  // Position label INSIDE the angle (close to vertex, away from ramp surface)
+  const labelA = Math.PI + theta / 2;
+  const labelRadius = 25; // Much closer to vertex
+  ctx.fillStyle = '#1e293b';
+  ctx.font = 'bold 16px Arial';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(angle + '°', 
+    surfBotX + labelRadius * Math.cos(labelA), 
+    surfBotY + labelRadius * Math.sin(labelA));
+
+  // --- Crate ---
+  const crateSize = 50;
+  // crateT is global (0=bottom, 1=top of ramp)
+  // Point on the top surface of the ramp
+  const surfX = surfBotX + crateT * (surfTopX - surfBotX);
+  const surfY = surfBotY + crateT * (surfTopY - surfBotY);
+  // Crate center is offset perpendicular upward from surface by half crate size
+  const cx = surfX + (crateSize / 2) * sinT;
+  const cy = surfY - (crateSize / 2) * cosT;
+
+  // Crate corners (rotated)
+  const hs = crateSize / 2;
+  const corners = [[-hs, -hs], [hs, -hs], [hs, hs], [-hs, hs]];
+  const rotCorners = corners.map(([lx, ly]) => ({
+    x: cx + lx * cosT + ly * sinT,
+    y: cy + lx * sinT - ly * cosT
+  }));
+
+  drawWoodPoly(rotCorners, '#654321', isDragging ? '#daa520' : '#c4944c');
+
+  // Drag hint glow
+  if (isDragging) {
+    ctx.strokeStyle = 'rgba(59, 130, 246, 0.5)';
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.moveTo(rotCorners[0].x, rotCorners[0].y);
+    for (let i = 1; i < rotCorners.length; i++) ctx.lineTo(rotCorners[i].x, rotCorners[i].y);
+    ctx.closePath();
+    ctx.stroke();
+  }
+
+  // Cross-planks on crate
+  ctx.strokeStyle = 'rgba(101, 67, 33, 0.3)';
+  ctx.lineWidth = 1.5;
+  for (let i = 1; i <= 2; i++) {
+    const t = i / 3;
+    const x1 = rotCorners[0].x + t * (rotCorners[1].x - rotCorners[0].x);
+    const y1 = rotCorners[0].y + t * (rotCorners[1].y - rotCorners[0].y);
+    const x2 = rotCorners[3].x + t * (rotCorners[2].x - rotCorners[3].x);
+    const y2 = rotCorners[3].y + t * (rotCorners[2].y - rotCorners[3].y);
+    ctx.beginPath();
+    ctx.moveTo(x1, y1);
+    ctx.lineTo(x2, y2);
+    ctx.stroke();
+  }
+
+  // Mass label on crate
+  ctx.fillStyle = '#1e293b';
+  ctx.font = 'bold 13px Arial';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(mass + ' kg', cx, cy);
+
+  // --- Force Vectors ---
+  if (showForces) {
+    // Dynamic scale: ensure gravity arrow stays within canvas
+    const maxArrowPx = Math.min(HEIGHT - cy - 30, 280);
+    const fScale = Math.min(0.6, maxArrowPx / mg);
+
+    const normalForce = mg * cosT;
+    const parallelForce = mg * sinT;
+    const frictionForce = hasFriction ? friction * normalForce : 0;
+
+    // Gravity (straight down, red)
+    drawArrow(cx, cy, cx, cy + mg * fScale, '#dc2626', 'Fg', 5);
+
+    // Normal force (perpendicular to ramp, up from surface, blue)
+    drawArrow(cx, cy, cx + normalForce * fScale * sinT, cy - normalForce * fScale * cosT, '#2563eb', 'FN', 5);
+
+    if (showComponents) {
+      // Parallel component (down the ramp, orange)
+      drawArrow(cx, cy,
+        cx - parallelForce * fScale * cosT,
+        cy - parallelForce * fScale * (-sinT),
+        '#ea580c', 'mg sin θ', 4);
+
+      // Perpendicular component (into ramp, gray dashed)
+      ctx.setLineDash([8, 4]);
+      drawArrow(cx, cy,
+        cx - normalForce * fScale * sinT,
+        cy + normalForce * fScale * cosT,
+        '#6b7280', 'mg cos θ', 3);
+      ctx.setLineDash([]);
+    }
+
+    // Friction (up the ramp, if enabled)
+    if (hasFriction && angle > 0) {
+      drawArrow(cx, cy,
+        cx + frictionForce * fScale * cosT,
+        cy + frictionForce * fScale * (-sinT),
+        '#9333ea', 'f', 4);
+    }
+  }
+
+  // --- Free Body Diagram ---
+  if (showFBD) {
+    const fbdCx = WIDTH - 140;
+    const fbdCy = 130;
+    const fbdS = Math.min(0.35, 80 / mg);
+
+    const normalForce = mg * cosT;
+    const parallelForce = mg * sinT;
+    const frictionForce = hasFriction ? friction * normalForce : 0;
+
+    ctx.fillStyle = 'rgba(255,255,255,0.95)';
+    ctx.strokeStyle = '#94a3b8';
+    ctx.lineWidth = 2;
+    const bw = 200, bh = 200;
+    ctx.fillRect(fbdCx - bw/2, fbdCy - bh/2, bw, bh);
+    ctx.strokeRect(fbdCx - bw/2, fbdCy - bh/2, bw, bh);
+
+    ctx.fillStyle = '#1e293b';
+    ctx.font = 'bold 13px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText('Free Body Diagram', fbdCx, fbdCy - bh/2 + 16);
+
+    // Dot
+    ctx.beginPath();
+    ctx.arc(fbdCx, fbdCy, 6, 0, Math.PI*2);
+    ctx.fillStyle = '#475569';
+    ctx.fill();
+
+    // Gravity
+    drawArrow(fbdCx, fbdCy, fbdCx, fbdCy + mg * fbdS, '#dc2626', 'Fg', 3);
+    // Normal
+    drawArrow(fbdCx, fbdCy,
+      fbdCx + normalForce * fbdS * sinT,
+      fbdCy - normalForce * fbdS * cosT,
+      '#2563eb', 'FN', 3);
+    // Friction
+    if (hasFriction && angle > 0) {
+      drawArrow(fbdCx, fbdCy,
+        fbdCx + frictionForce * fbdS * cosT,
+        fbdCy + frictionForce * fbdS * (-sinT),
+        '#9333ea', 'f', 3);
+    }
+  }
+
+  updateReadout();
+}
+
+function updateReadout() {
+  const theta = rad(angle);
+  const mg = mass * g;
+  const nf = mg * Math.cos(theta);
+  const pf = mg * Math.sin(theta);
+  const ff = hasFriction ? friction * nf : 0;
+  const net = pf - ff;
+  const acc = net / mass;
+
+  document.getElementById('dispGrav').textContent = mg.toFixed(0) + ' N';
+  document.getElementById('dispNormal').textContent = nf.toFixed(0) + ' N';
+  document.getElementById('dispPar').textContent = pf.toFixed(0) + ' N';
+  document.getElementById('dispFriction').textContent = ff.toFixed(0) + ' N';
+  document.getElementById('dispNet').textContent = net.toFixed(0) + ' N';
+  document.getElementById('dispAccel').textContent = acc.toFixed(2) + ' m/s²';
+}
+
+// Event listeners
+document.getElementById('angleSlider').addEventListener('input', (e) => {
+  angle = parseFloat(e.target.value);
+  document.getElementById('angleVal').textContent = angle;
+  draw();
+});
+
+document.getElementById('massSlider').addEventListener('input', (e) => {
+  mass = parseFloat(e.target.value);
+  document.getElementById('massVal').textContent = mass;
+  draw();
+});
+
+document.getElementById('frictionSlider').addEventListener('input', (e) => {
+  friction = parseFloat(e.target.value);
+  document.getElementById('frictionVal').textContent = friction.toFixed(2);
+  draw();
+});
+
+document.getElementById('chkForces').addEventListener('change', (e) => {
+  showForces = e.target.checked;
+  draw();
+});
+
+document.getElementById('chkComponents').addEventListener('change', (e) => {
+  showComponents = e.target.checked;
+  draw();
+});
+
+document.getElementById('chkFBD').addEventListener('change', (e) => {
+  showFBD = e.target.checked;
+  draw();
+});
+
+document.getElementById('chkFriction').addEventListener('change', (e) => {
+  hasFriction = e.target.checked;
+  document.getElementById('frictionSlider').disabled = !hasFriction;
+  document.getElementById('frictionSliderRow').style.opacity = hasFriction ? '1' : '0.4';
+  document.getElementById('frictionForceRow').style.display = hasFriction ? 'flex' : 'none';
+  draw();
+});
+
+// --- Ramp geometry helpers (match draw() constants) ---
+function getRampGeometry() {
+  const theta = rad(angle);
+  const groundY = HEIGHT - 60;
+  const rampBaseLeft = 60, rampBaseRight = 620;
+  const rampBaseWidth = rampBaseRight - rampBaseLeft;
+  const surfBotX = rampBaseRight, surfBotY = groundY;
+  const surfTopX = rampBaseLeft;
+  const surfTopY = groundY - rampBaseWidth * Math.sin(theta);
+  return { surfBotX, surfBotY, surfTopX, surfTopY, theta };
+}
+
+function getCrateScreenPos() {
+  const { surfBotX, surfBotY, surfTopX, surfTopY, theta } = getRampGeometry();
+  const surfX = surfBotX + crateT * (surfTopX - surfBotX);
+  const surfY = surfBotY + crateT * (surfTopY - surfBotY);
+  const cosT = Math.cos(theta), sinT = Math.sin(theta);
+  const cx = surfX + 25 * sinT;
+  const cy = surfY - 25 * cosT;
+  return { cx, cy };
+}
+
+// --- Mouse/touch → ramp projection ---
+function screenToRampT(mx, my) {
+  const { surfBotX, surfBotY, surfTopX, surfTopY } = getRampGeometry();
+  const dx = surfTopX - surfBotX, dy = surfTopY - surfBotY;
+  const len2 = dx * dx + dy * dy;
+  const t = ((mx - surfBotX) * dx + (my - surfBotY) * dy) / len2;
+  return Math.max(0.05, Math.min(0.95, t));
+}
+
+function isOverCrate(mx, my) {
+  const { cx, cy } = getCrateScreenPos();
+  return Math.abs(mx - cx) < 35 && Math.abs(my - cy) < 35;
+}
+
+function getCanvasPos(e) {
+  const r = cv.getBoundingClientRect();
+  const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+  const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+  return {
+    x: (clientX - r.left) * (WIDTH / r.width),
+    y: (clientY - r.top) * (HEIGHT / r.height)
+  };
+}
+
+// --- Drag handlers ---
+cv.addEventListener('mousedown', (e) => {
+  if (isRunning) return;
+  const { x, y } = getCanvasPos(e);
+  if (isOverCrate(x, y)) {
+    isDragging = true;
+    cv.style.cursor = 'grabbing';
+  }
+});
+
+cv.addEventListener('mousemove', (e) => {
+  const { x, y } = getCanvasPos(e);
+  if (isDragging) {
+    crateT = screenToRampT(x, y);
+    velocity = 0;
+    draw();
+    updateEnergy();
+  } else if (!isRunning) {
+    cv.style.cursor = isOverCrate(x, y) ? 'grab' : 'default';
+  }
+});
+
+cv.addEventListener('mouseup', () => {
+  isDragging = false;
+  cv.style.cursor = 'default';
+});
+
+cv.addEventListener('mouseleave', () => {
+  isDragging = false;
+  cv.style.cursor = 'default';
+});
+
+// Touch support
+cv.addEventListener('touchstart', (e) => {
+  if (isRunning) return;
+  const { x, y } = getCanvasPos(e);
+  if (isOverCrate(x, y)) {
+    isDragging = true;
+    e.preventDefault();
+  }
+});
+
+cv.addEventListener('touchmove', (e) => {
+  if (isDragging) {
+    e.preventDefault();
+    const { x, y } = getCanvasPos(e);
+    crateT = screenToRampT(x, y);
+    velocity = 0;
+    draw();
+    updateEnergy();
+  }
+});
+
+cv.addEventListener('touchend', () => { isDragging = false; });
+
+// --- Physics simulation ---
+function simulate(timestamp) {
+  if (!isRunning) return;
+  if (!lastTime) { lastTime = timestamp; requestAnimationFrame(simulate); return; }
+
+  const dt = Math.min((timestamp - lastTime) / 1000, 0.05); // cap at 50ms
+  lastTime = timestamp;
+
+  const theta = rad(angle);
+  // acceleration along ramp (positive = up ramp)
+  let a = -g * Math.sin(theta); // gravity always pulls down ramp
+
+  if (hasFriction) {
+    const frictionMag = friction * g * Math.cos(theta);
+    if (velocity > 0.01) a -= frictionMag;       // opposes upward motion
+    else if (velocity < -0.01) a += frictionMag;  // opposes downward motion
+    else {
+      // Static check: can friction hold the crate?
+      if (Math.abs(g * Math.sin(theta)) <= frictionMag) {
+        // Crate is held by friction — stop
+        velocity = 0;
+        isRunning = false;
+        document.getElementById('btnRelease').disabled = false;
+        document.getElementById('frictionMsg').classList.add('show');
+        draw();
+        updateEnergy();
+        return;
+      }
+    }
+  }
+
+  velocity += a * dt;
+  const ds = velocity * dt; // meters
+  crateT += ds / rampLengthMeters;
+
+  // Boundary: crate hits bottom of ramp
+  if (crateT <= 0.02) {
+    crateT = 0.02;
+    velocity = 0;
+    isRunning = false;
+    document.getElementById('btnRelease').disabled = false;
+  }
+  // Boundary: crate reaches top
+  if (crateT >= 0.98) {
+    crateT = 0.98;
+    velocity = 0;
+    isRunning = false;
+    document.getElementById('btnRelease').disabled = false;
+  }
+
+  draw();
+  updateEnergy();
+
+  if (isRunning) requestAnimationFrame(simulate);
+}
+
+function updateEnergy() {
+  const theta = rad(angle);
+  const h = crateT * rampLengthMeters * Math.sin(theta);
+  const pe = mass * g * h;
+  const ke = 0.5 * mass * velocity * velocity;
+  const total = pe + ke || 1; // avoid div by zero
+
+  document.getElementById('barPE').style.width = ((pe / total) * 100) + '%';
+  document.getElementById('barKE').style.width = ((ke / total) * 100) + '%';
+  document.getElementById('dispPE').textContent = 'PE: ' + pe.toFixed(0) + ' J';
+  document.getElementById('dispKE').textContent = 'KE: ' + ke.toFixed(0) + ' J';
+  document.getElementById('dispSpeed').textContent = Math.abs(velocity).toFixed(1);
+}
+
+// --- Release / Reset buttons ---
+document.getElementById('btnRelease').addEventListener('click', () => {
+  if (isRunning) return;
+  document.getElementById('frictionMsg').classList.remove('show');
+  isRunning = true;
+  lastTime = 0;
+  document.getElementById('btnRelease').disabled = true;
+  requestAnimationFrame(simulate);
+});
+
+document.getElementById('btnReset').addEventListener('click', () => {
+  isRunning = false;
+  velocity = 0;
+  crateT = 0.45;
+  document.getElementById('btnRelease').disabled = false;
+  document.getElementById('frictionMsg').classList.remove('show');
+  draw();
+  updateEnergy();
+});
+
+// Initialize friction state from checkbox (browser may restore previous state)
+hasFriction = document.getElementById('chkFriction').checked;
+document.getElementById('frictionSlider').disabled = !hasFriction;
+document.getElementById('frictionSliderRow').style.opacity = hasFriction ? '1' : '0.4';
+document.getElementById('frictionForceRow').style.display = hasFriction ? 'flex' : 'none';
+
+draw();
+updateEnergy();
+</script>
+</body>
+</html>

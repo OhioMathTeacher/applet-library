@@ -1,6 +1,6 @@
 # 🎛️ Applet Library
 
-A collection of interactive web applets for mathematics education.
+A collection of interactive web applets for mathematics and science education.
 
 ---
 

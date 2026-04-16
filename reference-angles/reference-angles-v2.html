@@ -87,7 +87,7 @@ canvas { cursor: crosshair; display: block; touch-action: none; position: relati
   align-items: center;
   gap: 6px;
   font: 15px Georgia, serif;
-  color: #94a3b8;
+  color: #000000;
 }
 .angle-row input {
   background: #1e293b;
@@ -332,12 +332,12 @@ function correctSign(q, ratio) {
 
 // ── Quadrant color palette ────────────────────────────────────────────
 const QC = {
-  1: { fill: 'rgba(245,158,11,0.14)',  stroke: '#f59e0b', dot: '#fbbf24', text: '#fde68a' },
-  2: { fill: 'rgba(96,165,250,0.11)',  stroke: '#60a5fa', dot: '#60a5fa', text: '#93c5fd' },
-  3: { fill: 'rgba(167,139,250,0.11)', stroke: '#a78bfa', dot: '#a78bfa', text: '#c4b5fd' },
-  4: { fill: 'rgba(52,211,153,0.11)',  stroke: '#34d399', dot: '#34d399', text: '#6ee7b7' },
+  1: { fill: 'rgba(245,158,11,0.14)',  stroke: '#f59e0b', dot: '#fbbf24', text: '#000000' },
+  2: { fill: 'rgba(96,165,250,0.11)',  stroke: '#60a5fa', dot: '#60a5fa', text: '#000000' },
+  3: { fill: 'rgba(167,139,250,0.11)', stroke: '#a78bfa', dot: '#a78bfa', text: '#000000' },
+  4: { fill: 'rgba(52,211,153,0.11)',  stroke: '#34d399', dot: '#34d399', text: '#000000' },
 };
-const TC = { fill: 'rgba(96,165,250,0.12)', stroke: '#60a5fa', dot: '#93c5fd', text: '#bfdbfe' };
+const TC = { fill: 'rgba(96,165,250,0.12)', stroke: '#60a5fa', dot: '#93c5fd', text: '#000000' };
 function quadColor(q) { return q === 1 ? QC[1] : TC; }
 
 const RC = {
@@ -427,7 +427,7 @@ function drawSpiral() {
   const ly     = ay2 + (radDy / radLen) * lOff;
   ctx.textAlign = 'center';
   ctx.font      = `bold ${SZ * 0.032}px Georgia`;
-  ctx.fillStyle = '#f59e0b';
+  ctx.fillStyle = '#000000';
   ctx.fillText(`${thetaDeg.toFixed(1)}°`, lx, ly + 4);
 
   if (absRad > maxVisRad) {
@@ -643,12 +643,12 @@ function draw() {
   ctx.stroke();
 
   // Axis labels
-  ctx.fillStyle = '#475569'; ctx.font = `${SZ * 0.03}px Georgia`; ctx.textAlign = 'center';
+  ctx.fillStyle = '#000000'; ctx.font = `${SZ * 0.03}px Georgia`; ctx.textAlign = 'center';
   ctx.fillText('x', OX + R * 1.17, OY - 6);
   ctx.fillText('y', OX + 10,       OY - R * 1.15);
 
   // Quadrant labels
-  ctx.font = `${SZ * 0.04}px Georgia`; ctx.fillStyle = 'rgba(148,163,184,0.07)';
+  ctx.font = `${SZ * 0.04}px Georgia`; ctx.fillStyle = 'rgba(0,0,0,0.14)';
   ctx.textAlign = 'right'; ctx.fillText('I',   OX + R * 1.1, OY - R * 0.8);
   ctx.textAlign = 'left';  ctx.fillText('II',  OX - R * 1.1, OY - R * 0.8);
   ctx.textAlign = 'left';  ctx.fillText('III', OX - R * 1.1, OY + R * 0.92);
@@ -675,7 +675,7 @@ function draw() {
   // θ label
   ctx.textAlign = 'left';
   ctx.font      = `bold ${SZ * 0.038}px Georgia`;
-  ctx.fillStyle = '#cbd5e1';
+  ctx.fillStyle = '#000000';
   ctx.fillText(`θ = ${thetaDeg.toFixed(1)}°`, 14, 34);
 
   // v2 badge

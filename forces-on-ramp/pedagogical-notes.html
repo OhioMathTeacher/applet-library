@@ -34,6 +34,31 @@ header {
   padding-bottom: 1rem;
   border-bottom: 3px solid var(--accent);
   margin-bottom: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+}
+
+.library-link {
+  position: absolute;
+  top: 0;
+  left: 0;
+  padding: 0.4rem 0.8rem;
+  border-radius: 4px;
+  border: 2px solid var(--border);
+  background: white;
+  color: var(--accent);
+  font-weight: 600;
+  text-decoration: none;
+  font-size: 0.9rem;
+  transition: all 0.2s;
+}
+
+.library-link:hover {
+  background: var(--accent);
+  color: white;
+  border-color: var(--accent);
 }
 
 h1 {
@@ -182,6 +207,7 @@ button:hover {
 </head>
 <body>
 <header>
+  <a href="../README.md" class="library-link">← Library</a>
   <h1>📐 Forces on a Ramp</h1>
   <p class="subtitle">Pedagogical Notes for McKenzie Sorce's Hot Wheels F=ma Lesson</p>
   <a href="forces-on-ramp.html" class="launch-btn">🚀 Launch Applet</a>
@@ -235,49 +261,12 @@ button:hover {
   <p style="color: var(--muted); margin-bottom: 0.8rem; font-size: 0.9rem;">
     What did you notice? What was confusing? What would make this better?
   </p>
-  <div class="feedback-controls">
-    <textarea id="studentNotes" placeholder="Your observations (saved privately in your browser)..."></textarea>
-    <div style="display: flex; flex-direction: column; gap: 0.5rem;">
-      <button onclick="saveNotes()">💾 Save</button>
-      <span class="save-status" id="saveStatus"></span>
-    </div>
+  <div style="text-align: center;">
+    <a href="#" class="launch-btn" style="display: inline-block; margin-top: 0.5rem;" target="_blank">📝 Add Your Feedback (Google Doc)</a>
+    <p class="hint" style="margin-top: 0.8rem;">
+      Click above to open the shared feedback document. Your instructor will review all responses this weekend.
+    </p>
   </div>
-  <p class="hint">
-    Notes saved locally only (not shared). Copy/paste to email if you want to send feedback.
-  </p>
 </div>
-
-<script>
-// Load saved notes from localStorage on page load
-window.addEventListener('DOMContentLoaded', () => {
-  const savedNotes = localStorage.getItem('forcesAppletNotes');
-  if (savedNotes) {
-    document.getElementById('studentNotes').value = savedNotes;
-  }
-});
-
-// Auto-save as user types (debounced)
-let saveTimeout;
-document.getElementById('studentNotes').addEventListener('input', () => {
-  clearTimeout(saveTimeout);
-  saveTimeout = setTimeout(() => {
-    saveNotes(true);
-  }, 1000);
-});
-
-function saveNotes(autoSave = false) {
-  const notes = document.getElementById('studentNotes').value;
-  localStorage.setItem('forcesAppletNotes', notes);
-  
-  const statusEl = document.getElementById('saveStatus');
-  statusEl.textContent = autoSave ? 'Auto-saved ✓' : 'Saved! ✓';
-  statusEl.classList.add('saved');
-  
-  setTimeout(() => {
-    statusEl.textContent = '';
-    statusEl.classList.remove('saved');
-  }, 3000);
-}
-</script>
 </body>
 </html>

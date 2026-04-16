@@ -1,0 +1,872 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Reference Angles v2</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  background: #0f172a;
+  color: #e2e8f0;
+  font-family: Georgia, serif;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  user-select: none;
+  gap: 10px;
+  padding: 6px;
+}
+canvas { cursor: crosshair; display: block; touch-action: none; position: relative; }
+.btn-row { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; align-items: center; }
+.btn-row button {
+  background: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 8px;
+  color: #64748b;
+  padding: 7px 18px;
+  cursor: pointer;
+  font: 15px Georgia, serif;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.btn-row button:hover:not(.on) { background: #273449; color: #cbd5e1; }
+[data-q="1"].on { background: rgba(245,158,11,0.15);  border-color: #f59e0b; color: #fde68a; }
+[data-q="2"].on { background: rgba(96,165,250,0.15);  border-color: #60a5fa; color: #93c5fd; }
+[data-q="3"].on { background: rgba(167,139,250,0.15); border-color: #a78bfa; color: #c4b5fd; }
+[data-q="4"].on { background: rgba(52,211,153,0.15);  border-color: #34d399; color: #6ee7b7; }
+[data-ratio="sin"].on { background: rgba(248,113,113,0.15); border-color: #f87171; color: #fca5a5; }
+[data-ratio="cos"].on { background: rgba(52,211,153,0.15);  border-color: #34d399; color: #6ee7b7; }
+[data-ratio="tan"].on { background: rgba(250,204,21,0.15);  border-color: #facc15; color: #fde047; }
+.sep { color: #334155; padding: 0 2px; font-size: 20px; line-height: 1; }
+.angle-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font: 15px Georgia, serif;
+  color: #94a3b8;
+}
+.angle-row input {
+  background: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 8px;
+  color: #e2e8f0;
+  padding: 7px 10px;
+  font: 15px Georgia, serif;
+  width: 100px;
+  text-align: right;
+}
+.angle-row input:focus { outline: none; border-color: #60a5fa; }
+.hint { font-size: 11px; color: #334155; letter-spacing: 0.05em; }
+.ref-label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: #64748b;
+  cursor: pointer;
+  font: 15px Georgia, serif;
+  padding: 7px 14px;
+  background: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 8px;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.ref-label:hover { background: #273449; color: #cbd5e1; }
+.ref-label.on { background: rgba(245,158,11,0.15); border-color: #f59e0b; color: #fde68a; }
+.ref-label input[type="checkbox"] { display: none; }
+#bRadiusOnly.on { background: rgba(148,163,184,0.15); border-color: #94a3b8; color: #e2e8f0; }
+#bPredict.on { background: rgba(168,85,247,0.15); border-color: #a855f7; color: #c4b5fd; }
+
+/* Predict panel */
+.predict-panel {
+  background: #1e293b;
+  border: 2px solid #334155;
+  border-radius: 12px;
+  padding: 16px;
+  max-width: 500px;
+  display: none;
+}
+.predict-panel.active { display: block; }
+.predict-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  gap: 12px;
+}
+.predict-row:last-of-type { margin-bottom: 16px; }
+.predict-label {
+  font: bold 16px Georgia, serif;
+  color: #94a3b8;
+  min-width: 50px;
+}
+.predict-btns {
+  display: flex;
+  gap: 8px;
+}
+.sign-btn {
+  background: #1e293b;
+  border: 2px solid #475569;
+  border-radius: 8px;
+  color: #94a3b8;
+  padding: 8px 20px;
+  cursor: pointer;
+  font: bold 18px Georgia, serif;
+  min-width: 50px;
+  transition: all 0.2s;
+}
+.sign-btn:hover { background: #273449; border-color: #64748b; }
+.sign-btn.selected { background: rgba(168,85,247,0.2); border-color: #a855f7; color: #c4b5fd; }
+.sign-btn.correct { background: rgba(34,197,94,0.2); border-color: #22c55e; color: #86efac; }
+.sign-btn.wrong { background: rgba(239,68,68,0.2); border-color: #ef4444; color: #fca5a5; }
+.sign-btn.missed { background: rgba(250,204,21,0.2); border-color: #facc15; color: #fde047; }
+#btnCheckPredictions {
+  width: 100%;
+  background: #a855f7;
+  border: 2px solid #9333ea;
+  border-radius: 8px;
+  color: white;
+  padding: 10px;
+  cursor: pointer;
+  font: bold 15px Georgia, serif;
+  transition: background 0.2s;
+}
+#btnCheckPredictions:hover { background: #9333ea; }
+#btnCheckPredictions:disabled {
+  background: #334155;
+  border-color: #475569;
+  color: #64748b;
+  cursor: not-allowed;
+}
+</style>
+</head>
+<body>
+<div class="btn-row">
+  <button data-q="1">View Q1 Reference</button>
+  <span class="sep">|</span>
+  <button data-q="2">Quadrant II</button>
+  <button data-q="3">Quadrant III</button>
+  <button data-q="4">Quadrant IV</button>
+</div>
+<canvas id="c"></canvas>
+<div class="btn-row">
+  <button id="bSin" data-ratio="sin">sin</button>
+  <button id="bCos" data-ratio="cos">cos</button>
+  <button id="bTan" data-ratio="tan">tan</button>
+  <span class="sep">|</span>
+  <button id="bRadiusOnly">Radius only</button>
+  <button id="bPredict">Predict Signs</button>
+  <button id="bReset">↺ Reset</button>
+</div>
+<div class="angle-row">
+  <span>θ =</span>
+  <input id="angleInput" type="number" value="45" min="-7200" max="7200" step="1">
+  <span>°</span>
+  <span class="sep">|</span>
+  <label id="lViewRef" class="ref-label">
+    <input type="checkbox" id="cbViewRef"> All quadrants
+  </label>
+</div>
+<div class="hint">drag the point anywhere on the circle</div>
+
+<!-- Predict Signs Panel -->
+<div id="predictPanel" class="predict-panel">
+  <div class="predict-row">
+    <span class="predict-label">sin:</span>
+    <div class="predict-btns">
+      <button class="sign-btn" data-ratio="sin" data-sign="+">+</button>
+      <button class="sign-btn" data-ratio="sin" data-sign="−">−</button>
+    </div>
+  </div>
+  <div class="predict-row">
+    <span class="predict-label">cos:</span>
+    <div class="predict-btns">
+      <button class="sign-btn" data-ratio="cos" data-sign="+">+</button>
+      <button class="sign-btn" data-ratio="cos" data-sign="−">−</button>
+    </div>
+  </div>
+  <div class="predict-row">
+    <span class="predict-label">tan:</span>
+    <div class="predict-btns">
+      <button class="sign-btn" data-ratio="tan" data-sign="+">+</button>
+      <button class="sign-btn" data-ratio="tan" data-sign="−">−</button>
+    </div>
+  </div>
+  <button id="btnCheckPredictions" disabled>Check my answers</button>
+</div>
+
+<script>
+const cv  = document.getElementById('c');
+const ctx = cv.getContext('2d');
+
+const SZ  = Math.min(window.innerWidth - 16, window.innerHeight - 260, 500);
+cv.width  = SZ;
+cv.height = SZ;
+
+const OX = SZ / 2, OY = SZ / 2, R = SZ * 0.365;
+
+let thetaDeg = 45;
+let alpha    = Math.PI / 4;
+let drag     = false;
+let prevRaw  = null;
+
+const activeRatios = new Set();
+let viewQuad       = null;
+let savedTheta     = null;
+let viewAllQuads   = false;
+let radiusOnly     = false;
+let predictMode    = false;
+let predictions    = { sin: null, cos: null, tan: null };
+let predicted      = false;
+
+// ── Angle helpers ─────────────────────────────────────────────────────
+function normalize(a) { return ((a % (2*Math.PI)) + 2*Math.PI) % (2*Math.PI); }
+
+function refOf(a) {
+  const n = normalize(a);
+  if (n <= Math.PI/2)       return n;
+  if (n <= Math.PI)         return Math.PI - n;
+  if (n <= 3*Math.PI/2)     return n - Math.PI;
+  return 2*Math.PI - n;
+}
+
+function quadOf(a) {
+  const n = normalize(a);
+  if (n < Math.PI/2)    return 1;
+  if (n < Math.PI)      return 2;
+  if (n < 3*Math.PI/2)  return 3;
+  return 4;
+}
+
+function normRad() { return normalize(thetaDeg * Math.PI / 180); }
+
+// ── Exact values for special angles ──────────────────────────────────
+function isSpecialAngle(refDeg) {
+  return [0, 30, 45, 60, 90].some(sp => Math.abs(refDeg - sp) < 1.5);
+}
+
+function getExactValue(refDeg, ratio) {
+  const snapDeg = [0, 30, 45, 60, 90].find(sp => Math.abs(refDeg - sp) < 1.5);
+  if (snapDeg === undefined) return null;
+
+  const table = {
+    0:  { sin: '0',     cos: '1',     tan: '0' },
+    30: { sin: '½',     cos: '√3/2',  tan: '√3/3' },
+    45: { sin: '√2/2',  cos: '√2/2',  tan: '1' },
+    60: { sin: '√3/2',  cos: '½',     tan: '√3' },
+    90: { sin: '1',     cos: '0',     tan: 'undef' }
+  };
+
+  return table[snapDeg][ratio];
+}
+
+// Apply quadrant signs to exact values
+function signedExactValue(q, ratio, exactStr) {
+  if (exactStr === 'undef') return exactStr;
+  const positive = (ratio === 'sin' && (q === 1 || q === 2)) ||
+                   (ratio === 'cos' && (q === 1 || q === 4)) ||
+                   (ratio === 'tan' && (q === 1 || q === 3));
+  return positive ? exactStr : `−${exactStr}`;
+}
+
+// ── Sign checking for predict mode ────────────────────────────────────
+function correctSign(q, ratio) {
+  if (ratio === 'sin') return (q === 1 || q === 2) ? '+' : '−';
+  if (ratio === 'cos') return (q === 1 || q === 4) ? '+' : '−';
+  if (ratio === 'tan') return (q === 1 || q === 3) ? '+' : '−';
+  return '+';
+}
+
+// ── Quadrant color palette ────────────────────────────────────────────
+const QC = {
+  1: { fill: 'rgba(245,158,11,0.14)',  stroke: '#f59e0b', dot: '#fbbf24', text: '#fde68a' },
+  2: { fill: 'rgba(96,165,250,0.11)',  stroke: '#60a5fa', dot: '#60a5fa', text: '#93c5fd' },
+  3: { fill: 'rgba(167,139,250,0.11)', stroke: '#a78bfa', dot: '#a78bfa', text: '#c4b5fd' },
+  4: { fill: 'rgba(52,211,153,0.11)',  stroke: '#34d399', dot: '#34d399', text: '#6ee7b7' },
+};
+const TC = { fill: 'rgba(96,165,250,0.12)', stroke: '#60a5fa', dot: '#93c5fd', text: '#bfdbfe' };
+function quadColor(q) { return q === 1 ? QC[1] : TC; }
+
+const RC = {
+  sin: { oppPos: '#f87171', oppNeg: '#7f1d1d', hyp: '#60a5fa' },
+  cos: { adjPos: '#34d399', adjNeg: '#166534', hyp: '#60a5fa' },
+};
+const DIM_SIDE = '#1e3a5f';
+
+// ── Drawing helpers ───────────────────────────────────────────────────
+function segment(x1, y1, x2, y2, color, lw, dash = []) {
+  ctx.beginPath();
+  ctx.setLineDash(dash);
+  ctx.moveTo(x1, y1); ctx.lineTo(x2, y2);
+  ctx.strokeStyle = color; ctx.lineWidth = lw;
+  ctx.stroke();
+  ctx.setLineDash([]);
+}
+
+function tickMark(x1, y1, x2, y2, color) {
+  const mx = (x1 + x2) / 2, my = (y1 + y2) / 2;
+  const dx = x2 - x1, dy = y2 - y1, len = Math.hypot(dx, dy);
+  if (len < 10) return;
+  const px = -dy / len * 5, py = dx / len * 5;
+  segment(mx - px, my - py, mx + px, my + py, color, 1.5);
+}
+
+function rightAngleMark(fx, fy, hDir, vDir) {
+  const s = SZ * 0.018;
+  ctx.beginPath();
+  ctx.moveTo(fx + hDir * s, fy);
+  ctx.lineTo(fx + hDir * s, fy + vDir * s);
+  ctx.lineTo(fx, fy + vDir * s);
+  ctx.strokeStyle = 'rgba(148,163,184,0.35)';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+}
+
+// ── Full-angle spiral ─────────────────────────────────────────────────
+function drawSpiral() {
+  const totalRad = thetaDeg * Math.PI / 180;
+  const absRad   = Math.abs(totalRad);
+  if (absRad < 0.01) return;
+
+  const sign = totalRad >= 0 ? 1 : -1;
+  const maxVisRad   = 10 * Math.PI;
+  const drawRad     = Math.min(absRad, maxVisRad);
+  const rMin            = R * 0.07;
+  const rGrowthPerRad   = (R * 0.045) / (2 * Math.PI);
+  const steps = Math.max(80, Math.ceil(drawRad * 30));
+
+  ctx.beginPath();
+  ctx.setLineDash([]);
+  for (let i = 0; i <= steps; i++) {
+    const phi = (i / steps) * drawRad;
+    const r   = rMin + rGrowthPerRad * phi;
+    const ca  = -sign * phi;
+    const x   = OX + r * Math.cos(ca);
+    const y   = OY + r * Math.sin(ca);
+    if (i === 0) ctx.moveTo(x, y);
+    else         ctx.lineTo(x, y);
+  }
+  ctx.strokeStyle = 'rgba(245,158,11,0.75)';
+  ctx.lineWidth   = 1.8;
+  ctx.stroke();
+
+  const eps  = 0.05;
+  const phi1 = drawRad - eps, phi2 = drawRad;
+  const r1   = rMin + rGrowthPerRad * phi1;
+  const r2   = rMin + rGrowthPerRad * phi2;
+  const ax1  = OX + r1 * Math.cos(-sign * phi1), ay1 = OY + r1 * Math.sin(-sign * phi1);
+  const ax2  = OX + r2 * Math.cos(-sign * phi2), ay2 = OY + r2 * Math.sin(-sign * phi2);
+  const tAng = Math.atan2(ay2 - ay1, ax2 - ax1);
+  const wL   = 9, spread = 0.45;
+  ctx.beginPath();
+  ctx.moveTo(ax2, ay2);
+  ctx.lineTo(ax2 + wL * Math.cos(tAng + Math.PI - spread), ay2 + wL * Math.sin(tAng + Math.PI - spread));
+  ctx.moveTo(ax2, ay2);
+  ctx.lineTo(ax2 + wL * Math.cos(tAng + Math.PI + spread), ay2 + wL * Math.sin(tAng + Math.PI + spread));
+  ctx.strokeStyle = '#f59e0b';
+  ctx.lineWidth   = 2;
+  ctx.stroke();
+
+  const radDx  = ax2 - OX, radDy = ay2 - OY;
+  const radLen = Math.hypot(radDx, radDy) || 1;
+  const lOff   = SZ * 0.055;
+  const lx     = ax2 + (radDx / radLen) * lOff;
+  const ly     = ay2 + (radDy / radLen) * lOff;
+  ctx.textAlign = 'center';
+  ctx.font      = `bold ${SZ * 0.032}px Georgia`;
+  ctx.fillStyle = '#f59e0b';
+  ctx.fillText(`${thetaDeg.toFixed(1)}°`, lx, ly + 4);
+
+  if (absRad > maxVisRad) {
+    const extraTurns = Math.floor((absRad - maxVisRad) / (2 * Math.PI));
+    const label = `+${extraTurns + 5} rev`;
+    ctx.font      = `${SZ * 0.024}px Georgia`;
+    ctx.textAlign = 'center';
+    ctx.fillStyle = 'rgba(245,158,11,0.55)';
+    ctx.fillText(label, OX, OY + R * 0.18);
+  }
+}
+
+// ── Angle arc + degree label ──────────────────────────────────────────
+function drawAngleArc(q) {
+  const arcR = R * 0.13;
+
+  let sa, ea, acw;
+  if      (q === 1) { sa = 0;        ea = -alpha;          acw = true;  }
+  else if (q === 2) { sa = Math.PI;  ea = alpha - Math.PI; acw = false; }
+  else if (q === 3) { sa = Math.PI;  ea = Math.PI - alpha; acw = true;  }
+  else              { sa = 0;        ea = alpha;            acw = false; }
+
+  ctx.beginPath();
+  ctx.arc(OX, OY, arcR, sa, ea, acw);
+  const qc = quadColor(q);
+  ctx.strokeStyle = qc.stroke;
+  ctx.lineWidth   = q === 1 ? 2 : 1.5;
+  ctx.stroke();
+
+  let midCA;
+  if      (q === 1) midCA = -alpha / 2;
+  else if (q === 2) midCA = Math.PI + alpha / 2;
+  else if (q === 3) midCA = Math.PI - alpha / 2;
+  else              midCA = alpha / 2;
+
+  const lR    = R * 0.28;
+  const lx    = OX + lR * Math.cos(midCA);
+  const lyRaw = OY + lR * Math.sin(midCA);
+  const gap   = SZ * 0.022;
+  const ly    = (q === 1 || q === 2) ? Math.min(OY - gap, lyRaw) : Math.max(OY + gap, lyRaw);
+
+  const refDeg = (alpha * 180 / Math.PI).toFixed(1);
+  ctx.textAlign = 'center';
+  ctx.font      = `bold ${SZ * 0.032}px Georgia`;
+  ctx.fillStyle = qc.text;
+  ctx.fillText(`${refDeg}°`, lx, ly + 5);
+}
+
+// ── Triangle ─────────────────────────────────────────────────────────
+function drawTriangle(q, isTerminal) {
+  const cosA = Math.cos(alpha), sinA = Math.sin(alpha);
+  const sx   = (q === 1 || q === 4) ? 1 : -1;
+  const sy   = (q === 1 || q === 2) ? 1 : -1;
+
+  const ex = OX + R * sx * cosA;
+  const ey = OY - R * sy * sinA;
+  const fx = ex, fy = OY;
+
+  const c      = quadColor(q);
+  const dotR   = (q === 1 || isTerminal) ? 11 : 9;
+
+  if (radiusOnly) {
+    segment(OX, OY, ex, ey, c.stroke, 2.5);
+    ctx.beginPath(); ctx.arc(ex, ey, dotR, 0, Math.PI * 2);
+    ctx.fillStyle = c.dot; ctx.fill();
+    ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.stroke();
+    return;
+  }
+
+  const hlMode = activeRatios.size > 0;
+  const hlOpp = activeRatios.has('sin') || activeRatios.has('tan');
+  const hlAdj = activeRatios.has('cos') || activeRatios.has('tan');
+  const hlHyp = activeRatios.has('sin') || activeRatios.has('cos');
+
+  const HL = 5;
+  let hypLW = 2.5, adjLW = 2, oppLW = 3;
+  let fillC, hypC, adjC, oppC;
+
+  if (hlMode) {
+    fillC = 'rgba(100,116,139,0.07)';
+    oppC  = hlOpp ? RC.sin.oppPos : DIM_SIDE;
+    adjC  = hlAdj ? RC.cos.adjPos : DIM_SIDE;
+    hypC  = hlHyp ? RC.sin.hyp   : DIM_SIDE;
+    if (hlOpp) oppLW = HL;
+    if (hlAdj) adjLW = HL;
+    if (hlHyp) hypLW = HL;
+  } else {
+    fillC = c.fill;
+    hypC = adjC = oppC = c.stroke;
+  }
+
+  ctx.beginPath();
+  ctx.moveTo(OX, OY); ctx.lineTo(fx, fy); ctx.lineTo(ex, ey);
+  ctx.closePath();
+  ctx.fillStyle = fillC; ctx.fill();
+
+  rightAngleMark(fx, fy, -sx, sy === 1 ? -1 : 1);
+
+  segment(OX, OY, ex, ey, hypC, hypLW);
+
+  if (cosA > 0.06) {
+    segment(OX, OY, fx, fy, adjC, adjLW);
+    if (!hlMode) tickMark(OX, OY, fx, fy, c.stroke);
+  }
+  if (sinA > 0.06) {
+    segment(fx, fy, ex, ey, oppC, oppLW);
+    if (!hlMode) tickMark(fx, fy, ex, ey, c.stroke);
+  }
+
+  ctx.beginPath(); ctx.arc(ex, ey, dotR, 0, Math.PI * 2);
+  ctx.fillStyle = c.dot; ctx.fill();
+  ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.stroke();
+}
+
+// ── Coordinate label ─────────────────────────────────────────────────
+function drawCoordLabel(q, cosA, sinA) {
+  const sx  = (q === 1 || q === 4) ? 1 : -1;
+  const sy  = (q === 1 || q === 2) ? 1 : -1;
+  const ex  = OX + R * sx * cosA;
+  const ey  = OY - R * sy * sinA;
+  const off = SZ * 0.075;
+  let lx    = ex + sx * cosA * off;
+  let ly    = ey - sy * sinA * off;
+
+  // Predict mode: hide coordinates until checked
+  if (predictMode && !predicted) {
+    const text = '( ?, ? )';
+    ctx.font = `bold ${SZ * 0.034}px Georgia`;
+    const tw  = ctx.measureText(text).width;
+    const pad = SZ * 0.018;
+
+    ctx.textAlign = sx > 0 ? 'left' : 'right';
+    if (sx > 0) lx = Math.min(lx, SZ - tw - pad);
+    else        lx = Math.max(lx, tw + pad);
+    ly = Math.max(pad * 2, Math.min(SZ - pad, ly));
+
+    ctx.fillStyle = '#a855f7';
+    ctx.fillText(text, lx, ly + 4);
+    return;
+  }
+
+  const refDeg = alpha * 180 / Math.PI;
+  const isSpecial = isSpecialAngle(refDeg);
+
+  // Show exact values if at special angle
+  if (isSpecial) {
+    const sinExact = signedExactValue(q, 'sin', getExactValue(refDeg, 'sin'));
+    const cosExact = signedExactValue(q, 'cos', getExactValue(refDeg, 'cos'));
+    
+    const xVal = sx > 0 ? cosA : -cosA;
+    const yVal = sy > 0 ? sinA : -sinA;
+    
+    // Exact form (larger, white)
+    const exactText = `( ${cosExact},  ${sinExact} )`;
+    ctx.font = `bold ${SZ * 0.032}px Georgia`;
+    const tw  = ctx.measureText(exactText).width;
+    const pad = SZ * 0.018;
+
+    ctx.textAlign = sx > 0 ? 'left' : 'right';
+    if (sx > 0) lx = Math.min(lx, SZ - tw - pad);
+    else        lx = Math.max(lx, tw + pad);
+    ly = Math.max(pad * 2, Math.min(SZ - pad, ly));
+
+    ctx.fillStyle = quadColor(q).text;
+    ctx.fillText(exactText, lx, ly);
+
+    // Decimal form below (smaller, muted)
+    const decText = `( ${xVal.toFixed(3)},  ${yVal.toFixed(3)} )`;
+    ctx.font = `${SZ * 0.022}px Georgia`;
+    ctx.globalAlpha = 0.45;
+    ctx.fillText(decText, lx, ly + SZ * 0.028);
+    ctx.globalAlpha = 1;
+  } else {
+    // Regular decimal display
+    const xPart = sx > 0 ? ` ${cosA.toFixed(3)}` : `−${cosA.toFixed(3)}`;
+    const yPart = sy > 0 ? ` ${sinA.toFixed(3)}` : `−${sinA.toFixed(3)}`;
+    const text  = `( ${xPart},  ${yPart} )`;
+
+    ctx.font = `${SZ * 0.027}px Georgia`;
+    const tw  = ctx.measureText(text).width;
+    const pad = SZ * 0.018;
+
+    ctx.textAlign = sx > 0 ? 'left' : 'right';
+    if (sx > 0) lx = Math.min(lx, SZ - tw - pad);
+    else        lx = Math.max(lx, tw + pad);
+    ly = Math.max(pad * 2, Math.min(SZ - pad, ly));
+
+    ctx.fillStyle = quadColor(q).text;
+    ctx.fillText(text, lx, ly + 4);
+  }
+}
+
+// ── Main render ───────────────────────────────────────────────────────
+function draw() {
+  ctx.clearRect(0, 0, SZ, SZ);
+
+  const nr   = normRad();
+  alpha      = refOf(nr);
+  const qCur = quadOf(nr);
+  const cosA = Math.cos(alpha), sinA = Math.sin(alpha);
+
+  // Faint grid rings
+  [0.33, 0.67].forEach(f => {
+    ctx.beginPath(); ctx.arc(OX, OY, R * f, 0, Math.PI * 2);
+    ctx.strokeStyle = '#1e293b'; ctx.lineWidth = 1; ctx.stroke();
+  });
+
+  // Axes
+  ctx.strokeStyle = '#334155'; ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(OX - R * 1.2, OY); ctx.lineTo(OX + R * 1.2, OY);
+  ctx.moveTo(OX, OY - R * 1.2); ctx.lineTo(OX, OY + R * 1.2);
+  ctx.stroke();
+
+  // Axis labels
+  ctx.fillStyle = '#475569'; ctx.font = `${SZ * 0.03}px Georgia`; ctx.textAlign = 'center';
+  ctx.fillText('x', OX + R * 1.17, OY - 6);
+  ctx.fillText('y', OX + 10,       OY - R * 1.15);
+
+  // Quadrant labels
+  ctx.font = `${SZ * 0.04}px Georgia`; ctx.fillStyle = 'rgba(148,163,184,0.07)';
+  ctx.textAlign = 'right'; ctx.fillText('I',   OX + R * 1.1, OY - R * 0.8);
+  ctx.textAlign = 'left';  ctx.fillText('II',  OX - R * 1.1, OY - R * 0.8);
+  ctx.textAlign = 'left';  ctx.fillText('III', OX - R * 1.1, OY + R * 0.92);
+  ctx.textAlign = 'right'; ctx.fillText('IV',  OX + R * 1.1, OY + R * 0.92);
+
+  // Unit circle
+  ctx.beginPath(); ctx.arc(OX, OY, R, 0, Math.PI * 2);
+  ctx.strokeStyle = '#475569'; ctx.lineWidth = 1.5; ctx.stroke();
+
+  // All quadrants mode vs single triangle
+  if (viewAllQuads) {
+    // Draw triangles in all four quadrants
+    [1, 2, 3, 4].forEach(q => {
+      drawTriangle(q, q === qCur);
+      drawAngleArc(q);
+      drawCoordLabel(q, cosA, sinA);
+    });
+  } else {
+    if (!viewAllQuads) drawSpiral();
+    drawTriangle(qCur, true);
+    drawCoordLabel(qCur, cosA, sinA);
+  }
+
+  // θ label
+  ctx.textAlign = 'left';
+  ctx.font      = `bold ${SZ * 0.038}px Georgia`;
+  ctx.fillStyle = '#cbd5e1';
+  ctx.fillText(`θ = ${thetaDeg.toFixed(1)}°`, 14, 34);
+
+  // v2 badge
+  ctx.textAlign = 'right';
+  ctx.font      = `${SZ * 0.024}px Georgia`;
+  ctx.fillStyle = 'rgba(168,85,247,0.35)';
+  ctx.fillText('v2', SZ - 10, SZ - 8);
+}
+
+// ── Sync the angle input box ──────────────────────────────────────────
+const angleInput = document.getElementById('angleInput');
+
+function syncInput() {
+  angleInput.value = thetaDeg.toFixed(1);
+}
+
+// ── Drag interaction ──────────────────────────────────────────────────
+function angleFromEvent(e) {
+  const rect = cv.getBoundingClientRect();
+  const scx  = SZ / rect.width, scy = SZ / rect.height;
+  const cx   = e.touches ? e.touches[0].clientX : e.clientX;
+  const cy   = e.touches ? e.touches[0].clientY : e.clientY;
+  const raw  = Math.atan2(-((cy - rect.top) * scy - OY), (cx - rect.left) * scx - OX);
+  return ((raw * 180 / Math.PI) % 360 + 360) % 360;
+}
+
+function snapToRaw(rawDeg) {
+  const norm = ((thetaDeg % 360) + 360) % 360;
+  let delta  = rawDeg - norm;
+  if (delta >  180) delta -= 360;
+  if (delta < -180) delta += 360;
+  thetaDeg = Math.max(-7200, Math.min(7200, thetaDeg + delta));
+}
+
+function accumulateDrag(rawDeg) {
+  let delta = rawDeg - prevRaw;
+  if (delta >  180) delta -= 360;
+  if (delta < -180) delta += 360;
+  thetaDeg = Math.max(-7200, Math.min(7200, thetaDeg + delta));
+  prevRaw  = rawDeg;
+}
+
+function resetPrediction() {
+  predictions = { sin: null, cos: null, tan: null };
+  predicted = false;
+  document.querySelectorAll('.sign-btn').forEach(btn => {
+    btn.classList.remove('selected', 'correct', 'wrong', 'missed');
+  });
+  updateCheckButton();
+}
+
+cv.addEventListener('mousedown', e => {
+  exitComparison();
+  resetPrediction();
+  drag    = true;
+  prevRaw = angleFromEvent(e);
+  snapToRaw(prevRaw);
+  syncInput(); draw();
+});
+cv.addEventListener('mousemove', e => {
+  if (!drag) return;
+  accumulateDrag(angleFromEvent(e));
+  syncInput(); draw();
+});
+document.addEventListener('mouseup',  () => { drag = false; prevRaw = null; });
+
+cv.addEventListener('touchstart', e => {
+  e.preventDefault();
+  exitComparison();
+  resetPrediction();
+  drag    = true;
+  prevRaw = angleFromEvent(e);
+  snapToRaw(prevRaw);
+  syncInput(); draw();
+}, { passive: false });
+cv.addEventListener('touchmove', e => {
+  e.preventDefault();
+  if (!drag) return;
+  accumulateDrag(angleFromEvent(e));
+  syncInput(); draw();
+}, { passive: false });
+document.addEventListener('touchend', () => { drag = false; prevRaw = null; });
+
+// ── Angle input ───────────────────────────────────────────────────────
+angleInput.addEventListener('change', () => {
+  exitComparison();
+  resetPrediction();
+  const val = parseFloat(angleInput.value);
+  if (!isNaN(val) && val >= -7200 && val <= 7200) {
+    thetaDeg = val;
+  } else {
+    syncInput();
+  }
+  draw();
+});
+
+// ── Reset button ──────────────────────────────────────────────────────
+document.getElementById('bReset').addEventListener('click', () => {
+  exitComparison();
+  resetPrediction();
+  thetaDeg = refOf(normRad()) * 180 / Math.PI;
+  syncInput();
+  draw();
+});
+
+// ── Quadrant selector ────────────────────────────────────────────────
+function exitComparison() {
+  if (savedTheta !== null) { thetaDeg = savedTheta; savedTheta = null; }
+  viewQuad = null;
+  document.querySelectorAll('[data-q]').forEach(b => b.classList.remove('on'));
+}
+
+function selectQuad(q) {
+  resetPrediction();
+  if (viewQuad === q) {
+    exitComparison();
+  } else {
+    if (savedTheta === null) savedTheta = thetaDeg;
+    viewQuad = q;
+
+    const refDeg = refOf(normRad()) * 180 / Math.PI;
+    if      (q === 1) thetaDeg = refDeg;
+    else if (q === 2) thetaDeg = 180 - refDeg;
+    else if (q === 3) thetaDeg = 180 + refDeg;
+    else              thetaDeg = 360 - refDeg;
+
+    document.querySelectorAll('[data-q]').forEach(b => {
+      b.classList.toggle('on', Number(b.dataset.q) === q);
+    });
+  }
+  syncInput();
+  draw();
+}
+
+document.querySelectorAll('[data-q]').forEach(btn => {
+  btn.addEventListener('click', () => selectQuad(Number(btn.dataset.q)));
+});
+
+// ── Radius only button ────────────────────────────────────────────────
+document.getElementById('bRadiusOnly').addEventListener('click', () => {
+  radiusOnly = !radiusOnly;
+  document.getElementById('bRadiusOnly').classList.toggle('on', radiusOnly);
+  draw();
+});
+
+// ── All quadrants checkbox ────────────────────────────────────────────
+document.getElementById('cbViewRef').addEventListener('change', e => {
+  viewAllQuads = e.target.checked;
+  document.getElementById('lViewRef').classList.toggle('on', viewAllQuads);
+  draw();
+});
+
+// ── Ratio toggle buttons ──────────────────────────────────────────────
+document.querySelectorAll('[data-ratio]').forEach(btn => {
+  if (btn.id === 'bPredict') return; // Skip predict button
+  btn.addEventListener('click', () => {
+    const r = btn.dataset.ratio;
+    activeRatios.has(r) ? activeRatios.delete(r) : activeRatios.add(r);
+    btn.classList.toggle('on', activeRatios.has(r));
+    draw();
+  });
+});
+
+// ── Predict Signs Mode ────────────────────────────────────────────────
+document.getElementById('bPredict').addEventListener('click', () => {
+  predictMode = !predictMode;
+  document.getElementById('bPredict').classList.toggle('on', predictMode);
+  document.getElementById('predictPanel').classList.toggle('active', predictMode);
+  resetPrediction();
+  draw();
+});
+
+function updateCheckButton() {
+  const allPicked = predictions.sin !== null && 
+                    predictions.cos !== null && 
+                    predictions.tan !== null;
+  document.getElementById('btnCheckPredictions').disabled = !allPicked || predicted;
+  
+  if (predicted) {
+    document.getElementById('btnCheckPredictions').textContent = 'Try another angle';
+  } else {
+    document.getElementById('btnCheckPredictions').textContent = 'Check my answers';
+  }
+}
+
+// Sign button selection
+document.querySelectorAll('.sign-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    if (predicted) return; // Can't change after checking
+    
+    const ratio = btn.dataset.ratio;
+    const sign = btn.dataset.sign;
+    
+    predictions[ratio] = sign;
+    
+    // Update visual state
+    document.querySelectorAll(`.sign-btn[data-ratio="${ratio}"]`).forEach(b => {
+      b.classList.toggle('selected', b === btn);
+    });
+    
+    updateCheckButton();
+  });
+});
+
+// Check predictions
+document.getElementById('btnCheckPredictions').addEventListener('click', () => {
+  if (predicted) {
+    // "Try another angle" was clicked - reset
+    resetPrediction();
+    return;
+  }
+  
+  predicted = true;
+  const q = quadOf(normRad());
+  
+  ['sin', 'cos', 'tan'].forEach(ratio => {
+    const correct = correctSign(q, ratio);
+    const userPick = predictions[ratio];
+    
+    document.querySelectorAll(`.sign-btn[data-ratio="${ratio}"]`).forEach(btn => {
+      const btnSign = btn.dataset.sign;
+      
+      if (btnSign === userPick) {
+        // User picked this button
+        if (userPick === correct) {
+          btn.classList.add('correct');
+        } else {
+          btn.classList.add('wrong');
+        }
+      } else if (btnSign === correct) {
+        // This is the right answer the user missed
+        btn.classList.add('missed');
+      }
+      
+      btn.classList.remove('selected');
+    });
+  });
+  
+  updateCheckButton();
+  draw(); // Reveal coordinates
+});
+
+draw();
+</script>
+</body>
+</html>

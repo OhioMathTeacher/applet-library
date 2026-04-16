@@ -142,7 +142,8 @@
 
 
     .challenge-drawer-header h3 {
-      font-size: 1rem;
+      font-size: 1.12rem;
+      font-weight: 700;
       color: var(--accent2);
       margin: 0;
     }
@@ -151,8 +152,8 @@
 
     .challenge-list {
       display: grid;
-      grid-template-columns: repeat(4, minmax(0, 1fr));
-      grid-auto-rows: minmax(64px, auto);
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      grid-auto-rows: minmax(92px, auto);
       gap: 0.5rem;
       align-content: start;
       overflow: visible;
@@ -161,18 +162,19 @@
     .challenge-section-label { display: none; }
 
     .challenge-item {
-      padding: 0.7rem;
+      padding: 0.9rem 0.75rem;
       border-radius: 4px;
       cursor: pointer;
       transition: all 0.2s;
-      font-size: 0.9rem;
+      font-size: 1.02rem;
+      line-height: 1.3;
       font-weight: 600;
       border: 2px solid;
       text-align: center;
       display: flex;
       align-items: center;
       justify-content: center;
-      min-height: 65px;
+      min-height: 92px;
     }
 
     .challenge-item.easy {
@@ -259,6 +261,7 @@
 
       .challenge-list {
         grid-template-columns: repeat(3, minmax(0, 1fr));
+        grid-auto-rows: minmax(88px, auto);
       }
     }
 
@@ -273,6 +276,7 @@
 
       .challenge-list {
         grid-template-columns: repeat(2, minmax(0, 1fr));
+        grid-auto-rows: minmax(84px, auto);
       }
     }
 
@@ -643,6 +647,7 @@
 
       .challenge-list {
         grid-template-columns: repeat(2, minmax(0, 1fr));
+        grid-auto-rows: minmax(80px, auto);
       }
     }
 
@@ -680,6 +685,7 @@
 
       .challenge-list {
         grid-template-columns: repeat(3, minmax(0, 1fr));
+        grid-auto-rows: minmax(86px, auto);
       }
     }
   </style>

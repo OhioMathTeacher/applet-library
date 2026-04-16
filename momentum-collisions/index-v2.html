@@ -39,6 +39,7 @@
       color: white;
       padding: 0.8rem 1.5rem;
       text-align: center;
+      position: relative;
     }
 
     header h1 { font-size: 1.3rem; margin-bottom: 0.2rem; }
@@ -46,9 +47,11 @@
     
     .header-controls {
       display: flex;
-      gap: 0.8rem;
-      justify-content: center;
-      margin-top: 0.6rem;
+      gap: 0.5rem;
+      justify-content: flex-end;
+      position: absolute;
+      top: 0.5rem;
+      right: 1rem;
     }
     
     .header-controls select {
@@ -85,33 +88,27 @@
 
     .app {
       display: grid;
-      grid-template-columns: 1fr 1fr;
-      grid-template-rows: minmax(0, 1.25fr) minmax(220px, 0.75fr);
+      grid-template-columns: 280px minmax(0, 1fr);
+      grid-template-rows: 1fr;
       gap: 0.8rem;
-      padding: 0.8rem 0.8rem 2rem 0.8rem;
-      height: calc(100vh - 130px);
+      padding: 0.8rem;
+      height: calc(100vh - 170px);
+      margin-bottom: 1rem;
       min-height: 0;
     }
 
     .center-panel {
-      grid-column: 1 / 3;
+      grid-column: 2 / 3;
       grid-row: 1 / 2;
     }
 
     .challenge-drawer {
+      grid-column: 1 / 2;
       overflow-x: hidden;
       overflow-y: auto;
-      grid-row: 2 / 3;
+      grid-row: 1 / 2;
       min-height: 0;
-      overflow-y: auto;
     }
-
-    .notebook-drawer {
-      grid-column: 2 / 3;
-      grid-row: 2 / 3;
-      overflow-y: auto;
-    }
-      min-height: 0;
 
     /* CHALLENGE DRAWER */
     .challenge-drawer {
@@ -123,10 +120,6 @@
       flex-direction: column;
       min-height: 0;
     }
-
-      body {
-        overflow: auto;
-      }
 
     .challenge-drawer-header {
       display: flex;
@@ -140,28 +133,6 @@
     }
 
 
-    @media (min-width: 1201px) and (max-height: 850px) and (orientation: landscape) {
-      .app {
-        grid-template-columns: 300px minmax(0, 1fr) 320px;
-        grid-template-rows: 1fr;
-        height: calc(100vh - 110px);
-      }
-
-      .challenge-drawer {
-        grid-column: 1 / 2;
-        grid-row: 1 / 2;
-      }
-
-      .center-panel {
-        grid-column: 2 / 3;
-        grid-row: 1 / 2;
-      }
-
-      .notebook-drawer {
-        grid-column: 3 / 4;
-        grid-row: 1 / 2;
-      }
-    }
     .challenge-drawer-header h3 {
       font-size: 1rem;
       color: var(--accent2);
@@ -491,121 +462,6 @@
       margin-bottom: 0.6rem;
     }
 
-    /* NOTEBOOK DRAWER (RIGHT SIDE) */
-    .notebook-drawer {
-      background: var(--card);
-      border-radius: 8px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
-      padding: 0.8rem;
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
-    }
-
-    .notebook-drawer-header {
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      margin-bottom: 0.6rem;
-      padding: 0.6rem;
-      background: linear-gradient(135deg, #d1fae5, #ecfdf5);
-      border-radius: 6px;
-      flex-shrink: 0;
-    }
-
-    .notebook-drawer-header h3 {
-      font-size: 1rem;
-      color: var(--success);
-      margin: 0;
-    }
-
-
-
-    .notebook-content {
-      display: flex;
-      flex-direction: column;
-      gap: 0.8rem;
-      flex: 1;
-      overflow-y: auto;
-    }
-
-    .notebook-actions {
-      display: grid;
-      grid-template-columns: 1fr;
-      gap: 0.5rem;
-      margin-bottom: 0.6rem;
-      flex-shrink: 0;
-    }
-
-    .captured-data {
-      flex: 1;
-      overflow-y: auto;
-    }
-
-    .data-entry {
-      background: var(--bg);
-      border-radius: 4px;
-      padding: 0.7rem;
-      margin-bottom: 0.6rem;
-      border-left: 3px solid var(--accent2);
-    }
-
-    .data-entry-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 0.4rem;
-    }
-
-    .data-entry-time {
-      font-size: 0.8rem;
-      color: var(--muted);
-    }
-
-    .data-entry-delete {
-      background: none;
-      border: none;
-      color: var(--accent);
-      cursor: pointer;
-      font-size: 0.9rem;
-      padding: 0.1rem 0.3rem;
-    }
-
-    .data-entry-delete:hover {
-      text-decoration: underline;
-    }
-
-    .data-values {
-      font-family: 'Courier New', monospace;
-      font-size: 0.85rem;
-      background: white;
-      padding: 0.5rem;
-      border-radius: 3px;
-      margin-bottom: 0.4rem;
-    }
-
-    .data-values div {
-      margin: 0.2rem 0;
-    }
-
-    .data-notes {
-      width: 100%;
-      min-height: 60px;
-      padding: 0.5rem;
-      border: 1px solid var(--border);
-      border-radius: 4px;
-      font-size: 0.9rem;
-      resize: vertical;
-      font-family: inherit;
-    }
-
-    .empty-message {
-      color: var(--muted);
-      font-size: 0.95rem;
-      text-align: center;
-      padding: 2rem;
-    }
-
     /* MODAL/POPUP */
     .modal {
       display: none;
@@ -715,15 +571,20 @@
     @media (max-width: 900px), (orientation: portrait) {
       body { overflow: auto; }
 
+      .header-controls {
+        position: static;
+        justify-content: center;
+        margin-top: 0.6rem;
+      }
+
       .app {
         grid-template-columns: 1fr;
-        grid-template-rows: auto auto auto;
+        grid-template-rows: auto auto;
         height: auto;
       }
 
       .center-panel  { grid-row: 1 / 2; grid-column: 1 / 2; }
       .challenge-drawer  { grid-row: 2 / 3; grid-column: 1 / 2; max-height: 60vh; }
-      .notebook-drawer   { grid-row: 3 / 4; grid-column: 1 / 2; max-height: 60vh; }
     }
 
     /* =============================================
@@ -735,14 +596,13 @@
       body { overflow: hidden; }
 
       .app {
-        grid-template-columns: 280px minmax(0, 1fr) 300px;
+        grid-template-columns: 280px minmax(0, 1fr);
         grid-template-rows: 1fr;
-        height: calc(100vh - 110px);
+        height: calc(100vh - 160px);
       }
 
       .challenge-drawer  { grid-column: 1 / 2; grid-row: 1 / 2; max-height: none; }
       .center-panel      { grid-column: 2 / 3; grid-row: 1 / 2; }
-      .notebook-drawer   { grid-column: 3 / 4; grid-row: 1 / 2; max-height: none; }
     }
 
     /* =============================================
@@ -754,13 +614,12 @@
 
       .app {
         grid-template-columns: 240px minmax(0, 1fr);
-        grid-template-rows: 1fr auto;
-        height: calc(100vh - 110px);
+        grid-template-rows: 1fr;
+        height: calc(100vh - 160px);
       }
 
       .challenge-drawer  { grid-column: 1 / 2; grid-row: 1 / 2; max-height: none; }
       .center-panel      { grid-column: 2 / 3; grid-row: 1 / 2; }
-      .notebook-drawer   { grid-column: 1 / 3; grid-row: 2 / 3; max-height: 45vh; }
     }
   </style>
 </head>
@@ -883,31 +742,6 @@
       </div>
     </div>
 
-    <!-- RIGHT: LAB NOTEBOOK -->
-    <div class="notebook-drawer" id="notebookDrawer">
-      <div class="notebook-drawer-header">
-        <h3 id="scratchpad-title">📝 Lab Notebook</h3>
-      </div>
-      <div class="notebook-content">
-        <div class="notebook-actions">
-          <button class="btn btn-primary" id="captureBtn" onclick="captureData()" title="Capture current state with masses, velocities, and momentum values">
-            📸 <span id="capture-text">Capture Data</span>
-          </button>
-          <button class="btn btn-secondary" id="exportBtn" onclick="exportNotes()" title="Export all captured data as a text file">
-            💾 <span id="export-text">Export Notes</span>
-          </button>
-          <button class="btn btn-secondary" id="clearAllBtn" onclick="clearAllData()" title="Clear all captured entries">
-            🗑️ <span id="clear-all-text">Clear All</span>
-          </button>
-        </div>
-        
-        <div class="captured-data" id="capturedData">
-          <p class="empty-message" id="empty-message">
-            Click "Capture Data" to save observations!
-          </p>
-        </div>
-      </div>
-    </div>
   </div>
 
   <!-- CHALLENGE POPUP MODAL -->
@@ -1231,8 +1065,6 @@
     // STATE
     // ============================================
     let currentLanguage = 'en';
-    let capturedEntries = [];
-    let entryCounter = 0;
 
     const canvas = document.getElementById('canvas');
     const ctx = canvas.getContext('2d');
@@ -1347,11 +1179,6 @@
       document.getElementById('scenario1-text').textContent = t.scenario1Text;
       document.getElementById('scenario2-text').textContent = t.scenario2Text;
       document.getElementById('scenario3-text').textContent = t.scenario3Text;
-      document.getElementById('scratchpad-title').textContent = t.scratchpadTitle;
-      document.getElementById('capture-text').textContent = t.captureText;
-      document.getElementById('export-text').textContent = t.exportText;
-      document.getElementById('clear-all-text').textContent = t.clearAllText;
-      document.getElementById('empty-message').textContent = t.emptyMessage;
       document.getElementById('snapshot-message').textContent = t.snapshotMessage;
       document.getElementById('home-link').textContent = t.homeLabel;
     }
@@ -1620,175 +1447,6 @@
       ctx.fill();
     }
 
-    // ============================================
-    // NOTEBOOK
-    // ============================================
-    let wasRunningBeforeSnapshot = false;
-
-    // Play camera shutter sound effect
-    function playShutterSound() {
-      try {
-        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-        const currentTime = audioContext.currentTime;
-        
-        // Create oscillator for the "click" part
-        const oscillator = audioContext.createOscillator();
-        const gainNode = audioContext.createGain();
-        
-        oscillator.connect(gainNode);
-        gainNode.connect(audioContext.destination);
-        
-        // Sharp, quick sound
-        oscillator.frequency.setValueAtTime(800, currentTime);
-        oscillator.frequency.exponentialRampToValueAtTime(400, currentTime + 0.01);
-        
-        // Quick envelope for click/snap effect
-        gainNode.gain.setValueAtTime(0.3, currentTime);
-        gainNode.gain.exponentialRampToValueAtTime(0.01, currentTime + 0.05);
-        
-        oscillator.start(currentTime);
-        oscillator.stop(currentTime + 0.05);
-        
-        // Add second layer for mechanical sound
-        const noise = audioContext.createBufferSource();
-        const noiseBuffer = audioContext.createBuffer(1, audioContext.sampleRate * 0.04, audioContext.sampleRate);
-        const noiseData = noiseBuffer.getChannelData(0);
-        for (let i = 0; i < noiseData.length; i++) {
-          noiseData[i] = Math.random() * 2 - 1;
-        }
-        noise.buffer = noiseBuffer;
-        
-        const noiseGain = audioContext.createGain();
-        noise.connect(noiseGain);
-        noiseGain.connect(audioContext.destination);
-        
-        noiseGain.gain.setValueAtTime(0.1, currentTime);
-        noiseGain.gain.exponentialRampToValueAtTime(0.01, currentTime + 0.04);
-        
-        noise.start(currentTime);
-        noise.stop(currentTime + 0.04);
-      } catch (e) {
-        // Silently fail if Web Audio API not supported
-        console.log('Audio not available');
-      }
-    }
-
-    function captureData() {
-      // Play shutter sound
-      playShutterSound();
-      // Play shutter sound
-      playShutterSound();
-      
-      // Pause simulation and show snapshot overlay
-      if (running) {
-        wasRunningBeforeSnapshot = true;
-        running = false;
-        cancelAnimationFrame(animationId);
-        setControlsEnabled(true);
-        document.getElementById('start-text').textContent = translations[currentLanguage].startText;
-      } else {
-        wasRunningBeforeSnapshot = false;
-      }
-
-      // Capture the data
-      entryCounter++;
-      const entry = {
-        id: entryCounter,
-        timestamp: new Date().toLocaleTimeString(),
-        data: {
-          m1: ball1.mass, v1: ball1.vx,
-          m2: ball2.mass, v2: ball2.vx,
-          p1: (ball1.mass * ball1.vx).toFixed(2),
-          p2: (ball2.mass * ball2.vx).toFixed(2),
-          pTotal: (ball1.mass * ball1.vx + ball2.mass * ball2.vx).toFixed(2)
-        },
-        notes: ''
-      };
-      capturedEntries.unshift(entry);
-      renderScratchpad();
-
-      // Show snapshot overlay
-      const overlay = document.getElementById('snapshotOverlay');
-      overlay.classList.add('active');
-
-      // Set up one-time event listeners to resume (keypress, click, or tap)
-      const resumeHandler = (e) => {
-        overlay.classList.remove('active');
-        document.removeEventListener('keydown', resumeHandler);
-        document.removeEventListener('click', resumeHandler);
-        document.removeEventListener('touchstart', resumeHandler);
-      };
-      document.addEventListener('keydown', resumeHandler);
-      document.addEventListener('click', resumeHandler);
-      document.addEventListener('touchstart', resumeHandler);
-    }
-
-    function renderScratchpad() {
-      const container = document.getElementById('capturedData');
-      if (capturedEntries.length === 0) {
-        container.innerHTML = `<p class="empty-message">${translations[currentLanguage].emptyMessage}</p>`;
-        return;
-      }
-      container.innerHTML = '';
-      capturedEntries.forEach(entry => {
-        const div = document.createElement('div');
-        div.className = 'data-entry';
-        div.innerHTML = `
-          <div class="data-entry-header">
-            <span class="data-entry-time">${entry.timestamp}</span>
-            <button class="data-entry-delete" onclick="deleteEntry(${entry.id})">✕</button>
-          </div>
-          <div class="data-values">
-            <div>m₁=${entry.data.m1}kg, v₁=${entry.data.v1}m/s → p₁=${entry.data.p1}</div>
-            <div>m₂=${entry.data.m2}kg, v₂=${entry.data.v2}m/s → p₂=${entry.data.p2}</div>
-            <div><strong>Σp = ${entry.data.pTotal}</strong></div>
-          </div>
-          <textarea class="data-notes" placeholder="Notes..." onchange="updateNotes(${entry.id}, this.value)">${entry.notes}</textarea>
-        `;
-        container.appendChild(div);
-      });
-    }
-
-    function deleteEntry(id) {
-      capturedEntries = capturedEntries.filter(e => e.id !== id);
-      renderScratchpad();
-    }
-
-    function updateNotes(id, notes) {
-      const entry = capturedEntries.find(e => e.id === id);
-      if (entry) entry.notes = notes;
-    }
-
-    function clearAllData() {
-      if (capturedEntries.length === 0) return;
-      if (confirm('Clear all entries?')) {
-        capturedEntries = [];
-        renderScratchpad();
-      }
-    }
-
-    function exportNotes() {
-      if (capturedEntries.length === 0) {
-        alert('No data to export');
-        return;
-      }
-      let exportText = `Physics Lab Notes\n${'='.repeat(50)}\n\n`;
-      capturedEntries.slice().reverse().forEach((entry, index) => {
-        exportText += `Entry ${index + 1} - ${entry.timestamp}\n`;
-        exportText += `m₁=${entry.data.m1}kg, v₁=${entry.data.v1}m/s, p₁=${entry.data.p1}\n`;
-        exportText += `m₂=${entry.data.m2}kg, v₂=${entry.data.v2}m/s, p₂=${entry.data.p2}\n`;
-        exportText += `Total: ${entry.data.pTotal}\n`;
-        if (entry.notes) exportText += `\nNotes: ${entry.notes}\n`;
-        exportText += `\n`;
-      });
-      const blob = new Blob([exportText], { type: 'text/plain' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'momentum-notes.txt';
-      a.click();
-      URL.revokeObjectURL(url);
-    }
   </script>
 
 <!-- Feedback Section -->

@@ -13,10 +13,10 @@
       --border: #d7e1ed;
       --text: #1f2937;
       --muted: #64748b;
-      --accent: #22c55e;
-      --principal: #34d399;
-      --interest: #f87171;
-      --balance: #f59e0b;
+      --accent: #4a9d7f;
+      --principal: #6eb49c;
+      --interest: #d88a8a;
+      --balance: #b78845;
       --shadow: rgba(15, 23, 42, 0.15);
     }
 
@@ -28,7 +28,7 @@
     }
 
     header {
-      background: linear-gradient(135deg, #22c55e, #16a34a 55%, #15803d);
+      background: linear-gradient(135deg, #67ad92, #4a9d7f 55%, #3f8b70);
       box-shadow: 0 2px 8px var(--shadow);
       padding: 0.8rem 1.2rem;
       display: flex;
@@ -186,9 +186,9 @@
     }
 
     .term-button.active {
-      border-color: #22c55e;
-      box-shadow: inset 0 0 0 1px #22c55e;
-      background: rgba(34, 197, 94, 0.12);
+      border-color: var(--accent);
+      box-shadow: inset 0 0 0 1px var(--accent);
+      background: rgba(74, 157, 127, 0.14);
       color: #166534;
     }
 
@@ -494,9 +494,9 @@
       <canvas id="chart" width="960" height="600"></canvas>
       <div class="tooltip" id="tooltip"></div>
       <div class="legend">
-        <span class="legend-item"><span class="swatch" style="background: #34d399;"></span>Principal portion</span>
-        <span class="legend-item"><span class="swatch" style="background: #f87171;"></span>Interest portion</span>
-        <span class="legend-item"><span class="swatch" style="background: #f59e0b;"></span>Remaining balance line</span>
+        <span class="legend-item"><span class="swatch" style="background: #6eb49c;"></span>Principal portion</span>
+        <span class="legend-item"><span class="swatch" style="background: #d88a8a;"></span>Interest portion</span>
+        <span class="legend-item"><span class="swatch" style="background: #b78845;"></span>Remaining balance line</span>
       </div>
       <p class="footer-note">Hover each bar to inspect year-by-year averages and see how the principal-interest ratio flips over time.</p>
     </section>
@@ -708,10 +708,10 @@
         const principalY = yBase - principalH;
         const interestY = principalY - interestH;
 
-        ctx.fillStyle = '#34d399';
+        ctx.fillStyle = '#6eb49c';
         ctx.fillRect(x, principalY, barWidth, principalH);
 
-        ctx.fillStyle = '#f87171';
+        ctx.fillStyle = '#d88a8a';
         ctx.fillRect(x, interestY, barWidth, interestH);
 
         if (yearData.length <= 30 && (i % 2 === 0 || yearData.length <= 20)) {
@@ -734,7 +734,7 @@
       });
 
       ctx.beginPath();
-      ctx.strokeStyle = '#f59e0b';
+      ctx.strokeStyle = '#b78845';
       ctx.lineWidth = 2.2;
 
       yearData.forEach((d, i) => {
@@ -752,7 +752,7 @@
       yearData.forEach((d, i) => {
         const x = margin.left + i * (barWidth + barGap) + barWidth / 2;
         const y = margin.top + (d.endBalance / Math.max(initialLoanAmount, 1)) * chartH;
-        ctx.fillStyle = '#fbbf24';
+        ctx.fillStyle = '#c9a46a';
         ctx.beginPath();
         ctx.arc(x, y, 2.3, 0, Math.PI * 2);
         ctx.fill();

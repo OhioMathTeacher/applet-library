@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Reference Angles v2 - Pedagogical Notes</title>
+<style>
+:root {
+  --bg: #faf9f6;
+  --card: #ffffff;
+  --accent: #a855f7;
+  --accent2: #8b5cf6;
+  --text: #2b2d42;
+  --muted: #64748b;
+  --border: #e2e8f0;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.5;
+  padding: 1rem;
+  min-height: 100vh;
+}
+
+header {
+  text-align: center;
+  padding-bottom: 0.6rem;
+  border-bottom: 3px solid var(--accent);
+  margin-bottom: 1rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+}
+
+.library-link {
+  position: absolute;
+  top: 0;
+  left: 0;
+  padding: 0.4rem 0.8rem;
+  border-radius: 4px;
+  border: 2px solid var(--border);
+  background: white;
+  color: var(--accent);
+  font-weight: 600;
+  text-decoration: none;
+  font-size: 0.9rem;
+  transition: all 0.2s;
+}
+
+.library-link:hover {
+  background: var(--accent);
+  color: white;
+  border-color: var(--accent);
+}
+
+h1 {
+  font-size: 1.8rem;
+  color: var(--accent);
+  margin-bottom: 0.2rem;
+}
+
+.subtitle {
+  font-size: 0.9rem;
+  color: var(--muted);
+  margin-bottom: 0.6rem;
+}
+
+.launch-btn {
+  display: inline-block;
+  padding: 0.6rem 1.5rem;
+  background: var(--accent);
+  color: white;
+  text-decoration: none;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 1rem;
+  transition: background 0.2s, transform 0.2s;
+  box-shadow: 0 2px 6px rgba(168, 85, 247, 0.3);
+}
+
+.launch-btn:hover {
+  background: var(--accent2);
+  transform: translateY(-1px);
+}
+
+.panes-container {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  align-items: start;
+}
+
+.pane {
+  background: white;
+  border-radius: 8px;
+  padding: 1rem;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+}
+
+.pane h2 {
+  color: var(--accent);
+  font-size: 1.05rem;
+  margin-bottom: 0.6rem;
+  border-bottom: 2px solid var(--border);
+  padding-bottom: 0.3rem;
+}
+
+.pane ul {
+  margin-left: 1.2rem;
+  font-size: 0.9rem;
+}
+
+.pane li {
+  margin-bottom: 0.4rem;
+}
+
+.pane p {
+  font-size: 0.9rem;
+  margin-bottom: 0.5rem;
+}
+
+.pane strong {
+  color: var(--accent2);
+}
+
+.feedback-area {
+  background: white;
+  border-radius: 8px;
+  padding: 1rem;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+}
+
+.feedback-area h2 {
+  color: var(--accent);
+  font-size: 1.05rem;
+  margin-bottom: 0.6rem;
+}
+
+.hint {
+  font-size: 0.8rem;
+  color: var(--muted);
+  margin-top: 0.4rem;
+}
+</style>
+</head>
+<body>
+<header>
+  <a href="https://ohiomathteacher.github.io/applet-library/" class="library-link">← Library</a>
+  <h1>📐 Reference Angles v2</h1>
+  <p class="subtitle">Unit Circle Enhanced with Student-Centered Design Features</p>
+  <a href="reference-angles-v2.html" class="launch-btn">🚀 Launch Applet</a>
+</header>
+
+<div class="panes-container">
+  <!-- Pane 1: Origin -->
+  <div class="pane">
+    <h2>🎯 Where This Came From</h2>
+    <p><strong>Four students taught unit circle lessons:</strong> Ana Fernandez, Aaron Hagaman, Katelyn Smith, Emma Stenger</p>
+    <p><strong>Problems identified across their lessons:</strong></p>
+    <ul>
+      <li><strong>Sign errors by quadrant</strong> — Ana's students got numerical values right but applied wrong signs (Q1-Q4 confusion)</li>
+      <li><strong>Decimal bypass</strong> — Aaron's students memorized decimals instead of understanding triangle relationships and exact values</li>
+      <li><strong>Coterminal angle confusion</strong> — Aaron's students couldn't "enter the circle" from angles like 405° or -135°</li>
+      <li>Students could work <em>within</em> the circle but struggled connecting it to real angle measures</li>
+    </ul>
+    <p><strong>Design goal:</strong> Build three targeted features, each addressing a specific misconception from field data.</p>
+  </div>
+
+  <!-- Pane 2: Design Decisions -->
+  <div class="pane">
+    <h2>🛠️ Design Decisions</h2>
+    <p><strong>Feature 1: Predict Signs Mode</strong> (purple button)</p>
+    <ul>
+      <li><strong>From Ana's feedback:</strong> "Requiring students to PREDICT the sign BEFORE they calculate"</li>
+      <li>Students choose +/− for sin/cos/tan, then check answers</li>
+      <li>Coordinates hidden as "( ?, ? )" until prediction checked</li>
+      <li>Correct predictions turn green, wrong turn red</li>
+    </ul>
+    <p><strong>Feature 2: Exact Values for Special Angles</strong></p>
+    <ul>
+      <li><strong>From Aaron's feedback:</strong> "Fractions and triangle relationships are the conceptual core"</li>
+      <li>Shows √2/2, √3/2, ½ in bold white when at 30°/45°/60°/90°</li>
+      <li>Decimals shown below in muted gray (de-emphasized)</li>
+      <li>Prevents students from bypassing the conceptual understanding</li>
+    </ul>
+    <p><strong>Feature 3: All Quadrants Simultaneously</strong></p>
+    <ul>
+      <li><strong>From Aaron's feedback:</strong> Students couldn't connect coterminal angles across quadrants</li>
+      <li>Shows reference triangles in all four quadrants at once</li>
+      <li>Color-coded by quadrant (Q1 amber, Q2 blue, Q3 violet, Q4 green)</li>
+      <li>Terminal quadrant gets larger dot to show "where you landed"</li>
+    </ul>
+  </div>
+
+  <!-- Pane 3: Limitations -->
+  <div class="pane">
+    <h2>⚠️ Known Limitations</h2>
+    <ul>
+      <li><strong>Predict mode doesn't track history:</strong> Can't see previous attempts or patterns across multiple angles</li>
+      <li><strong>No guided progression:</strong> Students might skip straight to checking instead of reasoning through signs</li>
+      <li><strong>Exact values only show magnitude:</strong> Students still need to apply quadrant rules for signs</li>
+      <li><strong>All-quadrants view can overwhelm:</strong> Too much visual information for first-time learners</li>
+      <li><strong>No connection to real-world contexts:</strong> Still abstract unit circle, not tied to periodic phenomena</li>
+      <li><strong>Dark theme may not print well:</strong> If students want to annotate screenshots</li>
+      <li><strong>No explicit coterminal angle labels:</strong> Doesn't show 45° = 405° = -315° relationship directly</li>
+    </ul>
+  </div>
+</div>
+
+<!-- Feedback Area -->
+<div class="feedback-area">
+  <h2>💭 Student Feedback</h2>
+  <p style="color: var(--muted); margin-bottom: 0.8rem; font-size: 0.9rem;">
+    What did you notice? What was confusing? What would make this better?
+  </p>
+  <div style="text-align: center;">
+    <a href="https://docs.google.com/document/d/1VAuNHqtX3PsmgBXXVYokeslFWV3K1YZtjRU4OF9HVK4/edit?usp=sharing" class="launch-btn" style="display: inline-block; margin-top: 0.5rem;" target="_blank">📝 Add Your Feedback (Google Doc)</a>
+    <p class="hint" style="margin-top: 0.8rem;">
+      Click above to open the shared feedback document. Your instructor will review all responses this weekend.
+    </p>
+  </div>
+</div>
+</body>
+</html>

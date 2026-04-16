@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mortgage Payment Visualizer - Pedagogical Notes</title>
+<style>
+:root {
+  --bg: #faf9f6;
+  --card: #ffffff;
+  --accent: #16a34a;
+  --accent2: #059669;
+  --text: #2b2d42;
+  --muted: #64748b;
+  --border: #e2e8f0;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.5;
+  padding: 1rem;
+  min-height: 100vh;
+}
+
+header {
+  text-align: center;
+  padding-bottom: 0.6rem;
+  border-bottom: 3px solid var(--accent);
+  margin-bottom: 1rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+}
+
+.library-link {
+  position: absolute;
+  top: 0;
+  left: 0;
+  padding: 0.4rem 0.8rem;
+  border-radius: 4px;
+  border: 2px solid var(--border);
+  background: white;
+  color: var(--accent);
+  font-weight: 600;
+  text-decoration: none;
+  font-size: 0.9rem;
+  transition: all 0.2s;
+}
+
+.library-link:hover {
+  background: var(--accent);
+  color: white;
+  border-color: var(--accent);
+}
+
+h1 {
+  font-size: 1.8rem;
+  color: var(--accent);
+  margin-bottom: 0.2rem;
+}
+
+.subtitle {
+  font-size: 0.9rem;
+  color: var(--muted);
+  margin-bottom: 0.6rem;
+}
+
+.launch-btn {
+  display: inline-block;
+  padding: 0.6rem 1.5rem;
+  background: var(--accent);
+  color: white;
+  text-decoration: none;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 1rem;
+  transition: background 0.2s, transform 0.2s;
+  box-shadow: 0 2px 6px rgba(22, 163, 74, 0.3);
+}
+
+.launch-btn:hover {
+  background: #15803d;
+  transform: translateY(-1px);
+}
+
+.panes-container {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  align-items: start;
+}
+
+.pane {
+  background: white;
+  border-radius: 8px;
+  padding: 1rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.pane h2 {
+  color: var(--accent);
+  font-size: 1.05rem;
+  margin-bottom: 0.6rem;
+  border-bottom: 2px solid var(--border);
+  padding-bottom: 0.3rem;
+}
+
+.pane ul {
+  margin-left: 1.2rem;
+  font-size: 0.9rem;
+}
+
+.pane li {
+  margin-bottom: 0.4rem;
+}
+
+.pane p {
+  font-size: 0.9rem;
+  margin-bottom: 0.5rem;
+}
+
+.pane strong {
+  color: var(--accent2);
+}
+
+.feedback-area {
+  background: white;
+  border-radius: 8px;
+  padding: 1rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.feedback-area h2 {
+  color: var(--accent);
+  font-size: 1.05rem;
+  margin-bottom: 0.6rem;
+}
+
+.hint {
+  font-size: 0.8rem;
+  color: var(--muted);
+  margin-top: 0.4rem;
+}
+
+@media (max-width: 980px) {
+  .panes-container {
+    grid-template-columns: 1fr;
+  }
+
+  .library-link {
+    position: static;
+    margin-bottom: 0.6rem;
+  }
+}
+</style>
+</head>
+<body>
+<header>
+  <a href="https://ohiomathteacher.github.io/applet-library/" class="library-link">← Library</a>
+  <h1>💰 Mortgage Payment Visualizer</h1>
+  <p class="subtitle">Pedagogical Notes for Savannah Strack's Mortgage and Compound Interest Lesson</p>
+  <a href="mortgage-visualizer.html" class="launch-btn">🚀 Launch Applet</a>
+</header>
+
+<div class="panes-container">
+  <div class="pane">
+    <h2>🎯 Where This Came From</h2>
+    <p><strong>Savannah's original lesson:</strong> Students worked through mortgage vocabulary and payment calculations in a word-problem setting.</p>
+    <p><strong>What surfaced in student work:</strong></p>
+    <ul>
+      <li>Vocabulary confusion around <strong>principal</strong>, <strong>interest</strong>, and <strong>APR</strong></li>
+      <li>Formula memorization without conceptual understanding</li>
+      <li>Difficulty seeing how monthly payments change over time</li>
+      <li>Need for more step-by-step visual support</li>
+    </ul>
+    <p><strong>Design goal:</strong> Make amortization visible so the data can "talk" and students can connect words to meaning.</p>
+  </div>
+
+  <div class="pane">
+    <h2>🛠️ Design Decisions</h2>
+    <ul>
+      <li><strong>Live input controls:</strong> Principal, down payment, APR, and term update instantly</li>
+      <li><strong>Stacked yearly bars:</strong> Principal (green) + interest (rose) in one payment view</li>
+      <li><strong>Balance line:</strong> Remaining loan plotted over time to show slow early payoff</li>
+      <li><strong>Hover details:</strong> Year-by-year averages and end-of-year balance on demand</li>
+      <li><strong>Vocabulary tooltips:</strong> In-context definitions at the exact point of confusion</li>
+      <li><strong>Ratio readout:</strong> Total interest compared to original loan amount</li>
+    </ul>
+  </div>
+
+  <div class="pane">
+    <h2>⚠️ Known Limitations</h2>
+    <ul>
+      <li><strong>No taxes/insurance:</strong> This models principal + interest only</li>
+      <li><strong>Fixed-rate assumption:</strong> No adjustable-rate mortgages (ARM) yet</li>
+      <li><strong>No extra payments:</strong> Doesn't currently simulate prepayment strategies</li>
+      <li><strong>Yearly averaging:</strong> Bar view is annual summary, not month-by-month bars</li>
+      <li><strong>No export:</strong> Users cannot yet download data tables or screenshots</li>
+      <li><strong>Rounding differences:</strong> Tiny cent-level variance may appear at payoff</li>
+    </ul>
+  </div>
+</div>
+
+<div class="feedback-area">
+  <h2>💭 Student Feedback</h2>
+  <p style="color: var(--muted); margin-bottom: 0.8rem; font-size: 0.9rem;">
+    What did you notice? What was confusing? What would make this better?
+  </p>
+  <div style="text-align: center;">
+    <a href="https://docs.google.com/document/d/1F-2y-f4hhoRS1CSzuErIhxrUw7CCZf2dXIGkfHibfag/edit?usp=sharing" class="launch-btn" style="display: inline-block; margin-top: 0.5rem;" target="_blank" rel="noopener noreferrer">📝 Add Your Feedback (Google Doc)</a>
+    <p class="hint" style="margin-top: 0.8rem;">
+      Click above to open the shared feedback document. Your instructor will review all responses this weekend.
+    </p>
+  </div>
+</div>
+</body>
+</html>

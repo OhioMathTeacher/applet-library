@@ -8,33 +8,38 @@
     * { margin: 0; padding: 0; box-sizing: border-box; }
 
     :root {
-      --bg: #0f172a;
-      --panel: #1e293b;
-      --border: #334155;
-      --text: #e2e8f0;
-      --muted: #94a3b8;
+      --bg: #f3f7fb;
+      --panel: #ffffff;
+      --border: #d7e1ed;
+      --text: #1f2937;
+      --muted: #64748b;
       --accent: #22c55e;
       --principal: #34d399;
       --interest: #f87171;
       --balance: #f59e0b;
-      --shadow: rgba(0, 0, 0, 0.28);
+      --shadow: rgba(15, 23, 42, 0.15);
     }
 
     body {
       font-family: Georgia, serif;
-      background: radial-gradient(circle at 20% 10%, #1e293b 0%, #0f172a 55%, #0b1022 100%);
+      background: linear-gradient(180deg, #f0f8ff 0%, #eef5fb 52%, #f8fafc 100%);
       color: var(--text);
       min-height: 100vh;
     }
 
     header {
-      background: linear-gradient(135deg, #16a34a, #15803d 55%, #166534);
+      background: linear-gradient(135deg, #22c55e, #16a34a 55%, #15803d);
       box-shadow: 0 2px 8px var(--shadow);
       padding: 0.8rem 1.2rem;
       display: flex;
       align-items: center;
       justify-content: space-between;
       gap: 0.8rem;
+    }
+
+    .header-nav {
+      display: flex;
+      gap: 0.5rem;
     }
 
     h1 {
@@ -47,10 +52,10 @@
     .header-link {
       color: #f0fdf4;
       text-decoration: none;
-      border: 2px solid rgba(255, 255, 255, 0.34);
+      border: 2px solid rgba(255, 255, 255, 0.48);
       border-radius: 6px;
       padding: 0.35rem 0.7rem;
-      background: rgba(255, 255, 255, 0.14);
+      background: rgba(255, 255, 255, 0.22);
       font-size: 0.92rem;
       font-weight: 600;
       transition: all 0.2s ease;
@@ -72,10 +77,10 @@
     }
 
     .panel {
-      background: linear-gradient(180deg, rgba(30, 41, 59, 0.94), rgba(15, 23, 42, 0.96));
+      background: var(--panel);
       border: 2px solid var(--border);
       border-radius: 12px;
-      box-shadow: 0 10px 20px rgba(2, 6, 23, 0.35);
+      box-shadow: 0 8px 20px var(--shadow);
       padding: 1rem;
       display: flex;
       flex-direction: column;
@@ -85,7 +90,7 @@
     }
 
     .section-title {
-      color: #dcfce7;
+      color: #15803d;
       font-size: 1rem;
       font-weight: 700;
       margin-bottom: 0.25rem;
@@ -95,10 +100,10 @@
       display: flex;
       flex-direction: column;
       gap: 0.45rem;
-      border: 1px solid #2b3a50;
+      border: 1px solid #d7e1ed;
       border-radius: 8px;
       padding: 0.6rem;
-      background: rgba(15, 23, 42, 0.5);
+      background: #f8fbff;
     }
 
     .label-row {
@@ -111,7 +116,7 @@
     }
 
     .label-row .value {
-      color: #f8fafc;
+      color: #0f172a;
       font-weight: 700;
       text-align: right;
       min-width: 100px;
@@ -125,9 +130,9 @@
       width: 16px;
       height: 16px;
       border-radius: 50%;
-      background: #334155;
-      border: 1px solid #64748b;
-      color: #f8fafc;
+      background: #e2e8f0;
+      border: 1px solid #94a3b8;
+      color: #1e293b;
       font-size: 0.7rem;
       font-weight: 700;
       cursor: help;
@@ -170,9 +175,9 @@
     }
 
     .term-button {
-      border: 1px solid #4b5f7a;
-      background: #172132;
-      color: var(--text);
+      border: 1px solid #c6d5e6;
+      background: #ffffff;
+      color: #1f2937;
       border-radius: 8px;
       padding: 0.45rem;
       cursor: pointer;
@@ -183,14 +188,14 @@
     .term-button.active {
       border-color: #22c55e;
       box-shadow: inset 0 0 0 1px #22c55e;
-      background: rgba(34, 197, 94, 0.16);
-      color: #f0fdf4;
+      background: rgba(34, 197, 94, 0.12);
+      color: #166534;
     }
 
     .readouts {
-      border: 1px solid #2b3a50;
+      border: 1px solid #d7e1ed;
       border-radius: 10px;
-      background: rgba(15, 23, 42, 0.55);
+      background: #f8fbff;
       padding: 0.65rem;
       display: grid;
       gap: 0.45rem;
@@ -206,19 +211,19 @@
 
     .readout strong {
       font-size: 0.98rem;
-      color: #f8fafc;
+      color: #0f172a;
       text-align: right;
     }
 
     .readout.highlight {
-      border-bottom: 1px solid #2d4359;
+      border-bottom: 1px solid #d9e2ee;
       padding-bottom: 0.4rem;
       margin-bottom: 0.1rem;
     }
 
     .readout.highlight strong {
       font-size: 1.08rem;
-      color: #bbf7d0;
+      color: #166534;
     }
 
     .feedback {
@@ -241,17 +246,17 @@
     }
 
     .chart-card {
-      background: linear-gradient(180deg, rgba(30, 41, 59, 0.92), rgba(15, 23, 42, 0.94));
+      background: var(--panel);
       border: 2px solid var(--border);
       border-radius: 12px;
-      box-shadow: 0 10px 20px rgba(2, 6, 23, 0.35);
+      box-shadow: 0 8px 20px var(--shadow);
       padding: 0.8rem;
       position: relative;
     }
 
     .chart-title {
       margin-bottom: 0.5rem;
-      color: #f8fafc;
+      color: #0f172a;
       font-size: 1.06rem;
       font-weight: 700;
     }
@@ -259,9 +264,9 @@
     #chart {
       width: 100%;
       height: auto;
-      border: 1px solid #2f4157;
+      border: 1px solid #cedae8;
       border-radius: 10px;
-      background: linear-gradient(180deg, #122035 0%, #0f172a 100%);
+      background: linear-gradient(180deg, #f8fbff 0%, #eef5ff 100%);
       display: block;
     }
 
@@ -284,7 +289,7 @@
       width: 14px;
       height: 14px;
       border-radius: 3px;
-      border: 1px solid rgba(255, 255, 255, 0.3);
+      border: 1px solid rgba(15, 23, 42, 0.2);
     }
 
     .tooltip {
@@ -357,7 +362,10 @@
 <body>
   <header>
     <h1>💰 Mortgage Payment Visualizer</h1>
-    <a class="header-link" href="https://ohiomathteacher.github.io/applet-library/">← Library</a>
+    <div class="header-nav">
+      <a class="header-link" href="https://ohiomathteacher.github.io/applet-library/">← Library</a>
+      <a class="header-link" href="pedagogical-notes.html">← Home</a>
+    </div>
   </header>
 
   <main class="layout">
@@ -616,7 +624,7 @@
       const h = canvas.height;
 
       ctx.clearRect(0, 0, w, h);
-      ctx.fillStyle = '#0f172a';
+      ctx.fillStyle = '#f8fbff';
       ctx.fillRect(0, 0, w, h);
 
       const margin = { top: 34, right: 22, bottom: 68, left: 74 };
@@ -626,9 +634,9 @@
       const maxPayment = Math.max(...yearData.map((d) => d.payment), 1);
       const yTicks = 5;
 
-      ctx.strokeStyle = '#1f3046';
+      ctx.strokeStyle = '#d4dee9';
       ctx.lineWidth = 1;
-      ctx.fillStyle = '#93a5bb';
+      ctx.fillStyle = '#5b6b80';
       ctx.font = '12px Arial, sans-serif';
 
       for (let i = 0; i <= yTicks; i++) {
@@ -642,7 +650,7 @@
         ctx.fillText(currency(value).replace('.00', ''), 8, y + 4);
       }
 
-      ctx.strokeStyle = '#6c84a0';
+      ctx.strokeStyle = '#8196ad';
       ctx.lineWidth = 1.2;
       ctx.beginPath();
       ctx.moveTo(margin.left, margin.top);
@@ -650,7 +658,7 @@
       ctx.lineTo(w - margin.right, h - margin.bottom);
       ctx.stroke();
 
-      ctx.fillStyle = '#a9bdd3';
+      ctx.fillStyle = '#374151';
       ctx.font = '13px Georgia, serif';
       ctx.fillText('Payment Amount', 8, margin.top - 10);
       ctx.fillText('Years', w - margin.right - 40, h - 14);
@@ -678,7 +686,7 @@
           ctx.save();
           ctx.translate(x + barWidth * 0.5, yBase + 17);
           ctx.rotate(-Math.PI / 5.5);
-          ctx.fillStyle = '#9fb0c4';
+          ctx.fillStyle = '#64748b';
           ctx.font = '11px Arial, sans-serif';
           ctx.fillText(String(d.year), -8, 0);
           ctx.restore();
@@ -718,7 +726,7 @@
         ctx.fill();
       });
 
-      ctx.fillStyle = '#cde0f4';
+      ctx.fillStyle = '#374151';
       ctx.font = '13px Georgia, serif';
       ctx.fillText('Remaining Balance', margin.left + 12, margin.top + 14);
     }

@@ -22,7 +22,7 @@ body {
   background: var(--bg);
   color: var(--text);
   line-height: 1.5;
-  padding: 1.5rem;
+  padding: 1rem;
   height: 100vh;
   overflow: hidden;
   display: flex;
@@ -31,13 +31,14 @@ body {
 
 header {
   text-align: center;
-  padding-bottom: 1rem;
+  padding-bottom: 0.6rem;
   border-bottom: 3px solid var(--accent);
-  margin-bottom: 1.5rem;
+  margin-bottom: 1rem;
   display: flex;
   flex-direction: column;
   align-items: center;
   position: relative;
+  flex-shrink: 0;
 }
 
 .library-link {
@@ -62,15 +63,15 @@ header {
 }
 
 h1 {
-  font-size: 2rem;
+  font-size: 1.8rem;
   color: var(--accent);
-  margin-bottom: 0.3rem;
+  margin-bottom: 0.2rem;
 }
 
 .subtitle {
-  font-size: 0.95rem;
+  font-size: 0.9rem;
   color: var(--muted);
-  margin-bottom: 0.8rem;
+  margin-bottom: 0.6rem;
 }
 
 .launch-btn {
@@ -94,28 +95,31 @@ h1 {
 .panes-container {
   display: grid;
   grid-template-columns: 1fr 1fr 1fr;
-  gap: 1.5rem;
-  margin-bottom: 1.5rem;
+  gap: 1rem;
+  margin-bottom: 1rem;
   flex: 1;
   overflow: hidden;
+  min-height: 0;
 }
 
 .pane {
   background: white;
   border-radius: 8px;
-  padding: 1.2rem;
+  padding: 1rem;
   box-shadow: 0 2px 8px rgba(0,0,0,0.06);
   display: flex;
   flex-direction: column;
   overflow-y: auto;
+  min-height: 0;
 }
 
 .pane h2 {
   color: var(--accent);
-  font-size: 1.1rem;
-  margin-bottom: 0.8rem;
+  font-size: 1.05rem;
+  margin-bottom: 0.6rem;
   border-bottom: 2px solid var(--border);
-  padding-bottom: 0.4rem;
+  padding-bottom: 0.3rem;
+  flex-shrink: 0;
 }
 
 .pane ul {
@@ -124,12 +128,12 @@ h1 {
 }
 
 .pane li {
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.4rem;
 }
 
 .pane p {
   font-size: 0.9rem;
-  margin-bottom: 0.6rem;
+  margin-bottom: 0.5rem;
 }
 
 .pane strong {
@@ -139,14 +143,15 @@ h1 {
 .feedback-area {
   background: white;
   border-radius: 8px;
-  padding: 1.2rem;
+  padding: 1rem;
   box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  flex-shrink: 0;
 }
 
 .feedback-area h2 {
   color: var(--accent);
-  font-size: 1.1rem;
-  margin-bottom: 0.8rem;
+  font-size: 1.05rem;
+  margin-bottom: 0.6rem;
 }
 
 .feedback-controls {

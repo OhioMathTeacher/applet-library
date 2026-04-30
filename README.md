@@ -4,7 +4,11 @@ A collection of interactive web applets for mathematics and science education.
 
 ---
 
+
 ## Applets
+
+### 🪐 [Orbit Explorer](../../Ohio-Journal-Summer-2026/Apps/Orbit%20Explorer/orbit-explorer-main/index.html)
+Explore orbital mechanics and trajectories interactively. Visualize orbits, experiment with parameters, and discover the mathematics of planetary motion.
 
 ### 🧲 [Forces on a Ramp](https://ohiomathteacher.github.io/applet-library/forces-on-ramp/)
 Interactive physics simulation for exploring forces on inclined planes. Visualize force decomposition, friction effects, and energy conservation with draggable objects and real-time physics.
@@ -20,6 +24,9 @@ Enhanced unit circle with three new features: **Predict Signs Mode** (purple but
 
 ### 💰 [Mortgage Payment Visualizer](https://ohiomathteacher.github.io/applet-library/mortgage-visualizer/)
 Watch the principal-vs-interest split on a monthly mortgage payment over the full life of the loan. See how slowly the balance drops in early years, and how the ratio flips over time. Built from Savannah Strack's compound interest field lesson feedback.
+
+### 📐 [Pell Explorer](../../Ohio-Journal-Summer-2026/Apps/pell-explorer/index.html)
+Explore the mathematics of Pell’s equation and its solutions, inspired by the work of Indian mathematicians. Visualize integer solutions and patterns interactively.
 
 ---
 

@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Applet Library</title>
+  <style>
+    body {
+      font-family: system-ui, sans-serif;
+      background: #fff;
+      color: #222;
+      margin: 0;
+      padding: 0;
+    }
+    .container {
+      max-width: 800px;
+      margin: 40px auto;
+      background: #fff;
+      padding: 32px 32px 24px 32px;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px #0001;
+    }
+    h1 {
+      font-size: 2.2em;
+      margin-bottom: 0.2em;
+      display: flex;
+      align-items: center;
+      gap: 0.5em;
+    }
+    h2 {
+      margin-top: 2em;
+      font-size: 1.3em;
+      border-bottom: 2px solid #eee;
+      padding-bottom: 0.2em;
+    }
+    .applet-list {
+      margin: 2em 0 2em 0;
+      padding: 0;
+      list-style: none;
+    }
+    .applet-list li {
+      margin-bottom: 2em;
+    }
+    .applet-title {
+      font-size: 1.2em;
+      font-weight: bold;
+      display: flex;
+      align-items: center;
+      gap: 0.5em;
+    }
+    .applet-title a {
+      color: #2563eb;
+      text-decoration: none;
+    }
+    .applet-title a:hover {
+      text-decoration: underline;
+    }
+    .applet-desc {
+      margin: 0.3em 0 0 2em;
+      color: #444;
+    }
+    hr {
+      border: none;
+      border-top: 2px solid #eee;
+      margin: 2em 0 1.5em 0;
+    }
+    @media (max-width: 600px) {
+      .container { padding: 12px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1><span role="img" aria-label="applet">🧩</span> Applet Library</h1>
+    <p>A collection of interactive web applets for mathematics and science education.</p>
+    <hr>
+    <h2>Applets</h2>
+    <ul class="applet-list">
+      <li>
+        <span class="applet-title">🪐 <a href="../Ohio-Journal-Summer-2026/Apps/Orbit%20Explorer/orbit-explorer-main/index.html">Orbit Explorer</a></span>
+        <div class="applet-desc">Explore orbital mechanics and trajectories interactively. Visualize orbits, experiment with parameters, and discover the mathematics of planetary motion.</div>
+      </li>
+      <li>
+        <span class="applet-title">🧲 <a href="forces-on-ramp/index.html">Forces on a Ramp</a></span>
+        <div class="applet-desc">Interactive physics simulation for exploring forces on inclined planes. Visualize force decomposition, friction effects, and energy conservation with draggable objects and real-time physics.</div>
+      </li>
+      <li>
+        <span class="applet-title">🍬 <a href="integer-partitioning/index.html">Integer Partitioning</a></span>
+        <div class="applet-desc">Explore integer partitions through jelly bean distribution, Ferrers diagrams, and constraint filters.</div>
+      </li>
+      <li>
+        <span class="applet-title">🎱 <a href="momentum-collisions/index.html">Momentum & Collisions</a></span>
+        <div class="applet-desc">Interactive billiard ball physics demonstrating conservation of momentum in elastic collisions. Discovery learning through direct manipulation. Companion to Forces on a Ramp - both built from McKenzie Sorce's field observations.</div>
+      </li>
+      <li>
+        <span class="applet-title">🧭 <a href="reference-angles/index.html">Reference Angles v2</a></span>
+        <div class="applet-desc">Enhanced unit circle with three new features: <b>Predict Signs Mode</b> (purple button - predict +/− for sin/cos/tan before revealing), <b>Exact Values</b> for special angles (0°/30°/45°/60°/90° show fractions/radicals), and <b>All Quadrants view</b> (see reference triangles in all four quadrants simultaneously with color-coded arcs). Built from field-lesson student data.</div>
+      </li>
+      <li>
+        <span class="applet-title">💰 <a href="mortgage-visualizer/index.html">Mortgage Payment Visualizer</a></span>
+        <div class="applet-desc">Watch the principal-vs-interest split on a monthly mortgage payment over the full life of the loan. See how slowly the balance drops in early years, and how the ratio flips over time. Built from Savannah Strack's compound interest field lesson feedback.</div>
+      </li>
+      <li>
+        <span class="applet-title">📐 <a href="../Ohio-Journal-Summer-2026/Apps/pell-explorer/index.html">Pell Explorer</a></span>
+        <div class="applet-desc">Explore the mathematics of Pell’s equation and its solutions, inspired by the work of Indian mathematicians. Visualize integer solutions and patterns interactively.</div>
+      </li>
+    </ul>
+    <hr>
+    <h2>About</h2>
+    <p>These applets are designed for hands-on mathematical exploration in the classroom. Each applet is self-contained with its own README and can be used independently.</p>
+  </div>
+</body>
+</html>

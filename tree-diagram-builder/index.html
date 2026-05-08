@@ -7,6 +7,7 @@
   <style>
     :root {
       --blue: #2563eb;
+      --blue-deep: #1e40af;
       --blue-soft: #dbeafe;
       --green: #16a34a;
       --green-soft: #dcfce7;
@@ -15,16 +16,21 @@
       --gray: #6b7280;
       --gray-soft: #f3f4f6;
       --border: #e5e7eb;
+      --grid-dot: #c7d2db;
+      --grid-bg: #fafafa;
     }
     * { box-sizing: border-box; }
     body {
       font-family: system-ui, -apple-system, sans-serif;
+      font-size: 16px;
       margin: 0;
       background: #fff;
-      color: #222;
+      color: #111827;
     }
+
+    /* HEADER */
     header {
-      padding: 16px 24px;
+      padding: 14px 20px;
       border-bottom: 1px solid var(--border);
       display: flex;
       flex-wrap: wrap;
@@ -32,33 +38,44 @@
       align-items: center;
       justify-content: space-between;
     }
-    header h1 { margin: 0; font-size: 1.4em; }
+    header h1 { margin: 0; font-size: 1.2em; }
     header h1 a { color: inherit; text-decoration: none; }
     .toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
     .toolbar button, .toolbar select, .toolbar label.file-btn {
       font: inherit;
-      padding: 6px 12px;
+      padding: 8px 14px;
       border: 1px solid var(--border);
       background: #fff;
-      border-radius: 6px;
+      border-radius: 8px;
       cursor: pointer;
     }
     .toolbar button:hover, .toolbar label.file-btn:hover { background: var(--gray-soft); }
     .toolbar button.primary { background: var(--blue); color: #fff; border-color: var(--blue); }
-    .toolbar button.primary:hover { background: #1e40af; }
+    .toolbar button.primary:hover { background: var(--blue-deep); }
+    .toolbar #tidyTree {
+      background: #fef3c7;
+      border-color: #fde68a;
+      color: #78350f;
+    }
+    .toolbar #tidyTree:hover { background: #fde68a; }
+    .toolbar #magnetBtn[data-mode="off"]   { background: var(--gray-soft); color: var(--gray); border-color: var(--border); }
+    .toolbar #magnetBtn[data-mode="loose"] { background: #ecfeff; color: #155e75; border-color: #a5f3fc; }
+    .toolbar #magnetBtn[data-mode="force"] { background: #ecfdf5; color: #065f46; border-color: #a7f3d0; }
+    .toolbar #magnetBtn:hover { filter: brightness(0.96); }
 
+    /* PROBLEM PANEL */
     #problemPanel {
-      padding: 12px 24px;
+      padding: 14px 20px;
       background: var(--blue-soft);
       border-bottom: 1px solid var(--border);
     }
     #problemPanel.empty { display: none; }
-    #problemTitle { margin: 0 0 4px 0; font-size: 1.1em; }
+    #problemTitle { margin: 0 0 4px 0; font-size: 1.15em; }
     #problemText { margin: 0; white-space: pre-wrap; }
     #scaffoldTag {
       display: inline-block;
-      font-size: 0.8em;
-      padding: 2px 8px;
+      font-size: 0.85em;
+      padding: 2px 10px;
       border-radius: 999px;
       background: #fff;
       border: 1px solid var(--border);
@@ -66,9 +83,10 @@
       vertical-align: middle;
     }
 
+    /* MAIN LAYOUT */
     main {
       display: grid;
-      grid-template-columns: 1fr 280px;
+      grid-template-columns: 1fr 300px;
       gap: 0;
       min-height: 60vh;
     }
@@ -76,109 +94,138 @@
       main { grid-template-columns: 1fr; }
     }
 
+    /* TREE CANVAS */
     #treeContainer {
       position: relative;
       overflow: auto;
-      padding: 24px;
-      background: #fff;
+      padding: 0;
+      background:
+        radial-gradient(circle, var(--grid-dot) 1.5px, transparent 1.6px) 0 0 / 60px 60px,
+        var(--grid-bg);
     }
     #treeStage {
       position: relative;
+      min-width: 100%;
+      min-height: 100%;
     }
     #branchLayer {
       position: absolute;
       top: 0; left: 0;
       pointer-events: none;
     }
+
+    /* NODES */
     .node {
       position: absolute;
       transform: translate(-50%, -50%);
       display: flex;
       align-items: center;
-      gap: 4px;
+      gap: 6px;
+      user-select: none;
     }
     .node .dot {
-      width: 10px;
-      height: 10px;
+      width: 22px;
+      height: 22px;
       border-radius: 50%;
-      background: #475569;
+      background: #fff;
+      border: 3px solid var(--blue);
       flex-shrink: 0;
-      box-shadow: 0 0 0 3px #fff;
+      box-shadow: 0 0 0 4px var(--grid-bg);
+      cursor: grab;
+      transition: transform 0.1s ease, box-shadow 0.1s ease;
+      touch-action: none;
     }
-    .node.leaf .dot { background: #94a3b8; }
-    .node.root .dot { background: #111; width: 12px; height: 12px; }
+    .node .dot:hover { transform: scale(1.12); }
+    .node.dragging .dot {
+      cursor: grabbing;
+      transform: scale(1.18);
+      box-shadow: 0 0 0 4px var(--grid-bg), 0 4px 12px rgba(37, 99, 235, 0.35);
+    }
+    .node.leaf .dot { background: var(--blue-soft); }
+    .node.root .dot {
+      width: 26px;
+      height: 26px;
+      background: #111827;
+      border-color: #111827;
+    }
     .node .actions {
       display: flex;
-      gap: 2px;
-      margin-left: 4px;
+      gap: 4px;
+      margin-left: 6px;
       opacity: 0;
       transition: opacity 0.12s ease;
     }
     .node:hover .actions,
+    .node.dragging .actions,
     .node:focus-within .actions { opacity: 1; }
     .node .actions button {
       font: inherit;
-      width: 18px;
-      height: 18px;
+      width: 26px;
+      height: 26px;
       padding: 0;
-      border: 1px solid var(--border);
+      border: 1.5px solid var(--border);
       background: #fff;
       border-radius: 50%;
       cursor: pointer;
       line-height: 1;
-      font-size: 12px;
+      font-size: 16px;
       color: var(--gray);
     }
-    .node .actions button:hover { background: var(--gray-soft); color: #111; }
-    .node .actions button.add { color: var(--green); border-color: #bbf7d0; }
-    .node .actions button.del { color: var(--red); border-color: #fecaca; }
+    .node .actions button:hover { background: var(--gray-soft); color: #111827; }
+    .node .actions button.add { color: var(--green); border-color: #86efac; }
+    .node .actions button.del { color: var(--red); border-color: #fca5a5; }
     .node .leaf-prob {
-      margin-left: 8px;
-      padding: 1px 7px;
-      background: var(--blue-soft);
-      color: #1e40af;
-      border-radius: 3px;
+      margin-left: 10px;
+      padding: 4px 10px;
+      background: var(--blue);
+      color: #fff;
+      border-radius: 6px;
       font-variant-numeric: tabular-nums;
-      font-size: 0.85em;
-      font-weight: 600;
+      font-size: 0.95em;
+      font-weight: 700;
       white-space: nowrap;
     }
     .node .root-label {
-      font-weight: 600;
+      font-weight: 700;
       margin-right: 6px;
-      color: #111;
+      color: #111827;
+      font-size: 1.05em;
     }
 
+    /* BRANCH LABELS */
     .branch-label {
       position: absolute;
       transform: translate(-50%, -50%);
       display: inline-flex;
-      gap: 6px;
+      gap: 8px;
       align-items: baseline;
-      background: rgba(255, 255, 255, 0.92);
-      padding: 0 4px;
-      font-size: 0.95em;
+      background: rgba(255, 255, 255, 0.96);
+      padding: 3px 10px;
+      border-radius: 7px;
+      font-size: 1em;
       line-height: 1.4;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+      border: 1px solid transparent;
     }
     .branch-label input {
       font: inherit;
       border: none;
-      border-bottom: 1px dashed #d1d5db;
+      border-bottom: 1.5px dashed #cbd5e1;
       border-radius: 0;
-      padding: 0 2px;
+      padding: 2px 4px;
       background: transparent;
-      width: 60px;
+      color: #111827;
     }
-    .branch-label input.label-input { width: 80px; }
+    .branch-label input.label-input { width: 100px; }
     .branch-label input.prob-input {
-      width: 48px;
+      width: 60px;
       text-align: center;
       font-variant-numeric: tabular-nums;
     }
     .branch-label input:hover { border-bottom-color: var(--blue); }
     .branch-label input:focus {
       outline: none;
-      border-bottom: 1px solid var(--blue);
+      border-bottom: 1.5px solid var(--blue);
       background: var(--blue-soft);
     }
     .branch-label input::placeholder { color: #d1d5db; font-style: italic; }
@@ -187,34 +234,35 @@
       background: var(--red-soft);
       color: #991b1b;
     }
-    .branch-label .sep { color: var(--gray); font-size: 0.85em; }
+    .branch-label .sep { color: var(--gray); font-size: 0.9em; }
 
+    /* SIDE PANEL */
     aside {
       border-left: 1px solid var(--border);
-      padding: 16px 20px;
+      padding: 18px 20px;
       background: #fafafa;
       overflow-y: auto;
     }
     aside h3 {
       margin: 0 0 8px 0;
-      font-size: 0.95em;
+      font-size: 0.9em;
       text-transform: uppercase;
-      letter-spacing: 0.05em;
+      letter-spacing: 0.06em;
       color: var(--gray);
     }
     aside section { margin-bottom: 24px; }
     .check-item {
-      padding: 6px 8px;
-      border-radius: 4px;
-      margin-bottom: 4px;
-      font-size: 0.9em;
+      padding: 8px 10px;
+      border-radius: 6px;
+      margin-bottom: 6px;
+      font-size: 0.95em;
     }
     .check-item.ok { background: var(--green-soft); color: #166534; }
     .check-item.bad { background: var(--red-soft); color: #991b1b; }
     .check-item.info { background: var(--gray-soft); color: #374151; }
-    .leaf-list { list-style: none; padding: 0; margin: 0; font-size: 0.9em; }
+    .leaf-list { list-style: none; padding: 0; margin: 0; font-size: 0.95em; }
     .leaf-list li {
-      padding: 4px 0;
+      padding: 6px 0;
       border-bottom: 1px dashed var(--border);
       display: flex;
       justify-content: space-between;
@@ -222,50 +270,44 @@
     }
     .leaf-list li:last-child { border-bottom: none; }
     .leaf-list .path { color: #374151; }
-    .leaf-list .prob { font-variant-numeric: tabular-nums; color: var(--blue); font-weight: 600; }
+    .leaf-list .prob { font-variant-numeric: tabular-nums; color: var(--blue); font-weight: 700; }
     .question {
-      padding: 8px 10px;
+      padding: 10px 12px;
       background: #fff;
       border: 1px solid var(--border);
-      border-radius: 6px;
+      border-radius: 8px;
       margin-bottom: 8px;
-      font-size: 0.9em;
+      font-size: 0.95em;
     }
     .question .answer {
       display: none;
-      margin-top: 4px;
+      margin-top: 6px;
       color: var(--green);
-      font-weight: 600;
+      font-weight: 700;
     }
     .question.show-answer .answer { display: block; }
     .question button.toggle-answer {
       font: inherit;
-      font-size: 0.85em;
-      margin-top: 4px;
-      padding: 2px 8px;
+      font-size: 0.9em;
+      margin-top: 6px;
+      padding: 4px 10px;
       border: 1px solid var(--border);
-      border-radius: 4px;
+      border-radius: 6px;
       background: #fff;
       cursor: pointer;
     }
-    .empty-state {
-      padding: 40px;
-      text-align: center;
+    footer {
+      padding: 12px 20px;
+      border-top: 1px solid var(--border);
+      font-size: 0.95em;
       color: var(--gray);
+      background: #fafafa;
     }
-    .empty-state code {
+    footer code {
       background: var(--gray-soft);
       padding: 2px 6px;
       border-radius: 3px;
     }
-    footer {
-      padding: 12px 24px;
-      border-top: 1px solid var(--border);
-      font-size: 0.85em;
-      color: var(--gray);
-      background: #fafafa;
-    }
-    footer a { color: var(--blue); }
   </style>
 </head>
 <body>
@@ -273,6 +315,8 @@
     <h1><a href="../index.html">🧩 Applet Library</a> &rsaquo; Tree Diagram Builder</h1>
     <div class="toolbar">
       <button id="newTree" class="primary">New blank tree</button>
+      <button id="tidyTree" title="Snap nodes back to a clean layout">✨ Tidy</button>
+      <button id="magnetBtn" data-mode="force" title="Toggle snap-to-grid mode (off / loose / force)">🧲 Magnet: force</button>
       <select id="exampleSelect">
         <option value="">Load example…</option>
       </select>
@@ -313,21 +357,96 @@
   </main>
 
   <footer>
-    Build a probability tree by clicking <b>+</b> on a node to add child branches. Type fractions like <code>1/2</code> or decimals like <code>0.5</code>. Sibling probabilities should sum to 1.
+    Build a probability tree by clicking <b>+</b> to add branches. <b>Drag</b> any node to move it — nodes snap to the dot grid. Press <b>✨ Tidy</b> to auto-arrange. Type fractions like <code>1/2</code> or decimals like <code>0.5</code>.
   </footer>
 
   <script>
+    /* =============================================================
+       Tree Diagram Builder
+
+       Free-position grid model: every node carries integer grid
+       coordinates (column, row). Pixel position = PAD + g * GRID.
+       Nodes are draggable and snap to the grid on release. The
+       "Tidy" button re-runs auto-layout to put everything in a
+       textbook-clean arrangement.
+       ============================================================= */
+
+    const GRID = 60;
+    const PAD  = 30;
+
+    function gridToPx(g) { return PAD + g * GRID; }
+    function pxToGridFloat(p) { return (p - PAD) / GRID; }
+
+    // ---------- Magnet (snap) mode ----------
+    // 'off'   = free pixel placement, no snapping
+    // 'loose' = pull to grid only when within ~1/4 cell of a lattice point
+    // 'force' = always lock to nearest lattice point during drag
+    let magnetMode = 'force';
+    const MAGNET_MODES = ['off', 'loose', 'force'];
+
+    function applyMagnetPx(px) {
+      if (magnetMode === 'force') {
+        return {
+          x: gridToPx(Math.round(pxToGridFloat(px.x))),
+          y: gridToPx(Math.round(pxToGridFloat(px.y))),
+        };
+      }
+      if (magnetMode === 'loose') {
+        return { x: looseAxis(px.x), y: looseAxis(px.y) };
+      }
+      return { x: px.x, y: px.y };
+    }
+    function looseAxis(p) {
+      const raw = pxToGridFloat(p);
+      const snapped = Math.round(raw);
+      return Math.abs(raw - snapped) < 0.25 ? gridToPx(snapped) : p;
+    }
+    function setMagnetMode(mode) {
+      magnetMode = mode;
+      const btn = document.getElementById('magnetBtn');
+      if (btn) {
+        btn.dataset.mode = mode;
+        btn.textContent = '🧲 Magnet: ' + mode;
+      }
+    }
+    function cycleMagnet() {
+      const i = MAGNET_MODES.indexOf(magnetMode);
+      setMagnetMode(MAGNET_MODES[(i + 1) % MAGNET_MODES.length]);
+    }
+
     // ---------- State ----------
     const state = {
-      tree: blankTree(),
+      tree: null,
       problem: null,
     };
 
     function blankTree() {
-      return { rootLabel: 'Start', children: [] };
+      return { rootLabel: 'Start', rootPos: { x: 1, y: 5 }, children: [] };
     }
-    function emptyChild() {
-      return { branchLabel: '', branchProb: '', children: [] };
+    function emptyChild(parent) {
+      const siblings = parent.children || [];
+      const pp = posOf(parent);
+      let cy;
+      if (siblings.length === 0) {
+        cy = pp.y - 2;
+      } else {
+        const maxY = Math.max(...siblings.map(s => s.pos.y));
+        cy = maxY + 3;
+      }
+      if (cy < 0) cy = 0;
+      return {
+        branchLabel: '',
+        branchProb: '',
+        pos: { x: pp.x + 4, y: cy },
+        children: [],
+      };
+    }
+    function posOf(node) {
+      return node === state.tree ? state.tree.rootPos : node.pos;
+    }
+    function setPos(node, p) {
+      if (node === state.tree) state.tree.rootPos = p;
+      else node.pos = p;
     }
 
     // ---------- Probability helpers ----------
@@ -346,115 +465,156 @@
       const n = Number(t);
       return isFinite(n) ? n : NaN;
     }
+    function gcd(a, b) { return b ? gcd(b, a % b) : a; }
     function fmt(n) {
       if (!isFinite(n)) return '—';
-      // try a small denominator fraction
       for (let d = 2; d <= 64; d++) {
         const num = n * d;
         if (Math.abs(num - Math.round(num)) < 1e-9) {
           const top = Math.round(num);
           if (top === 0) return '0';
           if (top === d) return '1';
-          // simplify
           const g = gcd(Math.abs(top), d);
           return `${top / g}/${d / g}`;
         }
       }
       return n.toFixed(4).replace(/0+$/, '').replace(/\.$/, '');
     }
-    function gcd(a, b) { return b ? gcd(b, a % b) : a; }
     function approxEq(a, b, eps = 1e-6) { return Math.abs(a - b) < eps; }
 
     // ---------- Tree operations ----------
-    function addChild(node) {
-      node.children = node.children || [];
-      node.children.push(emptyChild());
-      // a sensible default: if there's exactly one other child with probability set,
-      // we don't auto-fill (let students think about it)
+    function addChild(parent) {
+      parent.children = parent.children || [];
+      parent.children.push(emptyChild(parent));
       render();
     }
     function removeNode(parent, idx) {
       parent.children.splice(idx, 1);
       render();
     }
-
-    // Walk and lay out
-    function leafCount(node) {
-      if (!node.children || node.children.length === 0) return 1;
-      return node.children.reduce((s, c) => s + leafCount(c), 0);
+    function withParents(root) {
+      const m = new Map();
+      function walk(node, p) {
+        m.set(node, p);
+        (node.children || []).forEach(c => walk(c, node));
+      }
+      walk(root, null);
+      return m;
     }
-    function maxDepth(node, d = 0) {
-      if (!node.children || node.children.length === 0) return d;
-      return Math.max(...node.children.map(c => maxDepth(c, d + 1)));
+    function pathFromRoot(node) {
+      const parents = withParents(state.tree);
+      const path = [];
+      let cur = node;
+      while (cur && cur !== state.tree) {
+        path.unshift(cur);
+        cur = parents.get(cur);
+      }
+      return path;
+    }
+    function pathProbability(node) {
+      const path = pathFromRoot(node);
+      if (path.length === 0) return NaN;
+      let prod = 1;
+      for (const n of path) {
+        const v = parseProb(n.branchProb);
+        if (!isFinite(v)) return NaN;
+        prod *= v;
+      }
+      return prod;
+    }
+    function pathLabel(node) {
+      return pathFromRoot(node).map(n => n.branchLabel || '·').join(' & ');
+    }
+    function leaves(node, acc = []) {
+      if (!node.children || node.children.length === 0) {
+        if (node !== state.tree) acc.push(node);
+        return acc;
+      }
+      node.children.forEach(c => leaves(c, acc));
+      return acc;
+    }
+    function allNodes(root, acc = []) {
+      acc.push(root);
+      (root.children || []).forEach(c => allNodes(c, acc));
+      return acc;
+    }
+
+    // ---------- Tidy: auto-layout ----------
+    function tidyLayout(root = state.tree) {
+      const VERT  = 3;
+      const HORIZ = 5;
+      const TOP_X = 1;
+      const TOP_Y = 1;
+
+      let leafIdx = 0;
+      function walk(node, depth) {
+        const x = TOP_X + depth * HORIZ;
+        if (!node.children || node.children.length === 0) {
+          const y = TOP_Y + leafIdx * VERT;
+          leafIdx += 1;
+          if (node === root) root.rootPos = { x, y };
+          else node.pos = { x, y };
+          return y;
+        }
+        const childYs = node.children.map(c => walk(c, depth + 1));
+        const avgY = Math.round(childYs.reduce((a, b) => a + b, 0) / childYs.length);
+        if (node === root) root.rootPos = { x, y: avgY };
+        else node.pos = { x, y: avgY };
+        return avgY;
+      }
+      walk(root, 0);
+    }
+    function tidyAndRender() {
+      tidyLayout(state.tree);
+      render();
     }
 
     // ---------- Rendering ----------
-    const COL_WIDTH = 220;
-    const ROW_HEIGHT = 90;
-    const PAD_X = 40;
-    const PAD_Y = 50;
-
     function render() {
       const stage = document.getElementById('treeStage');
       const svg = document.getElementById('branchLayer');
-      // clear previous nodes (but keep svg)
       [...stage.querySelectorAll('.node, .branch-label')].forEach(n => n.remove());
       svg.innerHTML = '';
 
-      const totalLeaves = leafCount(state.tree);
-      const depth = maxDepth(state.tree);
-      const stageWidth = PAD_X * 2 + (depth + 1) * COL_WIDTH;
-      const stageHeight = PAD_Y * 2 + Math.max(1, totalLeaves) * ROW_HEIGHT;
+      // figure out stage size
+      const nodes = allNodes(state.tree);
+      let maxX = 0, maxY = 0;
+      nodes.forEach(n => {
+        const p = posOf(n);
+        if (p.x > maxX) maxX = p.x;
+        if (p.y > maxY) maxY = p.y;
+      });
+      const stageWidth  = Math.max(720, gridToPx(maxX + 3));
+      const stageHeight = Math.max(440, gridToPx(maxY + 3));
       stage.style.width = stageWidth + 'px';
       stage.style.height = stageHeight + 'px';
       svg.setAttribute('width', stageWidth);
       svg.setAttribute('height', stageHeight);
 
-      // compute positions
-      const positions = [];
-      function place(node, parent, parentIdx, depthLevel, yStart) {
-        const span = leafCount(node);
-        const cx = PAD_X + depthLevel * COL_WIDTH;
-        const cy = yStart + (span * ROW_HEIGHT) / 2;
-        const entry = { node, parent, parentIdx, x: cx, y: cy, depth: depthLevel };
-        positions.push(entry);
-        let yy = yStart;
-        (node.children || []).forEach((c, i) => {
-          place(c, node, i, depthLevel + 1, yy);
-          yy += leafCount(c) * ROW_HEIGHT;
-        });
-        return entry;
-      }
-      place(state.tree, null, -1, 0, PAD_Y);
+      const parents = withParents(state.tree);
 
-      // index by node for parent lookup
-      const byNode = new Map();
-      positions.forEach(p => byNode.set(p.node, p));
+      function build(node) {
+        const isRoot = node === state.tree;
+        const isLeaf = !node.children || node.children.length === 0;
+        const p = posOf(node);
+        const px = gridToPx(p.x), py = gridToPx(p.y);
 
-      // draw branches and nodes
-      positions.forEach(entry => {
-        const { node, parent, x, y, depth: d } = entry;
+        if (!isRoot) {
+          const parent = parents.get(node);
+          const pp = posOf(parent);
+          const ppx = gridToPx(pp.x), ppy = gridToPx(pp.y);
 
-        if (parent) {
-          const p = byNode.get(parent);
-          // draw line
           const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-          line.setAttribute('x1', p.x + 8);
-          line.setAttribute('y1', p.y);
-          line.setAttribute('x2', x - 8);
-          line.setAttribute('y2', y);
           line.setAttribute('stroke', '#94a3b8');
-          line.setAttribute('stroke-width', '1.5');
+          line.setAttribute('stroke-width', '2.5');
           line.setAttribute('stroke-linecap', 'round');
           svg.appendChild(line);
+          updateLineEndpoints(line, ppx, ppy, px, py);
+          node.__line = line;
 
-          // branch label at midpoint
-          const mx = (p.x + x) / 2;
-          const my = (p.y + y) / 2 - 14;
           const lab = document.createElement('div');
           lab.className = 'branch-label';
-          lab.style.left = mx + 'px';
-          lab.style.top = my + 'px';
+          lab.__nodeRef = node;
 
           const labelInput = document.createElement('input');
           labelInput.className = 'label-input';
@@ -482,17 +642,15 @@
           lab.appendChild(labelInput);
           lab.appendChild(sep);
           lab.appendChild(probInput);
-          lab.__nodeRef = node;
           stage.appendChild(lab);
+          updateLabelPosition(lab, ppx, ppy, px, py);
+          node.__label = lab;
         }
 
-        // node element
         const div = document.createElement('div');
-        const isRoot = !parent;
-        const isLeaf = !node.children || node.children.length === 0;
         div.className = 'node' + (isRoot ? ' root' : '') + (isLeaf ? ' leaf' : '');
-        div.style.left = x + 'px';
-        div.style.top = y + 'px';
+        div.style.left = px + 'px';
+        div.style.top = py + 'px';
 
         if (isRoot && state.tree.rootLabel) {
           const rl = document.createElement('span');
@@ -503,105 +661,156 @@
 
         const dot = document.createElement('span');
         dot.className = 'dot';
+        dot.title = 'Drag to move';
         div.appendChild(dot);
+        installDrag(node, div, dot);
 
         const actions = document.createElement('span');
         actions.className = 'actions';
-
         const addBtn = document.createElement('button');
         addBtn.className = 'add';
         addBtn.textContent = '+';
         addBtn.title = 'Add a child branch';
         addBtn.addEventListener('click', () => addChild(node));
         actions.appendChild(addBtn);
-
         if (!isRoot) {
           const delBtn = document.createElement('button');
           delBtn.className = 'del';
           delBtn.textContent = '×';
           delBtn.title = 'Delete this branch';
-          delBtn.addEventListener('click', () => removeNode(parent, entry.parentIdx));
+          delBtn.addEventListener('click', () => {
+            const parent = parents.get(node);
+            const idx = parent.children.indexOf(node);
+            if (idx >= 0) removeNode(parent, idx);
+          });
           actions.appendChild(delBtn);
         }
         div.appendChild(actions);
 
         if (isLeaf && !isRoot) {
-          const p = pathProbability(node);
-          if (isFinite(p)) {
+          const pp = pathProbability(node);
+          if (isFinite(pp)) {
             const lp = document.createElement('span');
             lp.className = 'leaf-prob';
-            lp.textContent = fmt(p);
+            lp.textContent = fmt(pp);
             div.appendChild(lp);
           }
         }
 
         stage.appendChild(div);
-      });
+        node.__div = div;
+
+        (node.children || []).forEach(build);
+      }
+      build(state.tree);
 
       updateValidation();
       updateOutcomes();
     }
 
-    // ---------- Path probability + outcomes ----------
-    // Build parent map
-    function withParents(root) {
-      const parents = new Map();
-      function walk(node, parent) {
-        parents.set(node, parent);
-        (node.children || []).forEach(c => walk(c, node));
-      }
-      walk(root, null);
-      return parents;
+    function updateLineEndpoints(line, ppx, ppy, px, py) {
+      const dx = px - ppx, dy = py - ppy;
+      const len = Math.sqrt(dx * dx + dy * dy) || 1;
+      const ux = dx / len, uy = dy / len;
+      const SHRINK = 18;
+      line.setAttribute('x1', ppx + ux * SHRINK);
+      line.setAttribute('y1', ppy + uy * SHRINK);
+      line.setAttribute('x2', px - ux * SHRINK);
+      line.setAttribute('y2', py - uy * SHRINK);
     }
-    function pathFromRoot(node) {
-      const parents = withParents(state.tree);
-      const path = [];
-      let cur = node;
-      while (cur && parents.get(cur) !== null && parents.get(cur) !== undefined) {
-        path.unshift(cur);
-        cur = parents.get(cur);
-        if (cur === state.tree) break;
-      }
-      return path;
-    }
-    function pathProbability(node) {
-      const path = pathFromRoot(node);
-      if (path.length === 0) return NaN;
-      let prod = 1;
-      for (const n of path) {
-        const v = parseProb(n.branchProb);
-        if (!isFinite(v)) return NaN;
-        prod *= v;
-      }
-      return prod;
-    }
-    function pathLabel(node) {
-      const path = pathFromRoot(node);
-      return path.map(n => n.branchLabel || '·').join(' & ');
+    function updateLabelPosition(lab, ppx, ppy, px, py) {
+      lab.style.left = ((ppx + px) / 2) + 'px';
+      lab.style.top  = ((ppy + py) / 2) + 'px';
     }
 
-    function leaves(node, acc = []) {
-      if (!node.children || node.children.length === 0) {
-        if (node !== state.tree) acc.push(node);
-        return acc;
-      }
-      node.children.forEach(c => leaves(c, acc));
-      return acc;
+    // ---------- Drag ----------
+    function installDrag(node, div, dot) {
+      dot.addEventListener('pointerdown', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        dot.setPointerCapture(e.pointerId);
+        div.classList.add('dragging');
+
+        const startX = e.clientX, startY = e.clientY;
+        const startGrid = { ...posOf(node) };
+        let currentPx = { x: gridToPx(startGrid.x), y: gridToPx(startGrid.y) };
+
+        const parents = withParents(state.tree);
+        const parent = parents.get(node);
+        const childList = node.children || [];
+
+        function onMove(ev) {
+          const dx = ev.clientX - startX;
+          const dy = ev.clientY - startY;
+          const candidate = {
+            x: gridToPx(startGrid.x) + dx,
+            y: gridToPx(startGrid.y) + dy,
+          };
+          currentPx = applyMagnetPx(candidate);
+
+          div.style.left = currentPx.x + 'px';
+          div.style.top  = currentPx.y + 'px';
+
+          if (parent && node.__line) {
+            const pp = posOf(parent);
+            const ppx = gridToPx(pp.x), ppy = gridToPx(pp.y);
+            updateLineEndpoints(node.__line, ppx, ppy, currentPx.x, currentPx.y);
+            updateLabelPosition(node.__label, ppx, ppy, currentPx.x, currentPx.y);
+          }
+          for (const c of childList) {
+            if (!c.__line) continue;
+            const cp = posOf(c);
+            const cpx = gridToPx(cp.x), cpy = gridToPx(cp.y);
+            updateLineEndpoints(c.__line, currentPx.x, currentPx.y, cpx, cpy);
+            updateLabelPosition(c.__label, currentPx.x, currentPx.y, cpx, cpy);
+          }
+
+          // grow the stage if needed
+          const stage = document.getElementById('treeStage');
+          const svg = document.getElementById('branchLayer');
+          const minW = currentPx.x + 100;
+          const minH = currentPx.y + 100;
+          const curW = parseFloat(stage.style.width) || 0;
+          const curH = parseFloat(stage.style.height) || 0;
+          if (minW > curW) {
+            stage.style.width = minW + 'px';
+            svg.setAttribute('width', minW);
+          }
+          if (minH > curH) {
+            stage.style.height = minH + 'px';
+            svg.setAttribute('height', minH);
+          }
+        }
+        function onUp(ev) {
+          try { dot.releasePointerCapture(ev.pointerId); } catch {}
+          window.removeEventListener('pointermove', onMove);
+          window.removeEventListener('pointerup', onUp);
+          window.removeEventListener('pointercancel', onUp);
+          div.classList.remove('dragging');
+
+          let gx = pxToGridFloat(currentPx.x);
+          let gy = pxToGridFloat(currentPx.y);
+          if (gx < 0) gx = 0;
+          if (gy < 0) gy = 0;
+          setPos(node, { x: gx, y: gy });
+          render();
+        }
+        window.addEventListener('pointermove', onMove);
+        window.addEventListener('pointerup', onUp);
+        window.addEventListener('pointercancel', onUp);
+      });
     }
 
-    // ---------- Validation + outcomes panels ----------
+    // ---------- Validation panel ----------
     function updateValidation() {
       const list = document.getElementById('validationList');
       list.innerHTML = '';
-
-      // mark bad-sum branch labels
       document.querySelectorAll('.branch-label').forEach(el => el.classList.remove('bad-sum'));
 
       const issues = [];
-      function checkSiblings(node, pathName) {
+      function check(node, pathName) {
         if (!node.children || node.children.length === 0) return;
-        let sum = 0;
-        let allFilled = true;
+        let sum = 0, allFilled = true;
         for (const c of node.children) {
           const v = parseProb(c.branchProb);
           if (!isFinite(v)) { allFilled = false; break; }
@@ -609,29 +818,19 @@
         }
         if (allFilled) {
           if (!approxEq(sum, 1)) {
-            issues.push({
-              kind: 'bad',
-              text: `Children of "${pathName || 'root'}" sum to ${fmt(sum)}, not 1`,
-              node,
-            });
+            issues.push({ kind: 'bad', text: `Children of "${pathName || 'root'}" sum to ${fmt(sum)}, not 1` });
           } else {
-            issues.push({
-              kind: 'ok',
-              text: `Children of "${pathName || 'root'}" sum to 1 ✓`,
-            });
+            issues.push({ kind: 'ok', text: `Children of "${pathName || 'root'}" sum to 1 ✓` });
           }
         } else {
-          issues.push({
-            kind: 'info',
-            text: `Children of "${pathName || 'root'}": some probabilities missing`,
-          });
+          issues.push({ kind: 'info', text: `Children of "${pathName || 'root'}": some probabilities missing` });
         }
         node.children.forEach(c => {
           const next = pathName ? `${pathName} → ${c.branchLabel || '·'}` : (c.branchLabel || '·');
-          checkSiblings(c, next);
+          check(c, next);
         });
       }
-      checkSiblings(state.tree, '');
+      check(state.tree, '');
 
       if (issues.length === 0) {
         const d = document.createElement('div');
@@ -646,7 +845,6 @@
         list.appendChild(d);
       });
 
-      // mark each bad-sum visually on the children's branch labels
       const labelByNode = new Map();
       document.querySelectorAll('.branch-label').forEach(el => {
         if (el.__nodeRef) labelByNode.set(el.__nodeRef, el);
@@ -670,32 +868,24 @@
       markBad(state.tree);
     }
 
+    // ---------- Outcomes ----------
     function updateOutcomes() {
-      // Refresh leaf path probability badges already shown in nodes
-      document.querySelectorAll('.node.leaf .leaf-prob').forEach(el => el.remove());
-      const positions = collectPositions();
-      const byNode = new Map(positions.map(p => [p.node, p]));
-      positions.forEach(entry => {
-        const { node, parent, x, y } = entry;
-        const isLeaf = !node.children || node.children.length === 0;
-        if (isLeaf && parent) {
-          // find the matching node div
-          const nodeDiv = [...document.querySelectorAll('.node.leaf')]
-            .find(d => Math.abs(parseFloat(d.style.left) - x) < 0.5 &&
-                       Math.abs(parseFloat(d.style.top) - y) < 0.5);
-          if (nodeDiv) {
-            const p = pathProbability(node);
-            if (isFinite(p)) {
-              const lp = document.createElement('span');
-              lp.className = 'leaf-prob';
-              lp.textContent = fmt(p);
-              nodeDiv.appendChild(lp);
-            }
+      allNodes(state.tree).forEach(n => {
+        if (!n.__div) return;
+        const old = n.__div.querySelector('.leaf-prob');
+        if (old) old.remove();
+        const isLeaf = !n.children || n.children.length === 0;
+        if (isLeaf && n !== state.tree) {
+          const p = pathProbability(n);
+          if (isFinite(p)) {
+            const lp = document.createElement('span');
+            lp.className = 'leaf-prob';
+            lp.textContent = fmt(p);
+            n.__div.appendChild(lp);
           }
         }
       });
 
-      // outcomes side panel
       const list = document.getElementById('leafList');
       list.innerHTML = '';
       const ls = leaves(state.tree);
@@ -718,23 +908,6 @@
       const ok = allFilled && approxEq(total, 1);
       li.innerHTML = `<span class="path"><b>Total</b></span><span class="prob" style="color:${ok ? 'var(--green)' : (allFilled ? 'var(--red)' : 'var(--gray)')}">${allFilled ? fmt(total) : '—'}</span>`;
       list.appendChild(li);
-    }
-
-    function collectPositions() {
-      const positions = [];
-      function place(node, parent, parentIdx, depthLevel, yStart) {
-        const span = leafCount(node);
-        const cx = PAD_X + depthLevel * COL_WIDTH;
-        const cy = yStart + (span * ROW_HEIGHT) / 2;
-        positions.push({ node, parent, parentIdx, x: cx, y: cy, depth: depthLevel });
-        let yy = yStart;
-        (node.children || []).forEach((c, i) => {
-          place(c, node, i, depthLevel + 1, yy);
-          yy += leafCount(c) * ROW_HEIGHT;
-        });
-      }
-      place(state.tree, null, -1, 0, PAD_Y);
-      return positions;
     }
 
     function escapeHtml(s) {
@@ -810,7 +983,6 @@
           sel.appendChild(opt);
         });
       } catch (e) {
-        // fetch can fail when opened via file:// — that's fine
         console.warn('Could not load examples manifest:', e);
       }
     }
@@ -825,7 +997,6 @@
       }
     }
     function applyExample(data) {
-      // Be permissive: accept either a bare tree (with children) or full doc
       if (data && data.tree) {
         state.tree = sanitizeTree(data.tree);
         state.problem = {
@@ -841,20 +1012,34 @@
         alert('Not a recognized tree-diagram JSON file.');
         return;
       }
+      if (!hasAllPositions(state.tree)) tidyLayout(state.tree);
       renderProblem();
       render();
     }
+    function hasAllPositions(tree) {
+      if (!tree.rootPos) return false;
+      let ok = true;
+      function walk(node) {
+        (node.children || []).forEach(c => {
+          if (!c.pos) ok = false;
+          walk(c);
+        });
+      }
+      walk(tree);
+      return ok;
+    }
     function sanitizeTree(t) {
-      const root = {
+      return {
         rootLabel: t.rootLabel || 'Start',
+        rootPos: t.rootPos ? { x: Number(t.rootPos.x) || 0, y: Number(t.rootPos.y) || 0 } : undefined,
         children: (t.children || []).map(sanitizeChild),
       };
-      return root;
     }
     function sanitizeChild(c) {
       return {
         branchLabel: c.branchLabel || '',
         branchProb: c.branchProb == null ? '' : String(c.branchProb),
+        pos: c.pos ? { x: Number(c.pos.x) || 0, y: Number(c.pos.y) || 0 } : undefined,
         children: (c.children || []).map(sanitizeChild),
       };
     }
@@ -863,7 +1048,7 @@
         title: state.problem?.title || 'Untitled',
         problem: state.problem?.problem || '',
         scaffold: state.problem?.scaffold || '',
-        tree: state.tree,
+        tree: stripDomRefs(state.tree),
         questions: state.problem?.questions || [],
       };
       const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
@@ -877,14 +1062,29 @@
       a.remove();
       URL.revokeObjectURL(url);
     }
+    function stripDomRefs(node) {
+      const cp = {};
+      for (const k of Object.keys(node)) {
+        if (k.startsWith('__')) continue;
+        if (k === 'children') {
+          cp.children = (node.children || []).map(stripDomRefs);
+        } else {
+          cp[k] = node[k];
+        }
+      }
+      return cp;
+    }
 
     // ---------- Wire up UI ----------
     document.getElementById('newTree').addEventListener('click', () => {
       state.tree = blankTree();
       state.problem = null;
+      addChild(state.tree);
+      addChild(state.tree);
       renderProblem();
-      render();
     });
+    document.getElementById('tidyTree').addEventListener('click', tidyAndRender);
+    document.getElementById('magnetBtn').addEventListener('click', cycleMagnet);
     document.getElementById('exampleSelect').addEventListener('change', e => {
       const f = e.target.value;
       if (f) loadExampleByFile(f);
@@ -895,11 +1095,8 @@
       if (!f) return;
       const reader = new FileReader();
       reader.onload = () => {
-        try {
-          applyExample(JSON.parse(reader.result));
-        } catch (err) {
-          alert('Could not parse JSON: ' + err.message);
-        }
+        try { applyExample(JSON.parse(reader.result)); }
+        catch (err) { alert('Could not parse JSON: ' + err.message); }
       };
       reader.readAsText(f);
       e.target.value = '';
@@ -920,13 +1117,12 @@
       reader.readAsText(f);
     });
 
-    // Initial state: blank with one branch hint
+    // ---------- Initial state ----------
     state.tree = blankTree();
-    addChild(state.tree); // start with one empty branch so the UI isn't empty
+    addChild(state.tree);
     addChild(state.tree);
     loadManifest();
     renderProblem();
-    render();
   </script>
 </body>
 </html>

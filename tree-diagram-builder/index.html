@@ -80,9 +80,7 @@
       position: relative;
       overflow: auto;
       padding: 24px;
-      background:
-        linear-gradient(#fafafa 1px, transparent 1px) 0 0 / 100% 40px,
-        #fff;
+      background: #fff;
     }
     #treeStage {
       position: relative;
@@ -100,75 +98,94 @@
       gap: 4px;
     }
     .node .dot {
-      width: 14px;
-      height: 14px;
+      width: 10px;
+      height: 10px;
       border-radius: 50%;
-      background: var(--blue);
+      background: #475569;
       flex-shrink: 0;
+      box-shadow: 0 0 0 3px #fff;
     }
-    .node.leaf .dot { background: var(--gray); }
-    .node.root .dot { background: #111; width: 18px; height: 18px; }
+    .node.leaf .dot { background: #94a3b8; }
+    .node.root .dot { background: #111; width: 12px; height: 12px; }
     .node .actions {
       display: flex;
       gap: 2px;
       margin-left: 4px;
+      opacity: 0;
+      transition: opacity 0.12s ease;
     }
+    .node:hover .actions,
+    .node:focus-within .actions { opacity: 1; }
     .node .actions button {
       font: inherit;
-      width: 22px;
-      height: 22px;
+      width: 18px;
+      height: 18px;
       padding: 0;
       border: 1px solid var(--border);
       background: #fff;
       border-radius: 50%;
       cursor: pointer;
       line-height: 1;
-      font-size: 14px;
+      font-size: 12px;
       color: var(--gray);
     }
     .node .actions button:hover { background: var(--gray-soft); color: #111; }
-    .node .actions button.add { color: var(--green); border-color: var(--green); }
-    .node .actions button.del { color: var(--red); border-color: var(--red); }
+    .node .actions button.add { color: var(--green); border-color: #bbf7d0; }
+    .node .actions button.del { color: var(--red); border-color: #fecaca; }
     .node .leaf-prob {
-      margin-left: 6px;
-      padding: 2px 8px;
-      background: var(--gray-soft);
-      border-radius: 4px;
+      margin-left: 8px;
+      padding: 1px 7px;
+      background: var(--blue-soft);
+      color: #1e40af;
+      border-radius: 3px;
       font-variant-numeric: tabular-nums;
-      font-size: 0.9em;
+      font-size: 0.85em;
+      font-weight: 600;
       white-space: nowrap;
     }
     .node .root-label {
       font-weight: 600;
-      margin-right: 4px;
+      margin-right: 6px;
+      color: #111;
     }
 
     .branch-label {
       position: absolute;
       transform: translate(-50%, -50%);
-      display: flex;
-      gap: 4px;
-      align-items: center;
-      background: #fff;
-      padding: 2px 4px;
-      border-radius: 4px;
-      box-shadow: 0 0 0 1px var(--border);
+      display: inline-flex;
+      gap: 6px;
+      align-items: baseline;
+      background: rgba(255, 255, 255, 0.92);
+      padding: 0 4px;
+      font-size: 0.95em;
+      line-height: 1.4;
     }
     .branch-label input {
       font: inherit;
-      border: 1px solid transparent;
-      border-radius: 3px;
-      padding: 2px 4px;
+      border: none;
+      border-bottom: 1px dashed #d1d5db;
+      border-radius: 0;
+      padding: 0 2px;
       background: transparent;
       width: 60px;
     }
-    .branch-label input.label-input { width: 90px; }
-    .branch-label input.prob-input { width: 50px; text-align: center; font-variant-numeric: tabular-nums; }
-    .branch-label input:focus { outline: none; border-color: var(--blue); background: #fff; }
-    .branch-label input::placeholder { color: #bbb; }
-    .branch-label.bad-sum {
+    .branch-label input.label-input { width: 80px; }
+    .branch-label input.prob-input {
+      width: 48px;
+      text-align: center;
+      font-variant-numeric: tabular-nums;
+    }
+    .branch-label input:hover { border-bottom-color: var(--blue); }
+    .branch-label input:focus {
+      outline: none;
+      border-bottom: 1px solid var(--blue);
+      background: var(--blue-soft);
+    }
+    .branch-label input::placeholder { color: #d1d5db; font-style: italic; }
+    .branch-label.bad-sum input.prob-input {
+      border-bottom-color: var(--red);
       background: var(--red-soft);
-      box-shadow: 0 0 0 1px var(--red);
+      color: #991b1b;
     }
     .branch-label .sep { color: var(--gray); font-size: 0.85em; }
 
@@ -373,9 +390,9 @@
 
     // ---------- Rendering ----------
     const COL_WIDTH = 220;
-    const ROW_HEIGHT = 60;
+    const ROW_HEIGHT = 90;
     const PAD_X = 40;
-    const PAD_Y = 40;
+    const PAD_Y = 50;
 
     function render() {
       const stage = document.getElementById('treeStage');
@@ -422,12 +439,13 @@
           const p = byNode.get(parent);
           // draw line
           const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-          line.setAttribute('x1', p.x + 10);
+          line.setAttribute('x1', p.x + 8);
           line.setAttribute('y1', p.y);
-          line.setAttribute('x2', x - 10);
+          line.setAttribute('x2', x - 8);
           line.setAttribute('y2', y);
           line.setAttribute('stroke', '#94a3b8');
-          line.setAttribute('stroke-width', '2');
+          line.setAttribute('stroke-width', '1.5');
+          line.setAttribute('stroke-linecap', 'round');
           svg.appendChild(line);
 
           // branch label at midpoint
@@ -508,11 +526,13 @@
         div.appendChild(actions);
 
         if (isLeaf && !isRoot) {
-          const lp = document.createElement('span');
-          lp.className = 'leaf-prob';
           const p = pathProbability(node);
-          lp.textContent = isFinite(p) ? fmt(p) : '?';
-          div.appendChild(lp);
+          if (isFinite(p)) {
+            const lp = document.createElement('span');
+            lp.className = 'leaf-prob';
+            lp.textContent = fmt(p);
+            div.appendChild(lp);
+          }
         }
 
         stage.appendChild(div);
@@ -664,11 +684,13 @@
             .find(d => Math.abs(parseFloat(d.style.left) - x) < 0.5 &&
                        Math.abs(parseFloat(d.style.top) - y) < 0.5);
           if (nodeDiv) {
-            const lp = document.createElement('span');
-            lp.className = 'leaf-prob';
             const p = pathProbability(node);
-            lp.textContent = isFinite(p) ? fmt(p) : '?';
-            nodeDiv.appendChild(lp);
+            if (isFinite(p)) {
+              const lp = document.createElement('span');
+              lp.className = 'leaf-prob';
+              lp.textContent = fmt(p);
+              nodeDiv.appendChild(lp);
+            }
           }
         }
       });

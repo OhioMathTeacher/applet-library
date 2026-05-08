@@ -1,0 +1,31 @@
+{
+  "title": "Marbles Without Replacement",
+  "problem": "A bag contains 4 red marbles and 6 blue marbles. You draw one marble, do NOT replace it, and then draw a second marble. The first level of the tree is filled in for you. Fill in the second level — remember that the second draw depends on what was taken first.",
+  "scaffold": "partial",
+  "tree": {
+    "rootLabel": "Start",
+    "children": [
+      {
+        "branchLabel": "Red",
+        "branchProb": "4/10",
+        "children": [
+          { "branchLabel": "Red", "branchProb": "", "children": [] },
+          { "branchLabel": "Blue", "branchProb": "", "children": [] }
+        ]
+      },
+      {
+        "branchLabel": "Blue",
+        "branchProb": "6/10",
+        "children": [
+          { "branchLabel": "Red", "branchProb": "", "children": [] },
+          { "branchLabel": "Blue", "branchProb": "", "children": [] }
+        ]
+      }
+    ]
+  },
+  "questions": [
+    { "prompt": "Find P(both red).", "answer": "12/90 = 2/15" },
+    { "prompt": "Find P(both blue).", "answer": "30/90 = 1/3" },
+    { "prompt": "Find P(one of each color).", "answer": "48/90 = 8/15" }
+  ]
+}

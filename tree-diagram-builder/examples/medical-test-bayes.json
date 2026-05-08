@@ -1,0 +1,14 @@
+{
+  "title": "Medical Test (Bayes)",
+  "problem": "A disease affects 1% of a population. A test for the disease is 95% accurate when the person has the disease (true positive rate), and gives a false positive 8% of the time when the person does NOT have the disease.\n\nBuild a tree diagram from scratch that models a randomly selected person being tested. Use the first level of branches for whether the person has the disease, and the second level for the test result.",
+  "scaffold": "blank",
+  "tree": {
+    "rootLabel": "Start",
+    "children": []
+  },
+  "questions": [
+    { "prompt": "Find P(has disease AND tests positive).", "answer": "0.0095" },
+    { "prompt": "Find P(does NOT have disease AND tests positive).", "answer": "0.0792" },
+    { "prompt": "Given a positive test, find P(has disease) — i.e., P(D | +).", "answer": "≈ 0.107 (about 10.7%)" }
+  ]
+}

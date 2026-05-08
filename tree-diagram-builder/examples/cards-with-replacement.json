@@ -1,0 +1,31 @@
+{
+  "title": "Two Cards With Replacement",
+  "problem": "A standard 52-card deck contains 13 hearts. You draw a card, record its suit (heart vs. not heart), put it back, and draw a second card. The branch labels are filled in for you — fill in the probabilities on each branch.",
+  "scaffold": "partial",
+  "tree": {
+    "rootLabel": "Start",
+    "children": [
+      {
+        "branchLabel": "Heart",
+        "branchProb": "",
+        "children": [
+          { "branchLabel": "Heart", "branchProb": "", "children": [] },
+          { "branchLabel": "Not heart", "branchProb": "", "children": [] }
+        ]
+      },
+      {
+        "branchLabel": "Not heart",
+        "branchProb": "",
+        "children": [
+          { "branchLabel": "Heart", "branchProb": "", "children": [] },
+          { "branchLabel": "Not heart", "branchProb": "", "children": [] }
+        ]
+      }
+    ]
+  },
+  "questions": [
+    { "prompt": "Find P(both hearts).", "answer": "1/16" },
+    { "prompt": "Find P(neither card is a heart).", "answer": "9/16" },
+    { "prompt": "Find P(exactly one heart).", "answer": "6/16 = 3/8" }
+  ]
+}

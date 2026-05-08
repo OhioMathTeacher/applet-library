@@ -1,0 +1,31 @@
+{
+  "title": "Two Fair Coin Flips",
+  "problem": "A fair coin is flipped twice. Build a tree diagram showing the outcomes of the two flips and find the probability of each combined outcome.",
+  "scaffold": "complete",
+  "tree": {
+    "rootLabel": "Start",
+    "children": [
+      {
+        "branchLabel": "H",
+        "branchProb": "1/2",
+        "children": [
+          { "branchLabel": "H", "branchProb": "1/2", "children": [] },
+          { "branchLabel": "T", "branchProb": "1/2", "children": [] }
+        ]
+      },
+      {
+        "branchLabel": "T",
+        "branchProb": "1/2",
+        "children": [
+          { "branchLabel": "H", "branchProb": "1/2", "children": [] },
+          { "branchLabel": "T", "branchProb": "1/2", "children": [] }
+        ]
+      }
+    ]
+  },
+  "questions": [
+    { "prompt": "Find P(both heads).", "answer": "1/4" },
+    { "prompt": "Find P(exactly one head).", "answer": "1/2" },
+    { "prompt": "Find P(at least one head).", "answer": "3/4" }
+  ]
+}

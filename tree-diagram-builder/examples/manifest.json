@@ -1,0 +1,28 @@
+{
+  "examples": [
+    {
+      "title": "Two Fair Coin Flips",
+      "file": "two-coin-flips.json",
+      "scaffold": "complete",
+      "description": "Worked example: fully filled tree for two flips of a fair coin."
+    },
+    {
+      "title": "Two Cards With Replacement",
+      "file": "cards-with-replacement.json",
+      "scaffold": "partial",
+      "description": "Branch labels are given; students fill in the probabilities."
+    },
+    {
+      "title": "Marbles Without Replacement",
+      "file": "marbles-no-replacement.json",
+      "scaffold": "partial",
+      "description": "First-level branches given; students fill the dependent second level."
+    },
+    {
+      "title": "Medical Test (Bayes)",
+      "file": "medical-test-bayes.json",
+      "scaffold": "blank",
+      "description": "Only the problem is given. Students build the entire tree from scratch."
+    }
+  ]
+}

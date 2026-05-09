@@ -37,6 +37,18 @@
       "description": "First-level branches given; students fill the dependent second level."
     },
     {
+      "title": "Two Free Throws",
+      "file": "free-throws.json",
+      "scaffold": "partial",
+      "description": "Independent shots at 70% — students fill in 7/10 and 3/10 throughout."
+    },
+    {
+      "title": "Three-Color Spinner (Practice)",
+      "file": "spinner-practice.json",
+      "scaffold": "partial",
+      "description": "Three-way tree; students fill in 1/2, 1/3, 1/6 at every level."
+    },
+    {
       "title": "Medical Test (Bayes)",
       "file": "medical-test-bayes.json",
       "scaffold": "blank",

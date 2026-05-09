@@ -934,6 +934,12 @@
     // Pick a zoom level that makes the entire tree fit inside the visible
     // canvas. Called automatically when an example loads so tall/wide
     // trees don't sprawl off the page on smaller screens.
+    // Floor for the auto-fit zoom: below ~0.5× the branch labels and
+    // probability badges drop to ~8px and become unreadable. If the tree
+    // is too big to fit at 0.5×, the container scrolls. Manual zoom-out
+    // can still go lower for users who want to see the whole shape.
+    const FIT_ZOOM_MIN = 0.5;
+
     function fitToView() {
       const container = document.getElementById('treeContainer');
       const cw = Math.max(0, container.clientWidth - 16);
@@ -948,8 +954,8 @@
       });
       const naturalW = Math.max(720, gridToPx(maxX + 3));
       const naturalH = Math.max(440, gridToPx(maxY + 3));
-      const z = Math.min(cw / naturalW, ch / naturalH, 1);
-      state.zoom = clampZoom(z);
+      const fit = Math.min(cw / naturalW, ch / naturalH, 1);
+      state.zoom = Math.max(FIT_ZOOM_MIN, fit);
     }
     function fitAndRender() {
       fitToView();

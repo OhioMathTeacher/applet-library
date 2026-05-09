@@ -118,6 +118,7 @@
       position: relative;
       min-width: 100%;
       min-height: 100%;
+      transform-origin: 0 0;
     }
     #branchLayer {
       position: absolute;
@@ -619,6 +620,9 @@
       </span>
       <button id="newTree" class="primary" data-tip="Clear the canvas and start fresh">New blank tree</button>
       <button id="tidyTree" data-tip="Auto-arrange the tree neatly">✨ Tidy</button>
+      <button id="zoomFit" data-tip="Fit the entire tree to the visible area">⊡ Fit</button>
+      <button id="zoomOut" data-tip="Zoom out">−</button>
+      <button id="zoomIn" data-tip="Zoom in">+</button>
       <button id="magnetBtn" data-mode="force" data-tip="Toggle snap-to-grid mode (off / loose / force)">🧲 Magnet: force</button>
       <label class="file-btn" data-tip="Load a tree-diagram JSON file from your computer">
         Load file…
@@ -750,7 +754,15 @@
       // Map of question index -> Set<path-label string> currently highlighted
       // (multiple questions can be open simultaneously; their highlights union)
       highlightedQuestions: new Map(),
+      // Visual zoom factor applied to #treeStage via CSS transform.
+      // Scrollbars + drag math compensate so logical positions stay 1:1 with
+      // the grid even at fractional zoom.
+      zoom: 1,
     };
+
+    const ZOOM_MIN = 0.25;
+    const ZOOM_MAX = 2;
+    function clampZoom(z) { return Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, z)); }
 
     function blankTree() {
       return { rootLabel: 'Start', rootPos: { x: 1, y: 5 }, children: [] };
@@ -872,9 +884,18 @@
     }
 
     // ---------- Tidy: auto-layout ----------
+    function treeDepth(node) {
+      if (!node.children || node.children.length === 0) return 0;
+      return 1 + Math.max(...node.children.map(treeDepth));
+    }
+
     function tidyLayout(root = state.tree) {
+      // Tighten horizontal spacing for deeper trees so they don't sprawl
+      // off the canvas on small screens. Three Coin Flips (depth 3) gets
+      // HORIZ=4, depth-4+ trees get HORIZ=3.
+      const depth = treeDepth(root);
+      const HORIZ = depth >= 4 ? 3 : depth >= 3 ? 4 : 5;
       const VERT  = 3;
-      const HORIZ = 5;
       const TOP_X = 1;
       const TOP_Y = 1;
 
@@ -901,6 +922,40 @@
       render();
     }
 
+    // ---------- Zoom / fit ----------
+    function setZoom(z) {
+      state.zoom = clampZoom(z);
+      render();
+    }
+    function zoomIn()  { setZoom(state.zoom * 1.25); }
+    function zoomOut() { setZoom(state.zoom / 1.25); }
+    function zoomReset() { setZoom(1); }
+
+    // Pick a zoom level that makes the entire tree fit inside the visible
+    // canvas. Called automatically when an example loads so tall/wide
+    // trees don't sprawl off the page on smaller screens.
+    function fitToView() {
+      const container = document.getElementById('treeContainer');
+      const cw = Math.max(0, container.clientWidth - 16);
+      const ch = Math.max(0, container.clientHeight - 16);
+      if (cw === 0 || ch === 0) { state.zoom = 1; return; }
+      const nodes = allNodes(state.tree);
+      let maxX = 0, maxY = 0;
+      nodes.forEach(n => {
+        const p = posOf(n);
+        if (p.x > maxX) maxX = p.x;
+        if (p.y > maxY) maxY = p.y;
+      });
+      const naturalW = Math.max(720, gridToPx(maxX + 3));
+      const naturalH = Math.max(440, gridToPx(maxY + 3));
+      const z = Math.min(cw / naturalW, ch / naturalH, 1);
+      state.zoom = clampZoom(z);
+    }
+    function fitAndRender() {
+      fitToView();
+      render();
+    }
+
     // ---------- Rendering ----------
     function render() {
       const stage = document.getElementById('treeStage');
@@ -916,12 +971,18 @@
         if (p.x > maxX) maxX = p.x;
         if (p.y > maxY) maxY = p.y;
       });
-      const stageWidth  = Math.max(720, gridToPx(maxX + 3));
-      const stageHeight = Math.max(440, gridToPx(maxY + 3));
-      stage.style.width = stageWidth + 'px';
-      stage.style.height = stageHeight + 'px';
-      svg.setAttribute('width', stageWidth);
-      svg.setAttribute('height', stageHeight);
+      const naturalW = Math.max(720, gridToPx(maxX + 3));
+      const naturalH = Math.max(440, gridToPx(maxY + 3));
+      // Scale the stage box to match the visual zoom: SVG and node coords
+      // stay in unscaled pixels, the stage's CSS transform shrinks them
+      // visually, and the smaller box keeps scrollbars honest.
+      stage.style.width = (naturalW * state.zoom) + 'px';
+      stage.style.height = (naturalH * state.zoom) + 'px';
+      stage.style.transform = `scale(${state.zoom})`;
+      svg.setAttribute('width', naturalW);
+      svg.setAttribute('height', naturalH);
+      stage.__naturalW = naturalW;
+      stage.__naturalH = naturalH;
 
       const parents = withParents(state.tree);
 
@@ -1103,8 +1164,10 @@
         const childList = node.children || [];
 
         function onMove(ev) {
-          const dx = ev.clientX - startX;
-          const dy = ev.clientY - startY;
+          // Mouse moves in screen pixels; the stage is visually scaled by
+          // state.zoom. Divide by zoom so node positions track the cursor.
+          const dx = (ev.clientX - startX) / state.zoom;
+          const dy = (ev.clientY - startY) / state.zoom;
           const candidate = {
             x: gridToPx(startGrid.x) + dx,
             y: gridToPx(startGrid.y) + dy,
@@ -1128,19 +1191,23 @@
             updateLabelPosition(c.__label, currentPx.x, currentPx.y, cpx, cpy);
           }
 
-          // grow the stage if needed
+          // Grow the stage if dragging beyond its current bounds. Track
+          // natural (unscaled) dimensions and apply the zoom factor to the
+          // visible CSS box.
           const stage = document.getElementById('treeStage');
           const svg = document.getElementById('branchLayer');
           const minW = currentPx.x + 100;
           const minH = currentPx.y + 100;
-          const curW = parseFloat(stage.style.width) || 0;
-          const curH = parseFloat(stage.style.height) || 0;
+          const curW = stage.__naturalW || 0;
+          const curH = stage.__naturalH || 0;
           if (minW > curW) {
-            stage.style.width = minW + 'px';
+            stage.__naturalW = minW;
+            stage.style.width = (minW * state.zoom) + 'px';
             svg.setAttribute('width', minW);
           }
           if (minH > curH) {
-            stage.style.height = minH + 'px';
+            stage.__naturalH = minH;
+            stage.style.height = (minH * state.zoom) + 'px';
             svg.setAttribute('height', minH);
           }
         }
@@ -1439,6 +1506,10 @@
       }
 
       renderProblem();
+      // Auto-fit so the entire tree is visible inside the canvas, even on
+      // small screens. Without this, depth-3 trees like Three Coin Flips
+      // overflow off the right side.
+      fitToView();
       render();
     }
     function hasAllPositions(tree) {
@@ -1508,6 +1579,9 @@
       applyLevel('blank');
     });
     document.getElementById('tidyTree').addEventListener('click', tidyAndRender);
+    document.getElementById('zoomIn').addEventListener('click', zoomIn);
+    document.getElementById('zoomOut').addEventListener('click', zoomOut);
+    document.getElementById('zoomFit').addEventListener('click', fitAndRender);
     document.getElementById('magnetBtn').addEventListener('click', cycleMagnet);
     document.getElementById('levelSelect').addEventListener('change', e => {
       applyLevel(e.target.value, { autoLoadFirst: true });

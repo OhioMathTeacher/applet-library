@@ -24,8 +24,8 @@
     ]
   },
   "questions": [
-    { "prompt": "Find P(both heads).", "answer": "1/4" },
-    { "prompt": "Find P(exactly one head).", "answer": "1/2" },
-    { "prompt": "Find P(at least one head).", "answer": "3/4" }
+    { "prompt": "Find P(both heads).", "answer": "1/4", "highlight": ["H & H"] },
+    { "prompt": "Find P(exactly one head).", "answer": "1/2", "highlight": ["H & T", "T & H"] },
+    { "prompt": "Find P(at least one head).", "answer": "3/4", "highlight": ["H & H", "H & T", "T & H"] }
   ]
 }

@@ -63,24 +63,30 @@
     .toolbar #magnetBtn[data-mode="force"] { background: #ecfdf5; color: #065f46; border-color: #a7f3d0; }
     .toolbar #magnetBtn:hover { filter: brightness(0.96); }
 
-    /* PROBLEM PANEL */
+    /* PROBLEM PANEL — compact one-line banner with title, tag, problem text */
     #problemPanel {
-      padding: 14px 20px;
+      padding: 7px 20px;
       background: var(--blue-soft);
       border-bottom: 1px solid var(--border);
+      display: flex;
+      flex-wrap: wrap;
+      align-items: baseline;
+      gap: 4px 10px;
+      font-size: 0.95em;
+      line-height: 1.4;
     }
     #problemPanel.empty { display: none; }
-    #problemTitle { margin: 0 0 4px 0; font-size: 1.15em; }
-    #problemText { margin: 0; white-space: pre-wrap; }
+    #problemTitle { margin: 0; font-size: 1em; font-weight: 700; }
+    #problemText { margin: 0; flex: 1 1 200px; min-width: 0; color: #1e3a8a; }
     #scaffoldTag {
       display: inline-block;
-      font-size: 0.85em;
-      padding: 2px 10px;
+      font-size: 0.75em;
+      padding: 1px 8px;
       border-radius: 999px;
       background: #fff;
       border: 1px solid var(--border);
-      margin-left: 8px;
-      vertical-align: middle;
+      text-transform: lowercase;
+      letter-spacing: 0.02em;
     }
 
     /* MAIN LAYOUT */
@@ -262,6 +268,24 @@
       color: #991b1b;
     }
     .branch-label .sep { color: var(--gray); font-size: 0.9em; }
+
+    /* Highlighted path (when an answer is revealed) */
+    #branchLayer line.hl-line {
+      stroke: #f59e0b;
+      stroke-width: 5;
+    }
+    .node.hl-leaf .dot {
+      border-color: #f59e0b;
+      background: #fef3c7;
+      box-shadow: 0 0 0 4px var(--grid-bg), 0 0 14px rgba(245, 158, 11, 0.55);
+    }
+    .node.hl-leaf .leaf-prob {
+      background: #f59e0b;
+    }
+    .branch-label.hl-label {
+      background: #fef3c7;
+      box-shadow: 0 0 0 1px #f59e0b;
+    }
 
     /* SIDE PANEL */
     aside {
@@ -718,6 +742,9 @@
     const state = {
       tree: null,
       problem: null,
+      // Map of question index -> Set<path-label string> currently highlighted
+      // (multiple questions can be open simultaneously; their highlights union)
+      highlightedQuestions: new Map(),
     };
 
     function blankTree() {
@@ -1006,6 +1033,38 @@
 
       updateValidation();
       updateOutcomes();
+      applyPathHighlights();
+    }
+
+    // ---------- Path highlighting (when answers are revealed) ----------
+    function applyPathHighlights() {
+      // Collect every path label currently highlighted by any open question.
+      const labels = new Set();
+      state.highlightedQuestions.forEach(set => set.forEach(l => labels.add(l)));
+
+      // Map labels to actual leaf nodes; gather the ancestor branches on each path.
+      const ls = leaves(state.tree);
+      const highlightLeaves = new Set(ls.filter(leaf => labels.has(pathLabel(leaf))));
+      const onPath = new Set();
+      highlightLeaves.forEach(leaf => {
+        pathFromRoot(leaf).forEach(n => onPath.add(n));
+      });
+
+      allNodes(state.tree).forEach(n => {
+        if (n === state.tree) return;
+        if (n.__line) {
+          if (onPath.has(n)) n.__line.classList.add('hl-line');
+          else n.__line.classList.remove('hl-line');
+        }
+        if (n.__label) {
+          if (onPath.has(n)) n.__label.classList.add('hl-label');
+          else n.__label.classList.remove('hl-label');
+        }
+        if (n.__div) {
+          if (highlightLeaves.has(n)) n.__div.classList.add('hl-leaf');
+          else n.__div.classList.remove('hl-leaf');
+        }
+      });
     }
 
     function updateLineEndpoints(line, ppx, ppy, px, py) {
@@ -1255,7 +1314,15 @@
           btn.textContent = 'Show answer';
           btn.addEventListener('click', () => {
             div.classList.toggle('show-answer');
-            btn.textContent = div.classList.contains('show-answer') ? 'Hide answer' : 'Show answer';
+            const showing = div.classList.contains('show-answer');
+            btn.textContent = showing ? 'Hide answer' : 'Show answer';
+            // If this question lists which paths illustrate the answer,
+            // shade them on the tree while the answer is visible.
+            if (Array.isArray(q.highlight) && q.highlight.length > 0) {
+              if (showing) state.highlightedQuestions.set(i, new Set(q.highlight));
+              else state.highlightedQuestions.delete(i);
+              applyPathHighlights();
+            }
           });
           div.appendChild(btn);
           const ans = document.createElement('div');
@@ -1324,6 +1391,7 @@
       }
     }
     function applyExample(data) {
+      state.highlightedQuestions = new Map();
       if (data && data.tree) {
         state.tree = sanitizeTree(data.tree);
         state.problem = {

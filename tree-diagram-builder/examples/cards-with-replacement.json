@@ -24,8 +24,8 @@
     ]
   },
   "questions": [
-    { "prompt": "Find P(both hearts).", "answer": "1/16" },
-    { "prompt": "Find P(neither card is a heart).", "answer": "9/16" },
-    { "prompt": "Find P(exactly one heart).", "answer": "6/16 = 3/8" }
+    { "prompt": "Find P(both hearts).", "answer": "1/16", "highlight": ["Heart & Heart"] },
+    { "prompt": "Find P(neither card is a heart).", "answer": "9/16", "highlight": ["Not heart & Not heart"] },
+    { "prompt": "Find P(exactly one heart).", "answer": "6/16 = 3/8", "highlight": ["Heart & Not heart", "Not heart & Heart"] }
   ]
 }

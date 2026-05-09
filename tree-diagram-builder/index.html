@@ -37,6 +37,11 @@
       gap: 12px;
       align-items: center;
       justify-content: space-between;
+      /* Lift the header (and any toolbar tooltips that overflow into the
+         canvas area) above the tree canvas, which has its own positioned
+         children. Without this, hover popups can be hidden by node dots. */
+      position: relative;
+      z-index: 100;
     }
     header h1 { margin: 0; font-size: 1.2em; }
     header h1 a { color: inherit; text-decoration: none; }
@@ -1494,11 +1499,10 @@
 
     // ---------- Wire up UI ----------
     document.getElementById('newTree').addEventListener('click', () => {
-      state.tree = blankTree();
-      state.problem = null;
-      addChild(state.tree);
-      addChild(state.tree);
-      renderProblem();
+      // New blank tree always means Level 3 (sandbox): switch the Level
+      // pulldown so the example menu hides and the workflow makes sense.
+      document.getElementById('levelSelect').value = 'blank';
+      applyLevel('blank');
     });
     document.getElementById('tidyTree').addEventListener('click', tidyAndRender);
     document.getElementById('magnetBtn').addEventListener('click', cycleMagnet);

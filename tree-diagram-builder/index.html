@@ -1386,6 +1386,10 @@
         if (!res.ok) throw new Error('HTTP ' + res.status);
         const data = await res.json();
         applyExample(data);
+        // Reflect the loaded example in the dropdown so the user can see
+        // what's currently shown instead of the "Load example…" placeholder.
+        const sel = document.getElementById('exampleSelect');
+        if ([...sel.options].some(o => o.value === file)) sel.value = file;
       } catch (e) {
         alert('Could not load example: ' + e.message + '\n\nIf you opened this file directly (file://), browsers block fetch. Use Load file… instead, or serve via a local web server.');
       }
@@ -1504,7 +1508,6 @@
     document.getElementById('exampleSelect').addEventListener('change', e => {
       const f = e.target.value;
       if (f) loadExampleByFile(f);
-      e.target.value = '';
     });
     document.getElementById('fileInput').addEventListener('change', e => {
       const f = e.target.files[0];

@@ -155,7 +155,11 @@
       left: 50%;
       bottom: 100%;
       transform: translateX(-50%);
-      margin-bottom: 10px;
+      /* The padding here is mostly invisible "hover slack": it bridges
+         the gap from the buttons down to the dot, and gives extra
+         room on top/sides so the cursor doesn't fall out of the hover
+         zone while traveling toward the buttons. */
+      padding: 8px 12px 12px 12px;
       display: flex;
       gap: 4px;
       opacity: 0;

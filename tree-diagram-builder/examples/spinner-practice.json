@@ -1,0 +1,42 @@
+{
+  "title": "Three-Color Spinner (Practice)",
+  "problem": "A spinner has three sectors: red (1/2 of the wheel), blue (1/3), and yellow (1/6). You spin it twice. The branch labels are filled in for you — fill in the probabilities and use the tree to answer the questions.",
+  "scaffold": "partial",
+  "tree": {
+    "rootLabel": "Start",
+    "children": [
+      {
+        "branchLabel": "Red",
+        "branchProb": "",
+        "children": [
+          { "branchLabel": "Red", "branchProb": "", "children": [] },
+          { "branchLabel": "Blue", "branchProb": "", "children": [] },
+          { "branchLabel": "Yellow", "branchProb": "", "children": [] }
+        ]
+      },
+      {
+        "branchLabel": "Blue",
+        "branchProb": "",
+        "children": [
+          { "branchLabel": "Red", "branchProb": "", "children": [] },
+          { "branchLabel": "Blue", "branchProb": "", "children": [] },
+          { "branchLabel": "Yellow", "branchProb": "", "children": [] }
+        ]
+      },
+      {
+        "branchLabel": "Yellow",
+        "branchProb": "",
+        "children": [
+          { "branchLabel": "Red", "branchProb": "", "children": [] },
+          { "branchLabel": "Blue", "branchProb": "", "children": [] },
+          { "branchLabel": "Yellow", "branchProb": "", "children": [] }
+        ]
+      }
+    ]
+  },
+  "questions": [
+    { "prompt": "Find P(blue then yellow).", "answer": "1/18", "highlight": ["Blue & Yellow"] },
+    { "prompt": "Find P(red on at least one spin).", "answer": "27/36 = 3/4", "highlight": ["Red & Red", "Red & Blue", "Red & Yellow", "Blue & Red", "Yellow & Red"] },
+    { "prompt": "Find P(no yellow on either spin).", "answer": "25/36", "highlight": ["Red & Red", "Red & Blue", "Blue & Red", "Blue & Blue"] }
+  ]
+}

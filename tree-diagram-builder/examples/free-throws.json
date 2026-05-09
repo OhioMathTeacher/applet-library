@@ -1,0 +1,31 @@
+{
+  "title": "Two Free Throws",
+  "problem": "A basketball player makes 70% of her free throws. She shoots two free throws and we treat the shots as independent. The branch labels are filled in for you — fill in the probabilities on each branch.",
+  "scaffold": "partial",
+  "tree": {
+    "rootLabel": "Start",
+    "children": [
+      {
+        "branchLabel": "Make",
+        "branchProb": "",
+        "children": [
+          { "branchLabel": "Make", "branchProb": "", "children": [] },
+          { "branchLabel": "Miss", "branchProb": "", "children": [] }
+        ]
+      },
+      {
+        "branchLabel": "Miss",
+        "branchProb": "",
+        "children": [
+          { "branchLabel": "Make", "branchProb": "", "children": [] },
+          { "branchLabel": "Miss", "branchProb": "", "children": [] }
+        ]
+      }
+    ]
+  },
+  "questions": [
+    { "prompt": "Find P(makes both shots).", "answer": "49/100", "highlight": ["Make & Make"] },
+    { "prompt": "Find P(misses both shots).", "answer": "9/100", "highlight": ["Miss & Miss"] },
+    { "prompt": "Find P(makes exactly one of the two shots).", "answer": "42/100 = 21/50", "highlight": ["Make & Miss", "Miss & Make"] }
+  ]
+}

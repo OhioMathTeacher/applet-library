@@ -438,22 +438,44 @@
       font-weight: 400;
       margin-top: 2px;
     }
-    .ngpt-setup p, .ngpt-setup ol {
+    .ngpt-status {
+      font-weight: 400;
+      font-size: 0.82em;
+      color: var(--gray);
+      margin-left: 4px;
+    }
+    .ngpt-status::before { content: '— '; }
+    .ngpt-status.ready { color: var(--green); }
+    .ngpt-setup {
+      background: var(--gray-soft);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 12px;
+      margin-bottom: 10px;
+    }
+    .ngpt-setup p {
       font-size: 0.9em;
-      margin: 6px 0;
+      margin: 0;
       line-height: 1.45;
       color: #374151;
     }
-    .ngpt-setup ol { padding-left: 1.2em; }
+    .ngpt-setup p + p { margin-top: 6px; }
     .ngpt-setup a { color: var(--blue); }
     .ngpt-setup #ngptKeyInput {
       width: 100%;
-      padding: 6px 8px;
+      padding: 7px 9px;
       border: 1px solid var(--border);
       border-radius: 6px;
       font: inherit;
       font-size: 0.9em;
-      margin-top: 4px;
+      margin-top: 8px;
+      background: #fff;
+    }
+    .ngpt-help-link {
+      font-size: 0.82em !important;
+      color: var(--gray) !important;
+      margin-top: 8px !important;
+      text-align: center;
     }
     .ngpt-button {
       font: inherit;
@@ -467,6 +489,14 @@
       margin-top: 6px;
     }
     .ngpt-button:hover { background: var(--blue-deep); }
+    .ngpt-button-full {
+      display: block;
+      width: 100%;
+      padding: 9px 12px;
+      font-size: 0.95em;
+      font-weight: 600;
+      margin-top: 8px;
+    }
     .ngpt-privacy {
       font-size: 0.78em !important;
       color: var(--gray) !important;
@@ -483,11 +513,8 @@
       font-size: 0.92em;
       line-height: 1.45;
     }
-    .ngpt-messages:empty::before {
-      content: 'Ask a question and NickGPT will respond with a hint, not the answer.';
-      color: var(--gray);
-      font-style: italic;
-    }
+    /* Note: empty-state placeholder removed — the welcome bubble is
+       always rendered as the first message. */
     .ngpt-msg {
       margin-bottom: 8px;
       padding: 6px 9px;
@@ -503,6 +530,12 @@
     .ngpt-msg.assistant {
       background: var(--gray-soft);
       color: #111827;
+      margin-right: 16px;
+    }
+    .ngpt-msg.welcome {
+      background: var(--blue-soft);
+      color: #1e3a8a;
+      border-left: 3px solid var(--blue);
       margin-right: 16px;
     }
     .ngpt-msg.error {
@@ -583,31 +616,23 @@
         <h3>
           <span class="ngpt-avatar" aria-hidden="true"></span>
           <span class="ngpt-title-block">
-            <span class="ngpt-title">NickGPT</span>
+            <span class="ngpt-title">NickGPT<span id="ngptStatus" class="ngpt-status">no key</span></span>
             <span class="ngpt-tagline">A tutor that asks, doesn't tell.</span>
           </span>
         </h3>
         <div class="section-body">
           <div id="nickGptSetup" class="ngpt-setup">
-            <p>NickGPT responds with <em>guiding questions</em>, not direct answers — so students do the thinking.</p>
-            <p><b>Set up:</b></p>
-            <ol>
-              <li>Visit <a href="https://console.groq.com/keys" target="_blank" rel="noopener">console.groq.com/keys</a> and sign in.</li>
-              <li>Click <em>Create API Key</em>, copy it.</li>
-              <li>Paste it below.</li>
-            </ol>
-            <input type="password" id="ngptKeyInput" placeholder="Paste your Groq API key…" autocomplete="off">
-            <button id="ngptKeySave" class="ngpt-button">Save key</button>
-            <p class="ngpt-privacy">The key is stored only in your browser (localStorage), never sent to anyone but Groq.</p>
+            <p>Enter your <b>Groq API key</b> (free) to start chatting:</p>
+            <input type="password" id="ngptKeyInput" placeholder="gsk_…" autocomplete="off">
+            <button id="ngptKeySave" class="ngpt-button ngpt-button-full">Save key</button>
+            <p class="ngpt-help-link">Get a free key at <a href="https://console.groq.com/keys" target="_blank" rel="noopener">console.groq.com/keys</a></p>
           </div>
-          <div id="nickGptChat" class="ngpt-chat" hidden>
-            <div id="ngptMessages" class="ngpt-messages"></div>
-            <div class="ngpt-input-row">
-              <textarea id="ngptInput" placeholder="Ask a question… (Enter to send, Shift+Enter for newline)" rows="2"></textarea>
-              <button id="ngptSend" class="ngpt-button">Send</button>
-            </div>
-            <span id="ngptClearKey" class="ngpt-tiny">Change API key</span>
+          <div id="ngptMessages" class="ngpt-messages"></div>
+          <div class="ngpt-input-row">
+            <textarea id="ngptInput" placeholder="Ask NickGPT… (Enter to send)" rows="2"></textarea>
+            <button id="ngptSend" class="ngpt-button">Send</button>
           </div>
+          <span id="ngptClearKey" class="ngpt-tiny" hidden>Change API key</span>
         </div>
       </section>
       <section class="collapsed">
@@ -1455,29 +1480,59 @@ CRITICAL RULES:
 - Don't apologize for not giving answers; frame it as "let's think through this together."
 - If the student asks something off-topic, gently steer back to the problem.`;
 
+    const NGPT_WELCOME = "Hi! I'm NickGPT. I'm here to help you think through probability tree problems — but I'll be guiding your thinking with questions, not handing you answers. What are you working on?";
+
     let ngptHistory = [];
 
-    function ngptInit() {
+    function ngptRenderWelcome() {
+      const messages = document.getElementById('ngptMessages');
+      // remove any prior welcome before re-adding so it's always first
+      const prior = messages.querySelector('.ngpt-msg.welcome');
+      if (prior) prior.remove();
+      const el = document.createElement('div');
+      el.className = 'ngpt-msg welcome';
+      el.textContent = NGPT_WELCOME;
+      messages.prepend(el);
+    }
+
+    function ngptApplyKeyState() {
       const setup = document.getElementById('nickGptSetup');
-      const chat  = document.getElementById('nickGptChat');
-      const key   = localStorage.getItem(NGPT_KEY_LS);
-      if (key) { setup.hidden = true;  chat.hidden = false; }
-      else     { setup.hidden = false; chat.hidden = true;  }
+      const status = document.getElementById('ngptStatus');
+      const clear = document.getElementById('ngptClearKey');
+      const send = document.getElementById('ngptSend');
+      const key = localStorage.getItem(NGPT_KEY_LS);
+      if (key) {
+        setup.hidden = true;
+        clear.hidden = false;
+        status.textContent = 'ready';
+        status.classList.add('ready');
+        send.disabled = false;
+      } else {
+        setup.hidden = false;
+        clear.hidden = true;
+        status.textContent = 'no key';
+        status.classList.remove('ready');
+        send.disabled = false; // we still let them click — we'll nudge them to setup
+      }
+    }
+
+    function ngptInit() {
+      ngptRenderWelcome();
+      ngptApplyKeyState();
 
       document.getElementById('ngptKeySave').addEventListener('click', () => {
         const v = document.getElementById('ngptKeyInput').value.trim();
         if (!v) return;
         localStorage.setItem(NGPT_KEY_LS, v);
         document.getElementById('ngptKeyInput').value = '';
-        setup.hidden = true;
-        chat.hidden  = false;
+        ngptApplyKeyState();
       });
       document.getElementById('ngptClearKey').addEventListener('click', () => {
         localStorage.removeItem(NGPT_KEY_LS);
-        chat.hidden  = true;
-        setup.hidden = false;
         ngptHistory = [];
         document.getElementById('ngptMessages').innerHTML = '';
+        ngptRenderWelcome();
+        ngptApplyKeyState();
       });
       document.getElementById('ngptSend').addEventListener('click', ngptSend);
       document.getElementById('ngptInput').addEventListener('keydown', (e) => {
@@ -1525,7 +1580,11 @@ CRITICAL RULES:
       const text  = input.value.trim();
       if (!text) return;
       const key = localStorage.getItem(NGPT_KEY_LS);
-      if (!key) return;
+      if (!key) {
+        ngptAppendMessage('error', 'Add your Groq API key above to start chatting.');
+        document.getElementById('ngptKeyInput').focus();
+        return;
+      }
 
       input.value = '';
       ngptAppendMessage('user', text);

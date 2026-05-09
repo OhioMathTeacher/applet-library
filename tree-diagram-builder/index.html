@@ -388,6 +388,133 @@
       border-bottom-color: transparent;
       border-top-color: #1f2937;
     }
+
+    /* NICKGPT (Socratic tutor) */
+    #nickGptSection h3 {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      text-transform: none;
+      letter-spacing: 0;
+      font-size: 1em;
+      font-weight: 700;
+      color: #111827;
+    }
+    .ngpt-avatar {
+      display: inline-block;
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: var(--blue-soft) url('nickgpt-avatar.png') center/cover no-repeat;
+      border: 2px solid var(--blue);
+      flex-shrink: 0;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+    }
+    .ngpt-tagline {
+      font-size: 0.78em;
+      color: var(--gray);
+      font-weight: 400;
+      margin-top: 1px;
+    }
+    .ngpt-setup p, .ngpt-setup ol {
+      font-size: 0.9em;
+      margin: 6px 0;
+      line-height: 1.45;
+      color: #374151;
+    }
+    .ngpt-setup ol { padding-left: 1.2em; }
+    .ngpt-setup a { color: var(--blue); }
+    .ngpt-setup #ngptKeyInput {
+      width: 100%;
+      padding: 6px 8px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font: inherit;
+      font-size: 0.9em;
+      margin-top: 4px;
+    }
+    .ngpt-button {
+      font: inherit;
+      font-size: 0.9em;
+      padding: 6px 12px;
+      border: 1px solid var(--blue);
+      background: var(--blue);
+      color: #fff;
+      border-radius: 6px;
+      cursor: pointer;
+      margin-top: 6px;
+    }
+    .ngpt-button:hover { background: var(--blue-deep); }
+    .ngpt-privacy {
+      font-size: 0.78em !important;
+      color: var(--gray) !important;
+      margin-top: 6px !important;
+    }
+    .ngpt-messages {
+      max-height: 260px;
+      overflow-y: auto;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 8px;
+      margin-bottom: 8px;
+      background: #fff;
+      font-size: 0.92em;
+      line-height: 1.45;
+    }
+    .ngpt-messages:empty::before {
+      content: 'Ask a question and NickGPT will respond with a hint, not the answer.';
+      color: var(--gray);
+      font-style: italic;
+    }
+    .ngpt-msg {
+      margin-bottom: 8px;
+      padding: 6px 9px;
+      border-radius: 7px;
+      white-space: pre-wrap;
+    }
+    .ngpt-msg:last-child { margin-bottom: 0; }
+    .ngpt-msg.user {
+      background: var(--blue-soft);
+      color: #1e3a8a;
+      margin-left: 16px;
+    }
+    .ngpt-msg.assistant {
+      background: var(--gray-soft);
+      color: #111827;
+      margin-right: 16px;
+    }
+    .ngpt-msg.error {
+      background: var(--red-soft);
+      color: #991b1b;
+      margin-right: 16px;
+      font-size: 0.9em;
+    }
+    .ngpt-thinking { font-style: italic; color: var(--gray); }
+    .ngpt-input-row {
+      display: flex;
+      gap: 6px;
+      align-items: stretch;
+    }
+    .ngpt-input-row textarea {
+      flex: 1;
+      font: inherit;
+      font-size: 0.92em;
+      padding: 6px 8px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      resize: vertical;
+      min-height: 38px;
+      max-height: 120px;
+    }
+    .ngpt-tiny {
+      display: inline-block;
+      margin-top: 8px;
+      font-size: 0.8em;
+      color: var(--gray);
+      text-decoration: none;
+      cursor: pointer;
+    }
+    .ngpt-tiny:hover { color: var(--blue); text-decoration: underline; }
   </style>
 </head>
 <body>
@@ -441,6 +568,32 @@
       <section id="questionsSection" hidden>
         <h3>Questions</h3>
         <div id="questionList"></div>
+      </section>
+      <section id="nickGptSection">
+        <h3>
+          <span class="ngpt-avatar" aria-hidden="true"></span>
+          <span>NickGPT<div class="ngpt-tagline">A tutor that asks, doesn't tell.</div></span>
+        </h3>
+        <div id="nickGptSetup" class="ngpt-setup">
+          <p>NickGPT responds with <em>guiding questions</em>, not direct answers — so students do the thinking.</p>
+          <p><b>Set up:</b></p>
+          <ol>
+            <li>Visit <a href="https://console.groq.com/keys" target="_blank" rel="noopener">console.groq.com/keys</a> and sign in.</li>
+            <li>Click <em>Create API Key</em>, copy it.</li>
+            <li>Paste it below.</li>
+          </ol>
+          <input type="password" id="ngptKeyInput" placeholder="Paste your Groq API key…" autocomplete="off">
+          <button id="ngptKeySave" class="ngpt-button">Save key</button>
+          <p class="ngpt-privacy">The key is stored only in your browser (localStorage), never sent to anyone but Groq.</p>
+        </div>
+        <div id="nickGptChat" class="ngpt-chat" hidden>
+          <div id="ngptMessages" class="ngpt-messages"></div>
+          <div class="ngpt-input-row">
+            <textarea id="ngptInput" placeholder="Ask a question… (Enter to send, Shift+Enter for newline)" rows="2"></textarea>
+            <button id="ngptSend" class="ngpt-button">Send</button>
+          </div>
+          <span id="ngptClearKey" class="ngpt-tiny">Change API key</span>
+        </div>
       </section>
     </aside>
   </main>
@@ -1253,6 +1406,140 @@
       };
       reader.readAsText(f);
     });
+
+    // ---------- NickGPT (Socratic tutor via Groq) ----------
+    const NGPT_KEY_LS = 'treeDiagramBuilder.groqApiKey';
+    const NGPT_MODEL  = 'llama-3.3-70b-versatile';
+    const NGPT_SYSTEM_PROMPT = `You are NickGPT, a friendly tutor helping a student construct probability tree diagrams.
+
+CRITICAL RULES:
+- NEVER give a direct or numerical answer to a probability question. Do not say "1/4" or "the answer is..." or "P = ...". Do not perform the final calculation for them.
+- Instead, respond with one or two short, guiding questions that help the student work it out themselves.
+- Example: if the student asks "What is P(both heads)?", do NOT compute it. Reply with something like: "How many equally likely outcomes are there for two coin flips? Which of those outcomes has two heads?"
+- Keep replies short (2-3 sentences max) and end with a question.
+- Stay focused on tree diagrams, branch probabilities, joint vs. conditional probability, and the student's current problem.
+- If the student is stuck or frustrated, narrow your questions to smaller, more concrete steps — but still don't reveal the final answer.
+- Don't apologize for not giving answers; frame it as "let's think through this together."
+- If the student asks something off-topic, gently steer back to the problem.`;
+
+    let ngptHistory = [];
+
+    function ngptInit() {
+      const setup = document.getElementById('nickGptSetup');
+      const chat  = document.getElementById('nickGptChat');
+      const key   = localStorage.getItem(NGPT_KEY_LS);
+      if (key) { setup.hidden = true;  chat.hidden = false; }
+      else     { setup.hidden = false; chat.hidden = true;  }
+
+      document.getElementById('ngptKeySave').addEventListener('click', () => {
+        const v = document.getElementById('ngptKeyInput').value.trim();
+        if (!v) return;
+        localStorage.setItem(NGPT_KEY_LS, v);
+        document.getElementById('ngptKeyInput').value = '';
+        setup.hidden = true;
+        chat.hidden  = false;
+      });
+      document.getElementById('ngptClearKey').addEventListener('click', () => {
+        localStorage.removeItem(NGPT_KEY_LS);
+        chat.hidden  = true;
+        setup.hidden = false;
+        ngptHistory = [];
+        document.getElementById('ngptMessages').innerHTML = '';
+      });
+      document.getElementById('ngptSend').addEventListener('click', ngptSend);
+      document.getElementById('ngptInput').addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault();
+          ngptSend();
+        }
+      });
+    }
+
+    function ngptCurrentContext() {
+      const lines = [];
+      if (state.problem?.title) {
+        lines.push('Current problem title: ' + state.problem.title);
+      }
+      if (state.problem?.problem) {
+        lines.push('Problem statement: ' + state.problem.problem);
+      }
+      const ls = leaves(state.tree);
+      if (ls.length > 0) {
+        lines.push('Outcomes the student has built so far:');
+        ls.forEach(leaf => {
+          const lab = pathLabel(leaf) || '(unlabeled path)';
+          const pp  = pathProbability(leaf);
+          lines.push('  - ' + lab + ': ' + (isFinite(pp) ? fmt(pp) : 'probability not yet computable'));
+        });
+      } else {
+        lines.push('The student has not yet built any branches.');
+      }
+      return lines.join('\n');
+    }
+
+    function ngptAppendMessage(role, content) {
+      const el = document.createElement('div');
+      el.className = 'ngpt-msg ' + role;
+      el.textContent = content;
+      const messages = document.getElementById('ngptMessages');
+      messages.appendChild(el);
+      messages.scrollTop = messages.scrollHeight;
+      return el;
+    }
+
+    async function ngptSend() {
+      const input = document.getElementById('ngptInput');
+      const text  = input.value.trim();
+      if (!text) return;
+      const key = localStorage.getItem(NGPT_KEY_LS);
+      if (!key) return;
+
+      input.value = '';
+      ngptAppendMessage('user', text);
+      ngptHistory.push({ role: 'user', content: text });
+
+      const thinking = ngptAppendMessage('assistant', 'thinking…');
+      thinking.classList.add('ngpt-thinking');
+
+      const messages = [
+        { role: 'system', content: NGPT_SYSTEM_PROMPT },
+        { role: 'system', content: 'Current state of the student\'s work:\n' + ngptCurrentContext() },
+        ...ngptHistory.slice(-10),
+      ];
+
+      try {
+        const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + key,
+          },
+          body: JSON.stringify({
+            model: NGPT_MODEL,
+            messages,
+            temperature: 0.6,
+            max_tokens: 250,
+          }),
+        });
+        thinking.remove();
+        if (!res.ok) {
+          const errText = await res.text();
+          let detail = '';
+          try { detail = JSON.parse(errText)?.error?.message || ''; } catch {}
+          const el = ngptAppendMessage('error', `Groq returned ${res.status}. ${detail || 'Check your API key.'}`);
+          return;
+        }
+        const data = await res.json();
+        const reply = data.choices?.[0]?.message?.content?.trim() || '(empty response)';
+        ngptAppendMessage('assistant', reply);
+        ngptHistory.push({ role: 'assistant', content: reply });
+      } catch (e) {
+        thinking.remove();
+        ngptAppendMessage('error', 'Network error: ' + e.message);
+      }
+    }
+
+    ngptInit();
 
     // ---------- Initial state ----------
     state.tree = blankTree();

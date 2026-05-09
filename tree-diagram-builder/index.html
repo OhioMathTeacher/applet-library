@@ -1341,10 +1341,13 @@
 
     // ---------- Examples ----------
     let manifestData = { examples: [] };
+    // Cache-bust per page load so updated manifest/examples are always fetched
+    // fresh from GitHub Pages, never from a stale browser/CDN cache.
+    const CB = '?v=' + Date.now();
 
     async function loadManifest() {
       try {
-        const res = await fetch('examples/manifest.json');
+        const res = await fetch('examples/manifest.json' + CB);
         if (!res.ok) return;
         manifestData = await res.json();
         applyLevel(getLevel(), { autoLoadFirst: true });
@@ -1387,7 +1390,7 @@
     }
     async function loadExampleByFile(file) {
       try {
-        const res = await fetch('examples/' + file);
+        const res = await fetch('examples/' + file + CB);
         if (!res.ok) throw new Error('HTTP ' + res.status);
         const data = await res.json();
         applyExample(data);

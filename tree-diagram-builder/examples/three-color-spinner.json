@@ -1,0 +1,42 @@
+{
+  "title": "Three-Color Spinner Twice",
+  "problem": "A spinner has three sectors: red (1/2 of the wheel), blue (1/3), and yellow (1/6). You spin it twice. Build the tree and find the probability of each combined outcome.",
+  "scaffold": "complete",
+  "tree": {
+    "rootLabel": "Start",
+    "children": [
+      {
+        "branchLabel": "Red",
+        "branchProb": "1/2",
+        "children": [
+          { "branchLabel": "Red", "branchProb": "1/2", "children": [] },
+          { "branchLabel": "Blue", "branchProb": "1/3", "children": [] },
+          { "branchLabel": "Yellow", "branchProb": "1/6", "children": [] }
+        ]
+      },
+      {
+        "branchLabel": "Blue",
+        "branchProb": "1/3",
+        "children": [
+          { "branchLabel": "Red", "branchProb": "1/2", "children": [] },
+          { "branchLabel": "Blue", "branchProb": "1/3", "children": [] },
+          { "branchLabel": "Yellow", "branchProb": "1/6", "children": [] }
+        ]
+      },
+      {
+        "branchLabel": "Yellow",
+        "branchProb": "1/6",
+        "children": [
+          { "branchLabel": "Red", "branchProb": "1/2", "children": [] },
+          { "branchLabel": "Blue", "branchProb": "1/3", "children": [] },
+          { "branchLabel": "Yellow", "branchProb": "1/6", "children": [] }
+        ]
+      }
+    ]
+  },
+  "questions": [
+    { "prompt": "Find P(both red).", "answer": "1/4", "highlight": ["Red & Red"] },
+    { "prompt": "Find P(matching colors on both spins).", "answer": "14/36 = 7/18", "highlight": ["Red & Red", "Blue & Blue", "Yellow & Yellow"] },
+    { "prompt": "Find P(at least one yellow).", "answer": "11/36", "highlight": ["Red & Yellow", "Blue & Yellow", "Yellow & Red", "Yellow & Blue", "Yellow & Yellow"] }
+  ]
+}

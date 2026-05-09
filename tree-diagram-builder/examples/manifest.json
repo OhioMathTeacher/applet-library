@@ -7,6 +7,24 @@
       "description": "Worked example: fully filled tree for two flips of a fair coin."
     },
     {
+      "title": "Three Coin Flips",
+      "file": "three-coin-flips.json",
+      "scaffold": "complete",
+      "description": "Depth-3 tree showing all eight outcomes of three flips."
+    },
+    {
+      "title": "Three-Color Spinner Twice",
+      "file": "three-color-spinner.json",
+      "scaffold": "complete",
+      "description": "Three-way branching with unequal probabilities (1/2, 1/3, 1/6)."
+    },
+    {
+      "title": "Marbles With Replacement",
+      "file": "marbles-with-replacement.json",
+      "scaffold": "complete",
+      "description": "Independent draws — probabilities stay the same on the second pick."
+    },
+    {
       "title": "Two Cards With Replacement",
       "file": "cards-with-replacement.json",
       "scaffold": "partial",

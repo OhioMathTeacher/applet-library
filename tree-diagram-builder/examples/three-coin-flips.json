@@ -1,0 +1,59 @@
+{
+  "title": "Three Coin Flips",
+  "problem": "A fair coin is flipped three times. Build the tree showing all eight outcomes and find the probability of various events.",
+  "scaffold": "complete",
+  "tree": {
+    "rootLabel": "Start",
+    "children": [
+      {
+        "branchLabel": "H",
+        "branchProb": "1/2",
+        "children": [
+          {
+            "branchLabel": "H",
+            "branchProb": "1/2",
+            "children": [
+              { "branchLabel": "H", "branchProb": "1/2", "children": [] },
+              { "branchLabel": "T", "branchProb": "1/2", "children": [] }
+            ]
+          },
+          {
+            "branchLabel": "T",
+            "branchProb": "1/2",
+            "children": [
+              { "branchLabel": "H", "branchProb": "1/2", "children": [] },
+              { "branchLabel": "T", "branchProb": "1/2", "children": [] }
+            ]
+          }
+        ]
+      },
+      {
+        "branchLabel": "T",
+        "branchProb": "1/2",
+        "children": [
+          {
+            "branchLabel": "H",
+            "branchProb": "1/2",
+            "children": [
+              { "branchLabel": "H", "branchProb": "1/2", "children": [] },
+              { "branchLabel": "T", "branchProb": "1/2", "children": [] }
+            ]
+          },
+          {
+            "branchLabel": "T",
+            "branchProb": "1/2",
+            "children": [
+              { "branchLabel": "H", "branchProb": "1/2", "children": [] },
+              { "branchLabel": "T", "branchProb": "1/2", "children": [] }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "questions": [
+    { "prompt": "Find P(all three heads).", "answer": "1/8", "highlight": ["H & H & H"] },
+    { "prompt": "Find P(exactly two heads).", "answer": "3/8", "highlight": ["H & H & T", "H & T & H", "T & H & H"] },
+    { "prompt": "Find P(at least one tail).", "answer": "7/8", "highlight": ["H & H & T", "H & T & H", "H & T & T", "T & H & H", "T & H & T", "T & T & H", "T & T & T"] }
+  ]
+}

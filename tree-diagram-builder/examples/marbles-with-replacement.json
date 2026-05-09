@@ -1,0 +1,31 @@
+{
+  "title": "Marbles With Replacement",
+  "problem": "A bag contains 3 red marbles and 2 blue marbles. You draw one, record its color, put it back, then draw a second. Because you replace the first marble, the two draws are independent. Compare this with the 'Marbles Without Replacement' example to see how replacement changes the second-level probabilities.",
+  "scaffold": "complete",
+  "tree": {
+    "rootLabel": "Start",
+    "children": [
+      {
+        "branchLabel": "Red",
+        "branchProb": "3/5",
+        "children": [
+          { "branchLabel": "Red", "branchProb": "3/5", "children": [] },
+          { "branchLabel": "Blue", "branchProb": "2/5", "children": [] }
+        ]
+      },
+      {
+        "branchLabel": "Blue",
+        "branchProb": "2/5",
+        "children": [
+          { "branchLabel": "Red", "branchProb": "3/5", "children": [] },
+          { "branchLabel": "Blue", "branchProb": "2/5", "children": [] }
+        ]
+      }
+    ]
+  },
+  "questions": [
+    { "prompt": "Find P(both red).", "answer": "9/25", "highlight": ["Red & Red"] },
+    { "prompt": "Find P(both blue).", "answer": "4/25", "highlight": ["Blue & Blue"] },
+    { "prompt": "Find P(one of each color).", "answer": "12/25", "highlight": ["Red & Blue", "Blue & Red"] }
+  ]
+}

@@ -824,7 +824,7 @@
     function clampZoom(z) { return Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, z)); }
 
     function blankTree() {
-      return { rootLabel: 'Start', rootPos: { x: 1, y: 5 }, children: [] };
+      return { rootLabel: 'Start', rootPos: { x: 2, y: 5 }, children: [] };
     }
     function emptyChild(parent) {
       const siblings = parent.children || [];
@@ -955,7 +955,9 @@
       const depth = treeDepth(root);
       const HORIZ = depth >= 4 ? 3 : depth >= 3 ? 4 : 5;
       const VERT  = 3;
-      const TOP_X = 1;
+      // TOP_X=2 leaves a column of breathing room for the root's "Start"
+      // label, which is positioned to the left of the root dot.
+      const TOP_X = 2;
       const TOP_Y = 1;
 
       let leafIdx = 0;

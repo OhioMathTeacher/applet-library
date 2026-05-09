@@ -335,23 +335,85 @@
       padding: 2px 6px;
       border-radius: 3px;
     }
+
+    /* HELP BUBBLES (data-tip) — appears on hover, below the element */
+    [data-tip] { position: relative; }
+    [data-tip]::after,
+    [data-tip]::before {
+      pointer-events: none;
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 0.15s ease 0.35s, visibility 0s linear 0.5s;
+      z-index: 100;
+    }
+    [data-tip]:hover::after,
+    [data-tip]:hover::before {
+      opacity: 1;
+      visibility: visible;
+      transition: opacity 0.15s ease 0.35s, visibility 0s linear 0s;
+    }
+    [data-tip]::after {
+      content: attr(data-tip);
+      position: absolute;
+      top: calc(100% + 8px);
+      left: 50%;
+      transform: translateX(-50%);
+      background: #1f2937;
+      color: #f9fafb;
+      padding: 6px 10px;
+      border-radius: 6px;
+      font-size: 0.85em;
+      font-weight: 400;
+      white-space: nowrap;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.18);
+      max-width: 280px;
+    }
+    [data-tip]::before {
+      content: '';
+      position: absolute;
+      top: calc(100% + 2px);
+      left: 50%;
+      transform: translateX(-50%);
+      border: 6px solid transparent;
+      border-bottom-color: #1f2937;
+    }
+    /* In-canvas tooltips appear ABOVE so they don't get clipped */
+    [data-tip-side="top"]::after {
+      top: auto;
+      bottom: calc(100% + 8px);
+    }
+    [data-tip-side="top"]::before {
+      top: auto;
+      bottom: calc(100% + 2px);
+      border-bottom-color: transparent;
+      border-top-color: #1f2937;
+    }
   </style>
 </head>
 <body>
   <header>
     <h1><a href="../index.html">🧩 Applet Library</a> &rsaquo; Tree Diagram Builder</h1>
     <div class="toolbar">
-      <button id="newTree" class="primary">New blank tree</button>
-      <button id="tidyTree" title="Snap nodes back to a clean layout">✨ Tidy</button>
-      <button id="magnetBtn" data-mode="force" title="Toggle snap-to-grid mode (off / loose / force)">🧲 Magnet: force</button>
-      <select id="exampleSelect">
-        <option value="">Load example…</option>
-      </select>
-      <label class="file-btn">
+      <span data-tip="Choose how much help is built in: view, complete, or build from scratch">
+        <select id="levelSelect">
+          <option value="complete">Level 1: View Examples</option>
+          <option value="partial">Level 2: Complete Partial Examples</option>
+          <option value="blank">Level 3: Build Your Own</option>
+        </select>
+      </span>
+      <span id="exampleWrap" data-tip="Pick a problem to load">
+        <select id="exampleSelect">
+          <option value="">Load example…</option>
+        </select>
+      </span>
+      <button id="newTree" class="primary" data-tip="Clear the canvas and start fresh">New blank tree</button>
+      <button id="tidyTree" data-tip="Auto-arrange the tree neatly">✨ Tidy</button>
+      <button id="magnetBtn" data-mode="force" data-tip="Toggle snap-to-grid mode (off / loose / force)">🧲 Magnet: force</button>
+      <label class="file-btn" data-tip="Load a tree-diagram JSON file from your computer">
         Load file…
         <input type="file" id="fileInput" accept="application/json,.json" hidden>
       </label>
-      <button id="exportFile">Export JSON</button>
+      <button id="exportFile" data-tip="Save the current tree as JSON">Export JSON</button>
     </div>
   </header>
 
@@ -995,21 +1057,49 @@
     }
 
     // ---------- Examples ----------
+    let manifestData = { examples: [] };
+
     async function loadManifest() {
       try {
         const res = await fetch('examples/manifest.json');
         if (!res.ok) return;
-        const manifest = await res.json();
-        const sel = document.getElementById('exampleSelect');
-        (manifest.examples || []).forEach(ex => {
-          const opt = document.createElement('option');
-          opt.value = ex.file;
-          const tier = ex.scaffold ? ` [${ex.scaffold}]` : '';
-          opt.textContent = `${ex.title}${tier}`;
-          sel.appendChild(opt);
-        });
+        manifestData = await res.json();
+        applyLevel(getLevel(), { autoLoadFirst: true });
       } catch (e) {
         console.warn('Could not load examples manifest:', e);
+      }
+    }
+    function getLevel() {
+      return document.getElementById('levelSelect').value || 'complete';
+    }
+    function populateExamplesForLevel(level) {
+      const sel = document.getElementById('exampleSelect');
+      sel.innerHTML = '<option value="">Load example…</option>';
+      const filtered = (manifestData.examples || []).filter(ex => ex.scaffold === level);
+      filtered.forEach(ex => {
+        const opt = document.createElement('option');
+        opt.value = ex.file;
+        opt.textContent = ex.title;
+        sel.appendChild(opt);
+      });
+      return filtered;
+    }
+    function applyLevel(level, { autoLoadFirst = false } = {}) {
+      const wrap = document.getElementById('exampleWrap');
+      if (level === 'blank') {
+        // Level 3: pure sandbox — hide examples pulldown and clear canvas
+        wrap.style.display = 'none';
+        state.tree = blankTree();
+        state.problem = null;
+        addChild(state.tree);
+        addChild(state.tree);
+        renderProblem();
+        return;
+      }
+      wrap.style.display = '';
+      const filtered = populateExamplesForLevel(level);
+      if (autoLoadFirst && filtered.length > 0) {
+        loadExampleByFile(filtered[0].file);
       }
     }
     async function loadExampleByFile(file) {
@@ -1039,6 +1129,24 @@
         return;
       }
       if (!hasAllPositions(state.tree)) tidyLayout(state.tree);
+
+      // Sync the Level pulldown to whatever tier was just loaded
+      const tier = state.problem?.scaffold;
+      if (tier === 'complete' || tier === 'partial' || tier === 'blank') {
+        const levelSel = document.getElementById('levelSelect');
+        if (levelSel.value !== tier) {
+          levelSel.value = tier;
+          // refresh the examples list to match (without auto-loading anything else)
+          const wrap = document.getElementById('exampleWrap');
+          if (tier === 'blank') {
+            wrap.style.display = 'none';
+          } else {
+            wrap.style.display = '';
+            populateExamplesForLevel(tier);
+          }
+        }
+      }
+
       renderProblem();
       render();
     }
@@ -1111,6 +1219,9 @@
     });
     document.getElementById('tidyTree').addEventListener('click', tidyAndRender);
     document.getElementById('magnetBtn').addEventListener('click', cycleMagnet);
+    document.getElementById('levelSelect').addEventListener('change', e => {
+      applyLevel(e.target.value, { autoLoadFirst: true });
+    });
     document.getElementById('exampleSelect').addEventListener('change', e => {
       const f = e.target.value;
       if (f) loadExampleByFile(f);

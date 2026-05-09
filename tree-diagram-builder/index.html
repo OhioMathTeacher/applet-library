@@ -270,14 +270,40 @@
       background: #fafafa;
       overflow-y: auto;
     }
-    aside h3 {
-      margin: 0 0 8px 0;
-      font-size: 0.9em;
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
-      color: var(--gray);
+    /* Collapsible accordion bars in the side panel */
+    aside section { margin-bottom: 10px; }
+    aside section h3 {
+      margin: 0;
+      cursor: pointer;
+      user-select: none;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 14px;
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 0.95em;
+      font-weight: 700;
+      color: #111827;
+      text-transform: none;
+      letter-spacing: 0;
+      transition: background 0.12s ease;
     }
-    aside section { margin-bottom: 24px; }
+    aside section h3:hover { background: var(--gray-soft); }
+    aside section h3::after {
+      content: '▾';
+      margin-left: auto;
+      font-size: 0.9em;
+      color: var(--gray);
+      transition: transform 0.18s ease;
+      flex-shrink: 0;
+    }
+    aside section.collapsed h3::after { transform: rotate(-90deg); }
+    aside section .section-body {
+      padding: 12px 2px 4px 2px;
+    }
+    aside section.collapsed .section-body { display: none; }
     .check-item {
       padding: 8px 10px;
       border-radius: 6px;
@@ -390,16 +416,6 @@
     }
 
     /* NICKGPT (Socratic tutor) */
-    #nickGptSection h3 {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      text-transform: none;
-      letter-spacing: 0;
-      font-size: 1em;
-      font-weight: 700;
-      color: #111827;
-    }
     .ngpt-avatar {
       display: inline-block;
       width: 36px;
@@ -410,11 +426,17 @@
       flex-shrink: 0;
       box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
     }
+    .ngpt-title-block {
+      display: flex;
+      flex-direction: column;
+      line-height: 1.2;
+    }
+    .ngpt-title { font-weight: 700; font-size: 1em; }
     .ngpt-tagline {
       font-size: 0.78em;
       color: var(--gray);
       font-weight: 400;
-      margin-top: 1px;
+      margin-top: 2px;
     }
     .ngpt-setup p, .ngpt-setup ol {
       font-size: 0.9em;
@@ -557,42 +579,53 @@
       </div>
     </div>
     <aside>
-      <section>
-        <h3>Validation</h3>
-        <div id="validationList"></div>
-      </section>
-      <section>
-        <h3>Outcomes</h3>
-        <ul id="leafList" class="leaf-list"></ul>
-      </section>
-      <section id="questionsSection" hidden>
-        <h3>Questions</h3>
-        <div id="questionList"></div>
-      </section>
       <section id="nickGptSection">
         <h3>
           <span class="ngpt-avatar" aria-hidden="true"></span>
-          <span>NickGPT<div class="ngpt-tagline">A tutor that asks, doesn't tell.</div></span>
+          <span class="ngpt-title-block">
+            <span class="ngpt-title">NickGPT</span>
+            <span class="ngpt-tagline">A tutor that asks, doesn't tell.</span>
+          </span>
         </h3>
-        <div id="nickGptSetup" class="ngpt-setup">
-          <p>NickGPT responds with <em>guiding questions</em>, not direct answers — so students do the thinking.</p>
-          <p><b>Set up:</b></p>
-          <ol>
-            <li>Visit <a href="https://console.groq.com/keys" target="_blank" rel="noopener">console.groq.com/keys</a> and sign in.</li>
-            <li>Click <em>Create API Key</em>, copy it.</li>
-            <li>Paste it below.</li>
-          </ol>
-          <input type="password" id="ngptKeyInput" placeholder="Paste your Groq API key…" autocomplete="off">
-          <button id="ngptKeySave" class="ngpt-button">Save key</button>
-          <p class="ngpt-privacy">The key is stored only in your browser (localStorage), never sent to anyone but Groq.</p>
-        </div>
-        <div id="nickGptChat" class="ngpt-chat" hidden>
-          <div id="ngptMessages" class="ngpt-messages"></div>
-          <div class="ngpt-input-row">
-            <textarea id="ngptInput" placeholder="Ask a question… (Enter to send, Shift+Enter for newline)" rows="2"></textarea>
-            <button id="ngptSend" class="ngpt-button">Send</button>
+        <div class="section-body">
+          <div id="nickGptSetup" class="ngpt-setup">
+            <p>NickGPT responds with <em>guiding questions</em>, not direct answers — so students do the thinking.</p>
+            <p><b>Set up:</b></p>
+            <ol>
+              <li>Visit <a href="https://console.groq.com/keys" target="_blank" rel="noopener">console.groq.com/keys</a> and sign in.</li>
+              <li>Click <em>Create API Key</em>, copy it.</li>
+              <li>Paste it below.</li>
+            </ol>
+            <input type="password" id="ngptKeyInput" placeholder="Paste your Groq API key…" autocomplete="off">
+            <button id="ngptKeySave" class="ngpt-button">Save key</button>
+            <p class="ngpt-privacy">The key is stored only in your browser (localStorage), never sent to anyone but Groq.</p>
           </div>
-          <span id="ngptClearKey" class="ngpt-tiny">Change API key</span>
+          <div id="nickGptChat" class="ngpt-chat" hidden>
+            <div id="ngptMessages" class="ngpt-messages"></div>
+            <div class="ngpt-input-row">
+              <textarea id="ngptInput" placeholder="Ask a question… (Enter to send, Shift+Enter for newline)" rows="2"></textarea>
+              <button id="ngptSend" class="ngpt-button">Send</button>
+            </div>
+            <span id="ngptClearKey" class="ngpt-tiny">Change API key</span>
+          </div>
+        </div>
+      </section>
+      <section class="collapsed">
+        <h3>Validation</h3>
+        <div class="section-body">
+          <div id="validationList"></div>
+        </div>
+      </section>
+      <section class="collapsed">
+        <h3>Outcomes</h3>
+        <div class="section-body">
+          <ul id="leafList" class="leaf-list"></ul>
+        </div>
+      </section>
+      <section id="questionsSection" class="collapsed" hidden>
+        <h3>Questions</h3>
+        <div class="section-body">
+          <div id="questionList"></div>
         </div>
       </section>
     </aside>
@@ -1540,6 +1573,13 @@ CRITICAL RULES:
     }
 
     ngptInit();
+
+    // ---------- Sidebar collapsible bars ----------
+    document.querySelectorAll('aside section h3').forEach(h => {
+      h.addEventListener('click', () => {
+        h.parentElement.classList.toggle('collapsed');
+      });
+    });
 
     // ---------- Initial state ----------
     state.tree = blankTree();

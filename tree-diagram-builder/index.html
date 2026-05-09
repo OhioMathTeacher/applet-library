@@ -1131,10 +1131,6 @@
             updateOutcomes();
           });
 
-          const sep = document.createElement('span');
-          sep.className = 'sep';
-          sep.textContent = 'P=';
-
           const probInput = document.createElement('input');
           probInput.className = 'prob-input';
           probInput.value = node.branchProb || '';
@@ -1147,7 +1143,6 @@
           });
 
           lab.appendChild(labelInput);
-          lab.appendChild(sep);
           lab.appendChild(probInput);
           stage.appendChild(lab);
           autosizeInput(labelInput);
@@ -1259,14 +1254,28 @@
       line.setAttribute('x2', px);
       line.setAttribute('y2', py);
     }
+    // Default offset that pushes a label perpendicular to its edge so it sits
+    // above (for upward branches) or below (for downward / horizontal branches)
+    // the line, never on it.
+    const LABEL_PUSH = 22;
+    function defaultLabelOffsetFromPx(ppx, ppy, px, py, push = LABEL_PUSH) {
+      const dx = px - ppx, dy = py - ppy;
+      const len = Math.sqrt(dx * dx + dy * dy);
+      if (len < 1) return { dx: 0, dy: -push };
+      const ux = -dy / len, uy = dx / len;
+      const wantSign = dy > 0 ? 1 : -1;
+      const sign = (uy * wantSign) >= 0 ? 1 : -1;
+      return { dx: sign * ux * push, dy: sign * uy * push };
+    }
     function updateLabelPosition(lab, ppx, ppy, px, py) {
-      // Default position is the midpoint of the edge; user can drag the label
-      // around within a "loose pin" region by setting node.labelOffset.
-      const off = lab.__nodeRef && lab.__nodeRef.labelOffset;
-      const dx = off ? (off.dx || 0) : 0;
-      const dy = off ? (off.dy || 0) : 0;
-      lab.style.left = ((ppx + px) / 2 + dx) + 'px';
-      lab.style.top  = ((ppy + py) / 2 + dy) + 'px';
+      // If the user has explicitly dragged the label, honor that. Otherwise
+      // place it perpendicular-off the edge so it never overlaps the line.
+      const node = lab.__nodeRef;
+      const off = (node && node.labelOffset)
+        ? node.labelOffset
+        : defaultLabelOffsetFromPx(ppx, ppy, px, py);
+      lab.style.left = ((ppx + px) / 2 + (off.dx || 0)) + 'px';
+      lab.style.top  = ((ppy + py) / 2 + (off.dy || 0)) + 'px';
     }
 
     // ---------- Label drag (GeoGebra-style: drag to reposition along the edge) ----------
@@ -1280,12 +1289,19 @@
         if (e.target.tagName === 'INPUT') return;
         e.stopPropagation();
         const startCX = e.clientX, startCY = e.clientY;
-        const start = { dx: (node.labelOffset && node.labelOffset.dx) || 0,
-                        dy: (node.labelOffset && node.labelOffset.dy) || 0 };
-        let dragging = false;
         const parents = withParents(state.tree);
         const parent = parents.get(node);
         if (!parent) return;
+        // Initialize start from whatever offset is currently in effect, so the
+        // label doesn't jump to (0,0) on the first frame of a manual drag.
+        const pp = posOf(parent), np = posOf(node);
+        const ppx0 = gridToPx(pp.x), ppy0 = gridToPx(pp.y);
+        const npx0 = gridToPx(np.x), npy0 = gridToPx(np.y);
+        const startOff = node.labelOffset
+          ? { dx: node.labelOffset.dx || 0, dy: node.labelOffset.dy || 0 }
+          : defaultLabelOffsetFromPx(ppx0, ppy0, npx0, npy0);
+        const start = { dx: startOff.dx, dy: startOff.dy };
+        let dragging = false;
 
         function repositionFromOffset() {
           const pp = posOf(parent), np = posOf(node);
@@ -1326,10 +1342,10 @@
         window.addEventListener('pointercancel', onUp);
       });
 
-      // Double-click resets the label to the edge midpoint.
+      // Double-click resets the label to its automatic perpendicular position.
       lab.addEventListener('dblclick', (e) => {
         if (e.target.tagName === 'INPUT') return;
-        node.labelOffset = { dx: 0, dy: 0 };
+        delete node.labelOffset;
         const parents = withParents(state.tree);
         const parent = parents.get(node);
         if (!parent) return;

@@ -119,6 +119,7 @@
       min-width: 100%;
       min-height: 100%;
       transform-origin: 0 0;
+      --anti-zoom: 1;
     }
     #branchLayer {
       position: absolute;
@@ -194,7 +195,7 @@
       border-radius: 50%;
       cursor: pointer;
       line-height: 1;
-      font-size: 16px;
+      font-size: calc(16px * var(--anti-zoom));
       color: var(--gray);
     }
     .node .actions button:hover { background: var(--gray-soft); color: #111827; }
@@ -211,7 +212,7 @@
       color: #fff;
       border-radius: 6px;
       font-variant-numeric: tabular-nums;
-      font-size: 0.95em;
+      font-size: calc(0.95em * var(--anti-zoom));
       font-weight: 700;
       white-space: nowrap;
     }
@@ -223,7 +224,7 @@
       margin-right: 10px;
       font-weight: 700;
       color: #111827;
-      font-size: 1.05em;
+      font-size: calc(1.05em * var(--anti-zoom));
       white-space: nowrap;
     }
 
@@ -237,7 +238,7 @@
       background: rgba(255, 255, 255, 0.55);
       padding: 3px 10px;
       border-radius: 7px;
-      font-size: 1em;
+      font-size: calc(1em * var(--anti-zoom));
       line-height: 1.4;
       transition: background 0.12s ease;
       z-index: 1;
@@ -249,18 +250,15 @@
     .branch-label input {
       font: inherit;
       border: none;
-      border-bottom: 1.5px dashed #cbd5e1;
+      border-bottom: 1.5px dashed transparent;
       border-radius: 0;
-      padding: 2px 4px;
+      padding: 2px 3px;
       background: transparent;
       color: #111827;
+      min-width: 14px;
     }
-    .branch-label input.label-input { width: 100px; }
-    .branch-label input.prob-input {
-      width: 60px;
-      text-align: center;
-      font-variant-numeric: tabular-nums;
-    }
+    .branch-label input.prob-input { text-align: center; font-variant-numeric: tabular-nums; }
+    .branch-label:hover input { border-bottom-color: #cbd5e1; }
     .branch-label input:hover { border-bottom-color: var(--blue); }
     .branch-label input:focus {
       outline: none;
@@ -292,6 +290,55 @@
       background: #fef3c7;
       box-shadow: 0 0 0 1px #f59e0b;
     }
+
+    /* Multi-select: selected node ring */
+    .node.selected .dot {
+      border-color: #f59e0b;
+      box-shadow: 0 0 0 4px var(--grid-bg), 0 0 0 7px rgba(245, 158, 11, 0.45);
+    }
+
+    /* Lasso rubber-band box (inside #treeStage so it scales with the tree) */
+    #lassoBox {
+      position: absolute;
+      display: none;
+      border: 1.5px dashed var(--blue);
+      background: rgba(37, 99, 235, 0.07);
+      pointer-events: none;
+      z-index: 10;
+    }
+
+    /* Zoom percent control in toolbar */
+    .zoom-ctrl {
+      display: inline-flex;
+      align-items: stretch;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+      height: 38px;
+    }
+    .zoom-ctrl button {
+      font: inherit;
+      font-size: 1.1em;
+      padding: 0 10px;
+      border: none;
+      background: #fff;
+      cursor: pointer;
+      line-height: 1;
+      color: #374151;
+    }
+    .zoom-ctrl button:hover { background: var(--gray-soft); }
+    #zoomInput {
+      width: 52px;
+      border: none;
+      border-left: 1px solid var(--border);
+      border-right: 1px solid var(--border);
+      text-align: center;
+      font: inherit;
+      font-size: 0.9em;
+      padding: 4px 2px;
+      background: #fff;
+    }
+    #zoomInput:focus { outline: none; background: var(--blue-soft); }
 
     /* SIDE PANEL */
     aside {
@@ -621,8 +668,11 @@
       <button id="newTree" class="primary" data-tip="Clear the canvas and start fresh">New blank tree</button>
       <button id="tidyTree" data-tip="Auto-arrange the tree neatly">✨ Tidy</button>
       <button id="zoomFit" data-tip="Fit the entire tree to the visible area">⊡ Fit</button>
-      <button id="zoomOut" data-tip="Zoom out">−</button>
-      <button id="zoomIn" data-tip="Zoom in">+</button>
+      <span class="zoom-ctrl" data-tip="Zoom — type a % and press Enter, or click − / +">
+        <button id="zoomOut">−</button>
+        <input id="zoomInput" type="text" value="100%">
+        <button id="zoomIn">+</button>
+      </span>
       <button id="magnetBtn" data-mode="force" data-tip="Toggle snap-to-grid mode (off / loose / force)">🧲 Magnet: force</button>
       <label class="file-btn" data-tip="Load a tree-diagram JSON file from your computer">
         Load file…
@@ -642,6 +692,7 @@
     <div id="treeContainer">
       <div id="treeStage">
         <svg id="branchLayer"></svg>
+        <div id="lassoBox"></div>
       </div>
     </div>
     <aside>
@@ -690,7 +741,7 @@
   </main>
 
   <footer>
-    Build a probability tree by clicking <b>+</b> to add branches. <b>Drag</b> any node to move it — nodes snap to the dot grid. Press <b>✨ Tidy</b> to auto-arrange. Type fractions like <code>1/2</code> or decimals like <code>0.5</code>.
+    Build a probability tree by clicking <b>+</b> to add branches. <b>Click</b> a node to select it; <b>Shift+click</b> or <b>drag a box</b> on empty space to multi-select; drag any selected node to move the group. Press <b>✨ Tidy</b> to auto-arrange. Type fractions like <code>1/2</code> or decimals like <code>0.5</code>.
   </footer>
 
   <script>
@@ -755,9 +806,9 @@
       // (multiple questions can be open simultaneously; their highlights union)
       highlightedQuestions: new Map(),
       // Visual zoom factor applied to #treeStage via CSS transform.
-      // Scrollbars + drag math compensate so logical positions stay 1:1 with
-      // the grid even at fractional zoom.
       zoom: 1,
+      // Set of tree-node objects currently selected for group drag.
+      selectedNodes: new Set(),
     };
 
     const ZOOM_MIN = 0.25;
@@ -923,8 +974,13 @@
     }
 
     // ---------- Zoom / fit ----------
+    function updateZoomInput() {
+      const inp = document.getElementById('zoomInput');
+      if (inp) inp.value = Math.round(state.zoom * 100) + '%';
+    }
     function setZoom(z) {
       state.zoom = clampZoom(z);
+      updateZoomInput();
       render();
     }
     function zoomIn()  { setZoom(state.zoom * 1.25); }
@@ -962,12 +1018,54 @@
       render();
     }
 
+    // ---------- Canvas input auto-sizing ----------
+    const _mc = document.createElement('canvas');
+    const _mcx = _mc.getContext('2d');
+    function autosizeInput(inp) {
+      // Measure text in the element's computed font so width fits content exactly.
+      // Falls back to an estimate if the element is not yet in the DOM.
+      let fontStr = `${16 / state.zoom}px system-ui, sans-serif`;
+      try {
+        const cs = getComputedStyle(inp);
+        if (cs.fontSize) fontStr = `${cs.fontStyle !== 'normal' ? cs.fontStyle + ' ' : ''}${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
+      } catch (e) {}
+      _mcx.font = fontStr;
+      const w = _mcx.measureText(inp.value || inp.placeholder || 'x').width;
+      inp.style.width = Math.max(14, Math.ceil(w) + 8) + 'px';
+    }
+
+    // ---------- Selection helpers (manipulate without re-rendering) ----------
+    function clearSelection() {
+      state.selectedNodes.forEach(n => { if (n.__div) n.__div.classList.remove('selected'); });
+      state.selectedNodes.clear();
+    }
+    function addToSelection(node) {
+      state.selectedNodes.add(node);
+      if (node.__div) node.__div.classList.add('selected');
+    }
+    function removeFromSelection(node) {
+      state.selectedNodes.delete(node);
+      if (node.__div) node.__div.classList.remove('selected');
+    }
+    function toggleSelection(node) {
+      if (state.selectedNodes.has(node)) removeFromSelection(node);
+      else addToSelection(node);
+    }
+    function selectOnly(node) {
+      clearSelection();
+      addToSelection(node);
+    }
+
     // ---------- Rendering ----------
     function render() {
       const stage = document.getElementById('treeStage');
       const svg = document.getElementById('branchLayer');
       [...stage.querySelectorAll('.node, .branch-label')].forEach(n => n.remove());
       svg.innerHTML = '';
+      // Keep the zoom % input in sync even when fitToView() sets state.zoom directly.
+      updateZoomInput();
+      // Set CSS variable so text inside the scaled stage stays visually readable.
+      stage.style.setProperty('--anti-zoom', 1 / state.zoom);
 
       // figure out stage size
       const nodes = allNodes(state.tree);
@@ -1021,6 +1119,7 @@
           labelInput.placeholder = 'event';
           labelInput.addEventListener('input', e => {
             node.branchLabel = e.target.value;
+            autosizeInput(e.target);
             updateOutcomes();
           });
 
@@ -1034,6 +1133,7 @@
           probInput.placeholder = '?';
           probInput.addEventListener('input', e => {
             node.branchProb = e.target.value;
+            autosizeInput(e.target);
             updateValidation();
             updateOutcomes();
           });
@@ -1042,12 +1142,14 @@
           lab.appendChild(sep);
           lab.appendChild(probInput);
           stage.appendChild(lab);
+          autosizeInput(labelInput);
+          autosizeInput(probInput);
           updateLabelPosition(lab, ppx, ppy, px, py);
           node.__label = lab;
         }
 
         const div = document.createElement('div');
-        div.className = 'node' + (isRoot ? ' root' : '') + (isLeaf ? ' leaf' : '');
+        div.className = 'node' + (isRoot ? ' root' : '') + (isLeaf ? ' leaf' : '') + (state.selectedNodes.has(node) ? ' selected' : '');
         div.style.left = px + 'px';
         div.style.top = py + 'px';
 
@@ -1153,70 +1255,88 @@
       lab.style.top  = ((ppy + py) / 2) + 'px';
     }
 
-    // ---------- Drag ----------
+    // ---------- Drag (single and group) ----------
     function installDrag(node, div, dot) {
       dot.addEventListener('pointerdown', (e) => {
         e.preventDefault();
         e.stopPropagation();
+
+        // Shift+click: toggle selection without starting a drag.
+        if (e.shiftKey) {
+          toggleSelection(node);
+          return;
+        }
+
+        const wasSelected = state.selectedNodes.has(node);
+        const multiPending = wasSelected && state.selectedNodes.size > 1;
+        // If clicking an unselected node (without shift): switch to this node only.
+        if (!wasSelected) selectOnly(node);
+
         dot.setPointerCapture(e.pointerId);
         div.classList.add('dragging');
 
-        const startX = e.clientX, startY = e.clientY;
-        const startGrid = { ...posOf(node) };
-        let currentPx = { x: gridToPx(startGrid.x), y: gridToPx(startGrid.y) };
+        const startClientX = e.clientX, startClientY = e.clientY;
+        let hasMoved = false;
 
-        const parents = withParents(state.tree);
-        const parent = parents.get(node);
-        const childList = node.children || [];
+        // Snapshot positions of all currently-selected nodes at drag start.
+        const dragging = new Set(state.selectedNodes);
+        const groupStart = new Map();
+        dragging.forEach(n => groupStart.set(n, { x: gridToPx(posOf(n).x), y: gridToPx(posOf(n).y) }));
+
+        const parentMap = withParents(state.tree);
+
+        function nodePxDuringDrag(n, currentPosMap) {
+          return currentPosMap.has(n)
+            ? currentPosMap.get(n)
+            : { x: gridToPx(posOf(n).x), y: gridToPx(posOf(n).y) };
+        }
 
         function onMove(ev) {
-          // Mouse moves in screen pixels; the stage is visually scaled by
-          // state.zoom. Divide by zoom so node positions track the cursor.
-          const dx = (ev.clientX - startX) / state.zoom;
-          const dy = (ev.clientY - startY) / state.zoom;
-          const candidate = {
-            x: gridToPx(startGrid.x) + dx,
-            y: gridToPx(startGrid.y) + dy,
-          };
-          currentPx = applyMagnetPx(candidate);
+          const dx = (ev.clientX - startClientX) / state.zoom;
+          const dy = (ev.clientY - startClientY) / state.zoom;
+          if (!hasMoved && Math.abs(dx) + Math.abs(dy) > 2) hasMoved = true;
+          if (!hasMoved) return;
 
-          div.style.left = currentPx.x + 'px';
-          div.style.top  = currentPx.y + 'px';
+          // Compute new positions for all dragged nodes.
+          const cur = new Map();
+          dragging.forEach(n => {
+            const s = groupStart.get(n);
+            cur.set(n, applyMagnetPx({ x: s.x + dx, y: s.y + dy }));
+          });
 
-          if (parent && node.__line) {
-            const pp = posOf(parent);
-            const ppx = gridToPx(pp.x), ppy = gridToPx(pp.y);
-            updateLineEndpoints(node.__line, ppx, ppy, currentPx.x, currentPx.y);
-            updateLabelPosition(node.__label, ppx, ppy, currentPx.x, currentPx.y);
-          }
-          for (const c of childList) {
-            if (!c.__line) continue;
-            const cp = posOf(c);
-            const cpx = gridToPx(cp.x), cpy = gridToPx(cp.y);
-            updateLineEndpoints(c.__line, currentPx.x, currentPx.y, cpx, cpy);
-            updateLabelPosition(c.__label, currentPx.x, currentPx.y, cpx, cpy);
-          }
+          // Apply positions to divs.
+          dragging.forEach(n => {
+            const p = cur.get(n);
+            if (n.__div) { n.__div.style.left = p.x + 'px'; n.__div.style.top = p.y + 'px'; }
+          });
 
-          // Grow the stage if dragging beyond its current bounds. Track
-          // natural (unscaled) dimensions and apply the zoom factor to the
-          // visible CSS box.
+          // Update all lines that touch any dragged node.
+          dragging.forEach(n => {
+            const nPos = cur.get(n);
+            const parent = parentMap.get(n);
+            if (parent && n.__line) {
+              const pp = nodePxDuringDrag(parent, cur);
+              updateLineEndpoints(n.__line, pp.x, pp.y, nPos.x, nPos.y);
+              if (n.__label) updateLabelPosition(n.__label, pp.x, pp.y, nPos.x, nPos.y);
+            }
+            (n.children || []).forEach(c => {
+              if (!c.__line) return;
+              const cp = nodePxDuringDrag(c, cur);
+              updateLineEndpoints(c.__line, nPos.x, nPos.y, cp.x, cp.y);
+              if (c.__label) updateLabelPosition(c.__label, nPos.x, nPos.y, cp.x, cp.y);
+            });
+          });
+
+          // Grow stage if any node is dragged near the edge.
           const stage = document.getElementById('treeStage');
-          const svg = document.getElementById('branchLayer');
-          const minW = currentPx.x + 100;
-          const minH = currentPx.y + 100;
-          const curW = stage.__naturalW || 0;
-          const curH = stage.__naturalH || 0;
-          if (minW > curW) {
-            stage.__naturalW = minW;
-            stage.style.width = (minW * state.zoom) + 'px';
-            svg.setAttribute('width', minW);
-          }
-          if (minH > curH) {
-            stage.__naturalH = minH;
-            stage.style.height = (minH * state.zoom) + 'px';
-            svg.setAttribute('height', minH);
-          }
+          const svg   = document.getElementById('branchLayer');
+          let maxPx = { x: 0, y: 0 };
+          cur.forEach(p => { if (p.x > maxPx.x) maxPx.x = p.x; if (p.y > maxPx.y) maxPx.y = p.y; });
+          const minW = maxPx.x + 100, minH = maxPx.y + 100;
+          if (minW > (stage.__naturalW || 0)) { stage.__naturalW = minW; stage.style.width = (minW * state.zoom) + 'px'; svg.setAttribute('width', minW); }
+          if (minH > (stage.__naturalH || 0)) { stage.__naturalH = minH; stage.style.height = (minH * state.zoom) + 'px'; svg.setAttribute('height', minH); }
         }
+
         function onUp(ev) {
           try { dot.releasePointerCapture(ev.pointerId); } catch {}
           window.removeEventListener('pointermove', onMove);
@@ -1224,11 +1344,20 @@
           window.removeEventListener('pointercancel', onUp);
           div.classList.remove('dragging');
 
-          let gx = pxToGridFloat(currentPx.x);
-          let gy = pxToGridFloat(currentPx.y);
-          if (gx < 0) gx = 0;
-          if (gy < 0) gy = 0;
-          setPos(node, { x: gx, y: gy });
+          if (!hasMoved) {
+            // Pure click — if multiple were selected and we clicked one, narrow to just this.
+            if (multiPending) selectOnly(node);
+            return;
+          }
+          // Commit grid positions for all dragged nodes.
+          dragging.forEach(n => {
+            if (!n.__div) return;
+            let gx = pxToGridFloat(parseFloat(n.__div.style.left));
+            let gy = pxToGridFloat(parseFloat(n.__div.style.top));
+            if (gx < 0) gx = 0;
+            if (gy < 0) gy = 0;
+            setPos(n, { x: gx, y: gy });
+          });
           render();
         }
         window.addEventListener('pointermove', onMove);
@@ -1236,6 +1365,65 @@
         window.addEventListener('pointercancel', onUp);
       });
     }
+
+    // ---------- Lasso (rubber-band) selection on canvas ----------
+    (function installLasso() {
+      const container = document.getElementById('treeContainer');
+      const lasso = document.getElementById('lassoBox');
+
+      container.addEventListener('pointerdown', (e) => {
+        // Ignore if the event originated from a node or branch-label.
+        if (e.target.closest('.node') || e.target.closest('.branch-label')) return;
+        e.preventDefault();
+
+        if (!e.shiftKey) clearSelection();
+
+        const cRect = container.getBoundingClientRect();
+        // Convert screen click to natural (pre-zoom) canvas coordinates.
+        function toNatural(clientX, clientY) {
+          return {
+            x: (clientX - cRect.left + container.scrollLeft) / state.zoom,
+            y: (clientY - cRect.top  + container.scrollTop)  / state.zoom,
+          };
+        }
+        const start = toNatural(e.clientX, e.clientY);
+
+        lasso.style.display = 'block';
+        lasso.style.left   = start.x + 'px';
+        lasso.style.top    = start.y + 'px';
+        lasso.style.width  = '0px';
+        lasso.style.height = '0px';
+
+        function onMove(ev) {
+          const cur = toNatural(ev.clientX, ev.clientY);
+          lasso.style.left   = Math.min(start.x, cur.x) + 'px';
+          lasso.style.top    = Math.min(start.y, cur.y) + 'px';
+          lasso.style.width  = Math.abs(cur.x - start.x) + 'px';
+          lasso.style.height = Math.abs(cur.y - start.y) + 'px';
+        }
+        function onUp(ev) {
+          window.removeEventListener('pointermove', onMove);
+          window.removeEventListener('pointerup',   onUp);
+          window.removeEventListener('pointercancel', onUp);
+          lasso.style.display = 'none';
+
+          const cur = toNatural(ev.clientX, ev.clientY);
+          const x1 = Math.min(start.x, cur.x), y1 = Math.min(start.y, cur.y);
+          const x2 = Math.max(start.x, cur.x), y2 = Math.max(start.y, cur.y);
+          // Require at least 6px of drag to distinguish from a plain click.
+          if (x2 - x1 < 6 && y2 - y1 < 6) return;
+
+          allNodes(state.tree).forEach(n => {
+            const p = posOf(n);
+            const nx = gridToPx(p.x), ny = gridToPx(p.y);
+            if (nx >= x1 && nx <= x2 && ny >= y1 && ny <= y2) addToSelection(n);
+          });
+        }
+        window.addEventListener('pointermove', onMove);
+        window.addEventListener('pointerup',   onUp);
+        window.addEventListener('pointercancel', onUp);
+      });
+    })();
 
     // ---------- Validation panel ----------
     function updateValidation() {
@@ -1448,6 +1636,7 @@
       if (level === 'blank') {
         // Level 3: pure sandbox — hide examples pulldown and clear canvas
         wrap.style.display = 'none';
+        state.selectedNodes = new Set();
         state.tree = blankTree();
         state.problem = null;
         addChild(state.tree);
@@ -1477,6 +1666,7 @@
     }
     function applyExample(data) {
       state.highlightedQuestions = new Map();
+      state.selectedNodes = new Set();
       if (data && data.tree) {
         state.tree = sanitizeTree(data.tree);
         state.problem = {
@@ -1588,6 +1778,20 @@
     document.getElementById('zoomIn').addEventListener('click', zoomIn);
     document.getElementById('zoomOut').addEventListener('click', zoomOut);
     document.getElementById('zoomFit').addEventListener('click', fitAndRender);
+    (function wireZoomInput() {
+      const inp = document.getElementById('zoomInput');
+      function applyInput() {
+        const raw = inp.value.replace('%', '').trim();
+        const v = parseFloat(raw);
+        if (isFinite(v) && v > 0) setZoom(v / 100);
+        inp.value = Math.round(state.zoom * 100) + '%';
+      }
+      inp.addEventListener('blur', applyInput);
+      inp.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); inp.blur(); } });
+      inp.addEventListener('focus', () => { inp.select(); });
+    })();
+    // Escape clears multi-select.
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') clearSelection(); });
     document.getElementById('magnetBtn').addEventListener('click', cycleMagnet);
     document.getElementById('levelSelect').addEventListener('change', e => {
       applyLevel(e.target.value, { autoLoadFirst: true });

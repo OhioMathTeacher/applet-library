@@ -1,0 +1,15 @@
+# The audit log contains student work and grade recommendations — it must never
+# be committed or pushed anywhere. It lives only on the faculty workstation.
+logs/*.jsonl
+logs/*.log
+
+# Real submissions never go in the repo. The submissions/ folder ships with
+# synthetic examples only; anything else there is ignored.
+submissions/*
+!submissions/example-*.txt
+!submissions/README.md
+
+__pycache__/
+*.pyc
+.venv/
+venv/

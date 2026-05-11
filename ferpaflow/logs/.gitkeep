@@ -1,0 +1,2 @@
+# grader.py writes its JSONL audit log here. The log itself stays local — see
+# ../.gitignore. This file just keeps the directory in version control.

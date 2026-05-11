@@ -1,0 +1,26 @@
+This week's reading on responsible AI use in classrooms made me rethink an
+assumption I came in with — that the main risk of students using AI is cheating.
+The author's point that the bigger long-term risk is *students never learning to
+struggle productively* hit harder. They use the phrase "outsourcing the
+desirable difficulty," and I keep coming back to that.
+
+In my own future classroom (I want to teach high school algebra), I think this
+shows up most in homework. If a student photographs every problem and gets a
+worked solution, they get the dopamine of a finished assignment without any of
+the retrieval practice that actually moves things into long-term memory. So I'd
+probably restructure homework: fewer problems, but each one asks for a written
+explanation of *why* a step works, not just the answer. AI can produce those too,
+of course — but it's at least a higher bar, and it's the kind of thing I can
+spot-check in a two-minute conversation.
+
+Where I disagree with the reading a little: the author treats the "AI as a tutor"
+use case pretty optimistically, and I'm more skeptical. A tutor who never gets
+tired and never judges you sounds great until you remember the tutor is also
+confidently wrong sometimes and the student has no way to tell. For a kid who's
+already behind, that's not obviously better than no help. I don't have a clean
+answer here — maybe the move is teaching students to check AI output against a
+worked example, which is a skill in itself. But I'd want to pilot that before I'd
+trust it.
+
+One thing I'll take into student teaching: I want a written AI policy on day one,
+co-written with the students if possible, so it doesn't feel like a trap.

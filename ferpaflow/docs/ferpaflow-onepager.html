@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FerpaFlow — one page</title>
+<style>
+  :root{
+    --ink:#1d2330; --muted:#5a6373; --line:#c9d0db; --bg:#fff;
+    --z1:#2f6f4f; --z1bg:#eaf4ee;
+    --z2:#7a5d18; --z2bg:#fbf3df;
+    --z3:#2a4b86; --z3bg:#e9eef9;
+    --warn:#8a2b2b; --warnbg:#fbecec;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:#eef1f5;color:var(--ink);
+    font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;}
+  .sheet{max-width:1000px;margin:24px auto;background:var(--bg);padding:40px 48px;
+    box-shadow:0 1px 4px rgba(0,0,0,.12);}
+  h1{font-size:30px;margin:0 0 2px;letter-spacing:-.01em;}
+  .tag{color:var(--muted);font-size:15px;margin:0 0 4px;}
+  .meta{color:var(--muted);font-size:12.5px;margin:0 0 22px;}
+  h2{font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);
+    margin:26px 0 10px;border-bottom:1px solid var(--line);padding-bottom:5px;}
+  p{margin:0 0 10px;}
+  .lede{font-size:15.5px;}
+  .cols{display:flex;gap:26px;}
+  .cols>div{flex:1;}
+
+  /* zone flow */
+  .flow{display:flex;flex-direction:column;gap:0;margin:6px 0 4px;}
+  .zone{border:1.5px solid var(--line);border-radius:9px;padding:13px 16px;background:#fafbfc;position:relative;}
+  .zone .lbl{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.06em;
+    text-transform:uppercase;padding:2px 8px;border-radius:999px;color:#fff;margin-bottom:6px;}
+  .z1 .lbl{background:var(--z1);} .z1{background:var(--z1bg);border-color:#bcd8c7;}
+  .z2 .lbl{background:var(--z2);} .z2{background:var(--z2bg);border-color:#e4d4a8;}
+  .z3 .lbl{background:var(--z3);} .z3{background:var(--z3bg);border-color:#bcc9e6;}
+  .zone h3{margin:0 0 4px;font-size:15.5px;}
+  .zone p{margin:0;font-size:13px;color:#3a4150;}
+  .zone .what{margin-top:7px;font-size:12px;color:var(--muted);}
+  .arrow{align-self:center;color:var(--muted);font-size:12px;text-align:center;
+    padding:7px 0;line-height:1.3;}
+  .arrow b{color:var(--ink);}
+  .pill{display:inline-block;font-size:10.5px;font-weight:700;letter-spacing:.04em;
+    text-transform:uppercase;padding:1px 6px;border-radius:4px;border:1px solid currentColor;}
+  .nogr{color:var(--warn);}
+  .local{color:var(--z3);}
+
+  /* boundary table */
+  table{width:100%;border-collapse:collapse;font-size:12.5px;margin-top:4px;}
+  th,td{text-align:left;padding:6px 9px;border-bottom:1px solid var(--line);vertical-align:top;}
+  th{color:var(--muted);font-size:11px;letter-spacing:.06em;text-transform:uppercase;}
+
+  .warnbox{background:var(--warnbg);border:1px solid #e6c3c3;border-radius:8px;padding:12px 15px;font-size:13px;}
+  .warnbox b{color:var(--warn);}
+  .scalebox{background:#f3f1ec;border:1px dashed #c7bfae;border-radius:8px;padding:12px 15px;font-size:13px;}
+
+  ul{margin:4px 0 10px;padding-left:18px;} li{margin:3px 0;}
+  .ask{background:var(--z3bg);border:1px solid #bcc9e6;border-radius:8px;padding:12px 15px;font-size:14px;}
+  .ask b{color:var(--z3);}
+  footer{margin-top:24px;border-top:1px solid var(--line);padding-top:10px;
+    color:var(--muted);font-size:11.5px;}
+  code{background:#eef1f5;padding:1px 4px;border-radius:3px;font-size:12px;}
+
+  @media print{
+    html,body{background:#fff;}
+    .sheet{box-shadow:none;margin:0;max-width:none;padding:0 .2in;}
+    @page{margin:.5in;}
+    h2{margin-top:16px;}
+  }
+</style>
+</head>
+<body>
+<div class="sheet">
+
+  <h1>FerpaFlow</h1>
+  <p class="tag">A FERPA-aware pipeline for letting AI help with grading — without putting grades or
+    identifiable student records into a system that isn't cleared to hold them.</p>
+  <p class="meta">Draft · May 2026 · for colleagues in Teacher Education &amp; Computer Science ·
+    not legal advice, not yet reviewed by counsel · MIT-licensed · OhioMathTeacher / TEA</p>
+
+  <p class="lede">Faculty want AI help with feedback and grading. Today the realistic options are
+    <b>(a)</b> paste student work into consumer ChatGPT / Gemini / Claude and hope — no institutional
+    agreement, no idea where the data goes — or <b>(b)</b> don't use AI at all. FerpaFlow is a third
+    path. It's mostly a question of <i>where the data lives</i>, not a loophole.</p>
+
+  <h2>The idea — split the workflow into three zones</h2>
+  <div class="flow">
+
+    <div class="zone z1">
+      <span class="lbl">Zone 1 · Submissions</span>
+      <h3>An institution-controlled git host</h3>
+      <p>A campus GitLab / Gitea, or a department server. (A private GitHub repo only as a one-person
+        pilot stopgap.) Students submit classwork here.</p>
+      <p class="what">Crosses this boundary: <b>student classwork</b> &nbsp;·&nbsp; <span class="pill nogr">no grades</span></p>
+    </div>
+
+    <div class="arrow">│ &nbsp;<b>collector.py</b> polls outward — no open ports&nbsp; │<br>▼</div>
+
+    <div class="zone z2">
+      <span class="lbl">Zone 2 · Feedback</span>
+      <h3>The institution's <i>sanctioned</i> cloud model</h3>
+      <p>At Miami: Google Gemini / NotebookLM, under the Workspace agreement we already have. Returns
+        rubric-aligned <i>comments</i> — strengths, gaps, suggestions tied to criteria.</p>
+      <p class="what">Crosses this boundary: <b>de-identified work + rubric</b> — scrubbed
+        <i>and</i> human-reviewed first &nbsp;·&nbsp; <span class="pill nogr">no scores, ever</span></p>
+    </div>
+
+    <div class="arrow">│ &nbsp;comments returned to the student via the git host&nbsp; │<br>▼ &nbsp;(separately) ▼</div>
+
+    <div class="zone z3">
+      <span class="lbl">Zone 3 · Grades</span>
+      <h3>A local LLM on the faculty member's own computer</h3>
+      <p>Ollama, no internet connection. Produces a grade <i>recommendation</i> + rationale, shown on
+        the faculty member's screen and saved to a local log. The faculty member reads it and
+        <b>types the grade into Canvas by hand.</b></p>
+      <p class="what">Stays here: <b>the grade</b> &nbsp;·&nbsp; <span class="pill local">local only — never leaves the machine</span></p>
+    </div>
+
+  </div>
+  <p style="font-size:13px;color:var(--muted);margin-top:8px;">
+    The move that makes it work: the step that produces a <b>grade</b> runs only on faculty hardware;
+    the step that touches the <b>cloud</b> produces only <b>comments</b>, on <b>de-identified</b> text,
+    through an <b>already-vetted</b> tool. Risk is concentrated where it can be contained — and contained there.</p>
+
+  <h2>What crosses each boundary</h2>
+  <table>
+    <tr><th>Boundary</th><th>What goes across</th><th>What must not</th></tr>
+    <tr><td>git host → faculty machine</td><td>student submission text</td><td>—</td></tr>
+    <tr><td>faculty machine → cloud model</td><td><b>de-identified</b> work + rubric</td><td>any grade or score; any name / ID / self-identifying detail</td></tr>
+    <tr><td>cloud model → student</td><td>rubric-aligned comments</td><td>scores, grades</td></tr>
+    <tr><td>faculty machine → local LLM</td><td>anonymized work + rubric</td><td>— (localhost only; the model has no internet route)</td></tr>
+    <tr><td>local LLM → screen / local log</td><td>grade recommendation + rationale</td><td>leaving the machine (the log is git-ignored)</td></tr>
+    <tr><td>faculty → Canvas</td><td>the final grade of record</td><td>— (a human decision, typed by hand)</td></tr>
+  </table>
+
+  <div class="cols" style="margin-top:18px;">
+    <div>
+      <h2 style="margin-top:0;">What's honest about the legal side</h2>
+      <div class="warnbox">
+        We do <b>not</b> claim "student classwork isn't a FERPA record." An earlier draft leaned on
+        <i>Owasso v. Falvo</i> (2002) for that — we've dropped it. <i>Falvo</i> only says peer-graded
+        papers being passed among students <i>before the teacher records the grade</i> aren't "education
+        records," not that classwork is categorically unprotected. FerpaFlow relies instead on
+        <b>data minimization</b> (grades &amp; identifiers stay local) and <b>sanctioned endpoints</b>
+        (only tools the institution has vetted) — which hold regardless. Open questions for counsel: is
+        "scrubbed work → comments" inside our Google agreement; what counts as adequate de-identification
+        of student <i>writing</i>; must students be told feedback is AI-assisted.
+      </div>
+    </div>
+    <div>
+      <h2 style="margin-top:0;">Why it matters for our department</h2>
+      <ul>
+        <li><b>A model for preservice teachers.</b> "Design a compliant AI workflow" beats "don't get
+          caught." A FERPA-literacy layer (the <i>Owasso</i> facts, a "what gets you fired" scenario
+          guide, a build-your-own-pipeline worksheet) drops into the TCE / CSE AI-bridge coursework.</li>
+        <li><b>A bridge between tools Miami already has.</b> Google Workspace, Canvas, and faculty
+          interest all exist; the missing piece is a principled workflow connecting them. This is a
+          working sketch of that seam — and it shows local AI and the institutional Google tools are
+          <i>complementary</i>, not competing (relevant to the NVIDIA-grant exploration).</li>
+        <li><b>It scales without redesign.</b> Same architecture, one box swapped — see below.</li>
+      </ul>
+    </div>
+  </div>
+
+  <h2>Scales to campus without a redesign</h2>
+  <div class="scalebox">
+    Single-faculty today → campus tomorrow is the <i>same</i> architecture with one box swapped:
+    <b>Zone 1</b> becomes a campus-run GitLab / Gitea behind SSO; <b>Zone 3</b> becomes an IT-managed
+    local-inference appliance (the kind of thing the NVIDIA-grant exploration points at); <b>Zone 2</b>
+    is unchanged — the Google Workspace tooling we already license. The faculty workstation just
+    becomes a managed campus service.
+  </div>
+
+  <div class="cols" style="margin-top:18px;">
+    <div>
+      <h2 style="margin-top:0;">Status — May 2026</h2>
+      <p style="font-size:13px;"><b>Working:</b> the local grader (<code>grader.py</code> → Ollama, a
+        sample YAML rubric, a local audit log) and a heuristic PII tripwire. <b>Documented, not yet
+        built:</b> the git-host collector and the cloud-feedback step — deliberately; the
+        Google-agreement questions come first. Repo to be created; the scaffold is ready to drop in.</p>
+    </div>
+    <div>
+      <h2 style="margin-top:0;">The ask</h2>
+      <div class="ask">Not "adopt this." <b>A small pilot + a legal review.</b> One assignment, one
+        section, one faculty machine — then take what we learn to IT and counsel.</div>
+    </div>
+  </div>
+
+  <footer>
+    Technology Educator Alliance (TEA) · MIT-licensed · contact: OhioMathTeacher @ GitHub.
+    Confirm author attribution before circulating publicly. This document is a discussion starter,
+    not legal advice. &nbsp;|&nbsp; Tip: print to PDF to share — it's laid out for one page.
+  </footer>
+
+</div>
+</body>
+</html>

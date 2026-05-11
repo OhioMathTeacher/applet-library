@@ -1,0 +1,86 @@
+# FerpaFlow rubric — one YAML file per assignment type.
+# Faculty-defined, version-controlled. Read by grader.py (and, later, feedback.py).
+#
+# Shape:
+#   assignment: human-readable name
+#   notes:      optional free text passed to the model as instructor context
+#   criteria:   list of weighted criteria
+#     - name:        short label
+#       description:  what you're looking for
+#       max_points:   integer cap for this criterion
+#       levels:       optional anchored performance levels (helps the model calibrate)
+
+assignment: "Weekly Reading Reflection (AYA / TCE 'AI in the Classroom')"
+
+notes: >
+  Reflections are short (roughly 300–600 words). Reward specific engagement with
+  the assigned reading and an honest connection to the student's own (anticipated)
+  teaching practice. Do not penalize disagreement with the reading if it is argued.
+  Mechanics matter but are not the point — cap their influence at the rubric weight.
+
+criteria:
+  - name: "Engagement with the reading"
+    description: >
+      Does the reflection show the student actually read and grappled with the
+      assigned text, citing or paraphrasing specific ideas rather than gesturing
+      at the topic in general?
+    max_points: 10
+    levels:
+      - points: 10
+        label: "Strong"
+        description: "References specific claims/sections; represents them accurately; goes beyond summary."
+      - points: 7
+        label: "Adequate"
+        description: "Clearly engaged with the reading but stays mostly at the summary level."
+      - points: 4
+        label: "Thin"
+        description: "Vague allusions to the reading; could have been written without doing it carefully."
+      - points: 0
+        label: "Absent"
+        description: "No discernible engagement with the assigned text."
+
+  - name: "Connection to practice"
+    description: >
+      Does the student connect the reading to their own classroom thinking — a
+      concrete scenario, a policy they'd adopt, a worry they have as a future teacher?
+    max_points: 10
+    levels:
+      - points: 10
+        label: "Concrete"
+        description: "A specific, plausible classroom application or dilemma, thought through."
+      - points: 6
+        label: "Generic"
+        description: "Gestures at 'using this in my classroom' without specifics."
+      - points: 0
+        label: "Missing"
+        description: "No attempt to connect the reading to practice."
+
+  - name: "Reasoning & honesty"
+    description: >
+      Is the position argued (reasons, not just assertions)? Is it intellectually
+      honest — acknowledging trade-offs, uncertainty, or counterarguments?
+    max_points: 6
+    levels:
+      - points: 6
+        label: "Reasoned"
+        description: "Gives reasons; acknowledges at least one trade-off or limitation."
+      - points: 3
+        label: "Asserted"
+        description: "States a view with little support; one-sided."
+      - points: 0
+        label: "None"
+        description: "No argument present."
+
+  - name: "Clarity & mechanics"
+    description: "Organized, readable prose; grammar/spelling do not impede understanding."
+    max_points: 4
+    levels:
+      - points: 4
+        label: "Clean"
+        description: "Well organized; negligible errors."
+      - points: 2
+        label: "Rough"
+        description: "Understandable but with organization or proofreading lapses."
+      - points: 0
+        label: "Impeding"
+        description: "Errors or disorganization make the reflection hard to follow."

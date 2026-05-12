@@ -7,8 +7,11 @@ A collection of interactive web applets for mathematics and science education.
 
 ## Applets
 
-### 🪐 [Orbit Explorer](../../Ohio-Journal-Summer-2026/Apps/Orbit%20Explorer/orbit-explorer-main/index.html)
-Explore orbital mechanics and trajectories interactively. Visualize orbits, experiment with parameters, and discover the mathematics of planetary motion.
+### 🪐 [Orbit Explorer](../../TEA-Collatz-Paper/applets/orbit-explorer/index.html)
+Explore the dynamics of Collatz-style functions: set the parameters m, b, and d to define a function pair, seed the iteration with a starting value, watch the trajectory and any cycle it falls into, and save interesting cases for comparison. Includes an embedded AI thinking partner (ZhengGPT). Actively developed version.
+
+### 🪐 [Orbit Explorer (research snapshot)](../../orbit-explorer/index.html)
+The frozen v2 used in the Sichuan University study and cited in the TEA Collatz chapter — kept unchanged for reproducibility. See "Orbit Explorer" above for the version under active development.
 
 ### 🧲 [Forces on a Ramp](https://ohiomathteacher.github.io/applet-library/forces-on-ramp/)
 Interactive physics simulation for exploring forces on inclined planes. Visualize force decomposition, friction effects, and energy conservation with draggable objects and real-time physics.

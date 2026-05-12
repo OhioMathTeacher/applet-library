@@ -7,7 +7,7 @@ A collection of interactive web applets for mathematics and science education.
 
 ## Applets
 
-### 🪐 [Orbit Explorer](../../TEA-Collatz-Paper/applets/orbit-explorer/index.html)
+### 🪐 [Orbit Explorer](../../orbit-explorer-classroom/index.html)
 Explore the dynamics of Collatz-style functions: set the parameters m, b, and d to define a function pair, seed the iteration with a starting value, watch the trajectory and any cycle it falls into, and save interesting cases for comparison. Includes an embedded AI thinking partner (ZhengGPT). Actively developed version.
 
 ### 🪐 [Orbit Explorer (research snapshot)](../../orbit-explorer/index.html)

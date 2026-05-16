@@ -1,0 +1,396 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Teleprompter</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<style>
+  :root {
+    --bg: #0a0a0a;
+    --fg: #f3eaa8;
+    --muted: #8a7d4a;
+    --accent: #C41230;
+    --panel: #161616;
+    --panel-2: #1f1f1f;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0; height: 100%;
+    background: var(--bg); color: var(--fg);
+    font-family: "Noto Sans", "DejaVu Sans", system-ui, sans-serif;
+    overflow: hidden;
+  }
+  #app { display: flex; flex-direction: column; height: 100vh; }
+
+  /* Control bar */
+  #controls {
+    flex: 0 0 auto;
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 14px;
+    background: var(--panel);
+    border-bottom: 1px solid #2a2a2a;
+    font-size: 13px;
+    flex-wrap: wrap;
+  }
+  #controls button {
+    background: var(--panel-2); color: var(--fg);
+    border: 1px solid #2a2a2a; border-radius: 6px;
+    padding: 6px 12px; cursor: pointer; font-size: 13px;
+    font-family: inherit;
+  }
+  #controls button:hover { background: #2a2a2a; }
+  #controls button.primary { background: var(--accent); color: white; border-color: var(--accent); }
+  #controls button.primary:hover { background: #a00f25; }
+  #controls label { color: var(--muted); display: flex; align-items: center; gap: 6px; }
+  #controls input[type=range] { width: 110px; vertical-align: middle; }
+  #controls input[type=number] { width: 50px; background: var(--panel-2); color: var(--fg); border: 1px solid #2a2a2a; border-radius: 4px; padding: 4px 6px; font-family: inherit; }
+  #controls .sep { color: #2a2a2a; }
+  #scriptName {
+    background: var(--panel-2); color: var(--fg);
+    border: 1px solid #2a2a2a; border-radius: 4px;
+    padding: 4px 8px; font-family: inherit; min-width: 120px;
+  }
+
+  /* Editor panel */
+  #editor {
+    flex: 1 1 auto;
+    display: flex; flex-direction: column;
+    padding: 14px; gap: 8px;
+  }
+  #editor textarea {
+    flex: 1 1 auto;
+    background: var(--panel); color: var(--fg);
+    border: 1px solid #2a2a2a; border-radius: 8px;
+    padding: 16px;
+    font-family: "Noto Sans", "DejaVu Sans", system-ui, sans-serif;
+    font-size: 15px; line-height: 1.6;
+    resize: none;
+  }
+  #editor .hint { color: var(--muted); font-size: 12px; }
+
+  /* Prompter display */
+  #prompter {
+    flex: 1 1 auto; position: relative; overflow: hidden;
+    display: none;
+  }
+  #prompter.active { display: block; }
+  #scroll {
+    position: absolute; top: 100%; left: 0; right: 0;
+    padding: 0 6vw;
+    font-size: 52px; line-height: 1.45;
+    font-weight: 500;
+    will-change: transform;
+  }
+  /* Reading guide line */
+  #guide {
+    position: absolute; left: 0; right: 0;
+    top: 50%;
+    height: 2px; background: var(--accent); opacity: 0.45;
+    pointer-events: none;
+  }
+  /* Vignette at top + bottom for a teleprompter feel */
+  #prompter::before, #prompter::after {
+    content: ""; position: absolute; left: 0; right: 0; height: 100px;
+    pointer-events: none;
+  }
+  #prompter::before { top: 0;    background: linear-gradient(to bottom, var(--bg), transparent); }
+  #prompter::after  { bottom: 0; background: linear-gradient(to top,    var(--bg), transparent); }
+
+  /* Mirror flip mode (for physical teleprompter rigs) */
+  #prompter.mirror #scroll { transform-origin: center center; }
+  #prompter.mirror { transform: scaleX(-1); }
+
+  /* Hide editor in fullscreen prompter */
+  #app.prompting #editor { display: none; }
+  #app.prompting #prompter { display: block; }
+
+  /* Footer hint */
+  #shortcuts {
+    flex: 0 0 auto; padding: 8px 14px;
+    background: var(--panel); border-top: 1px solid #2a2a2a;
+    color: var(--muted); font-size: 11px;
+  }
+  kbd {
+    display: inline-block; padding: 1px 6px;
+    border: 1px solid #333; border-radius: 4px;
+    background: var(--panel-2); color: var(--fg);
+    font-family: "DejaVu Sans Mono", monospace; font-size: 10px;
+    margin: 0 1px;
+  }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <div id="controls">
+    <input id="scriptName" placeholder="Script name…" />
+    <button id="saveBtn">Save</button>
+    <select id="loadList"><option value="">— load saved —</option></select>
+    <button id="delBtn" title="Delete current saved script">Delete</button>
+    <label class="filebtn" style="cursor: pointer; background: var(--panel-2); color: var(--fg); border: 1px solid #2a2a2a; border-radius: 6px; padding: 6px 12px;">
+      📂 Open .txt
+      <input id="fileInput" type="file" accept=".txt,.md,text/plain" style="display:none" />
+    </label>
+    <span class="sep">|</span>
+    <label>Size <input id="size" type="number" min="8" max="200" step="1" value="52" /></label>
+    <label>Theme
+      <select id="theme">
+        <option value="amber">Amber on black</option>
+        <option value="green">Green on black</option>
+        <option value="white-on-black">White on black</option>
+        <option value="black-on-white">Black on white</option>
+        <option value="paper">Black on paper</option>
+      </select>
+    </label>
+    <label>Speed <input id="speed" type="range" min="20" max="200" value="80" /></label>
+    <span id="speedVal" style="color: var(--muted); font-size: 12px;">80</span>
+    <span class="sep">|</span>
+    <button id="startBtn" class="primary">▶ Start</button>
+    <button id="playBtn"  style="display:none">⏵ Play</button>
+    <button id="pauseBtn" style="display:none">⏸ Pause</button>
+    <button id="resetBtn" style="display:none">↺ Reset</button>
+    <button id="editBtn"  style="display:none">✎ Edit</button>
+    <button id="fsBtn">⛶ Fullscreen</button>
+    <label style="margin-left:auto">
+      <input id="mirror" type="checkbox" /> Mirror
+    </label>
+  </div>
+
+  <div id="editor">
+    <textarea id="script" placeholder="Paste your script here. Plain text or simple line breaks. The prompter will scroll it from bottom to top."></textarea>
+    <div class="hint">
+      Press <kbd>Start</kbd> to enter prompter mode. In prompter mode:
+      <kbd>Space</kbd> play/pause · <kbd>↑</kbd>/<kbd>↓</kbd> nudge · <kbd>+</kbd>/<kbd>−</kbd> size · <kbd>F</kbd> fullscreen · <kbd>Esc</kbd> back to edit
+    </div>
+  </div>
+
+  <div id="prompter">
+    <div id="guide"></div>
+    <div id="scroll"></div>
+  </div>
+
+  <div id="shortcuts">
+    Local storage only · scripts persist in this browser · no network · no telemetry
+  </div>
+</div>
+
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const app = $('app'), editor = $('editor'), prompter = $('prompter');
+  const scroll = $('scroll'), script = $('script');
+  const sizeInput = $('size'), speedInput = $('speed'), speedVal = $('speedVal');
+  const startBtn = $('startBtn'), playBtn = $('playBtn'), pauseBtn = $('pauseBtn'),
+        resetBtn = $('resetBtn'), editBtn = $('editBtn'), fsBtn = $('fsBtn');
+  const mirror = $('mirror');
+  const scriptName = $('scriptName'), saveBtn = $('saveBtn'),
+        loadList = $('loadList'), delBtn = $('delBtn'),
+        fileInput = $('fileInput');
+
+  // Open .txt file from disk
+  if (fileInput) {
+    fileInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (evt) => {
+        script.value = evt.target.result;
+        localStorage.setItem('tp.draft.v1', script.value);
+        renderScript();
+        scriptName.value = file.name.replace(/\.(txt|md)$/i, '');
+      };
+      reader.readAsText(file);
+      // reset so re-loading same file fires change again
+      e.target.value = '';
+    });
+  }
+
+  // ---- state
+  let raf = null;
+  let pos = 0;            // px offset (scroll moves up by `pos`)
+  let playing = false;
+  let lastT = 0;
+
+  // ---- persistence
+  const KEY = 'tp.scripts.v1';
+  const loadAll = () => JSON.parse(localStorage.getItem(KEY) || '{}');
+  const saveAll = (m) => localStorage.setItem(KEY, JSON.stringify(m));
+  function refreshList() {
+    const all = loadAll();
+    loadList.innerHTML = '<option value="">— load saved —</option>' +
+      Object.keys(all).sort().map(k => `<option value="${k}">${k}</option>`).join('');
+  }
+  saveBtn.addEventListener('click', () => {
+    const name = (scriptName.value || 'untitled').trim();
+    const all = loadAll(); all[name] = script.value; saveAll(all);
+    refreshList(); loadList.value = name;
+  });
+  loadList.addEventListener('change', () => {
+    if (!loadList.value) return;
+    const all = loadAll();
+    script.value = all[loadList.value] || '';
+    scriptName.value = loadList.value;
+    renderScript();
+  });
+  delBtn.addEventListener('click', () => {
+    const name = scriptName.value.trim();
+    if (!name) return;
+    const all = loadAll();
+    if (all[name] && confirm(`Delete saved script "${name}"?`)) {
+      delete all[name]; saveAll(all); refreshList();
+    }
+  });
+
+  // remember last unsaved draft
+  const DRAFT = 'tp.draft.v1';
+  script.value = localStorage.getItem(DRAFT) || '';
+  script.addEventListener('input', () => {
+    localStorage.setItem(DRAFT, script.value);
+    renderScript();
+  });
+
+  // ---- render script into scrolling div
+  function renderScript() {
+    // Plain text; paragraphs separated by blank lines or hard linebreaks
+    const lines = script.value.split(/\n/);
+    const html = lines.map(l => l.trim() === '' ? '<br>' : `<p>${escape(l)}</p>`).join('');
+    scroll.innerHTML = html;
+  }
+  function escape(s) {
+    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+  renderScript();
+
+  // ---- size and speed
+  function applySize() {
+    scroll.style.fontSize = sizeInput.value + 'px';
+  }
+  sizeInput.addEventListener('input', applySize);
+  applySize();
+
+  speedInput.addEventListener('input', () => speedVal.textContent = speedInput.value);
+
+  mirror.addEventListener('change', () => {
+    prompter.classList.toggle('mirror', mirror.checked);
+  });
+
+  // Theme presets — wrapped defensively so an error here can't break play/scroll
+  try {
+    const themes = {
+      amber:           { bg: '#0a0a0a', fg: '#f3eaa8', muted: '#8a7d4a', accent: '#C41230' },
+      green:           { bg: '#000000', fg: '#33ff66', muted: '#1d7a3a', accent: '#ff6b35' },
+      'white-on-black':{ bg: '#000000', fg: '#ffffff', muted: '#888888', accent: '#C41230' },
+      'black-on-white':{ bg: '#ffffff', fg: '#000000', muted: '#666666', accent: '#C41230' },
+      paper:           { bg: '#f5efe0', fg: '#222222', muted: '#777777', accent: '#C41230' },
+    };
+    const themeSel = $('theme');
+    const THEME_KEY = 'tp.theme.v1';
+    function applyTheme(name) {
+      const t = themes[name] || themes.amber;
+      document.documentElement.style.setProperty('--bg', t.bg);
+      document.documentElement.style.setProperty('--fg', t.fg);
+      document.documentElement.style.setProperty('--muted', t.muted);
+      document.documentElement.style.setProperty('--accent', t.accent);
+      localStorage.setItem(THEME_KEY, name);
+    }
+    if (themeSel) {
+      themeSel.value = localStorage.getItem(THEME_KEY) || 'amber';
+      applyTheme(themeSel.value);
+      themeSel.addEventListener('change', () => applyTheme(themeSel.value));
+    } else {
+      applyTheme(localStorage.getItem(THEME_KEY) || 'amber');
+    }
+  } catch (err) {
+    console.warn('theme setup failed', err);
+  }
+
+  // ---- prompter loop
+  function tick(t) {
+    if (!playing) { raf = null; return; }
+    const dt = lastT ? (t - lastT) / 1000 : 0;
+    lastT = t;
+    // speed: px per second. slider 20–200 mapped to 20–200 px/s, multiplied by base of font-size sensitivity
+    const pxPerSec = Number(speedInput.value);
+    pos += pxPerSec * dt;
+    scroll.style.transform = `translateY(${-pos}px)`;
+    // Auto-stop when fully scrolled past
+    if (pos > scroll.scrollHeight + window.innerHeight) {
+      playing = false;
+      return;
+    }
+    raf = requestAnimationFrame(tick);
+  }
+  function play() {
+    if (playing) return;
+    playing = true; lastT = 0;
+    playBtn.style.display = 'none'; pauseBtn.style.display = '';
+    raf = requestAnimationFrame(tick);
+  }
+  function pause() {
+    playing = false;
+    playBtn.style.display = ''; pauseBtn.style.display = 'none';
+  }
+  function reset() {
+    pause(); pos = 0;
+    scroll.style.transform = `translateY(0)`;
+  }
+
+  // ---- mode switching
+  function enterPrompter() {
+    app.classList.add('prompting');
+    startBtn.style.display = 'none';
+    playBtn.style.display = '';
+    pauseBtn.style.display = 'none';
+    resetBtn.style.display = '';
+    editBtn.style.display = '';
+    // Position scroll just below the screen so it scrolls UP into view
+    pos = 0;
+    scroll.style.transform = `translateY(0)`;
+  }
+  function exitPrompter() {
+    app.classList.remove('prompting');
+    pause();
+    startBtn.style.display = '';
+    playBtn.style.display = 'none';
+    pauseBtn.style.display = 'none';
+    resetBtn.style.display = 'none';
+    editBtn.style.display = 'none';
+  }
+  startBtn.addEventListener('click', () => { renderScript(); enterPrompter(); });
+  editBtn.addEventListener('click', exitPrompter);
+  playBtn.addEventListener('click', play);
+  pauseBtn.addEventListener('click', pause);
+  resetBtn.addEventListener('click', reset);
+
+  fsBtn.addEventListener('click', () => {
+    if (!document.fullscreenElement) document.documentElement.requestFullscreen();
+    else document.exitFullscreen();
+  });
+
+  // ---- keyboard shortcuts (prompter mode)
+  window.addEventListener('keydown', (e) => {
+    if (e.target.tagName === 'TEXTAREA' || e.target.tagName === 'INPUT') return;
+    if (e.key === ' ') {
+      if (!app.classList.contains('prompting')) return;
+      e.preventDefault();
+      playing ? pause() : play();
+    } else if (e.key === 'ArrowDown') {
+      pos += 30; scroll.style.transform = `translateY(${-pos}px)`;
+    } else if (e.key === 'ArrowUp') {
+      pos = Math.max(0, pos - 30); scroll.style.transform = `translateY(${-pos}px)`;
+    } else if (e.key === '+' || e.key === '=') {
+      sizeInput.value = Math.min(200, Number(sizeInput.value) + 4); applySize();
+    } else if (e.key === '-' || e.key === '_') {
+      sizeInput.value = Math.max(8, Number(sizeInput.value) - 4); applySize();
+    } else if (e.key === 'f' || e.key === 'F') {
+      fsBtn.click();
+    } else if (e.key === 'Escape') {
+      if (app.classList.contains('prompting')) { exitPrompter(); }
+    }
+  });
+
+  refreshList();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,303 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Live Captions — local Whisper</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<style>
+  :root {
+    --bg: #050505;
+    --fg: #f3eaa8;
+    --muted: #8a7d4a;
+    --accent: #C41230;
+    --panel: #111;
+    --panel-2: #1a1a1a;
+    --good: #6fcf97;
+    --warn: #f2c94c;
+    --bad:  #eb5757;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; height: 100%; background: var(--bg); color: var(--fg);
+    font-family: "Noto Sans", "DejaVu Sans", system-ui, sans-serif; overflow: hidden; }
+
+  /* OBS overlay mode: transparent bg + text-shadow for chroma-key-free overlay */
+  body.obs { background: transparent; }
+  body.obs #panel { display: none; }
+  body.obs #captionWrap { justify-content: flex-end; padding-bottom: 6vh; }
+  body.obs #caption { background: rgba(0,0,0,0.55); }
+
+  #app { display: flex; flex-direction: column; height: 100vh; }
+
+  /* Control panel */
+  #panel {
+    flex: 0 0 auto;
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 14px;
+    background: var(--panel);
+    border-bottom: 1px solid #222;
+    font-size: 13px;
+    flex-wrap: wrap;
+  }
+  #panel button {
+    background: var(--panel-2); color: var(--fg);
+    border: 1px solid #222; border-radius: 6px;
+    padding: 6px 12px; cursor: pointer; font-family: inherit;
+  }
+  #panel button:hover { background: #2a2a2a; }
+  #panel button.primary { background: var(--accent); color: white; border-color: var(--accent); }
+  #panel button.primary:hover { background: #a00f25; }
+  #panel button:disabled { opacity: 0.4; cursor: not-allowed; }
+  #panel select, #panel input[type=number] {
+    background: var(--panel-2); color: var(--fg);
+    border: 1px solid #222; border-radius: 4px; padding: 5px 8px;
+    font-family: inherit; font-size: 13px;
+  }
+  #panel label { color: var(--muted); display: flex; align-items: center; gap: 6px; }
+
+  /* Status pill */
+  #status { display: flex; align-items: center; gap: 8px; font-size: 12px; }
+  #statusDot { width: 10px; height: 10px; border-radius: 50%; background: #555; transition: background 0.3s; }
+  #statusDot.loading { background: var(--warn); }
+  #statusDot.live    { background: var(--good); animation: pulse 1.5s infinite; }
+  #statusDot.error   { background: var(--bad); }
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+
+  /* Progress bar for model load */
+  #progressWrap { width: 200px; height: 6px; background: #222; border-radius: 3px; overflow: hidden; display: none; }
+  #progressBar { height: 100%; background: var(--accent); width: 0%; transition: width 0.2s; }
+  #progressWrap.show { display: block; }
+
+  /* Caption display */
+  #captionWrap {
+    flex: 1 1 auto; position: relative; overflow: hidden;
+    display: flex; align-items: center; justify-content: center;
+    padding: 4vh 6vw;
+  }
+  #caption {
+    font-family: "Source Serif", "Noto Serif", "DejaVu Serif", Georgia, serif;
+    font-size: 52px;
+    line-height: 1.35;
+    color: var(--fg);
+    text-align: center;
+    max-width: 100%;
+    text-shadow: 2px 2px 8px rgba(0,0,0,0.85);
+    padding: 0.5em 1em;
+    border-radius: 12px;
+    transition: opacity 0.2s;
+  }
+  #caption.fading { opacity: 0.6; }
+  #caption .interim { color: var(--muted); font-style: italic; }
+
+  /* Empty-state hint */
+  #emptyHint {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    color: var(--muted); font-size: 18px; text-align: center; pointer-events: none;
+    font-family: "Noto Sans", sans-serif;
+  }
+  #captionWrap.has-text #emptyHint { display: none; }
+
+  /* Bottom shortcuts hint */
+  #shortcuts {
+    flex: 0 0 auto; padding: 6px 14px;
+    background: var(--panel); border-top: 1px solid #222;
+    color: var(--muted); font-size: 11px;
+  }
+  body.obs #shortcuts { display: none; }
+  kbd {
+    display: inline-block; padding: 1px 6px; border: 1px solid #333; border-radius: 4px;
+    background: var(--panel-2); color: var(--fg);
+    font-family: "DejaVu Sans Mono", monospace; font-size: 10px; margin: 0 1px;
+  }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <div id="panel">
+    <button id="startBtn" class="primary">🎙️ Start listening</button>
+    <button id="stopBtn" style="display:none">⏹️ Stop</button>
+    <button id="clearBtn">Clear</button>
+    <span class="sep" style="color:#222">|</span>
+    <label>Model
+      <select id="modelSel">
+        <option value="Xenova/whisper-tiny.en">tiny.en — fast (~40 MB)</option>
+        <option value="Xenova/whisper-base.en">base.en — better (~150 MB)</option>
+        <option value="Xenova/whisper-small.en">small.en — great (~480 MB, slow first load)</option>
+      </select>
+    </label>
+    <label>Chunk <input id="chunkSec" type="number" min="2" max="10" step="1" value="4" /> s</label>
+    <label>Size <input id="fontSize" type="number" min="24" max="120" step="2" value="52" /> px</label>
+    <span class="sep" style="color:#222">|</span>
+    <label><input id="obsMode" type="checkbox" /> OBS overlay mode</label>
+    <span class="sep" style="color:#222">|</span>
+    <div id="status">
+      <span id="statusDot"></span>
+      <span id="statusText">Idle</span>
+      <div id="progressWrap"><div id="progressBar"></div></div>
+    </div>
+  </div>
+
+  <div id="captionWrap">
+    <div id="emptyHint">
+      Click <strong>Start listening</strong> to begin.<br/>
+      The first time, the Whisper model downloads (one-time).<br/>
+      Audio is transcribed <strong>entirely in your browser</strong> — nothing leaves this machine.
+    </div>
+    <div id="caption"></div>
+  </div>
+
+  <div id="shortcuts">
+    Runs locally via <code>@xenova/transformers</code> + Whisper · no cloud · no telemetry.
+    Shortcuts: <kbd>Space</kbd> start/stop · <kbd>C</kbd> clear · <kbd>O</kbd> OBS overlay mode · <kbd>+</kbd>/<kbd>−</kbd> size.
+  </div>
+</div>
+
+<script type="module">
+import { pipeline, env } from 'https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2';
+
+env.allowLocalModels = false; // CDN-hosted by HuggingFace
+env.useBrowserCache = true;
+
+const $ = id => document.getElementById(id);
+const startBtn = $('startBtn'), stopBtn = $('stopBtn'), clearBtn = $('clearBtn');
+const modelSel = $('modelSel'), chunkSec = $('chunkSec'), fontSize = $('fontSize');
+const obsMode = $('obsMode'), statusDot = $('statusDot'), statusText = $('statusText');
+const progWrap = $('progressWrap'), progBar = $('progressBar');
+const captionWrap = $('captionWrap'), caption = $('caption');
+
+let transcriber = null;
+let currentModel = null;
+let recorder = null;
+let micStream = null;
+let chunkBuffer = [];
+let running = false;
+let history = []; // array of completed transcript chunks
+
+function setStatus(state, msg) {
+  statusDot.className = ''; statusDot.classList.add(state || '');
+  statusText.textContent = msg;
+}
+
+function updateCaption() {
+  // Keep only last ~3 sentences worth (or ~30 words)
+  const recent = history.join(' ').trim();
+  const words = recent.split(/\s+/);
+  const display = words.slice(-32).join(' ');
+  caption.textContent = display;
+  captionWrap.classList.toggle('has-text', display.length > 0);
+}
+
+clearBtn.addEventListener('click', () => { history = []; updateCaption(); });
+
+fontSize.addEventListener('input', () => { caption.style.fontSize = fontSize.value + 'px'; });
+fontSize.dispatchEvent(new Event('input'));
+
+obsMode.addEventListener('change', () => {
+  document.body.classList.toggle('obs', obsMode.checked);
+});
+
+async function loadModel(name) {
+  if (transcriber && currentModel === name) return transcriber;
+  setStatus('loading', `Loading ${name.split('/').pop()}…`);
+  progWrap.classList.add('show'); progBar.style.width = '0%';
+  transcriber = await pipeline('automatic-speech-recognition', name, {
+    progress_callback: p => {
+      if (p.status === 'progress' && p.total) {
+        progBar.style.width = `${(p.loaded / p.total) * 100}%`;
+      }
+      if (p.status === 'done' || p.status === 'ready') progBar.style.width = '100%';
+    },
+  });
+  currentModel = name;
+  progWrap.classList.remove('show');
+  setStatus('', 'Model ready');
+  return transcriber;
+}
+
+async function startListening() {
+  try {
+    const model = modelSel.value;
+    await loadModel(model);
+
+    micStream = await navigator.mediaDevices.getUserMedia({
+      audio: { channelCount: 1, sampleRate: 16000, echoCancellation: true, noiseSuppression: true },
+    });
+
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
+    const source = audioCtx.createMediaStreamSource(micStream);
+    const processor = audioCtx.createScriptProcessor(4096, 1, 1);
+    source.connect(processor); processor.connect(audioCtx.destination);
+
+    const sampleRate = audioCtx.sampleRate;
+    const chunkSamples = Math.round(sampleRate * Number(chunkSec.value));
+    let buf = [];
+
+    processor.onaudioprocess = async (e) => {
+      if (!running) return;
+      const input = e.inputBuffer.getChannelData(0);
+      // copy because the buffer is reused
+      buf.push(new Float32Array(input));
+      const total = buf.reduce((a, b) => a + b.length, 0);
+      if (total >= chunkSamples) {
+        const chunk = new Float32Array(total);
+        let off = 0;
+        for (const b of buf) { chunk.set(b, off); off += b.length; }
+        buf = [];
+        // resample if needed (we requested 16000 so usually a no-op)
+        try {
+          setStatus('live', '🎙️ Listening…');
+          const result = await transcriber(chunk, { sampling_rate: sampleRate, return_timestamps: false });
+          const text = (result.text || '').trim();
+          if (text && text.length > 1) {
+            history.push(text);
+            updateCaption();
+          }
+        } catch (err) {
+          console.error(err);
+        }
+      }
+    };
+
+    recorder = { processor, source, audioCtx };
+    running = true;
+    setStatus('live', '🎙️ Listening…');
+    startBtn.style.display = 'none';
+    stopBtn.style.display = '';
+  } catch (err) {
+    console.error(err);
+    setStatus('error', 'Error: ' + err.message);
+  }
+}
+
+function stopListening() {
+  running = false;
+  if (recorder) {
+    try { recorder.processor.disconnect(); recorder.source.disconnect(); recorder.audioCtx.close(); } catch (e) {}
+    recorder = null;
+  }
+  if (micStream) {
+    micStream.getTracks().forEach(t => t.stop());
+    micStream = null;
+  }
+  startBtn.style.display = '';
+  stopBtn.style.display = 'none';
+  setStatus('', 'Stopped');
+}
+
+startBtn.addEventListener('click', startListening);
+stopBtn.addEventListener('click', stopListening);
+
+// Keyboard shortcuts
+window.addEventListener('keydown', (e) => {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA') return;
+  if (e.key === ' ') { e.preventDefault(); running ? stopListening() : startListening(); }
+  else if (e.key === 'c' || e.key === 'C') { history = []; updateCaption(); }
+  else if (e.key === 'o' || e.key === 'O') { obsMode.checked = !obsMode.checked; obsMode.dispatchEvent(new Event('change')); }
+  else if (e.key === '+' || e.key === '=') { fontSize.value = Math.min(120, Number(fontSize.value) + 4); fontSize.dispatchEvent(new Event('input')); }
+  else if (e.key === '-' || e.key === '_') { fontSize.value = Math.max(24, Number(fontSize.value) - 4); fontSize.dispatchEvent(new Event('input')); }
+});
+
+setStatus('', 'Idle');
+</script>
+</body>
+</html>

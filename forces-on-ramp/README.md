@@ -97,5 +97,5 @@ When an object sits on a ramp tilted at angle θ:
 
 ## Credits
 
-Created for TCE 432 (Science & Math Methods) at Miami University, Spring 2026.  
+Developed for students, faculty, and staff at Miami University.  
 Designed to support McKenzie Sorce's revised Hot Wheels inquiry lesson on F=ma.

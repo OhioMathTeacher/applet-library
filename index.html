@@ -33,8 +33,13 @@
       border-bottom: 2px solid #eee;
       padding-bottom: 0.2em;
     }
+    /* Every h2 here follows a rule, which already does the work of separating
+       sections. A full 2em on top of that reads as a hole in the page. */
+    hr + h2 {
+      margin-top: 0.5em;
+    }
     .applet-list {
-      margin: 2em 0 2em 0;
+      margin: 2em 0 1.25em 0;
       padding: 0;
       list-style: none;
     }
@@ -43,6 +48,10 @@
        spacing, not the gap that says "new applet". */
     .applet-list > li {
       margin-bottom: 2em;
+    }
+    /* The gap after the last entry is the list's job, not the entry's. */
+    .applet-list > li:last-child {
+      margin-bottom: 0;
     }
     .applet-desc ul {
       margin: 0.5em 0;
@@ -72,7 +81,7 @@
     hr {
       border: none;
       border-top: 2px solid #eee;
-      margin: 2em 0 1.5em 0;
+      margin: 1.25em 0 1em 0;
     }
     @media (max-width: 600px) {
       .container { padding: 12px; }

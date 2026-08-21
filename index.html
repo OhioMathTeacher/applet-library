@@ -38,8 +38,18 @@
       padding: 0;
       list-style: none;
     }
-    .applet-list li {
+    /* Direct child only — the 2em separates whole applets. Bullets nested
+       inside a description are a list within one entry and want tight
+       spacing, not the gap that says "new applet". */
+    .applet-list > li {
       margin-bottom: 2em;
+    }
+    .applet-desc ul {
+      margin: 0.5em 0;
+      padding-left: 1.2em;
+    }
+    .applet-desc ul li {
+      margin-bottom: 0.35em;
     }
     .applet-title {
       font-size: 1.2em;
@@ -107,7 +117,7 @@
       <li>
         <span class="applet-title">🧠 <a href="https://ohiomathteacher.github.io/tce318p-fa26/metacog-suite/">Watch Your Own Thinking</a></span>
         <div class="applet-desc">Three metacognitive math puzzles that record how you solve — then hand the reasoning back to you.
-          <ul style="margin:0.6em 0 0.6em 0; padding-left:1.2em;">
+          <ul>
             <li><strong>Metadoku</strong> (Calcudoku) — fill the grid so every cage hits its target. What it makes visible is <em>constraint deduction</em>: which clue forced which cell, and how you know the answer is the only one.</li>
             <li><strong>Metaplete</strong> (delete-to-target) — remove cells until each row and column hits its target, by sum or product. What it makes visible is <em>hypothesis-testing</em>: when you knew, when you guessed, and when you backed a choice out.</li>
             <li><strong>Metagons</strong> (arithmagons) — each edge carries the sum of the two circles it joins, and the circles are hidden, so you work backward. What it makes visible is <em>inverse reasoning</em>: where you entered the system and how you unwound it.</li>

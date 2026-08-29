@@ -13,6 +13,9 @@ Explore the dynamics of Collatz-style functions: set the parameters m, b, and d 
 ### 🪐 [Orbit Explorer (research snapshot)](../../orbit-explorer/index.html)
 The frozen v2 used in the Sichuan University study and cited in the TEA Collatz chapter — kept unchanged for reproducibility. See "Orbit Explorer" above for the version under active development.
 
+### 🗣️ [verbatim](https://ohiomathteacher.github.io/verbatim-app/)
+Records a student's conversation with an AI exactly as it happens and returns one JSON file per student. Each turn is tagged `student` or `ai` at the moment it is made, so speaker attribution is a fact rather than an inference. Carries a calculator, grapher and table of values whose use is recorded beside the conversation, a reader for turning a session file into a transcript, and a browser-based setup page for building your own activity.
+
 ### 🧲 [Forces on a Ramp](https://ohiomathteacher.github.io/applet-library/forces-on-ramp/)
 Interactive physics simulation for exploring forces on inclined planes. Visualize force decomposition, friction effects, and energy conservation with draggable objects and real-time physics.
 

@@ -16,6 +16,9 @@ The frozen v2 used in the Sichuan University study and cited in the TEA Collatz 
 ### 🗣️ [verbatim](https://ohiomathteacher.github.io/verbatim-app/)
 Records a student's conversation with an AI exactly as it happens and returns one JSON file per student. Each turn is tagged `student` or `ai` at the moment it is made, so speaker attribution is a fact rather than an inference. Carries a calculator, grapher and table of values whose use is recorded beside the conversation, a reader for turning a session file into a transcript, and a browser-based setup page for building your own activity.
 
+### 🎙️ [meetcap](https://github.com/OhioMathTeacher/meetcap)
+Records a meeting as **two separate tracks** — your microphone and everyone else's audio — and transcribes them locally with Whisper. Because the sides never mix during capture, the transcript knows who spoke without any diarization model, and one recorder dying does not take the other with it. The app lists your recordings with **Play** and **PDF** on every row, plays back either side or both mixed together, and **highlights the transcript as the audio plays** so you can read along and jump to any moment. Transcription adapts to the machine it is on, measuring the actual GPU, VRAM and RAM to pick the largest Whisper model that both fits and finishes in reasonable time. Linux desktop app (PipeWire), not a browser applet. **Nothing leaves your computer** — no account, no cloud service, no API key.
+
 ### 🧲 [Forces on a Ramp](https://ohiomathteacher.github.io/applet-library/forces-on-ramp/)
 Interactive physics simulation for exploring forces on inclined planes. Visualize force decomposition, friction effects, and energy conservation with draggable objects and real-time physics.
 

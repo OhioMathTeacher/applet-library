@@ -32,6 +32,8 @@
   code, pre { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: .85em; }
   pre { background: color-mix(in srgb, var(--fg) 6%, transparent); padding: .6rem .9rem; margin: .4rem 0; display: inline-block; }
   ol { margin: .25rem 0; padding-left: 1.4rem; }
+  ol.six li { margin: .3rem 0; }
+  ol.six strong { font-weight: normal; font-style: italic; }
   ol li { margin: .35rem 0; }
   .foot { margin-top: auto; padding-top: 1rem; color: var(--dim); font-size: .85rem; }
 </style>
@@ -41,10 +43,11 @@
   <h1>Who Gets to See the Light</h1>
   <nav id="tabs">
     <a href="#watch">Watch</a>
-    <a href="#slides">Slides</a>
     <a href="#openers">Openers</a>
     <a href="#three">The three</a>
+    <a href="#assessing">Assessing applets</a>
     <a href="#model">Run a model yourself</a>
+    <a href="#slides">Slides</a>
   </nav>
 </header>
 <main>
@@ -53,17 +56,7 @@
     <div class="video">
       <iframe src="https://www.youtube.com/embed/_LOl6I0y3O4?si=aJJOTMGd8SmdQEjm" title="Who gets to see the light? — the talk, recorded" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen loading="lazy"></iframe>
     </div>
-    <p class="foot">The talk, as given. <a href="https://www.youtube.com/watch?v=_LOl6I0y3O4">Watch on YouTube</a> if the player does not load.</p>
-  </section>
-
-  <section id="slides" hidden>
-    <dl>
-      <dt><a href="who-gets-to-see-the-light.pdf">Who gets to see the light? (PDF)</a></dt>
-      <dd>The deck as shown, without the live apps.</dd>
-      <dt><a href="two-games-six-questions.pdf">Two math games, six questions (PDF)</a></dt>
-      <dd>How to judge a math game: Numberle and Reach side by side, with a blank column for yours. Put your game in it, honestly, then pick one blank and ask what the smallest change is that would earn the check.</dd>
-    </dl>
-    <p class="foot">Nothing on this page needs an account, a subscription, or a login.</p>
+    <p class="foot">The talk, as given; <a href="https://www.youtube.com/watch?v=_LOl6I0y3O4">watch on YouTube</a> if the player does not load.<br>© 2026 Michael Todd Edwards · <a href="https://github.com/OhioMathTeacher/applet-library/blob/main/LICENSE">MIT License</a> — copy it, change it, give it away.</p>
   </section>
 
   <section id="openers" hidden>
@@ -73,7 +66,7 @@
       <dt><a href="https://github.com/OhioMathTeacher/student-name-learning-game/releases">Name Game</a></dt>
       <dd>Learn your students' names from their photos. Study walks the roster with names shown; Quiz hides them. Downloads for Windows, Mac and Linux are on the releases page; nothing is uploaded anywhere, and the photos stay on your computer. MIT licensed.</dd>
     </dl>
-    <p class="foot">Nothing on this page needs an account, a subscription, or a login.</p>
+    <p class="foot">© 2026 Michael Todd Edwards · <a href="https://github.com/OhioMathTeacher/applet-library/blob/main/LICENSE">MIT License</a> — copy it, change it, give it away.</p>
   </section>
 
   <section id="three" hidden>
@@ -87,6 +80,21 @@
       <dd>A close reader for the hardest texts — Plato's cave among them: highlight, ask, write in the margin. Your notes stay yours. <a href="https://github.com/OhioMathTeacher/marginalia-app">Code</a>.</dd>
     </dl>
     <p class="note">Clique and Marginalia open in your browser from those links, nothing to install. All three are free software under the <a href="https://www.gnu.org/licenses/agpl-3.0.html">AGPL</a>: copy them, change them, give them away. One thing to know: a page served over <code>https</code>, like those two, is not allowed by the browser to talk to a model on <code>localhost</code> — a cloud key works from there; for a local model, run the app from your own computer.</p>
+    <p class="foot">© 2026 Michael Todd Edwards · <a href="https://github.com/OhioMathTeacher/applet-library/blob/main/LICENSE">MIT License</a> — copy it, change it, give it away.</p>
+  </section>
+
+  <section id="assessing" hidden>
+    <p class="lead">Six questions to ask of any math game, before the question of whether the kids like it.</p>
+    <ol class="six">
+      <li><strong>What do you get better at?</strong> Expert play should need mathematical thinking, not symbol tracking.</li>
+      <li><strong>What does the feedback know?</strong> Does it respond to the value or structure of a guess, or to its characters?</li>
+      <li><strong>Where's the argument?</strong> More than one right answer, and an ending a student can defend: "we have them all."</li>
+      <li><strong>What counts as the same?</strong> Does the game's rule for "same answer" match the mathematics — and is it written where students can argue with it?</li>
+      <li><strong>Who authors the puzzles?</strong> Can a teacher set the rules? Can a student change one and see what breaks?</li>
+      <li><strong>What breaks across grade bands?</strong> Does something mathematical change when you move it up or down?</li>
+    </ol>
+    <p class="note"><a href="two-games-six-questions.pdf">Two math games, six questions (PDF)</a> — the six as a one-page table, with Numberle and Reach scored side by side and a blank column for your own game. Put your game in it, honestly; then pick one blank and ask what the smallest change is that would earn the check.</p>
+    <p class="foot">© 2026 Michael Todd Edwards · <a href="https://github.com/OhioMathTeacher/applet-library/blob/main/LICENSE">MIT License</a> — copy it, change it, give it away.</p>
   </section>
 
   <section id="model" hidden>
@@ -97,6 +105,15 @@
       <li>Open any of the three apps and choose <em>Local</em> in its AI Setup. It finds the model by itself.</li>
     </ol>
     <p class="note">Any laptop from the last few years with 8 GB of memory will do. It is faster with a graphics card and fine without one. <code>llama3.2:3b</code> is Meta's, under the Llama 3.2 Community License; <a href="https://ollama.com/library">Ollama's library</a> has plenty of others to try.</p>
+    <p class="foot">© 2026 Michael Todd Edwards · <a href="https://github.com/OhioMathTeacher/applet-library/blob/main/LICENSE">MIT License</a> — copy it, change it, give it away.</p>
+  </section>
+
+  <section id="slides" hidden>
+    <dl>
+      <dt><a href="who-gets-to-see-the-light.pdf">Who gets to see the light? (PDF)</a></dt>
+      <dd>The deck as shown, without the live apps. The talk itself is under <a href="#watch">Watch</a>; the one-page tool for judging a game is under <a href="#assessing">Assessing applets</a>.</dd>
+    </dl>
+    <p class="foot">© 2026 Michael Todd Edwards · <a href="https://github.com/OhioMathTeacher/applet-library/blob/main/LICENSE">MIT License</a> — copy it, change it, give it away.</p>
   </section>
 
 </main>

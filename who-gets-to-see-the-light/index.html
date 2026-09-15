@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Who Gets to See the Light — take it with you</title>
+<meta name="description" content="The talk, the slides, the games, and how to run a free AI model on your own machine — everything from the hour that can be handed on.">
+<style>
+  :root { color-scheme: light dark; --fg: #1a1a1a; --bg: #faf8f4; --dim: #6b6b6b; --line: #ddd8cf; --link: #1a1a1a; }
+  @media (prefers-color-scheme: dark) { :root { --fg: #ece9e2; --bg: #181716; --dim: #9a9791; --line: #34322f; --link: #ece9e2; } }
+  html, body { margin: 0; background: var(--bg); color: var(--fg); font: 18px/1.5 Georgia, "Times New Roman", serif; }
+  main { max-width: 42rem; margin: 0 auto; padding: 3rem 1.5rem 4rem; }
+  h1 { font-weight: normal; font-size: 2.1rem; line-height: 1.15; margin: 0 0 .4rem; }
+  .sub { color: var(--dim); margin: 0 0 2rem; }
+  h2 { font-weight: normal; font-size: .85rem; letter-spacing: .12em; text-transform: uppercase; color: var(--dim); margin: 2.5rem 0 .6rem; padding-bottom: .3rem; border-bottom: 1px solid var(--line); }
+  p { margin: .6rem 0; }
+  a { color: var(--link); text-decoration-thickness: 1px; text-underline-offset: 3px; }
+  .video { position: relative; aspect-ratio: 16 / 9; margin: 1.5rem 0 .5rem; background: #000; }
+  .video iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+  dl { margin: 0; }
+  dt { font-size: 1.15rem; margin-top: 1rem; }
+  dd { margin: .15rem 0 0; color: var(--dim); }
+  dd a { color: inherit; }
+  code, pre { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: .85em; }
+  pre { background: color-mix(in srgb, var(--fg) 6%, transparent); padding: .8rem 1rem; overflow-x: auto; margin: .6rem 0; }
+  .foot { color: var(--dim); font-size: .9rem; margin-top: 3rem; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Who Gets to See the Light</h1>
+  <p class="sub">The talk, the slides, the games — everything from the hour that can be handed on.</p>
+
+  <div class="video">
+    <iframe src="https://www.youtube.com/embed/_LOl6I0y3O4?si=aJJOTMGd8SmdQEjm" title="Who gets to see the light? — the talk, recorded" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+  </div>
+  <p><a href="https://www.youtube.com/watch?v=_LOl6I0y3O4">Watch on YouTube</a> if the player above does not load.</p>
+
+  <h2>The slides</h2>
+  <dl>
+    <dt><a href="who-gets-to-see-the-light.pdf">Who gets to see the light? (PDF)</a></dt>
+    <dd>The deck as shown, without the live apps.</dd>
+    <dt><a href="two-games-six-questions.pdf">Two math games, six questions (PDF)</a></dt>
+    <dd>How to judge a math game: Numberle and Reach side by side, with a blank column for yours. Put your game in it, honestly, then pick one blank and ask what the smallest change is that would earn the check.</dd>
+  </dl>
+
+  <h2>The openers</h2>
+  <dl>
+    <dt><a href="https://reach.mathaiproject.org/">Reach</a></dt>
+    <dd>A math game a class plays together: a few digits, a target, and the question is not "can you reach it" but "how many ways are there, and how do we know we have them all?" Free, no accounts, no ads. Teachers start a room at <a href="https://reach.mathaiproject.org/#teacher">reach.mathaiproject.org/#teacher</a>; students join with a code.</dd>
+    <dt><a href="https://github.com/OhioMathTeacher/student-name-learning-game/releases">Name Game</a></dt>
+    <dd>Learn your students' names from their photos. Study walks the roster with names shown; Quiz hides them. Downloads for Windows, Mac and Linux are on the releases page; nothing is uploaded anywhere, and the photos stay on your computer. MIT licensed.</dd>
+  </dl>
+
+  <h2>The three</h2>
+  <p>One move, three difficulties: ask the text. All three run in a browser, use whatever AI model you point them at — a free one on your own machine, or a cloud one with your own key — and none of them send your reading, questions or notes anywhere.</p>
+  <dl>
+    <dt>Allegory <span style="color:var(--dim)">· lyrics</span></dt>
+    <dd>A music player for a folder of your own music, with Socrates in the sidebar: highlight a line, ask a question. Not yet published; it runs on your own computer against your own music, and will be here when it is ready.</dd>
+    <dt><a href="https://ohiomathteacher.github.io/clique-app/">Clique</a> <span style="color:var(--dim)">· words</span></dt>
+    <dd>A Connections-style puzzle maker for the classroom, in English, Spanish and Chinese, with Ask Socrates while you play. Build your own, share it as a link. <a href="https://github.com/OhioMathTeacher/clique-app">Code</a>.</dd>
+    <dt><a href="https://ohiomathteacher.github.io/marginalia-app/">Marginalia</a> <span style="color:var(--dim)">· text</span></dt>
+    <dd>A close reader for the hardest texts — Plato's cave among them: highlight, ask, write in the margin. Your notes stay yours. <a href="https://github.com/OhioMathTeacher/marginalia-app">Code</a>.</dd>
+  </dl>
+  <p>Clique and Marginalia open in your browser from those links, nothing to install. All three are free software under the <a href="https://www.gnu.org/licenses/agpl-3.0.html">AGPL</a>: copy them, change them, give them away.</p>
+  <p>One thing to know if you run a model locally: a page served over <code>https</code> — like the two links above — is not allowed by the browser to talk to a model on <code>localhost</code>. A cloud key works from there; for a local model, download the app and open it from your own computer, or use the copy on the thumbdrive.</p>
+
+  <h2>Running a free model yourself</h2>
+  <p>What ran during the talk was a 3-billion-parameter model, on an ordinary laptop, with the wifi off. Here is the whole recipe.</p>
+  <ol>
+    <li>Install <a href="https://ollama.com/download">Ollama</a> (Mac, Windows or Linux — one download).</li>
+    <li>In a terminal, fetch the model. About two gigabytes, once:
+      <pre>ollama pull llama3.2:3b</pre></li>
+    <li>Open any of the three apps and choose <em>Local</em> in its AI Setup. It finds the model by itself.</li>
+  </ol>
+  <p>Any laptop from the last few years with 8 GB of memory will do. It is faster with a graphics card and fine without one. <code>llama3.2:3b</code> is Meta's, released under the Llama 3.2 Community License; <a href="https://ollama.com/library">Ollama's library</a> has plenty of others to try.</p>
+
+  <p class="foot">Nothing on this page needs an account, a subscription, or a login.</p>
+</main>
+</body>
+</html>

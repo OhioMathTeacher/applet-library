@@ -73,7 +73,10 @@ def main():
     check = "--check" in sys.argv[1:]
     src = pathlib.Path(args[0]) if args else DEFAULT_SRC
     if not src.exists():
-        raise SystemExit("sync-nvoke: no source at %s" % src)
+        # Exit 2, distinct from 1: "I could not check" is not "the copy is wrong",
+        # and the pre-commit hook has to tell those apart to know whether to block.
+        print("sync-nvoke: no source at %s" % src, file=sys.stderr)
+        return 2
 
     built = build(src.read_text())
     current = DEST.read_text() if DEST.exists() else None
@@ -83,6 +86,8 @@ def main():
             print("nvoke/index.html is current with %s" % src)
             return 0
         print("nvoke/index.html is STALE against %s" % src)
+        print("  Either the course copy moved ahead, or this file was edited by hand.")
+        print("  Either way the fix is the same: python3 sync-nvoke.py")
         if current is not None:
             diff = list(difflib.unified_diff(current.splitlines(), built.splitlines(),
                                              "published", "rebuilt", lineterm="", n=0))

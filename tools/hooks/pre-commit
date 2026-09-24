@@ -1,0 +1,73 @@
+#!/usr/bin/env bash
+# Keep nvoke/index.html honest: it is GENERATED, and nothing else stops a hand edit.
+#
+# The file is 1,700 lines copied out of the 318P repo by sync-nvoke.py, which also
+# renames its IndexedDB stores -- without that rename the public applet shares a browser
+# origin, and therefore a database, with the classroom activity, and would read
+# transcripts of partner answers recorded in class. A hand edit here is silently
+# discarded by the next sync; worse, an edit that reinstates the old store names would
+# quietly undo the isolation. So: if the generated file is being committed, it has to be
+# what the generator would produce.
+#
+# Install:  ln -sf ../../tools/hooks/pre-commit .git/hooks/pre-commit
+# Skip once (a README typo at midnight):  git commit --no-verify
+set -u
+root="$(git rev-parse --show-toplevel)"
+staged="$(git diff --cached --name-only --diff-filter=ACM)"
+
+case "$staged" in
+  *nvoke/index.html*|*sync-nvoke.py*) checking=1 ;;
+  *) checking=0 ;;
+esac
+
+# No python3, no check. Warn rather than block: a machine that cannot run the checker
+# must still be able to commit, and refusing would only teach --no-verify by reflex.
+if ! command -v python3 >/dev/null 2>&1; then
+  echo "pre-commit: no python3 on PATH — skipping the nVoke check" >&2
+  exit 0
+fi
+
+python3 "$root/sync-nvoke.py" --check >/tmp/nvoke-check.$$ 2>&1
+rc=$?
+out="$(cat /tmp/nvoke-check.$$)"; rm -f /tmp/nvoke-check.$$
+
+if [ "$rc" -eq 0 ]; then
+  exit 0
+fi
+
+if [ "$rc" -eq 2 ]; then
+  # The 318P repo is not beside this one. Nothing can be verified either way.
+  if [ "$checking" -eq 1 ]; then
+    echo "" >&2
+    echo "pre-commit: refusing to commit a generated file that cannot be checked." >&2
+    echo "$out" >&2
+    echo "" >&2
+    echo "  nvoke/index.html is generated from the TCE 318P repo, which is not where" >&2
+    echo "  this script looks for it. Clone it beside applet-library, or pass its path:" >&2
+    echo "      python3 sync-nvoke.py /path/to/nvoke.html" >&2
+    echo "  To commit anyway:  git commit --no-verify" >&2
+    echo "" >&2
+    exit 1
+  fi
+  echo "pre-commit: 318P repo not found — skipping the nVoke check" >&2
+  exit 0
+fi
+
+# rc == 1: the published copy and the generator disagree.
+if [ "$checking" -eq 1 ]; then
+  echo "" >&2
+  echo "pre-commit: nvoke/index.html is not what sync-nvoke.py would produce." >&2
+  echo "$out" >&2
+  echo "" >&2
+  echo "  This file is generated — edit the course copy, not this one:" >&2
+  echo "      tce318p-fa26/week-3-geometry-van-hiele/nvoke.html" >&2
+  echo "  Then:  python3 sync-nvoke.py && git add nvoke/index.html" >&2
+  echo "  To commit anyway:  git commit --no-verify" >&2
+  echo "" >&2
+  exit 1
+fi
+
+# Stale, but this commit is not about nVoke. Say so and get out of the way.
+echo "pre-commit: note — nvoke/index.html is stale against the 318P copy." >&2
+echo "            run 'python3 sync-nvoke.py' when you want to republish it." >&2
+exit 0

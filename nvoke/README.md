@@ -64,3 +64,17 @@ python3 sync-nvoke.py --check    # is the published copy stale?
 The script's one job beyond copying is renaming the storage, and it refuses to
 run if it can no longer find what it needs to rename — rather than quietly
 publishing an applet that shares the classroom's database.
+
+A pre-commit hook enforces this, so a hand edit cannot reach a commit by
+accident. Install it once per clone:
+
+```
+ln -sf ../../tools/hooks/pre-commit .git/hooks/pre-commit
+```
+
+It blocks only when `nvoke/index.html` (or the script) is part of the commit and
+does not match what the generator would produce. A commit that has nothing to do
+with nVoke is never blocked — if the course copy has moved ahead, it just says
+so. If the 318P repo isn't beside this one it cannot check, so it steps aside for
+unrelated commits and refuses only ones touching the generated file. `git commit
+--no-verify` overrides it.

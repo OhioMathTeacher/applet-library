@@ -148,35 +148,98 @@ textarea.tele-page { width: 100%; max-width: none; min-height: 280px; border: 1p
 @media (max-width: 720px) { .tele-sheet { padding: 18px 16px; } .tele-actions { margin-left: 0; width: 100%; } }
 @media (pointer: coarse) { .tele-tab { min-height: 44px; } }
 
-/* ── AI setup. Its own dialog here, where Journaler had Settings → AI. Bring your own
-   key: the panel ships empty, nothing is baked in, and what you type stays in this
-   browser under names belonging to this applet alone. */
-dialog.ai { border: 1px solid var(--comment-border); border-radius: 12px; background: var(--comment-bg); color: var(--ink);
-  max-width: 600px; width: calc(100% - 32px); padding: 0; box-shadow: 0 18px 50px rgba(44,36,22,.28); }
-dialog.ai::backdrop { background: rgba(20,16,10,.45); }
-.ai-head { display: flex; align-items: baseline; gap: 10px; padding: 16px 20px 10px; border-bottom: 1px solid var(--comment-border); }
-.ai-head h2 { margin: 0; font-size: 19px; }
-.ai-body { padding: 16px 20px; max-height: 68vh; overflow-y: auto; }
-.ai-foot { display: flex; gap: 8px; align-items: center; padding: 12px 20px 16px; border-top: 1px solid var(--comment-border); }
-.ai-foot .spacer { margin-left: auto; }
-.ai-provs { display: grid; gap: 6px; margin: 0 0 14px; }
-.ai-provs label { display: flex; align-items: baseline; gap: 8px; padding: 8px 10px; border: 1px solid transparent; border-radius: 7px; cursor: pointer; }
-.ai-provs label:has(input:checked) { border-color: var(--comment-border); background: var(--highlight-soft); }
-.ai-provs input { accent-color: var(--accent); margin: 0; }
-.ai-provs b { font-weight: 600; }
-.ai-provs span.hint { color: var(--muted); font-size: 13.5px; }
-.ai-pane { border-top: 1px solid var(--comment-border); padding-top: 14px; }
-.ai-pane[hidden] { display: none; }
-.ai-pane label.f { display: block; font-size: 13px; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); margin: 0 0 4px; }
-.ai-pane input[type=text], .ai-pane input[type=password] { width: 100%; font: inherit; padding: 8px 10px; border: 1px solid var(--comment-border);
-  border-radius: 6px; background: var(--parchment); color: inherit; margin-bottom: 12px; }
-.ai-models { display: flex; gap: 6px; flex-wrap: wrap; margin: 4px 0 12px; }
-.ai-models button { font: inherit; font-size: 14px; padding: 5px 10px; border: 1px solid var(--comment-border); border-radius: 6px;
-  background: var(--parchment); color: inherit; cursor: pointer; }
-.ai-models button.on { border-color: var(--accent); color: var(--accent); background: var(--highlight-soft); font-weight: 600; }
-.ai-say { font-size: 13.5px; color: var(--muted); min-height: 19px; }
+/* ── AI setup. This is Journaler's Settings → AI panel, carried over rather than
+   reinvented: the same .ai-modal shell and panel tokens, the same three cost sub-tabs,
+   the same provider cards with their badges and "Get a key ↗", the same "Selected: …"
+   line and the same Save / Cancel pair. Three tabs matter more here than they look:
+   each one holds two cards, so the key field sits on screen under them instead of
+   below a five-item list you have to scroll past to reach it. */
+dialog.ai-dlg { border: 0; padding: 0; background: none; max-width: none; max-height: none;
+  width: 100%; height: 100%; overflow: visible; }
+dialog.ai-dlg::backdrop { background: rgba(44,36,22,0.42); }
+dialog.ai-dlg .ai-wrap { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; padding: 1rem; }
+.modal-x { position: absolute; top: 10px; right: 12px; z-index: 2;
+  background: none; border: 0; cursor: pointer; color: var(--panel-dim);
+  font-size: 19px; line-height: 1; padding: 8px 10px; border-radius: 8px; }
+.modal-x:hover { background: var(--panel-fill); color: var(--panel-ink); }
+@media (pointer: coarse) { .modal-x { min-width: 44px; min-height: 44px; font-size: 21px; } }
+.ai-modal {
+  --panel-bg: #FFFDF7;
+  --panel-ink: var(--ink);
+  --panel-dim: #6B6152;
+  --panel-lbl: #6B6152;
+  --panel-accent: var(--accent);
+  --panel-line: var(--comment-border);
+  --panel-fill: rgba(44,36,22,.055);
+  --panel-fill-hi: rgba(44,36,22,.11);
+  --panel-recess: rgba(44,36,22,.035);
+  --cave-glow: #D4A843;
+  background: var(--panel-bg); border: 1px solid var(--panel-line);
+  border-radius: 12px; padding: 1.8rem; width: 500px; max-width: calc(100vw - 2rem);
+  max-height: calc(100vh - 3rem); overflow-y: auto; position: relative;
+  box-shadow: 0 24px 64px rgba(44,36,22,0.28); text-align: left;
+}
+:root:not([data-theme="light"]) {
+  @media (prefers-color-scheme: dark) {
+    .ai-modal { --panel-bg: #1A1611; --panel-dim: #9B8F7C; --panel-lbl: #9B8F7C;
+      --panel-fill: rgba(237,230,216,.06); --panel-fill-hi: rgba(237,230,216,.12);
+      --panel-recess: rgba(0,0,0,.25); }
+  }
+}
+:root[data-theme="dark"] .ai-modal { --panel-bg: #1A1611; --panel-dim: #9B8F7C; --panel-lbl: #9B8F7C;
+  --panel-fill: rgba(237,230,216,.06); --panel-fill-hi: rgba(237,230,216,.12); --panel-recess: rgba(0,0,0,.25); }
+.ai-modal h2 { font-family: var(--sans); font-weight: 700; color: var(--panel-ink); font-size: 1.4rem; margin: 0 0 .5rem; }
+.ai-intro { font-size: 14px; color: var(--panel-dim); margin: 0 0 2px; }
+.ai-sub { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin: 14px 0 10px; }
+.ai-subtabs { display: flex; gap: 2px; }
+.ai-subtab { font-family: var(--sans); font-size: 14.5px; font-weight: 600; color: var(--panel-lbl);
+  background: none; border: 0; border-bottom: 2px solid transparent; padding: 5px 10px; cursor: pointer; }
+.ai-subtab:hover { color: var(--panel-ink); }
+.ai-subtab.on { color: #fff; background: var(--panel-accent); border-bottom-color: transparent; border-radius: 5px 5px 0 0; }
+.ai-selected { font-family: var(--sans); font-size: 13px; color: var(--panel-dim); }
+.ai-selected b { color: var(--panel-ink); font-weight: 600; }
+.ai-getkey { display: inline-block; margin-top: 4px; font-family: var(--sans); font-size: 13px; color: var(--panel-accent); text-decoration: none; }
+.ai-getkey:hover { text-decoration: underline; }
+.ai-list { display: flex; flex-direction: column; gap: 8px; max-height: 300px; overflow-y: auto; padding-right: 6px; }
+.ai-card { display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%;
+  text-align: left; background: var(--panel-fill); border: 1px solid transparent; border-radius: 8px;
+  padding: 10px 12px; cursor: pointer; font: inherit; }
+.ai-card:hover { background: var(--panel-fill-hi); }
+/* Selected has to differ from hover by more than a percent: an accent bar, a real
+   background shift and a tick, none of which hover does. */
+.ai-card.on { border-color: var(--cave-glow); background: rgba(212,168,67,.16);
+  box-shadow: inset 3px 0 0 var(--cave-glow); padding-left: 15px; }
+.ai-card.on .ai-card-main b { color: var(--panel-ink); }
+.ai-card.on::after { content: "\2713 in use"; flex: 0 0 auto; font-family: var(--sans);
+  font-size: 12px; font-weight: 700; color: #2b2a26; background: var(--cave-glow); border-radius: 4px; padding: 2px 7px; }
+.ai-card.on .ai-badge { display: none; }
+.ai-card-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.ai-card-main b { font-family: var(--sans); font-size: 15.5px; color: var(--panel-ink); font-weight: 600; }
+.ai-card-main small { font-family: var(--sans); font-size: 13px; color: var(--panel-dim); word-break: break-word; }
+.ai-badge { flex: 0 0 auto; font-family: var(--sans); font-size: 12px; color: var(--panel-dim);
+  background: var(--panel-fill-hi); border-radius: 4px; padding: 2px 7px; }
+.ai-add { border: 1px dashed var(--panel-line); border-radius: 8px; padding: 10px 12px; margin-top: 10px; }
+.ai-add b { display: block; font-family: var(--sans); font-size: 15px; color: var(--panel-ink); }
+.ai-add small { display: block; font-family: var(--sans); font-size: 13px; color: var(--panel-dim); margin-bottom: 6px; }
+.ai-add input { width: 100%; box-sizing: border-box; background: var(--panel-recess); border: 1px solid var(--panel-line);
+  color: var(--panel-ink); border-radius: 6px; padding: 8px 9px; font: 13px var(--sans); margin-bottom: 6px; }
+.ai-add input:last-child { margin-bottom: 0; }
+.ai-add input:focus { outline: none; border-color: var(--panel-accent); }
+.ai-scan { font-family: var(--sans); font-size: 14.5px; color: var(--panel-dim); margin: 0; }
+.ai-more { display: block; width: 100%; margin: 8px 0 0; padding: 6px 2px; background: none;
+  border: 0; font-family: var(--sans); font-size: 13px; color: var(--panel-dim); cursor: pointer;
+  text-align: left; text-decoration: underline; text-underline-offset: 2px; }
+.ai-more:hover { color: var(--panel-accent); }
+.ai-foot { font-family: var(--sans); font-size: 12.5px; color: var(--panel-dim); margin: 12px 0 10px; }
+.ai-say { font-family: var(--sans); font-size: 13px; color: var(--panel-dim); min-height: 18px; margin-bottom: 8px; }
 .ai-say.err { color: var(--danger); }
-.ai-body a { color: var(--accent); }
+.ai-modal-actions { display: flex; gap: 0.5rem; }
+.ai-modal-actions button { font-family: var(--sans); font-size: 0.92rem; font-weight: 500;
+  padding: 0.5rem 1.1rem; border-radius: 5px; border: none; cursor: pointer; transition: background 0.15s; }
+.am-save { background: var(--panel-accent); color: var(--panel-bg); flex: 1; }
+.am-cancel { background: none; color: var(--panel-accent); font-weight: 600; border: 1px solid var(--panel-accent) !important; }
+.am-cancel:hover { background: var(--panel-fill-hi); }
+
 
 /* ── About splash. Allegory opens one from its brand mark; this is the same idea for a
    page with no server behind it: what the thing is, whether you are running the current
@@ -256,45 +319,30 @@ button.brand:hover { background: var(--highlight-soft); color: var(--accent); }
   <div class="ab-foot"><button type="button" class="btn sm" id="abClose">Close</button></div>
 </dialog>
 
-<dialog class="ai" id="aiDlg">
-  <form method="dialog">
-    <div class="ai-head"><h2>AI Setup</h2><span class="note" id="aiNow"></span></div>
-    <div class="ai-body">
-      <p class="note" style="margin-top:0">Telefone needs a model &mdash; the machine is the other player. A free tier or a model on your own laptop is plenty.</p>
-      <div class="ai-provs" id="aiProvs"></div>
-
-      <div class="ai-pane" id="paneLocal" hidden>
-        <label class="f" for="epIn">Endpoint</label>
-        <input type="text" id="epIn" placeholder="http://localhost:11434" spellcheck="false">
-        <button type="button" class="btn ghost sm" id="probeBtn">Find models</button>
-        <div class="ai-models" id="localModels"></div>
-        <p class="note">Ollama or LM Studio, running on this computer. Start Ollama with <code>ollama serve</code>; on localhost you do not need to set <code>OLLAMA_ORIGINS</code>.</p>
+<dialog class="ai-dlg" id="aiDlg">
+ <div class="ai-wrap">
+  <div class="ai-modal">
+    <button class="modal-x" id="aiX" aria-label="Close" title="Close">&#10005;</button>
+    <h2>AI Setup</h2>
+    <p class="ai-intro">Telefone needs a model &mdash; the machine is the other player. A free tier or a model on your own laptop is plenty.</p>
+    <div class="ai-sub">
+      <div class="ai-subtabs" id="aiSubTabs">
+        <button type="button" class="ai-subtab on" data-ai="local">On this computer</button>
+        <button type="button" class="ai-subtab" data-ai="free">Free</button>
+        <button type="button" class="ai-subtab" data-ai="paid">Paid</button>
       </div>
-
-      <div class="ai-pane" id="paneKey" hidden>
-        <label class="f" for="keyIn">API key</label>
-        <input type="password" id="keyIn" placeholder="Paste your key" spellcheck="false" autocomplete="off">
-        <p class="note" id="keyHint"></p>
-      </div>
-
-      <div class="ai-pane" id="paneCustom" hidden>
-        <label class="f" for="cEpIn">Base URL (OpenAI-compatible, ending in /v1)</label>
-        <input type="text" id="cEpIn" placeholder="https://example.com/v1" spellcheck="false">
-        <label class="f" for="cModelIn">Model id</label>
-        <input type="text" id="cModelIn" placeholder="model-name" spellcheck="false">
-        <label class="f" for="cKeyIn">API key</label>
-        <input type="password" id="cKeyIn" placeholder="Paste your key" spellcheck="false" autocomplete="off">
-      </div>
-
-      <div class="ai-say" id="aiSay"></div>
+      <span class="ai-selected" id="aiSelected"></span>
     </div>
-    <div class="ai-foot">
-      <span class="note">Keys are kept in this browser only.</span>
-      <span class="spacer"></span>
-      <button type="button" class="btn ghost sm" id="aiForget">Forget key</button>
-      <button class="btn sm" value="close">Done</button>
+    <div class="ai-list" id="aiList"></div>
+    <div id="aiKeyBox"></div>
+    <div class="ai-foot" id="aiFoot"></div>
+    <div class="ai-say" id="aiSay"></div>
+    <div class="ai-modal-actions">
+      <button type="button" class="am-save" id="aiSave">Save</button>
+      <button type="button" class="am-cancel" id="aiCancel">Cancel</button>
     </div>
-  </form>
+  </div>
+ </div>
 </dialog>
 
 <script>
@@ -326,16 +374,6 @@ const LS = {
   del: k => { try { localStorage.removeItem(k); } catch(e){} }
 };
 
-const PROVIDERS = [
-  { id: 'groq',      name: 'Groq',       hint: 'Free tier, no Google account needed — console.groq.com/keys', pane: 'key',
-    keyHint: 'Get a key at <a href="https://console.groq.com/keys" target="_blank" rel="noopener">console.groq.com/keys</a>. The free tier meters tokens per minute; Telefone waits out a rate limit and carries on.' },
-  { id: 'gemini',    name: 'Google Gemini', hint: 'Free tier — aistudio.google.com/apikey', pane: 'key',
-    keyHint: 'Get a key at <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a>. University Google accounts often cannot issue one; a personal account can.' },
-  { id: 'anthropic', name: 'Anthropic Claude', hint: 'Paid — console.anthropic.com', pane: 'key',
-    keyHint: 'Get a key at <a href="https://console.anthropic.com" target="_blank" rel="noopener">console.anthropic.com</a>. Billed per use, not free.' },
-  { id: 'local',     name: 'A model on this computer', hint: 'Ollama or LM Studio — nothing leaves the machine', pane: 'local' },
-  { id: 'custom',    name: 'Other (OpenAI-compatible)', hint: 'Any endpoint that speaks /chat/completions', pane: 'custom' }
-];
 
 const getProvider = () => LS.get(PROVIDER_KEY) || 'none';
 const getStoredKey = p => KEY_OF[p] ? LS.get(KEY_OF[p]) : '';
@@ -571,90 +609,170 @@ async function callModel(prompt, opts){
   return fail('Unknown provider.');
 }
 
-// ── the AI Setup dialog
+// ── the AI Setup panel.
+//
+// Carried over from Journaler's Settings → AI rather than invented again: cost
+// sub-tabs, provider cards, "Selected: …", Save and Cancel. Two things are different
+// on purpose. Keys are typed into a field under the cards instead of collected with
+// prompt(), because prompt() cannot show you what you pasted or carry the link to
+// where a key comes from. And nothing is written until Save: every control edits a
+// DRAFT, so Cancel is a real cancel rather than a second way to close the window.
 const dlg = document.getElementById('aiDlg');
-function aiSay(msg, err){ const el = document.getElementById('aiSay'); el.innerHTML = msg || ''; el.classList.toggle('err', !!err); }
-function paintPanes(){
-  const p = getProvider();
-  const def = PROVIDERS.find(x => x.id === p);
-  const pane = def ? def.pane : null;
-  document.getElementById('paneLocal').hidden = pane !== 'local';
-  document.getElementById('paneKey').hidden = pane !== 'key';
-  document.getElementById('paneCustom').hidden = pane !== 'custom';
-  document.getElementById('aiNow').textContent = aiLabel();
-  if (pane === 'key'){
-    document.getElementById('keyIn').value = getStoredKey(p);
-    document.getElementById('keyHint').innerHTML = def.keyHint || '';
-  }
-  if (pane === 'local'){
-    document.getElementById('epIn').value = getLocalEndpoint();
-    paintLocalModels(_localFound);
-  }
-  if (pane === 'custom'){
-    document.getElementById('cEpIn').value = LS.get(CUSTOM_ENDPOINT_KEY);
-    document.getElementById('cModelIn').value = LS.get(CUSTOM_MODEL_KEY);
-    document.getElementById('cKeyIn').value = getStoredKey('custom');
-  }
-  paintAiButton();
-}
-document.getElementById('aiProvs').innerHTML = PROVIDERS.map(p =>
-  '<label><input type="radio" name="aiProv" value="' + p.id + '"><span><b>' + escHtml(p.name) + '</b><br><span class="hint">' + escHtml(p.hint) + '</span></span></label>').join('');
-function syncProvRadios(){
-  const p = getProvider();
-  document.querySelectorAll('input[name=aiProv]').forEach(r => { r.checked = r.value === p; });
-}
-document.querySelectorAll('input[name=aiProv]').forEach(r => r.addEventListener('change', () => {
-  if (!r.checked) return;
-  LS.set(PROVIDER_KEY, r.value); aiSay(''); paintPanes();
-  if (teleFrameLive()) teleStripRow();
-}));
-document.getElementById('keyIn').addEventListener('input', e => {
-  const p = getProvider(); if (!KEY_OF[p]) return;
-  const v = e.target.value.trim();
-  if (v) LS.set(KEY_OF[p], v); else LS.del(KEY_OF[p]);
-  paintAiButton(); if (teleFrameLive()) teleStripRow();
-});
-[['cEpIn', CUSTOM_ENDPOINT_KEY], ['cModelIn', CUSTOM_MODEL_KEY], ['cKeyIn', KEY_OF.custom]].forEach(([id, key]) =>
-  document.getElementById(id).addEventListener('input', e => {
-    const v = e.target.value.trim();
-    if (v) LS.set(key, v); else LS.del(key);
-    paintAiButton(); if (teleFrameLive()) teleStripRow();
-  }));
-document.getElementById('epIn').addEventListener('input', e => LS.set(LOCAL_ENDPOINT_KEY, e.target.value.trim()));
-document.getElementById('aiForget').addEventListener('click', () => {
-  const p = getProvider();
-  if (KEY_OF[p]) LS.del(KEY_OF[p]);
-  if (p === 'local') LS.del(LOCAL_MODEL_KEY);
-  if (p === 'custom'){ LS.del(CUSTOM_ENDPOINT_KEY); LS.del(CUSTOM_MODEL_KEY); }
-  aiSay('Forgotten.'); paintPanes(); if (teleFrameLive()) teleStripRow();
-});
+let _aiSub = 'free', _draft = null, _localFound = [], _probed = false;
 
-// Where to look for a local model. Ollama's default port (11434) is identical on every
-// OS and localhost resolves to whatever machine this page runs on, so nothing here is
-// tied to a specific box. 1234 = LM Studio.
+const snapshot = () => ({
+  provider: getProvider(),
+  keys: { anthropic: getStoredKey('anthropic'), gemini: getStoredKey('gemini'),
+          groq: getStoredKey('groq'), custom: getStoredKey('custom') },
+  localEp: getLocalEndpoint(), localModel: getLocalModel(),
+  customEp: LS.get(CUSTOM_ENDPOINT_KEY), customModel: LS.get(CUSTOM_MODEL_KEY)
+});
+function commitDraft(){
+  const d = _draft;
+  LS.set(PROVIDER_KEY, d.provider);
+  Object.keys(KEY_OF).forEach(k => { const v = (d.keys[k] || '').trim();
+    if (v) LS.set(KEY_OF[k], v); else LS.del(KEY_OF[k]); });
+  if (d.localEp) LS.set(LOCAL_ENDPOINT_KEY, d.localEp); else LS.del(LOCAL_ENDPOINT_KEY);
+  if (d.localModel) LS.set(LOCAL_MODEL_KEY, d.localModel); else LS.del(LOCAL_MODEL_KEY);
+  if (d.customEp) LS.set(CUSTOM_ENDPOINT_KEY, d.customEp); else LS.del(CUSTOM_ENDPOINT_KEY);
+  if (d.customModel) LS.set(CUSTOM_MODEL_KEY, d.customModel); else LS.del(CUSTOM_MODEL_KEY);
+}
+// What the draft would be called, for the "Selected:" line — aiLabel() reads storage,
+// which the draft has not been written to yet.
+function draftLabel(){
+  const d = _draft; if (!d) return 'none';
+  if (d.provider === 'none') return 'none';
+  if (d.provider === 'local') return 'Local model (' + (d.localModel || 'none picked') + ')';
+  if (d.provider === 'anthropic') return 'Anthropic Claude Sonnet';
+  if (d.provider === 'gemini') return 'Google Gemini 2.5 Flash';
+  if (d.provider === 'groq') return 'Groq · ' + getGroqModel();
+  if (d.provider === 'custom') return (d.customModel || 'OpenAI-compatible model') + ' (' + (d.customEp || 'no endpoint') + ')';
+  return d.provider;
+}
+function aiSay(msg, err){
+  const el = document.getElementById('aiSay');
+  el.innerHTML = msg || ''; el.className = 'ai-say' + (err ? ' err' : '');
+}
+
+function aiCard(title, sub, badge, on, onclick, keyUrl){
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.className = 'ai-card' + (on ? ' on' : '');
+  b.innerHTML = '<span class="ai-card-main"><b>' + escHtml(title) + '</b><small>' + escHtml(sub) + '</small>'
+    + (keyUrl ? '<a class="ai-getkey" href="' + escHtml(keyUrl) + '" target="_blank" rel="noopener">Get a key ↗</a>' : '')
+    + '</span>' + (badge ? '<span class="ai-badge">' + escHtml(badge) + '</span>' : '');
+  b.onclick = onclick;
+  // The link sits inside a button; without this, following it also fires the card.
+  const a = b.querySelector('.ai-getkey');
+  if (a) a.addEventListener('click', e => e.stopPropagation());
+  return b;
+}
+// One field, rendered under the cards of the tab that needs it. With two cards to a
+// tab it is always on screen -- which is the whole reason the tabs are here.
+function keyField(label, hint, value, oninput, type){
+  const box = document.createElement('div');
+  box.className = 'ai-add';
+  box.innerHTML = '<b>' + escHtml(label) + '</b><small>' + hint + '</small>';
+  const inp = document.createElement('input');
+  inp.type = type || 'password';
+  inp.value = value || '';
+  inp.placeholder = type === 'text' ? '' : 'Paste your key…';
+  inp.autocomplete = 'off'; inp.spellcheck = false;
+  inp.addEventListener('input', () => { oninput(inp.value); paintSelected(); });
+  inp.addEventListener('keydown', e => { if (e.key === 'Enter'){ e.preventDefault(); saveAI(); } });
+  box.appendChild(inp);
+  return box;
+}
+function paintSelected(){
+  const sel = document.getElementById('aiSelected');
+  sel.innerHTML = 'Selected: <b></b>';
+  sel.querySelector('b').textContent = draftLabel();
+}
+
+function renderAiTab(){
+  const list = document.getElementById('aiList');
+  const keyBox = document.getElementById('aiKeyBox');
+  const foot = document.getElementById('aiFoot');
+  list.innerHTML = ''; keyBox.innerHTML = '';
+  paintSelected();
+  const d = _draft;
+
+  if (_aiSub === 'local'){
+    foot.textContent = 'Checked ports 11434 (Ollama) and 1234 (LM Studio), on this device and on whatever served this page.';
+    if (!_probed){
+      list.innerHTML = '<p class="ai-scan">Looking for a model on this computer…</p>';
+      probeLocal().then(() => { _probed = true; if (document.getElementById('aiList') === list) renderAiTab(); });
+      return;
+    }
+    if (!_localFound.length){
+      list.innerHTML = '<p class="ai-scan">No local model answered. Start Ollama (<code>ollama serve</code>) or LM Studio and press Look again. '
+        + 'If this page is on https, the model must allow this origin — see OLLAMA_ORIGINS.</p>';
+    } else {
+      _localFound.forEach(m => list.appendChild(aiCard(m.id, m.ep, 'Local',
+        d.provider === 'local' && d.localEp === m.ep && d.localModel === m.id,
+        () => { d.provider = 'local'; d.localEp = m.ep; d.localModel = m.id; renderAiTab(); })));
+    }
+    const again = document.createElement('button');
+    again.type = 'button'; again.className = 'ai-more';
+    again.textContent = 'Look again';
+    again.onclick = () => { _probed = false; renderAiTab(); };
+    list.appendChild(again);
+    const add = keyField('Add a local server', 'Any URL speaking Ollama or OpenAI-compatible /v1.', d.localEp, v => { d.localEp = v; }, 'text');
+    add.querySelector('input').placeholder = 'http://127.0.0.1:11434';
+    keyBox.appendChild(add);
+    return;
+  }
+
+  if (_aiSub === 'free'){
+    foot.textContent = 'Free tiers. The key stays in this browser and is sent only to that provider. '
+      + 'They meter tokens per minute; Telefone waits a rate limit out and carries on.';
+    [['groq', 'Groq · ' + getGroqModel(), 'Free tier. Any email — no Google account needed.', 'https://console.groq.com/keys'],
+     ['gemini', 'Gemini 2.5 Flash', 'Free tier via Google — use a personal account.', 'https://aistudio.google.com/apikey']]
+      .forEach(([id, title, sub, url]) => list.appendChild(aiCard(title, sub, 'Free',
+        d.provider === id, () => { d.provider = id; renderAiTab(); }, url)));
+    if (d.provider === 'groq' || d.provider === 'gemini'){
+      const who = d.provider === 'groq' ? 'Groq' : 'Gemini';
+      const url = d.provider === 'groq' ? 'https://console.groq.com/keys' : 'https://aistudio.google.com/apikey';
+      keyBox.appendChild(keyField(who + ' API key',
+        'Get one at <a href="' + url + '" target="_blank" rel="noopener">' + url.replace('https://', '') + '</a>. It stays in this browser.',
+        d.keys[d.provider], v => { d.keys[d.provider] = v; }));
+    }
+    return;
+  }
+
+  foot.textContent = 'Paid providers, billed to your own account. Keys stay in this browser.';
+  list.appendChild(aiCard('Anthropic Claude', 'Your own key. Claude Sonnet — powerful and precise.', 'Own key',
+    d.provider === 'anthropic', () => { d.provider = 'anthropic'; renderAiTab(); }, 'https://console.anthropic.com/settings/keys'));
+  list.appendChild(aiCard('OpenAI-compatible', d.customEp || 'Any /v1/chat/completions endpoint', 'Own key',
+    d.provider === 'custom', () => { d.provider = 'custom'; renderAiTab(); }));
+  if (d.provider === 'anthropic'){
+    keyBox.appendChild(keyField('Anthropic API key',
+      'Get one at <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">console.anthropic.com</a>. Billed per use.',
+      d.keys.anthropic, v => { d.keys.anthropic = v; }));
+  }
+  if (d.provider === 'custom'){
+    const ep = keyField('Base URL', 'Ends in <code>/v1</code> — ChatGPT, DeepSeek, OpenRouter, anything compatible.', d.customEp, v => { d.customEp = v; }, 'text');
+    ep.querySelector('input').placeholder = 'https://api.openai.com/v1';
+    keyBox.appendChild(ep);
+    const md = keyField('Model', 'The model id that endpoint expects.', d.customModel, v => { d.customModel = v; }, 'text');
+    md.querySelector('input').placeholder = 'gpt-4o-mini';
+    keyBox.appendChild(md);
+    keyBox.appendChild(keyField('API key', 'Stored in this browser only.', d.keys.custom, v => { d.keys.custom = v; }));
+  }
+}
+
+// Where to look for a local model. Ollama's 11434 is the same on every OS and
+// localhost is whatever machine this runs on, so nothing here names a specific box.
 function localProbeEndpoints(){
-  const eps = [getLocalEndpoint(), 'http://localhost:11434', 'http://127.0.0.1:11434', 'http://localhost:1234'];
+  const eps = [(_draft && _draft.localEp) || getLocalEndpoint(), 'http://localhost:11434', 'http://127.0.0.1:11434', 'http://localhost:1234'];
   const h = location.hostname;
   if (h && !['localhost', '127.0.0.1', ''].includes(h)) eps.push('http://' + h + ':11434');
   return eps.map(e => String(e).replace(/\/+$/, '')).filter((e, i, a) => e && a.indexOf(e) === i);
 }
-let _localFound = [];
-function paintLocalModels(list){
-  const el = document.getElementById('localModels');
-  const cur = getLocalModel();
-  if (!list.length){ el.innerHTML = cur ? '<button type="button" class="on">' + escHtml(cur) + '</button>' : ''; return; }
-  el.innerHTML = list.map(m =>
-    '<button type="button" data-ep="' + escHtml(m.ep) + '" data-m="' + escHtml(m.id) + '"' + (m.id === cur ? ' class="on"' : '') + '>' + escHtml(m.id) + '</button>').join('');
-  el.querySelectorAll('button').forEach(b => b.addEventListener('click', () => {
-    LS.set(LOCAL_ENDPOINT_KEY, b.dataset.ep); LS.set(LOCAL_MODEL_KEY, b.dataset.m);
-    document.getElementById('epIn').value = b.dataset.ep;
-    aiSay('Using <b>' + escHtml(b.dataset.m) + '</b>.'); paintPanes(); if (teleFrameLive()) teleStripRow();
-  }));
-}
 // Embedding models cannot chat; listing them only invites a confusing failure.
 const chatty = id => !/embed|whisper|rerank|bge-|nomic-embed/i.test(String(id || ''));
-document.getElementById('probeBtn').addEventListener('click', async () => {
-  aiSay('Looking…'); _localFound = [];
+async function probeLocal(){
+  _localFound = [];
   for (const ep of localProbeEndpoints()){
     // Ollama answers /api/tags; LM Studio and llama.cpp answer /v1/models.
     const tags = await fetch(ep + '/api/tags').then(r => r.ok ? r.json() : null).catch(() => null);
@@ -665,14 +783,51 @@ document.getElementById('probeBtn').addEventListener('click', async () => {
     const oai = await fetch(ep + '/v1/models').then(r => r.ok ? r.json() : null).catch(() => null);
     if (oai && oai.data) oai.data.map(m => m.id).filter(chatty).forEach(id => _localFound.push({ ep, id }));
   }
-  if (!_localFound.length){ aiSay(localFailureHint(getLocalEndpoint()), true); paintLocalModels([]); return; }
-  aiSay('Found ' + _localFound.length + ' — pick one.');
-  paintLocalModels(_localFound);
-});
+}
 
-function openAI(){ syncProvRadios(); paintPanes(); if (!dlg.open) dlg.showModal(); }
+function openAI(){
+  _draft = snapshot();
+  // Open on the tab holding what is already chosen, so the panel shows the current
+  // state rather than making you hunt for it.
+  _aiSub = _draft.provider === 'local' ? 'local'
+         : (_draft.provider === 'anthropic' || _draft.provider === 'custom') ? 'paid' : 'free';
+  document.querySelectorAll('#aiSubTabs .ai-subtab').forEach(x => x.classList.toggle('on', x.dataset.ai === _aiSub));
+  aiSay('');
+  renderAiTab();
+  if (!dlg.open) dlg.showModal();
+}
+function closeAI(){ if (dlg.open) dlg.close(); }
+function saveAI(){
+  const d = _draft;
+  // Ordered from the most basic thing missing to the least. A blank custom form is
+  // missing its URL before it is missing a key, and saying "needs a key" there sends
+  // the reader to fix the wrong field.
+  if (d.provider === 'none'){ aiSay('Pick a model first \u2014 the machine is the other player.', true); return; }
+  if (d.provider === 'local' && !d.localModel){ aiSay('Pick a local model first, or choose a provider under Free or Paid.', true); return; }
+  if (d.provider === 'custom'){
+    if (!(d.customEp || '').trim()){ aiSay('An OpenAI-compatible endpoint needs its base URL.', true); return; }
+    if (!(d.customModel || '').trim()){ aiSay('An OpenAI-compatible endpoint needs a model id.', true); return; }
+  }
+  if (KEY_OF[d.provider] && !(d.keys[d.provider] || '').trim()){
+    aiSay(draftLabel().split(' (')[0] + ' needs a key before it can play a round.', true); return; }
+  commitDraft();
+  paintAiButton();
+  if (teleFrameLive()) teleStripRow();
+  closeAI();
+}
+document.getElementById('aiSave').addEventListener('click', saveAI);
+document.getElementById('aiCancel').addEventListener('click', closeAI);
+document.getElementById('aiX').addEventListener('click', closeAI);
 document.getElementById('aiBtn').addEventListener('click', openAI);
-dlg.addEventListener('close', () => { paintAiButton(); if (teleFrameLive()) teleStripRow(); });
+document.querySelectorAll('#aiSubTabs .ai-subtab').forEach(b => b.addEventListener('click', () => {
+  _aiSub = b.dataset.ai;
+  document.querySelectorAll('#aiSubTabs .ai-subtab').forEach(x => x.classList.toggle('on', x === b));
+  aiSay(''); renderAiTab();
+}));
+// Clicking the backdrop is a cancel, like the ✕ and Escape. The draft is dropped
+// either way -- nothing was written until Save.
+dlg.addEventListener('click', e => { if (e.target === dlg) closeAI(); });
+dlg.addEventListener('close', () => { _draft = null; paintAiButton(); if (teleFrameLive()) teleStripRow(); });
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // Telefone — Generation Loss as a game of telephone.

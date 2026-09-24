@@ -55,8 +55,9 @@ comparison is the finding.
 
 ## Bring your own model
 
-Telefone needs a model — the machine is the other player. **AI Setup**
-takes a key you supply:
+Telefone needs a model — the machine is the other player. **AI Setup** is Journaler's
+Settings → AI panel: three cost tabs, provider cards, Save and Cancel. Nothing
+is written until you press Save, so Cancel really cancels.
 
 - **Groq** — free tier, no Google account needed
 - **Google Gemini** — free tier

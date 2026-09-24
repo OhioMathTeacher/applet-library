@@ -203,8 +203,14 @@ dialog.about::backdrop { background: rgba(20,16,10,.55); }
 .ab-floppy { text-align: center; font-size: 12px; color: var(--muted); opacity: .8; padding: 12px 24px 6px; }
 .ab-foot { display: flex; padding: 10px 24px 18px; }
 .ab-foot .btn { margin: 0 auto; }
-button.brand { font: inherit; font-weight: 700; font-size: 17px; letter-spacing: .01em; color: inherit;
-  background: none; border: 0; padding: 2px 6px; margin-left: -6px; border-radius: 7px; cursor: pointer; }
+button.brand { font: inherit; font-weight: 700; letter-spacing: .01em; color: inherit; display: inline-flex;
+  align-items: center; gap: 9px; background: none; border: 0; padding: 2px 8px 2px 6px; margin-left: -6px;
+  border-radius: 8px; cursor: pointer; }
+/* The bell carries the app; the word only names it. Sized apart so the mark can be a
+   mark rather than a slightly bolder letter. The optical centre of ☎ sits high in its
+   em box, so it is nudged down a hair to sit on the wordmark's line. */
+.brand-mark { font-size: 30px; line-height: 1; color: var(--accent); transform: translateY(1px); }
+.brand-word { font-size: 18px; }
 button.brand:hover { background: var(--highlight-soft); color: var(--accent); }
 
 </style>
@@ -212,7 +218,7 @@ button.brand:hover { background: var(--highlight-soft); color: var(--accent); }
 <body>
 <div class="wrap">
   <div class="topbar">
-    <button class="brand" id="aboutBtn" title="About Telefone — version, updates, source">&#9742; Telefone</button>
+    <button class="brand" id="aboutBtn" title="About Telefone — version, updates, source"><span class="brand-mark">&#9742;</span><span class="brand-word">Telefone</span></button>
     <span class="spacer"></span>
     <button class="btn ghost sm" id="aiBtn" title="Pick the model that plays every round"><span class="aidot" id="aiDot"></span><span id="aiBtnLabel">AI Setup</span></button>
     <button class="btn ghost sm" id="dlBtn" title="Save every round to one text file">Save rounds</button>
@@ -1029,7 +1035,7 @@ document.getElementById('dlBtn').addEventListener('click', () => {
 //
 // ⚠ BUMP BUILD.date WHENEVER THIS FILE CHANGES, or the check will keep reporting an
 //   update that the reader has, in fact, already got.
-const BUILD = { version: '1.2.0', date: '2026-09-24' };
+const BUILD = { version: '1.2.1', date: '2026-09-24' };
 const REPO = 'OhioMathTeacher/applet-library';
 const SELF = 'telefone/index.html';
 

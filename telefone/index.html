@@ -1,0 +1,965 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Telefone</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='26' font-size='26'>&#9742;</text></svg>">
+<style>
+/* ── Telefone, standalone. Lifted from Journaler (TCE 284) so the two stay the same
+   experiment: the CSS below is the same rule set, with the app's frame replaced by a
+   page of its own and its theme variables carried across rather than inherited. */
+:root {
+  --parchment: #F8F4EC; --ink: #2C2416; --margin-bg: #EFEBE2;
+  --accent: #7A3B10; --accent-light: #C69A5C; --highlight-soft: rgba(198,154,92,.18);
+  --comment-bg: #FFFCF5; --comment-border: #D8CBAF; --muted: #8A7C6C;
+  --danger: #8B3333; --go: #2A5A3A;
+  --sans: "DM Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --write: "DM Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+:root:not([data-theme="light"]) {
+  @media (prefers-color-scheme: dark) {
+    --parchment: #15120D; --ink: #EDE6D8; --margin-bg: #1E1A14;
+    --accent: #C99055; --accent-light: #E0B683; --highlight-soft: rgba(201,144,85,.16);
+    --comment-bg: #1A1611; --comment-border: #3A3227; --muted: #9B8F7C;
+    --danger: #D98A82; --go: #77B892;
+  }
+}
+:root[data-theme="dark"] {
+  --parchment: #15120D; --ink: #EDE6D8; --margin-bg: #1E1A14;
+  --accent: #C99055; --accent-light: #E0B683; --highlight-soft: rgba(201,144,85,.16);
+  --comment-bg: #1A1611; --comment-border: #3A3227; --muted: #9B8F7C;
+  --danger: #D98A82; --go: #77B892;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body { background: var(--parchment); color: var(--ink); font-family: var(--sans); font-size: 16px; line-height: 1.5; }
+.wrap { max-width: 1200px; margin: 0 auto; padding: 0 22px 32px; }
+@media (max-width: 720px){ .wrap { padding: 0 16px 24px; } }
+
+/* ── the bar */
+.topbar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  border-bottom: 1px solid var(--comment-border); padding: 10px 0; margin-bottom: 18px; }
+.topbar .brand { font-weight: 700; font-size: 17px; letter-spacing: .01em; }
+.topbar .spacer { margin-left: auto; }
+.aidot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--comment-border); margin-right: 6px; vertical-align: 1px; }
+.aidot.on { background: var(--go); }
+
+.btn { font-family: var(--sans); font-weight: 600; font-size: 16px; border-radius: 7px; padding: 9px 16px; cursor: pointer; border: 1px solid var(--accent); background: var(--accent); color: #fff; }
+.btn.ghost { background: none; color: var(--accent); } .btn.go { border-color: var(--go); background: var(--go); }
+.btn.sm { padding: 6px 11px; font-size: 15px; } .btn:disabled { opacity: .45; cursor: not-allowed; }
+.note { font-size: 13.5px; color: var(--muted); }
+
+.head h1 { font-size: 30px; margin: 4px 0 6px; }
+.head p { margin: 0 0 18px; color: var(--muted); max-width: 78ch; }
+
+/* ── Telefone ──────────────────────────────────────────────────────────────────
+   Generation Loss as a game of telephone: a strip of rounds, the page under it,
+   the numbers under that. The strip is the chart -- each tab wears how much of
+   round zero is still on the page -- so there is no separate graph. */
+.tele { max-width: none; }
+@media (min-width: 1100px){
+  /* The pane is given the window's height once and the passage takes whatever is left
+     after the ASK row, the tabs, the label row and the figures. So a longer tab strip
+     shortens the passage instead of pushing the page past the fold. */
+  .tele { display: flex; flex-direction: column; height: calc(100vh - 235px); }
+  .tele-sheet { min-height: 0; flex: 1; display: flex; flex-direction: column; }
+  #teleView { min-height: 0; flex: 1; display: flex; flex-direction: column; }
+  .tele-page { min-height: 0; flex: 1; max-height: none; overflow-y: auto; }
+  textarea.tele-page { min-height: 0; height: auto; resize: none; }
+  /* Full width, so the measure can open up from the 66ch of a narrow column -- far
+     enough for a diff to stop wrapping every other word, short of the wall of text
+     that a 1500px line would be. */
+  .tele-page { max-width: 90ch; }
+  .tele-sheet { padding: 16px 22px 12px; }
+  .tele-under { margin-top: 10px; padding-top: 10px; }
+  .tele-status:empty { min-height: 0; margin-top: 0; }
+}
+.tele-ask { display: flex; align-items: center; gap: 6px 18px; flex-wrap: wrap; margin: 0 0 12px; font-size: 14px; color: var(--muted); }
+.tele-lbl { font-size: 12px; letter-spacing: .06em; text-transform: uppercase; font-weight: 700; }
+.tele-ask label { display: inline-flex; align-items: center; gap: 6px; color: var(--ink); cursor: pointer; white-space: nowrap; }
+.tele-ask input { accent-color: var(--accent); width: 15px; height: 15px; margin: 0; }
+.tele-ask label:has(input:disabled) { opacity: .55; cursor: default; }
+.tele-strip { display: flex; align-items: flex-end; gap: 6px; flex-wrap: wrap; border-bottom: 1px solid var(--comment-border); padding-left: 2px; }
+.tele-tab { appearance: none; font: inherit; border: 1px solid var(--comment-border); border-bottom: none; background: var(--margin-bg); color: var(--muted);
+  padding: 7px 12px 6px; border-radius: 7px 7px 0 0; cursor: pointer; display: flex; flex-direction: column; align-items: flex-start; gap: 1px; min-width: 66px; position: relative; top: 1px; }
+.tele-tab .n { font-size: 14px; font-weight: 700; color: var(--ink); }
+.tele-tab .n small { font-weight: 400; color: var(--muted); font-size: 12px; margin-left: 4px; }
+.tele-tab .pct { font-size: 11.5px; font-variant-numeric: tabular-nums; color: var(--muted); }
+.tele-tab.on { background: var(--comment-bg); }
+.tele-tab.on .pct { color: var(--accent); }
+.tele-actions { margin-left: auto; display: flex; gap: 8px; align-items: center; padding-bottom: 8px; flex-wrap: wrap; }
+.tele-sheet { background: var(--comment-bg); border: 1px solid var(--comment-border); border-top: none; padding: 24px 28px 20px; border-radius: 0 0 8px 8px; }
+.tele-page { font-family: var(--write); font-size: 17px; line-height: 1.6; max-width: 66ch; color: var(--ink); }
+.tele-page p { margin: 0 0 1em; } .tele-page p:last-child { margin-bottom: 0; }
+.tele-page.tele-diff { white-space: pre-line; }
+textarea.tele-page { width: 100%; max-width: none; min-height: 280px; border: 1px dashed var(--comment-border); border-radius: 6px; padding: 14px 16px; background: transparent; color: inherit; resize: vertical; }
+.tele-from { margin-top: 8px; display: flex; gap: 8px; flex-wrap: wrap; }
+.tele-diff del { color: var(--danger); background: rgba(139,51,51,.10); text-decoration: line-through; text-decoration-thickness: 1.5px; border-radius: 2px; padding: 0 1px; }
+.tele-diff ins { color: var(--go); background: rgba(42,90,58,.12); text-decoration: underline; text-decoration-thickness: 1.5px; text-underline-offset: 3px; border-radius: 2px; padding: 0 1px; }
+.tele-under { display: flex; align-items: center; gap: 12px; margin-top: 20px; padding-top: 14px; border-top: 1px solid var(--comment-border); flex-wrap: wrap; }
+.tele-under .tele-label { flex: 1 1 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tele-under .tele-modes { margin-left: auto; flex: none; }
+.tele-under .tele-statwrap { flex: none; }
+.tele-label { font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.tele-label b { color: var(--ink); }
+/* Three ways to read a round: the text as it stands, what this round changed
+   (k-1 vs k), and what is gone since round zero (0 vs k). Radios, not buttons,
+   so arrow keys move between them without any JS. */
+.tele-modes { display: inline-flex; border: 1px solid var(--comment-border); border-radius: 6px; overflow: hidden; background: var(--comment-bg); }
+.tele-modes label { display: inline-flex; align-items: center; font-size: 13px; color: var(--muted); padding: 5px 11px; cursor: pointer; user-select: none; border-left: 1px solid var(--comment-border); position: relative; }
+.tele-modes label:first-child { border-left: 0; }
+.tele-modes label:hover { color: var(--accent); }
+/* Round 0 has nothing behind it: the comparison views stay in place and go inert, so
+   the row keeps its shape and nobody wonders where the control went. */
+.tele-modes label:has(input:disabled) { opacity: .4; cursor: default; }
+.tele-modes label:has(input:disabled):hover { color: var(--muted); }
+.tele-modes input { position: absolute; opacity: 0; width: 0; height: 0; }
+.tele-modes input:checked + span { color: var(--accent); font-weight: 600; }
+.tele-modes label:has(input:checked) { background: var(--highlight-soft); }
+.tele-modes label:has(input:focus-visible) { outline: 2px solid var(--accent); outline-offset: -2px; }
+.tele-lost del { opacity: .9; }
+/* The figures live in a popover, so the sheet gives its height to the passage:
+   anchored under its button, closed by a click outside or Escape. */
+.tele-statwrap { position: relative; display: inline-flex; }
+.tele-statbtn { display: inline-flex; align-items: center; gap: 6px; }
+.tele-statbtn svg { width: 12px; height: 12px; fill: currentColor; }
+.tele-statbtn.on { background: var(--highlight-soft); color: var(--accent); }
+.tele-stats.tele-pop { position: absolute; bottom: calc(100% + 8px); right: 0; z-index: 40;
+  display: grid; grid-template-columns: repeat(2, minmax(96px, auto)); gap: 12px 22px;
+  background: var(--comment-bg); border: 1px solid var(--comment-border); border-radius: 9px;
+  box-shadow: 0 10px 28px rgba(44,36,22,.20); padding: 12px 14px; margin: 0; }
+.tele-stats.tele-pop[hidden] { display: none; }
+.tele-stat { display: flex; flex-direction: column; gap: 1px; }
+.tele-stat .v { font-size: 17px; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--ink); }
+.tele-stat .k { font-size: 12.5px; color: var(--muted); }
+.tele-status { min-height: 20px; margin-top: 10px; }
+.tele-status.err { color: var(--danger); }
+
+@media (max-width: 720px) { .tele-sheet { padding: 18px 16px; } .tele-actions { margin-left: 0; width: 100%; } }
+@media (pointer: coarse) { .tele-tab { min-height: 44px; } }
+
+/* ── AI setup. Its own dialog here, where Journaler had Settings → AI. Bring your own
+   key: the panel ships empty, nothing is baked in, and what you type stays in this
+   browser under names belonging to this applet alone. */
+dialog.ai { border: 1px solid var(--comment-border); border-radius: 12px; background: var(--comment-bg); color: var(--ink);
+  max-width: 600px; width: calc(100% - 32px); padding: 0; box-shadow: 0 18px 50px rgba(44,36,22,.28); }
+dialog.ai::backdrop { background: rgba(20,16,10,.45); }
+.ai-head { display: flex; align-items: baseline; gap: 10px; padding: 16px 20px 10px; border-bottom: 1px solid var(--comment-border); }
+.ai-head h2 { margin: 0; font-size: 19px; }
+.ai-body { padding: 16px 20px; max-height: 68vh; overflow-y: auto; }
+.ai-foot { display: flex; gap: 8px; align-items: center; padding: 12px 20px 16px; border-top: 1px solid var(--comment-border); }
+.ai-foot .spacer { margin-left: auto; }
+.ai-provs { display: grid; gap: 6px; margin: 0 0 14px; }
+.ai-provs label { display: flex; align-items: baseline; gap: 8px; padding: 8px 10px; border: 1px solid transparent; border-radius: 7px; cursor: pointer; }
+.ai-provs label:has(input:checked) { border-color: var(--comment-border); background: var(--highlight-soft); }
+.ai-provs input { accent-color: var(--accent); margin: 0; }
+.ai-provs b { font-weight: 600; }
+.ai-provs span.hint { color: var(--muted); font-size: 13.5px; }
+.ai-pane { border-top: 1px solid var(--comment-border); padding-top: 14px; }
+.ai-pane[hidden] { display: none; }
+.ai-pane label.f { display: block; font-size: 13px; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); margin: 0 0 4px; }
+.ai-pane input[type=text], .ai-pane input[type=password] { width: 100%; font: inherit; padding: 8px 10px; border: 1px solid var(--comment-border);
+  border-radius: 6px; background: var(--parchment); color: inherit; margin-bottom: 12px; }
+.ai-models { display: flex; gap: 6px; flex-wrap: wrap; margin: 4px 0 12px; }
+.ai-models button { font: inherit; font-size: 14px; padding: 5px 10px; border: 1px solid var(--comment-border); border-radius: 6px;
+  background: var(--parchment); color: inherit; cursor: pointer; }
+.ai-models button.on { border-color: var(--accent); color: var(--accent); background: var(--highlight-soft); font-weight: 600; }
+.ai-say { font-size: 13.5px; color: var(--muted); min-height: 19px; }
+.ai-say.err { color: var(--danger); }
+.ai-body a { color: var(--accent); }
+
+footer.about { margin-top: 26px; padding-top: 14px; border-top: 1px solid var(--comment-border); font-size: 13.5px; color: var(--muted); max-width: 80ch; }
+footer.about a { color: var(--accent); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="topbar">
+    <span class="brand">&#9742; Telefone</span>
+    <span class="spacer"></span>
+    <button class="btn ghost sm" id="aiBtn" title="Pick the model that plays every round"><span class="aidot" id="aiDot"></span><span id="aiBtnLabel">AI Setup</span></button>
+    <button class="btn ghost sm" id="dlBtn" title="Save every round to one text file">Save rounds</button>
+  </div>
+  <div id="frame"></div>
+  <footer class="about">
+    Telefone is the Generation Loss lab from <a href="https://github.com/OhioMathTeacher/journaler">Journaler</a>, pulled out to stand on its own.
+    Nothing is submitted and nothing is graded: the rounds live in this browser only, and the text you put in round 0 goes to whichever
+    AI provider you chose &mdash; to that company, not to anyone here.
+  </footer>
+</div>
+
+<dialog class="ai" id="aiDlg">
+  <form method="dialog">
+    <div class="ai-head"><h2>AI Setup</h2><span class="note" id="aiNow"></span></div>
+    <div class="ai-body">
+      <p class="note" style="margin-top:0">Telefone needs a model &mdash; the machine is the other player. A free tier or a model on your own laptop is plenty.</p>
+      <div class="ai-provs" id="aiProvs"></div>
+
+      <div class="ai-pane" id="paneLocal" hidden>
+        <label class="f" for="epIn">Endpoint</label>
+        <input type="text" id="epIn" placeholder="http://localhost:11434" spellcheck="false">
+        <button type="button" class="btn ghost sm" id="probeBtn">Find models</button>
+        <div class="ai-models" id="localModels"></div>
+        <p class="note">Ollama or LM Studio, running on this computer. Start Ollama with <code>ollama serve</code>; on localhost you do not need to set <code>OLLAMA_ORIGINS</code>.</p>
+      </div>
+
+      <div class="ai-pane" id="paneKey" hidden>
+        <label class="f" for="keyIn">API key</label>
+        <input type="password" id="keyIn" placeholder="Paste your key" spellcheck="false" autocomplete="off">
+        <p class="note" id="keyHint"></p>
+      </div>
+
+      <div class="ai-pane" id="paneCustom" hidden>
+        <label class="f" for="cEpIn">Base URL (OpenAI-compatible, ending in /v1)</label>
+        <input type="text" id="cEpIn" placeholder="https://example.com/v1" spellcheck="false">
+        <label class="f" for="cModelIn">Model id</label>
+        <input type="text" id="cModelIn" placeholder="model-name" spellcheck="false">
+        <label class="f" for="cKeyIn">API key</label>
+        <input type="password" id="cKeyIn" placeholder="Paste your key" spellcheck="false" autocomplete="off">
+      </div>
+
+      <div class="ai-say" id="aiSay"></div>
+    </div>
+    <div class="ai-foot">
+      <span class="note">Keys are kept in this browser only.</span>
+      <span class="spacer"></span>
+      <button type="button" class="btn ghost sm" id="aiForget">Forget key</button>
+      <button class="btn sm" value="close">Done</button>
+    </div>
+  </form>
+</dialog>
+
+<script>
+(function(){
+'use strict';
+
+const escHtml = s => String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const frame = document.getElementById('frame');
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// AI provider subsystem. The same cr_* localStorage names the rest of the applet
+// library uses, so one setup serves every app served from this domain.
+// ═══════════════════════════════════════════════════════════════════════════════
+// ⚠ NAMESPACED TO THIS APPLET ON PURPOSE. Every applet on ohiomathteacher.github.io
+//   shares one browser origin, so the shared cr_* names the rest of the library uses
+//   would mean this page silently picking up a key set in Marginalia or Orbit Explorer
+//   -- including the author's own, on the author's own laptop. A key is the one thing
+//   that must never arrive here by inheritance: the panel starts blank for everybody,
+//   including whoever built it, and holds only what this page was told.
+const PROVIDER_KEY = 'telefone_provider';
+const KEY_OF = { anthropic: 'telefone_anthropic_key', gemini: 'telefone_gemini_key', groq: 'telefone_groq_key', custom: 'telefone_custom_key' };
+const CUSTOM_ENDPOINT_KEY = 'telefone_custom_endpoint', CUSTOM_MODEL_KEY = 'telefone_custom_model';
+const LOCAL_ENDPOINT_KEY = 'telefone_local_endpoint', LOCAL_MODEL_KEY = 'telefone_local_model';
+const GROQ_MODEL_KEY = 'telefone_groq_model';
+
+const LS = {
+  get: k => { try { return localStorage.getItem(k) || ''; } catch(e){ return ''; } },
+  set: (k, v) => { try { localStorage.setItem(k, v); } catch(e){} },
+  del: k => { try { localStorage.removeItem(k); } catch(e){} }
+};
+
+const PROVIDERS = [
+  { id: 'groq',      name: 'Groq',       hint: 'Free tier, no Google account needed — console.groq.com/keys', pane: 'key',
+    keyHint: 'Get a key at <a href="https://console.groq.com/keys" target="_blank" rel="noopener">console.groq.com/keys</a>. The free tier meters tokens per minute; Telefone waits out a rate limit and carries on.' },
+  { id: 'gemini',    name: 'Google Gemini', hint: 'Free tier — aistudio.google.com/apikey', pane: 'key',
+    keyHint: 'Get a key at <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a>. University Google accounts often cannot issue one; a personal account can.' },
+  { id: 'anthropic', name: 'Anthropic Claude', hint: 'Paid — console.anthropic.com', pane: 'key',
+    keyHint: 'Get a key at <a href="https://console.anthropic.com" target="_blank" rel="noopener">console.anthropic.com</a>. Billed per use, not free.' },
+  { id: 'local',     name: 'A model on this computer', hint: 'Ollama or LM Studio — nothing leaves the machine', pane: 'local' },
+  { id: 'custom',    name: 'Other (OpenAI-compatible)', hint: 'Any endpoint that speaks /chat/completions', pane: 'custom' }
+];
+
+const getProvider = () => LS.get(PROVIDER_KEY) || 'none';
+const getStoredKey = p => KEY_OF[p] ? LS.get(KEY_OF[p]) : '';
+const getLocalEndpoint = () => LS.get(LOCAL_ENDPOINT_KEY) || 'http://localhost:11434';
+const getLocalModel = () => LS.get(LOCAL_MODEL_KEY);
+
+// Groq retires models on a rolling schedule, so a hardcoded id breaks a whole class at
+// once, mid-round, with a raw 400. Keep a default; when the API says it is gone, ask what
+// is live now, remember that, and carry on.
+const GROQ_MODEL_DEFAULT = 'openai/gpt-oss-120b';
+const GROQ_PREFERRED = ['openai/gpt-oss-120b', 'qwen/qwen3.6-27b', 'openai/gpt-oss-20b'];
+const getGroqModel = () => LS.get(GROQ_MODEL_KEY) || GROQ_MODEL_DEFAULT;
+// Not everything Groq serves can hold a conversation: whisper transcribes, guard
+// classifies, tts speaks. The name is the only signal /models gives.
+const groqUsable = id => { const s = String(id||'').toLowerCase(); return !!s && !/whisper|tts|guard|embed|moderation|rerank/.test(s); };
+async function groqDiscoverModel(apiKey){
+  const res = await fetch('https://api.groq.com/openai/v1/models', { headers: { Authorization: 'Bearer ' + apiKey } });
+  if (!res.ok) return '';
+  const data = await res.json().catch(() => null);
+  const ids = ((data && data.data) || []).map(m => m && m.id).filter(groqUsable);
+  if (!ids.length) return '';
+  for (const p of GROQ_PREFERRED) if (ids.includes(p)) return p;
+  const score = id => (/70b|100b|120b|405b/.test(id) ? 2 : 0) + (/versatile|instruct/.test(id) ? 1 : 0);
+  return ids.slice().sort((a, b) => score(b) - score(a) || a.localeCompare(b))[0];
+}
+
+function aiLabel(){
+  const p = getProvider();
+  if (p === 'none')      return 'None — no AI connected';
+  if (p === 'local')     return 'Local model (' + (getLocalModel() || 'unnamed') + ')';
+  if (p === 'anthropic') return 'Anthropic Claude Sonnet';
+  if (p === 'gemini')    return 'Google Gemini 2.5 Flash';
+  if (p === 'groq')      return 'Groq · ' + getGroqModel();
+  if (p === 'custom')    return (LS.get(CUSTOM_MODEL_KEY) || 'OpenAI-compatible model') + ' (' + (LS.get(CUSTOM_ENDPOINT_KEY) || 'custom endpoint') + ')';
+  return p;
+}
+// A dot cannot say "chosen but not usable", so a provider with no key gets no dot.
+function aiReady(){
+  const p = getProvider();
+  if (p === 'none') return false;
+  if (p === 'local') return !!getLocalModel();
+  if (p === 'custom') return !!(LS.get(CUSTOM_ENDPOINT_KEY) && LS.get(CUSTOM_MODEL_KEY) && getStoredKey('custom'));
+  return !!getStoredKey(p);
+}
+function paintAiButton(){
+  document.getElementById('aiDot').classList.toggle('on', aiReady());
+  document.getElementById('aiBtnLabel').textContent = aiReady() ? aiLabelShort() : 'AI Setup';
+  document.getElementById('aiBtn').title = aiLabel();
+}
+function aiLabelShort(){
+  const p = getProvider();
+  if (p === 'groq') return 'Groq';
+  if (p === 'gemini') return 'Gemini';
+  if (p === 'anthropic') return 'Claude';
+  if (p === 'local') return getLocalModel() || 'Local';
+  if (p === 'custom') return LS.get(CUSTOM_MODEL_KEY) || 'Custom';
+  return 'AI Setup';
+}
+
+function localHeaders(){ return { 'Content-Type': 'application/json' }; }
+function localFailureHint(endpoint){
+  const onHttps = location.protocol === 'https:';
+  const epIsHttp = /^http:\/\//i.test(endpoint || '');
+  const h = location.hostname;
+  const remoteOrigin = h && !['localhost', '127.0.0.1', ''].includes(h);
+  if (onHttps && epIsHttp)
+    return 'This page is served over HTTPS, and browsers (Safari most strictly) block calls from an HTTPS page to ' + endpoint + '. Save this page and open it from your own disk, or pick a cloud model — Groq’s free tier works well.';
+  if (remoteOrigin)
+    return 'The page is loaded from ' + location.origin + ', so Ollama must allow that origin: set OLLAMA_ORIGINS to include ' + location.origin + ' (a specific origin, never "*") and restart Ollama.';
+  return 'Is Ollama running at ' + endpoint + '? Start it with "ollama serve".';
+}
+
+// A reply that stopped because it ran out of room is not an answer, and showing the
+// fragment silently is the app stating something false with confidence. Say it.
+function markIfTruncated(text, wasCut){
+  const t = String(text || '');
+  if (!wasCut || !t) return t || '';
+  return t.replace(/\s+$/, '') + ' […cut off — the model ran out of room.]';
+}
+
+// opts.maxTokens raises the reply budget for a caller that expects a whole page back;
+// opts.throwErrors makes the "not set up" and API-failure messages THROW rather than come
+// back as the reply, so a caller cannot file the error text as a round.
+async function callModel(prompt, opts){
+  opts = opts || {};
+  const budget = opts.maxTokens || 700;
+  const fail = (m, meta) => {
+    if (opts.throwErrors){ const e = new Error(m); e.reported = true; if (meta){ e.status = meta.status; e.retryAfter = meta.retryAfter; } throw e; }
+    return m;
+  };
+  const retryAfterOf = res => { try { return res.headers && res.headers.get ? res.headers.get('retry-after') : null; } catch(_){ return null; } };
+  const provider = getProvider();
+  const apiKey = getStoredKey(provider);
+
+  if (provider === 'none'){ openAI(); return fail('No AI provider selected. Choose one under AI Setup.'); }
+  if (provider !== 'local' && !apiKey){ openAI(); return fail('No API key found. Add your key under AI Setup.'); }
+
+  if (provider === 'local'){
+    const endpoint = getLocalEndpoint().replace(/\/+$/, ''), model = getLocalModel();
+    if (!model){ openAI(); return fail('No local model selected. Pick one under AI Setup.'); }
+    try {
+      // Reasoning models spend the whole budget in a separate `reasoning` field and hand
+      // back content:"" with finish_reason:"length" -- nothing on screen at all. Ollama's
+      // own /api/chat with think:false returns the reply instead, so try it first. LM
+      // Studio and llama.cpp have no /api/chat and fall through to /v1 unchanged.
+      const oll = await fetch(endpoint + '/api/chat', {
+        method: 'POST', headers: localHeaders(),
+        body: JSON.stringify({ model, stream: false, think: false, options: { num_predict: budget }, messages: [{ role: 'user', content: prompt }] })
+      }).catch(() => null);
+      if (oll && oll.ok){
+        const d = await oll.json();
+        return markIfTruncated((d && d.message && d.message.content) || '', d && d.done_reason === 'length');
+      }
+      const res = await fetch(endpoint + '/v1/chat/completions', {
+        method: 'POST', headers: localHeaders(),
+        body: JSON.stringify({ model, max_tokens: budget, messages: [{ role: 'user', content: prompt }] })
+      });
+      if (!res.ok) return fail('Local model error ' + res.status + '. ' + localFailureHint(endpoint));
+      const data = await res.json();
+      const c = data.choices && data.choices[0];
+      return markIfTruncated((c && c.message && c.message.content) || '', c && c.finish_reason === 'length');
+    } catch(err){
+      return fail('Could not reach the local model. ' + localFailureHint(endpoint));
+    }
+  }
+
+  if (provider === 'anthropic'){
+    try {
+      const res = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01',
+                   'anthropic-dangerous-direct-browser-access': 'true' },
+        // Sonnet 5 thinks by default and max_tokens caps thinking and reply TOGETHER, so
+        // a modest budget would be spent thinking and return nothing. Disable it.
+        body: JSON.stringify({ model: 'claude-sonnet-5', max_tokens: budget, thinking: { type: 'disabled' }, messages: [{ role: 'user', content: prompt }] })
+      });
+      if (!res.ok){
+        const err = await res.json().catch(() => ({}));
+        if (res.status === 401) return fail('Invalid Anthropic key. Update it under AI Setup.');
+        if (res.status === 404) return fail('That Anthropic model is unavailable — it may have been retired. This needs a fix in the app, not a new key.');
+        return fail('Anthropic API error ' + res.status + ': ' + ((err && err.error && err.error.message) || 'Unknown error'), { status: res.status, retryAfter: retryAfterOf(res) });
+      }
+      const data = await res.json();
+      return markIfTruncated((data.content || []).map(b => b.text || '').join(''), data.stop_reason === 'max_tokens');
+    } catch(err){
+      if (err && err.reported) throw err;
+      return fail('Error reaching Anthropic. Check your connection and try again.');
+    }
+  }
+
+  if (provider === 'gemini'){
+    try {
+      const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=' + encodeURIComponent(apiKey);
+      const res = await fetch(url, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        // Gemini 2.5 Flash thinks by default and maxOutputTokens caps thinking and reply
+        // together -- the same trap as Sonnet above. Turn it off.
+        body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: { maxOutputTokens: budget, temperature: 0.7, thinkingConfig: { thinkingBudget: 0 } } })
+      });
+      if (!res.ok){
+        const err = await res.json().catch(() => ({}));
+        if (res.status === 401 || res.status === 403) return fail('Invalid Gemini key. Update it under AI Setup.');
+        if (res.status === 404) return fail('That Gemini model is unavailable — it may have been retired. This needs a fix in the app, not a new key.');
+        return fail('Gemini API error ' + res.status + ': ' + ((err && err.error && err.error.message) || 'Unknown error'), { status: res.status, retryAfter: retryAfterOf(res) });
+      }
+      const data = await res.json();
+      const cand = (data.candidates || [])[0];
+      return markIfTruncated(((cand && cand.content && cand.content.parts) || []).map(p => p.text || '').join(''), cand && cand.finishReason === 'MAX_TOKENS');
+    } catch(err){
+      if (err && err.reported) throw err;
+      return fail('Error reaching Gemini. Check your connection and try again.');
+    }
+  }
+
+  if (provider === 'groq'){
+    const ask = model => fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + apiKey },
+      body: JSON.stringify({ model, max_tokens: budget, messages: [{ role: 'user', content: prompt }] })
+    });
+    try {
+      let model = getGroqModel();
+      let res = await ask(model);
+      let err = res.ok ? null : await res.json().catch(() => ({}));
+      // A retired model is the one failure worth recovering from in place: it hits
+      // everyone on the same day, it is nobody's mistake, and the answer is one lookup
+      // away. A bad key is not -- that one needs the person.
+      if (err && res.status !== 401){
+        const msg = String((err && err.error && err.error.message) || '').toLowerCase();
+        if (res.status === 404 || /decommission|deprecat|does not exist|not found|unsupported|invalid model/.test(msg)){
+          const fresh = await groqDiscoverModel(apiKey).catch(() => '');
+          if (fresh && fresh !== model){
+            LS.set(GROQ_MODEL_KEY, fresh);
+            model = fresh; res = await ask(model);
+            err = res.ok ? null : await res.json().catch(() => ({}));
+          }
+        }
+      }
+      if (!res.ok){
+        if (res.status === 401) return fail('Invalid Groq key. Update it under AI Setup.');
+        return fail('Groq API error ' + res.status + ': ' + ((err && err.error && err.error.message) || 'Unknown error'), { status: res.status, retryAfter: retryAfterOf(res) });
+      }
+      const data = await res.json();
+      const c = data.choices && data.choices[0];
+      return markIfTruncated((c && c.message && c.message.content) || '', c && c.finish_reason === 'length');
+    } catch(err){
+      if (err && err.reported) throw err;
+      return fail('Error reaching Groq. Check your connection and try again.');
+    }
+  }
+
+  if (provider === 'custom'){
+    const endpoint = LS.get(CUSTOM_ENDPOINT_KEY).replace(/\/+$/, ''), model = LS.get(CUSTOM_MODEL_KEY);
+    if (!endpoint || !model){ openAI(); return fail('Set the endpoint URL and model under AI Setup.'); }
+    try {
+      const res = await fetch(endpoint + '/chat/completions', {
+        method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + apiKey },
+        body: JSON.stringify({ model, max_tokens: budget, messages: [{ role: 'user', content: prompt }] })
+      });
+      if (!res.ok){
+        const err = await res.json().catch(() => ({}));
+        if (res.status === 401) return fail('Invalid API key. Update it under AI Setup.');
+        return fail('API error ' + res.status + ': ' + ((err && err.error && err.error.message) || 'Unknown error'), { status: res.status, retryAfter: retryAfterOf(res) });
+      }
+      const data = await res.json();
+      const c = data.choices && data.choices[0];
+      return markIfTruncated((c && c.message && c.message.content) || '', c && c.finish_reason === 'length');
+    } catch(err){
+      return fail('Could not reach that endpoint. Check the URL and your connection.');
+    }
+  }
+
+  return fail('Unknown provider.');
+}
+
+// ── the AI Setup dialog
+const dlg = document.getElementById('aiDlg');
+function aiSay(msg, err){ const el = document.getElementById('aiSay'); el.innerHTML = msg || ''; el.classList.toggle('err', !!err); }
+function paintPanes(){
+  const p = getProvider();
+  const def = PROVIDERS.find(x => x.id === p);
+  const pane = def ? def.pane : null;
+  document.getElementById('paneLocal').hidden = pane !== 'local';
+  document.getElementById('paneKey').hidden = pane !== 'key';
+  document.getElementById('paneCustom').hidden = pane !== 'custom';
+  document.getElementById('aiNow').textContent = aiLabel();
+  if (pane === 'key'){
+    document.getElementById('keyIn').value = getStoredKey(p);
+    document.getElementById('keyHint').innerHTML = def.keyHint || '';
+  }
+  if (pane === 'local'){
+    document.getElementById('epIn').value = getLocalEndpoint();
+    paintLocalModels(_localFound);
+  }
+  if (pane === 'custom'){
+    document.getElementById('cEpIn').value = LS.get(CUSTOM_ENDPOINT_KEY);
+    document.getElementById('cModelIn').value = LS.get(CUSTOM_MODEL_KEY);
+    document.getElementById('cKeyIn').value = getStoredKey('custom');
+  }
+  paintAiButton();
+}
+document.getElementById('aiProvs').innerHTML = PROVIDERS.map(p =>
+  '<label><input type="radio" name="aiProv" value="' + p.id + '"><span><b>' + escHtml(p.name) + '</b><br><span class="hint">' + escHtml(p.hint) + '</span></span></label>').join('');
+function syncProvRadios(){
+  const p = getProvider();
+  document.querySelectorAll('input[name=aiProv]').forEach(r => { r.checked = r.value === p; });
+}
+document.querySelectorAll('input[name=aiProv]').forEach(r => r.addEventListener('change', () => {
+  if (!r.checked) return;
+  LS.set(PROVIDER_KEY, r.value); aiSay(''); paintPanes();
+  if (teleFrameLive()) teleStripRow();
+}));
+document.getElementById('keyIn').addEventListener('input', e => {
+  const p = getProvider(); if (!KEY_OF[p]) return;
+  const v = e.target.value.trim();
+  if (v) LS.set(KEY_OF[p], v); else LS.del(KEY_OF[p]);
+  paintAiButton(); if (teleFrameLive()) teleStripRow();
+});
+[['cEpIn', CUSTOM_ENDPOINT_KEY], ['cModelIn', CUSTOM_MODEL_KEY], ['cKeyIn', KEY_OF.custom]].forEach(([id, key]) =>
+  document.getElementById(id).addEventListener('input', e => {
+    const v = e.target.value.trim();
+    if (v) LS.set(key, v); else LS.del(key);
+    paintAiButton(); if (teleFrameLive()) teleStripRow();
+  }));
+document.getElementById('epIn').addEventListener('input', e => LS.set(LOCAL_ENDPOINT_KEY, e.target.value.trim()));
+document.getElementById('aiForget').addEventListener('click', () => {
+  const p = getProvider();
+  if (KEY_OF[p]) LS.del(KEY_OF[p]);
+  if (p === 'local') LS.del(LOCAL_MODEL_KEY);
+  if (p === 'custom'){ LS.del(CUSTOM_ENDPOINT_KEY); LS.del(CUSTOM_MODEL_KEY); }
+  aiSay('Forgotten.'); paintPanes(); if (teleFrameLive()) teleStripRow();
+});
+
+// Where to look for a local model. Ollama's default port (11434) is identical on every
+// OS and localhost resolves to whatever machine this page runs on, so nothing here is
+// tied to a specific box. 1234 = LM Studio.
+function localProbeEndpoints(){
+  const eps = [getLocalEndpoint(), 'http://localhost:11434', 'http://127.0.0.1:11434', 'http://localhost:1234'];
+  const h = location.hostname;
+  if (h && !['localhost', '127.0.0.1', ''].includes(h)) eps.push('http://' + h + ':11434');
+  return eps.map(e => String(e).replace(/\/+$/, '')).filter((e, i, a) => e && a.indexOf(e) === i);
+}
+let _localFound = [];
+function paintLocalModels(list){
+  const el = document.getElementById('localModels');
+  const cur = getLocalModel();
+  if (!list.length){ el.innerHTML = cur ? '<button type="button" class="on">' + escHtml(cur) + '</button>' : ''; return; }
+  el.innerHTML = list.map(m =>
+    '<button type="button" data-ep="' + escHtml(m.ep) + '" data-m="' + escHtml(m.id) + '"' + (m.id === cur ? ' class="on"' : '') + '>' + escHtml(m.id) + '</button>').join('');
+  el.querySelectorAll('button').forEach(b => b.addEventListener('click', () => {
+    LS.set(LOCAL_ENDPOINT_KEY, b.dataset.ep); LS.set(LOCAL_MODEL_KEY, b.dataset.m);
+    document.getElementById('epIn').value = b.dataset.ep;
+    aiSay('Using <b>' + escHtml(b.dataset.m) + '</b>.'); paintPanes(); if (teleFrameLive()) teleStripRow();
+  }));
+}
+// Embedding models cannot chat; listing them only invites a confusing failure.
+const chatty = id => !/embed|whisper|rerank|bge-|nomic-embed/i.test(String(id || ''));
+document.getElementById('probeBtn').addEventListener('click', async () => {
+  aiSay('Looking…'); _localFound = [];
+  for (const ep of localProbeEndpoints()){
+    // Ollama answers /api/tags; LM Studio and llama.cpp answer /v1/models.
+    const tags = await fetch(ep + '/api/tags').then(r => r.ok ? r.json() : null).catch(() => null);
+    if (tags && tags.models){
+      tags.models.map(m => m.name || m.model).filter(chatty).forEach(id => _localFound.push({ ep, id }));
+      continue;
+    }
+    const oai = await fetch(ep + '/v1/models').then(r => r.ok ? r.json() : null).catch(() => null);
+    if (oai && oai.data) oai.data.map(m => m.id).filter(chatty).forEach(id => _localFound.push({ ep, id }));
+  }
+  if (!_localFound.length){ aiSay(localFailureHint(getLocalEndpoint()), true); paintLocalModels([]); return; }
+  aiSay('Found ' + _localFound.length + ' — pick one.');
+  paintLocalModels(_localFound);
+});
+
+function openAI(){ syncProvRadios(); paintPanes(); if (!dlg.open) dlg.showModal(); }
+document.getElementById('aiBtn').addEventListener('click', openAI);
+dlg.addEventListener('close', () => { paintAiButton(); if (teleFrameLive()) teleStripRow(); });
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Telefone — Generation Loss as a game of telephone.
+//     Round 0 is your page. Each AI Revise hands the LATEST round to the model with
+//     whatever requests are ticked and files the reply as the next round; the
+//     compounding is the point. The game ends itself -- see teleEnding -- and the two
+//     rounds that matter, 0 and the ending one, are both left in the tabs. (In storage
+//     the rounds live under `passes`, the old name, so a save made by Journaler opens.)
+// ═══════════════════════════════════════════════════════════════════════════════
+const DB_KEY = 'telefone_standalone_v1';
+const DB = { tele: { passes: [''], asked: [] } };
+(function load(){
+  try {
+    const raw = JSON.parse(localStorage.getItem(DB_KEY) || 'null');
+    if (raw && Array.isArray(raw.passes) && raw.passes.length){
+      DB.tele.passes = raw.passes.map(x => String(x == null ? '' : x));
+      DB.tele.asked = Array.isArray(raw.asked) ? raw.asked : [];
+      if (raw.ended) DB.tele.ended = raw.ended;
+    }
+  } catch(e){}
+})();
+function saveDB(){ try { localStorage.setItem(DB_KEY, JSON.stringify(DB.tele)); } catch(e){} }
+
+const TELE_ASKS = [
+  { say: 'Clean this up and correct it.',               short: 'clean it up & correct it' },
+  { say: 'Fix the grammar, spelling, and punctuation.', short: 'fix grammar, spelling, punctuation' },
+  { say: 'Rewrite this in clear, standard English.',    short: 'rewrite in clear, standard English' }
+];
+const TELE_MAX = 20;
+const teleOn = [true, true, true];
+let teleCur = 0, teleRunning = false, teleStop = false, teleMode = 'left';
+
+const teleFrameLive = () => !!document.getElementById('teleStrip');
+
+function renderTele(){
+  const T = DB.tele;
+  if (teleCur > T.passes.length - 1) teleCur = T.passes.length - 1;
+  frame.innerHTML = '<div class="head"><h1>Telefone</h1><p>Telephone, except the machine is every player. Hand it a page, ask it to revise, and watch what it corrects away — round after round. It stops itself when there is nothing left to correct.</p></div>'
+    + '<div class="tele">'
+    +   '<div class="tele-ask" id="teleAsk"></div>'
+    +   '<div class="tele-strip" id="teleStrip"></div>'
+    +   '<div class="tele-sheet">'
+    +     '<div id="teleView"></div>'
+    +     '<div class="tele-under">'
+    +       '<div class="tele-label" id="teleLabel"></div>'
+    +       '<div class="tele-modes" role="radiogroup" aria-label="What to show on this round">'
+    +         '<label><input type="radio" name="teleMode" value="left" ' + (teleMode === 'left' ? 'checked' : '') + '><span>What’s left</span></label>'
+    +         '<label><input type="radio" name="teleMode" value="changed" ' + (teleMode === 'changed' ? 'checked' : '') + '><span>What this round changed</span></label>'
+    +         '<label><input type="radio" name="teleMode" value="lost" ' + (teleMode === 'lost' ? 'checked' : '') + '><span>What’s lost</span></label>'
+    +       '</div>'
+    +       '<div class="tele-statwrap" id="teleStatWrap">'
+    +         '<button class="btn ghost sm tele-statbtn" id="teleStatBtn" aria-expanded="false" aria-controls="teleStats" title="The figures for this round">'
+    +           '<svg viewBox="0 0 16 16" aria-hidden="true" focusable="false"><rect x="1" y="9" width="3" height="6"/><rect x="6.5" y="5" width="3" height="10"/><rect x="12" y="2" width="3" height="13"/></svg>Figures'
+    +         '</button>'
+    +         '<div class="tele-stats tele-pop" id="teleStats" hidden></div>'
+    +       '</div>'
+    +     '</div>'
+    +     '<div class="note tele-status" id="teleStatus"></div>'
+    +   '</div>'
+    + '</div>';
+  (function(){
+    const b = document.getElementById('teleStatBtn'), pop = document.getElementById('teleStats');
+    if (!b || !pop) return;
+    const set = open => { pop.hidden = !open; b.setAttribute('aria-expanded', String(open)); b.classList.toggle('on', open); };
+    b.addEventListener('click', e => { e.stopPropagation(); set(pop.hidden); });
+    document.addEventListener('click', e => { const w = document.getElementById('teleStatWrap'); if (w && !w.contains(e.target)) set(false); });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape' && !pop.hidden){ set(false); b.focus(); } });
+  })();
+  document.querySelectorAll('input[name="teleMode"]').forEach(r =>
+    r.addEventListener('change', e => { if (e.target.checked){ teleMode = e.target.value; teleSheet(); } }));
+  teleAskRow(); teleStripRow(); teleSheet();
+}
+
+// ── words
+const teleNorm  = w => w.toLowerCase().replace(/[^\p{L}\p{N}']/gu, '');
+const teleWords = t => String(t || '').split(/\s+/).filter(Boolean);
+const teleLostKey = w => w === '\n' ? '\n' : (teleNorm(w) || w);
+const teleToks  = t => String(t || '').replace(/\r/g, '').replace(/\n/g, ' \n ').split(/[ \t]+/).filter(Boolean);
+function teleSurvival(k){
+  const P = DB.tele.passes;
+  if (k === 0) return 1;
+  const base = teleWords(P[0]).map(teleNorm).filter(Boolean);
+  const have = new Map();
+  for (const w of teleWords(P[k]).map(teleNorm)) if (w) have.set(w, (have.get(w) || 0) + 1);
+  let kept = 0;
+  for (const w of base){ const c = have.get(w) || 0; if (c > 0){ kept++; have.set(w, c - 1); } }
+  return base.length ? kept / base.length : 0;
+}
+// ── When a game ends. Two ways, whichever comes first: the percentage has not moved for
+//    three rounds running -- the machine has stopped changing it, which is one finding --
+//    or what is left has fallen below a fifth of your words, which is the other.
+//    TELE_MAX is the backstop. Nobody decides to stop; the game does.
+const TELE_FLOOR = 20, TELE_SETTLED = 3;
+const telePct = k => Math.round(teleSurvival(k) * 100);
+function teleEnding(){
+  const k = DB.tele.passes.length - 1;
+  if (k < 1) return null;
+  const pct = telePct(k);
+  if (pct < TELE_FLOOR) return { round: k, pct, why: 'floor' };
+  if (k >= TELE_SETTLED - 1 && Array.from({ length: TELE_SETTLED }, (_, i) => telePct(k - i)).every(v => v === pct))
+    return { round: k, pct, why: 'settled' };
+  if (k >= TELE_MAX) return { round: k, pct, why: 'cap' };
+  return null;
+}
+const TELE_END_SAY = {
+  floor:   e => 'It stops at round ' + e.round + ': ' + e.pct + '% of your words are left, below a fifth.',
+  settled: e => 'It stops at round ' + e.round + ': ' + e.pct + '%, unchanged for ' + TELE_SETTLED + ' rounds — the machine has stopped changing it.',
+  cap:     e => 'It stops at round ' + e.round + ', as far as this goes: ' + e.pct + '% of your words are left.'
+};
+function teleSentences(t){
+  const s = String(t || '').split(/(?<=[.!?])\s+|\n+/).map(x => x.trim()).filter(Boolean);
+  const w = teleWords(t).length;
+  return { words: w, sentences: s.length, avg: s.length ? w / s.length : 0 };
+}
+// Word-level LCS; line breaks are tokens so the diff keeps the shape of the page.
+function teleDiffOf(a, b, key){
+  const A = teleToks(a), B = teleToks(b), n = A.length, m = B.length;
+  const k = key || (w => w), KA = A.map(k), KB = B.map(k);
+  const L = new Array(n + 1);
+  for (let i = 0; i <= n; i++) L[i] = new Uint16Array(m + 1);
+  for (let i = n - 1; i >= 0; i--) for (let j = m - 1; j >= 0; j--)
+    L[i][j] = KA[i] === KB[j] ? L[i+1][j+1] + 1 : Math.max(L[i+1][j], L[i][j+1]);
+  const out = []; let i = 0, j = 0;
+  while (i < n && j < m){
+    if (KA[i] === KB[j]){ out.push(['eq', A[i]]); i++; j++; }
+    else if (L[i+1][j] >= L[i][j+1]){ out.push(['del', A[i]]); i++; }
+    else { out.push(['ins', B[j]]); j++; }
+  }
+  while (i < n) out.push(['del', A[i++]]);
+  while (j < m) out.push(['ins', B[j++]]);
+  return out;
+}
+const teleParas = t => String(t || '').split(/\n\s*\n/).map(p => '<p>' + escHtml(p.trim()).replace(/\n/g, '<br>') + '</p>').join('');
+const telePrompt = () => TELE_ASKS.filter((_, i) => teleOn[i]).map(a => a.say).join(' ') + ' Return only the revised text.';
+const teleAskedShort = () => TELE_ASKS.filter((_, i) => teleOn[i]).map(a => a.short).join(' · ');
+
+// ── the three requests, on one line
+function teleAskRow(){
+  const el = document.getElementById('teleAsk'); if (!el) return;
+  el.innerHTML = '<span class="tele-lbl">Ask it to</span>' + TELE_ASKS.map((a, i) =>
+    '<label title="' + escHtml(a.say) + '"><input type="checkbox" data-i="' + i + '" ' + (teleOn[i] ? 'checked' : '') + ' ' + (teleRunning ? 'disabled' : '') + '>' + escHtml(a.short) + '</label>').join('');
+  el.querySelectorAll('input').forEach(c => c.addEventListener('change', () => { teleOn[+c.dataset.i] = c.checked; teleStripRow(); }));
+}
+
+// ── the tabs
+function teleStripRow(){
+  const el = document.getElementById('teleStrip'); if (!el) return;
+  const P = DB.tele.passes;
+  const over = !!DB.tele.ended;
+  const canRun = !teleRunning && !over && P.length <= TELE_MAX && teleOn.some(Boolean);
+  el.innerHTML = P.map((_, i) => {
+    const pct = Math.round(teleSurvival(i) * 100);
+    return '<button class="tele-tab' + (i === teleCur ? ' on' : '') + '" data-i="' + i + '" role="tab" aria-selected="' + (i === teleCur) + '">'
+      + '<span class="n">Round ' + i + (i === 0 ? '<small>yours</small>' : '') + '</span><span class="pct">' + pct + '%</span></button>';
+  }).join('') + '<span class="tele-actions">'
+    + '<button class="btn ' + (over ? 'go' : 'ghost sm') + '" id="teleReset" ' + ((P.length > 1 || String(P[0] || '').trim()) && !teleRunning ? '' : 'disabled') + '>Start over</button>'
+    + '<button class="btn go" id="teleRun" ' + (canRun ? '' : 'disabled') + ' title="' + (over ? 'It has stopped — edit round 0 to try something else' : 'One round: hand the last round to the machine and see what comes back') + '">AI Revise</button>'
+    + '<button class="btn ghost" id="teleStopBtn" style="' + (teleRunning ? '' : 'display:none') + '">Stop</button>'
+    + '</span>';
+  el.querySelectorAll('.tele-tab').forEach(b => b.addEventListener('click', () => { teleCur = +b.dataset.i; teleStripRow(); teleSheet(); }));
+  document.getElementById('teleRun').addEventListener('click', () => teleRun(1));
+  document.getElementById('teleStopBtn').addEventListener('click', () => { teleStop = true; });
+  document.getElementById('teleReset').addEventListener('click', () => {
+    if (!confirm('Clear round 0 and every round after it?')) return;
+    DB.tele.passes = ['']; DB.tele.asked = []; delete DB.tele.ended; teleCur = 0; saveDB(); teleSay(''); renderTele();
+    const ed = document.getElementById('teleEditor'); if (ed) ed.focus();
+  });
+}
+
+// ── the page
+function teleSheet(){
+  const view = document.getElementById('teleView'), label = document.getElementById('teleLabel'); if (!view) return;
+  const P = DB.tele.passes;
+  const editable = teleCur === 0 && !teleRunning;
+  const atZero = teleCur === 0;
+  const shown = atZero ? 'left' : teleMode;
+  document.querySelectorAll('input[name="teleMode"]').forEach(r => {
+    const comparative = r.value !== 'left';
+    r.disabled = atZero && comparative;
+    r.checked = r.value === shown;
+    const lab = r.closest('label');
+    if (lab) lab.title = (atZero && comparative)
+      ? 'Round 0 is your own page — there is nothing before it to compare it with.' : '';
+  });
+  if (teleCur === 0){
+    label.innerHTML = editable ? '<b>Round 0</b> · type or paste anything here, then AI Revise' : '<b>Round 0</b> · your text';
+    if (editable){
+      view.innerHTML = '<textarea class="tele-page" id="teleEditor" spellcheck="false" placeholder="Paste a page here — your own writing, with its rules broken on purpose, is the interesting case.">' + escHtml(P[0]) + '</textarea>'
+        + '<div class="tele-from"><button class="btn ghost sm" id="teleLoadFile">Load a .txt file</button>'
+        + '<input type="file" id="teleFileIn" accept=".txt,.md,text/plain,text/markdown" hidden></div>';
+      document.getElementById('teleEditor').addEventListener('input', e => teleSetZero(e.target.value, false));
+      const lf = document.getElementById('teleLoadFile'), fi = document.getElementById('teleFileIn');
+      lf.addEventListener('click', () => fi.click());
+      fi.addEventListener('change', async () => {
+        const f = fi.files && fi.files[0]; fi.value = '';
+        if (!f) return;
+        try { teleSetZero(await f.text(), true); } catch(e){ teleSay('Could not read that file.', true); }
+      });
+    } else view.innerHTML = '<div class="tele-page">' + teleParas(P[0]) + '</div>';
+  } else {
+    const why = DB.tele.asked[teleCur];
+    const made = '<b>Round ' + teleCur + '</b> · machine output' + (why ? ' · asked to ' + escHtml(why) : '');
+    if (shown === 'lost'){
+      // Round ZERO against this round, insertions dropped: your page with its holes
+      // marked, so the % in the tab strip has a body to point at.
+      label.innerHTML = '<b>Round ' + teleCur + '</b> · your page — struck through is everything gone by this round';
+      const html = teleDiffOf(P[0], P[teleCur], teleLostKey).filter(([t]) => t !== 'ins').map(([t, w]) =>
+        w === '\n' ? '\n' : t === 'eq' ? escHtml(w) : '<del>' + escHtml(w) + '</del>').join(' ');
+      view.innerHTML = '<div class="tele-page tele-diff tele-lost">' + html + '</div>';
+    } else if (shown === 'changed'){
+      label.innerHTML = made;
+      const html = teleDiffOf(P[teleCur - 1], P[teleCur]).map(([t, w]) =>
+        w === '\n' ? (t === 'del' ? '' : '\n') : t === 'eq' ? escHtml(w) : t === 'del' ? '<del>' + escHtml(w) + '</del>' : '<ins>' + escHtml(w) + '</ins>').join(' ');
+      view.innerHTML = '<div class="tele-page tele-diff">' + html + '</div>';
+    } else {
+      label.innerHTML = made;
+      view.innerHTML = '<div class="tele-page">' + teleParas(P[teleCur]) + '</div>';
+    }
+  }
+  teleStatsRow();
+}
+// Editing round 0 invalidates every round after it -- they were revisions of a page that
+// no longer exists -- so they go, and the ending goes with them.
+function teleSetZero(text, repaint){
+  DB.tele.passes[0] = text;
+  if (DB.tele.passes.length > 1){
+    DB.tele.passes.length = 1; DB.tele.asked.length = 1;
+    delete DB.tele.ended; teleCur = 0;
+    teleStripRow(); teleSay('');
+  }
+  saveDB();
+  if (repaint) teleSheet(); else teleStatsRow();
+}
+function teleStatsRow(){
+  const el = document.getElementById('teleStats'); if (!el) return;
+  const P = DB.tele.passes;
+  const s = teleSentences(P[teleCur]);
+  const pct = Math.round(teleSurvival(teleCur) * 100);
+  let changed = '';
+  if (teleCur > 0){
+    const d = teleDiffOf(P[teleCur - 1], P[teleCur]);
+    const del = d.filter(x => x[0] === 'del' && x[1] !== '\n').length, ins = d.filter(x => x[0] === 'ins' && x[1] !== '\n').length;
+    changed = '<div class="tele-stat"><span class="v">−' + del + ' / +' + ins + '</span><span class="k">words cut / added this round</span></div>';
+  }
+  el.innerHTML = '<div class="tele-stat"><span class="v">' + s.words + '</span><span class="k">words</span></div>'
+    + '<div class="tele-stat"><span class="v">' + s.sentences + '</span><span class="k">sentences</span></div>'
+    + '<div class="tele-stat"><span class="v">' + s.avg.toFixed(1) + '</span><span class="k">words per sentence</span></div>'
+    + '<div class="tele-stat"><span class="v">' + pct + '%</span><span class="k">of your words remaining</span></div>'
+    + changed;
+}
+function teleSay(msg, err){ const el = document.getElementById('teleStatus'); if (!el) return; el.textContent = msg; el.classList.toggle('err', !!err); }
+
+// ── play
+function teleClean(text){
+  let t = String(text || '').trim().replace(/^"""\s*|\s*"""$/g, '').replace(/^```\w*\s*|\s*```$/g, '').trim();
+  // markIfTruncated's note belongs on screen, not in the next round's input.
+  if (/\[…cut off — /.test(t)) throw new Error('The reply was cut off — the page is too long for one round. Trim round 0 and start over.');
+  return t;
+}
+function teleAddPass(text, why){
+  DB.tele.passes.push(text); DB.tele.asked[DB.tele.passes.length - 1] = why; teleCur = DB.tele.passes.length - 1;
+  const end = teleEnding();
+  if (end) DB.tele.ended = end;
+  saveDB();
+  if (end) teleEndGame(end);
+  teleStripRow(); teleSheet();
+}
+// It has stopped: say which of the two ways stopped it. Nothing is filed and nothing is
+// submitted -- Telefone is a conversation, and the tabs are the record while it happens.
+function teleEndGame(end){
+  saveDB();
+  teleSay(TELE_END_SAY[end.why](end) + ' Round 0 and round ' + end.round + ' are both still in the tabs — compare them. To try another text, open round 0 and type over it.');
+}
+// Free tiers meter tokens per minute, and a 500-word page spends roughly 1,400 of them a
+// round, so a 429 is an ordinary event here rather than the end of the game: wait the time
+// the provider itself names, say so on screen so it does not look frozen, go again.
+const TELE_RETRIES = 3, TELE_WAIT_MAX = 90;
+const teleIsLimit = e => !!e && (e.status === 429 || /\b429\b|rate.?limit/i.test((e && e.message) || ''));
+function teleWaitSecs(e){
+  const ra = e && e.retryAfter;
+  if (ra && isFinite(+ra)) return Math.min(TELE_WAIT_MAX, Math.max(1, Math.ceil(+ra)));
+  // Providers put the wait in the message when they do not put it in a header.
+  const m = /(?:try again in|retry after)\s*([\d.]+)\s*(ms|m|min|minutes?|s|sec|seconds?)?/i.exec((e && e.message) || '');
+  if (m){
+    const n = parseFloat(m[1]), unit = (m[2] || 's').toLowerCase();
+    const secs = unit === 'ms' ? n / 1000 : /^m/.test(unit) ? n * 60 : n;
+    return Math.min(TELE_WAIT_MAX, Math.max(1, Math.ceil(secs)));
+  }
+  return 20;
+}
+async function teleHold(secs, lead){
+  for (let s = secs; s > 0 && !teleStop; s--){
+    teleSay(lead + ' — going again in ' + s + 's. Press Stop to keep what you have.');
+    await new Promise(r => setTimeout(r, 1000));
+  }
+}
+async function teleRun(count){
+  if (teleRunning) return;
+  if (getProvider() === 'none'){ teleSay('This one needs AI on — pick a model under AI Setup. It is the experiment.', true); openAI(); return; }
+  if (!String(DB.tele.passes[0]).trim()){ teleSay('Round 0 is empty — paste your page first.', true); return; }
+  teleRunning = true; teleStop = false; teleAskRow(); teleStripRow(); teleSheet();
+  try {
+    for (let k = 0; k < count && DB.tele.passes.length <= TELE_MAX; k++){
+      if (teleStop){ teleSay('Stopped at round ' + (DB.tele.passes.length - 1) + '. The rounds so far are kept.'); break; }
+      const n = DB.tele.passes.length;
+      const why = teleAskedShort();
+      let text = '', got = false;
+      for (let attempt = 0; attempt <= TELE_RETRIES && !teleStop; attempt++){
+        teleSay('Round ' + n + ': the machine is revising round ' + (n - 1) + '…');
+        try {
+          text = teleClean(await callModel(telePrompt() + '\n\n"""\n' + DB.tele.passes[n - 1] + '\n"""', { maxTokens: 2500, throwErrors: true }));
+          got = true; break;
+        } catch(e){
+          // Anything that is not the meter -- a dead key, a retired model -- is yours to
+          // fix, and waiting on it would only hide the reason.
+          if (!teleIsLimit(e) || attempt === TELE_RETRIES) throw e;
+          await teleHold(teleWaitSecs(e), 'Round ' + n + ' hit ' + aiLabelShort() + '’s rate limit');
+        }
+      }
+      if (!got){ teleSay('Stopped at round ' + (DB.tele.passes.length - 1) + '. The rounds so far are kept.'); break; }
+      if (!text){ teleSay('The machine returned nothing — try again.', true); break; }
+      if (DB.tele.passes.length < TELE_MAX) teleSay('');
+      teleAddPass(text, why);
+    }
+  } catch(e){
+    teleSay((e && e.message) || String(e), true);
+    try { document.getElementById('teleStatus').scrollIntoView({ block: 'nearest' }); } catch(_){}
+  } finally { teleRunning = false; teleStop = false; teleAskRow(); teleStripRow(); teleSheet(); }
+}
+
+// ── Save the rounds. Journaler printed them on a sheet; standing alone, the rounds and
+//    their survival figures are the whole record, so hand them over as plain text.
+document.getElementById('dlBtn').addEventListener('click', () => {
+  const P = DB.tele.passes;
+  if (!String(P[0] || '').trim()){ teleSay('Nothing to save yet — round 0 is empty.', true); return; }
+  const lines = ['Telefone — Generation Loss', 'Saved ' + new Date().toLocaleString(), 'Model: ' + aiLabel(),
+    'Asked to: ' + teleAskedShort(), ''];
+  P.forEach((t, i) => {
+    lines.push('─'.repeat(66));
+    lines.push('ROUND ' + i + (i === 0 ? ' (yours)' : '') + ' — ' + telePct(i) + '% of your words remaining');
+    lines.push('─'.repeat(66), '', String(t || '').trim(), '');
+  });
+  if (DB.tele.ended) lines.push(TELE_END_SAY[DB.tele.ended.why](DB.tele.ended), '');
+  const url = URL.createObjectURL(new Blob([lines.join('\n')], { type: 'text/plain' }));
+  const a = document.createElement('a');
+  a.href = url; a.download = 'telefone-rounds.txt';
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+});
+
+paintAiButton();
+renderTele();
+if (DB.tele.ended) teleEndGame(DB.tele.ended);
+})();
+</script>
+</body>
+</html>

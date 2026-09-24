@@ -50,7 +50,7 @@ body { background: var(--parchment); color: var(--ink); font-family: var(--sans)
 .btn.sm { padding: 6px 11px; font-size: 15px; } .btn:disabled { opacity: .45; cursor: not-allowed; }
 .note { font-size: 13.5px; color: var(--muted); }
 
-.head p { margin: 2px 0 18px; color: var(--muted); max-width: 78ch; }
+.head p { margin: 2px 0 18px; color: var(--muted); max-width: 100ch; }
 
 /* ── Telefone ──────────────────────────────────────────────────────────────────
    Generation Loss as a game of telephone: a strip of rounds, the page under it,
@@ -860,7 +860,7 @@ function teleSheet(){
   if (teleCur === 0){
     label.innerHTML = editable ? '<b>Round 0</b> · type or paste anything here, then AI Revise' : '<b>Round 0</b> · your text';
     if (editable){
-      view.innerHTML = '<textarea class="tele-page" id="teleEditor" spellcheck="false" placeholder="Paste a page here — your own writing, with its rules broken on purpose, is the interesting case.">' + escHtml(P[0]) + '</textarea>'
+      view.innerHTML = '<textarea class="tele-page" id="teleEditor" spellcheck="false" placeholder="Type or paste a page here — your own writing, with its rules broken on purpose, is the interesting case.">' + escHtml(P[0]) + '</textarea>'
         + '<div class="tele-from"><button class="btn ghost sm" id="teleLoadFile">Load a .txt file</button>'
         + '<input type="file" id="teleFileIn" accept=".txt,.md,text/plain,text/markdown" hidden></div>';
       document.getElementById('teleEditor').addEventListener('input', e => teleSetZero(e.target.value, false));
@@ -1035,7 +1035,7 @@ document.getElementById('dlBtn').addEventListener('click', () => {
 //
 // ⚠ BUMP BUILD.date WHENEVER THIS FILE CHANGES, or the check will keep reporting an
 //   update that the reader has, in fact, already got.
-const BUILD = { version: '1.2.1', date: '2026-09-24' };
+const BUILD = { version: '1.2.2', date: '2026-09-24' };
 const REPO = 'OhioMathTeacher/applet-library';
 const SELF = 'telefone/index.html';
 

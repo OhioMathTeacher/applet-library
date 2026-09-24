@@ -50,31 +50,14 @@ body { background: var(--parchment); color: var(--ink); font-family: var(--sans)
 .btn.sm { padding: 6px 11px; font-size: 15px; } .btn:disabled { opacity: .45; cursor: not-allowed; }
 .note { font-size: 13.5px; color: var(--muted); }
 
-.head h1 { font-size: 30px; margin: 4px 0 6px; }
-.head p { margin: 0 0 18px; color: var(--muted); max-width: 78ch; }
+.head p { margin: 2px 0 18px; color: var(--muted); max-width: 78ch; }
 
 /* ── Telefone ──────────────────────────────────────────────────────────────────
    Generation Loss as a game of telephone: a strip of rounds, the page under it,
    the numbers under that. The strip is the chart -- each tab wears how much of
    round zero is still on the page -- so there is no separate graph. */
 .tele { max-width: none; }
-@media (min-width: 1100px){
-  /* The pane is given the window's height once and the passage takes whatever is left
-     after the ASK row, the tabs, the label row and the figures. So a longer tab strip
-     shortens the passage instead of pushing the page past the fold. */
-  .tele { display: flex; flex-direction: column; height: calc(100vh - 235px); }
-  .tele-sheet { min-height: 0; flex: 1; display: flex; flex-direction: column; }
-  #teleView { min-height: 0; flex: 1; display: flex; flex-direction: column; }
-  .tele-page { min-height: 0; flex: 1; max-height: none; overflow-y: auto; }
-  textarea.tele-page { min-height: 0; height: auto; resize: none; }
-  /* Full width, so the measure can open up from the 66ch of a narrow column -- far
-     enough for a diff to stop wrapping every other word, short of the wall of text
-     that a 1500px line would be. */
-  .tele-page { max-width: 90ch; }
-  .tele-sheet { padding: 16px 22px 12px; }
-  .tele-under { margin-top: 10px; padding-top: 10px; }
-  .tele-status:empty { min-height: 0; margin-top: 0; }
-}
+
 .tele-ask { display: flex; align-items: center; gap: 6px 18px; flex-wrap: wrap; margin: 0 0 12px; font-size: 14px; color: var(--muted); }
 .tele-lbl { font-size: 12px; letter-spacing: .06em; text-transform: uppercase; font-weight: 700; }
 .tele-ask label { display: inline-flex; align-items: center; gap: 6px; color: var(--ink); cursor: pointer; white-space: nowrap; }
@@ -94,7 +77,7 @@ body { background: var(--parchment); color: var(--ink); font-family: var(--sans)
 .tele-page p { margin: 0 0 1em; } .tele-page p:last-child { margin-bottom: 0; }
 .tele-page.tele-diff { white-space: pre-line; }
 textarea.tele-page { width: 100%; max-width: none; min-height: 280px; border: 1px dashed var(--comment-border); border-radius: 6px; padding: 14px 16px; background: transparent; color: inherit; resize: vertical; }
-.tele-from { margin-top: 8px; display: flex; gap: 8px; flex-wrap: wrap; }
+.tele-from { margin-top: 8px; display: flex; gap: 8px; flex-wrap: wrap; flex: none; }
 .tele-diff del { color: var(--danger); background: rgba(139,51,51,.10); text-decoration: line-through; text-decoration-thickness: 1.5px; border-radius: 2px; padding: 0 1px; }
 .tele-diff ins { color: var(--go); background: rgba(42,90,58,.12); text-decoration: underline; text-decoration-thickness: 1.5px; text-underline-offset: 3px; border-radius: 2px; padding: 0 1px; }
 .tele-under { display: flex; align-items: center; gap: 12px; margin-top: 20px; padding-top: 14px; border-top: 1px solid var(--comment-border); flex-wrap: wrap; }
@@ -136,6 +119,32 @@ textarea.tele-page { width: 100%; max-width: none; min-height: 280px; border: 1p
 .tele-status { min-height: 20px; margin-top: 10px; }
 .tele-status.err { color: var(--danger); }
 
+/* ⚠ ORDER IS LOAD-BEARING. These overrides and the base rules above have identical
+   specificity -- textarea.tele-page is one element plus one class either way -- so the
+   LAST one in the file wins. Sitting ABOVE the base rules, where this block came from
+   in app.css, min-height:0 lost to min-height:280px: the textarea could not shrink,
+   #teleView overflowed its flex box, and the overflow landed on top of the label row
+   on any window under ~750px tall. Invisible in Journaler, where the button below the
+   textarea only rendered when a One-Pager 5 existed. Keep this block LAST.
+*/
+@media (min-width: 1100px){
+  /* The pane is given the window's height once and the passage takes whatever is left
+     after the ASK row, the tabs, the label row and the figures. So a longer tab strip
+     shortens the passage instead of pushing the page past the fold. */
+  .tele { display: flex; flex-direction: column; height: calc(100vh - 188px); }
+  .tele-sheet { min-height: 0; flex: 1; display: flex; flex-direction: column; }
+  #teleView { min-height: 0; flex: 1; display: flex; flex-direction: column; }
+  .tele-page { min-height: 0; flex: 1; max-height: none; overflow-y: auto; }
+  textarea.tele-page { min-height: 0; height: auto; resize: none; }
+  /* Full width, so the measure can open up from the 66ch of a narrow column -- far
+     enough for a diff to stop wrapping every other word, short of the wall of text
+     that a 1500px line would be. */
+  .tele-page { max-width: 90ch; }
+  .tele-sheet { padding: 16px 22px 12px; }
+  .tele-under { margin-top: 10px; padding-top: 10px; }
+  .tele-status:empty { min-height: 0; margin-top: 0; }
+}
+
 @media (max-width: 720px) { .tele-sheet { padding: 18px 16px; } .tele-actions { margin-left: 0; width: 100%; } }
 @media (pointer: coarse) { .tele-tab { min-height: 44px; } }
 
@@ -169,6 +178,36 @@ dialog.ai::backdrop { background: rgba(20,16,10,.45); }
 .ai-say.err { color: var(--danger); }
 .ai-body a { color: var(--accent); }
 
+/* ── About splash. Allegory opens one from its brand mark; this is the same idea for a
+   page with no server behind it: what the thing is, whether you are running the current
+   version, and where the source lives. */
+dialog.about { border: 1px solid var(--comment-border); border-radius: 14px; background: var(--comment-bg); color: var(--ink);
+  max-width: 460px; width: calc(100% - 32px); padding: 0; box-shadow: 0 18px 50px rgba(44,36,22,.28); }
+dialog.about::backdrop { background: rgba(20,16,10,.55); }
+.ab-top { text-align: center; padding: 26px 24px 18px; background: linear-gradient(var(--margin-bg), var(--comment-bg)); }
+.ab-mark { font-size: 40px; line-height: 1; }
+.ab-top h2 { margin: 8px 0 2px; font-size: 25px; }
+.ab-tag { margin: 0; color: var(--muted); font-size: 14.5px; }
+.ab-body { padding: 18px 24px 4px; }
+.ab-body p { margin: 0 0 12px; font-size: 14.5px; }
+.ab-up { border: 1px solid var(--comment-border); border-radius: 9px; padding: 12px 14px; margin: 4px 0 16px; background: var(--parchment); }
+.ab-up .row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.ab-up .row .btn { margin-left: auto; }
+.ab-upsay { font-size: 13.5px; color: var(--muted); margin-top: 8px; }
+.ab-upsay:empty { margin-top: 0; }
+.ab-upsay.new { color: var(--go); font-weight: 600; }
+.ab-upsay.err { color: var(--danger); }
+.ab-links { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px 18px;
+  border-top: 1px solid var(--comment-border); padding: 14px 24px 4px; font-size: 13.5px; }
+.ab-links a { color: var(--accent); text-decoration: underline; text-underline-offset: 2px; }
+.ab-stamp { text-align: center; font-size: 12px; color: var(--muted); padding: 8px 24px 4px; font-variant-numeric: tabular-nums; }
+.ab-floppy { text-align: center; font-size: 12px; color: var(--muted); opacity: .8; padding: 0 24px 6px; }
+.ab-foot { display: flex; padding: 10px 24px 18px; }
+.ab-foot .btn { margin: 0 auto; }
+button.brand { font: inherit; font-weight: 700; font-size: 17px; letter-spacing: .01em; color: inherit;
+  background: none; border: 0; padding: 2px 6px; margin-left: -6px; border-radius: 7px; cursor: pointer; }
+button.brand:hover { background: var(--highlight-soft); color: var(--accent); }
+
 footer.about { margin-top: 26px; padding-top: 14px; border-top: 1px solid var(--comment-border); font-size: 13.5px; color: var(--muted); max-width: 80ch; }
 footer.about a { color: var(--accent); }
 </style>
@@ -176,7 +215,7 @@ footer.about a { color: var(--accent); }
 <body>
 <div class="wrap">
   <div class="topbar">
-    <span class="brand">&#9742; Telefone</span>
+    <button class="brand" id="aboutBtn" title="About Telefone — version, updates, source">&#9742; Telefone</button>
     <span class="spacer"></span>
     <button class="btn ghost sm" id="aiBtn" title="Pick the model that plays every round"><span class="aidot" id="aiDot"></span><span id="aiBtnLabel">AI Setup</span></button>
     <button class="btn ghost sm" id="dlBtn" title="Save every round to one text file">Save rounds</button>
@@ -188,6 +227,37 @@ footer.about a { color: var(--accent); }
     AI provider you chose &mdash; to that company, not to anyone here.
   </footer>
 </div>
+
+<dialog class="about" id="aboutDlg">
+  <div class="ab-top">
+    <div class="ab-mark">&#9742;</div>
+    <h2>Telefone</h2>
+    <p class="ab-tag">Telephone, except the machine is every player.</p>
+  </div>
+  <div class="ab-body">
+    <p>Hand the machine a page, ask it to revise, and watch what it corrects away &mdash; round after round.
+       Each round is a revision of the last one, so the losses compound. It stops itself when there is
+       nothing left to correct, and round 0 stays beside the ending round for comparison.</p>
+    <p>Nothing is submitted and nothing is graded. The rounds live in this browser. Your text goes only to
+       the AI provider you chose, and only when you press AI&nbsp;Revise.</p>
+    <div class="ab-up">
+      <div class="row">
+        <span id="abVer"></span>
+        <button type="button" class="btn ghost sm" id="abCheck">Check for updates</button>
+      </div>
+      <div class="ab-upsay" id="abSay"></div>
+    </div>
+  </div>
+  <div class="ab-links">
+    <a href="https://github.com/OhioMathTeacher/applet-library#readme" target="_blank" rel="noopener">Source &amp; README &#8599;</a>
+    <a href="https://github.com/OhioMathTeacher/applet-library/blob/main/LICENSE" target="_blank" rel="noopener">License &#8599;</a>
+    <a href="https://github.com/OhioMathTeacher/applet-library/issues" target="_blank" rel="noopener">Report a problem &#8599;</a>
+    <a href="https://github.com/OhioMathTeacher/journaler" target="_blank" rel="noopener">Journaler &#8599;</a>
+  </div>
+  <div class="ab-stamp" id="abStamp"></div>
+  <div class="ab-floppy" id="abFloppy"></div>
+  <div class="ab-foot"><button type="button" class="btn sm" id="abClose">Close</button></div>
+</dialog>
 
 <dialog class="ai" id="aiDlg">
   <form method="dialog">
@@ -643,7 +713,7 @@ const teleFrameLive = () => !!document.getElementById('teleStrip');
 function renderTele(){
   const T = DB.tele;
   if (teleCur > T.passes.length - 1) teleCur = T.passes.length - 1;
-  frame.innerHTML = '<div class="head"><h1>Telefone</h1><p>Telephone, except the machine is every player. Hand it a page, ask it to revise, and watch what it corrects away — round after round. It stops itself when there is nothing left to correct.</p></div>'
+  frame.innerHTML = '<div class="head"><p>Telephone, except the machine is every player. Hand it a page, ask it to revise, and watch what it corrects away — round after round. It stops itself when there is nothing left to correct.</p></div>'
     + '<div class="tele">'
     +   '<div class="tele-ask" id="teleAsk"></div>'
     +   '<div class="tele-strip" id="teleStrip"></div>'
@@ -955,6 +1025,92 @@ document.getElementById('dlBtn').addEventListener('click', () => {
   document.body.appendChild(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 });
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// About — opened from the brand mark, the way Allegory's splash is.
+//
+// Allegory's updater can pull, rebuild and restart, because Allegory has a server
+// listening. This page has none: it is one file on GitHub Pages, and "updating" means
+// getting past a cache that is holding an older copy. So the check asks GitHub when
+// this file was last committed and compares that against the date baked in below. No
+// build step, no API key, and it answers the question a student actually has -- am I
+// running the current one.
+//
+// ⚠ BUMP BUILD.date WHENEVER THIS FILE CHANGES, or the check will keep reporting an
+//   update that the reader has, in fact, already got.
+const BUILD = { version: '1.1.0', date: '2026-09-24' };
+const REPO = 'OhioMathTeacher/applet-library';
+const SELF = 'telefone/index.html';
+
+const abDlg = document.getElementById('aboutDlg');
+document.getElementById('aboutBtn').addEventListener('click', openAbout);
+document.getElementById('abClose').addEventListener('click', () => abDlg.close());
+abDlg.addEventListener('click', e => { if (e.target === abDlg) abDlg.close(); });
+
+// Allegory measures its own payload in floppy disks. This page is a fraction of one,
+// which is the joke, and it is also the honest reason it runs offline on a school
+// laptop with nothing installed.
+function floppyLine(bytes){
+  const KB = Math.round(bytes / 1024);
+  const pct = Math.round((bytes / 1474560) * 1000) / 10;
+  return KB + ' KB — ' + (pct < 100 ? pct + '% of a 1.44 MB floppy disk' : 'more than one floppy disk');
+}
+function openAbout(){
+  document.getElementById('abVer').innerHTML = '<b>Version ' + BUILD.version + '</b><br><span class="note">Built ' + BUILD.date + '</span>';
+  document.getElementById('abStamp').textContent = 'Version ' + BUILD.version + ' · ' + BUILD.date;
+  let size = 0;
+  try {
+    const nav = performance.getEntriesByType('navigation')[0];
+    size = (nav && (nav.encodedBodySize || nav.transferSize)) || 0;
+    if (!size) size = new Blob([document.documentElement.outerHTML]).size;
+  } catch(e){}
+  document.getElementById('abFloppy').textContent = size ? floppyLine(size) : '';
+  abSay('');
+  if (!abDlg.open) abDlg.showModal();
+}
+function abSay(msg, cls){
+  const el = document.getElementById('abSay');
+  el.innerHTML = msg || '';
+  el.className = 'ab-upsay' + (cls ? ' ' + cls : '');
+}
+document.getElementById('abCheck').addEventListener('click', async () => {
+  const btn = document.getElementById('abCheck');
+  btn.disabled = true; abSay('Checking…');
+  try {
+    const url = 'https://api.github.com/repos/' + REPO + '/commits?path=' + encodeURIComponent(SELF) + '&per_page=1';
+    const res = await fetch(url, { headers: { Accept: 'application/vnd.github+json' }, cache: 'no-store' });
+    // 403 here is the unauthenticated rate limit (60/hour per address), not a fault the
+    // reader can do anything about. Say which it is rather than "could not check".
+    if (res.status === 403 || res.status === 429){
+      abSay('GitHub is rate-limiting this address — try again in a few minutes. Nothing is wrong with your copy.', 'err');
+      return;
+    }
+    if (!res.ok) throw new Error('GitHub answered ' + res.status);
+    const list = await res.json();
+    if (!Array.isArray(list) || !list.length) throw new Error('no commits came back');
+    const c = list[0];
+    const when = String((c.commit.committer || c.commit.author).date).slice(0, 10);
+    const note = String(c.commit.message || '').split('\n')[0];
+    if (when > BUILD.date){
+      const reload = location.protocol === 'file:'
+        ? 'You are running a saved copy, so download it again from the link above.'
+        : '<a href="#" id="abReload">Reload to get it</a>.';
+      abSay('A newer version was published on ' + when + ' — &ldquo;' + escHtml(note) + '&rdquo;. ' + reload, 'new');
+      const r = document.getElementById('abReload');
+      // A plain reload can be answered from cache, which would leave the reader exactly
+      // where they started; a fresh query string cannot be.
+      if (r) r.addEventListener('click', e => {
+        e.preventDefault();
+        location.replace(location.pathname + '?v=' + Date.now());
+      });
+    } else {
+      abSay('This is the current version. Last published ' + when + '.');
+    }
+  } catch(err){
+    abSay('Could not reach GitHub to check — ' + ((err && err.message) || err) + '. Your copy still works.', 'err');
+  } finally { btn.disabled = false; }
+});
+
 
 paintAiButton();
 renderTele();

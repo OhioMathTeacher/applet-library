@@ -82,3 +82,12 @@ can revise it — to that company, and nowhere else. Pick a local model and
 not even that. Nothing is submitted, nothing is graded, and the rounds
 live in your browser only. **Save rounds** writes every round and its
 figures to one plain text file; the key is never written to it.
+
+## About panel
+
+Tap the **☎ Telefone** mark in the bar for what the software is, the links to
+the source, README, licence and issues — and **Check for updates**, which asks
+GitHub when this file was last published and says whether the copy you are
+running is current. There is no server behind this page, so "updating" really
+means getting past a cache holding an older copy; the reload it offers carries
+a fresh query string so the browser cannot answer from cache.

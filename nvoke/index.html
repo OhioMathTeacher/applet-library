@@ -1,0 +1,1718 @@
+<!DOCTYPE html>
+<!--
+  ┌─────────────────────────────────────────────────────────────────────────┐
+  │  GENERATED FILE — do not edit.                                          │
+  │                                                                         │
+  │  Source:  tce318p-fa26/week-3-geometry-van-hiele/nvoke.html             │
+  │  Rebuild: python3 sync-nvoke.py      (from the applet-library root)     │
+  │                                                                         │
+  │  Edit the course copy and re-run the script. The only difference here   │
+  │  is that the IndexedDB stores are renamed: both copies are served from  │
+  │  the same origin, and without this the public applet would share the    │
+  │  classroom's packs and its transcripts of partner answers.              │
+  └─────────────────────────────────────────────────────────────────────────┘
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>nVoke — build it · see it · say it</title>
+<style>
+  :root{
+    --outline:#1F4E96; --fill:#c7e2f4; --mark:#b23b3b; --ground:#fffdf5;
+    --ink:#1a2b4a; --muted:#5b6b82; --line:#d8e2ee; --ok:#2e7d32;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+       background:var(--ground);color:var(--ink);}
+  .wrap{max-width:960px;margin:0 auto;padding:22px 20px 60px;}
+  h1{font-size:26px;margin:0;color:var(--outline);letter-spacing:.3px}
+  h1 small{font-weight:600;color:var(--muted);font-size:14px;margin-left:8px}
+  .ferpa{font-size:12.5px;color:var(--muted);margin:4px 0 20px}
+  .card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:20px 22px;margin:14px 0;
+        box-shadow:0 1px 0 rgba(0,0,0,.02)}
+  label{display:block;font-weight:600;margin:14px 0 6px;font-size:14px}
+  .row{display:flex;gap:18px;flex-wrap:wrap;align-items:flex-end}
+  .row>div{flex:1;min-width:180px}
+  select,input[type=text],textarea{width:100%;padding:9px 11px;border:1px solid var(--line);
+        border-radius:9px;font:inherit;background:#fff;color:var(--ink)}
+  textarea{min-height:96px;resize:vertical}
+  input[type=range]{width:100%}
+  .seg{display:inline-flex;border:1px solid var(--outline);border-radius:10px;overflow:hidden}
+  .seg button{border:0;background:#fff;color:var(--outline);padding:9px 16px;font:inherit;font-weight:600;cursor:pointer}
+  .seg button.on{background:var(--outline);color:#fff}
+  .hint{font-size:12.5px;color:var(--muted);margin-top:6px;font-weight:400}
+  button.primary{background:var(--outline);color:#fff;border:0;border-radius:10px;padding:12px 22px;
+        font:inherit;font-weight:700;cursor:pointer;font-size:16px}
+  button.ghost{background:#fff;border:1px solid var(--outline);color:var(--outline);border-radius:10px;
+        padding:10px 18px;font:inherit;font-weight:600;cursor:pointer}
+  button:disabled{opacity:.45;cursor:default}
+  /* embedded in BDA Planner (?embed=planner): Build only, hand the pack back */
+  body.embed #phasebar,body.embed #savePres,body.embed #exportPres,body.embed #newPres{display:none}
+  body.embed .wrap{padding-top:10px}
+  body.embed h1 small{display:none}
+  body.embed .embednote{font-size:13px;color:var(--muted);margin:0 0 6px}
+  body.embed #usePlanner{display:inline-block}
+  body.embed.inline #apphdr,body.embed.inline .bname,body.embed.inline #usePlanner,body.embed.inline .embednote{display:none}
+  body.embed.inline .wrap{padding:0;max-width:none}
+  body.embed.inline .card.bhead{padding:0;margin:0;border:0;background:transparent;box-shadow:none}
+  body.embed.inline .striplabel{font-size:12.5px;margin:0}
+  body.embed.inline .setlist{margin-top:6px;gap:8px}
+  body.embed.inline .setlist .sitem{padding:3px;border-width:1px}
+  body.embed.inline .studio{margin-top:8px;gap:12px;grid-template-columns:260px 1fr}
+  body.embed.inline .cardspanel{max-height:none;position:static;padding:6px;border-radius:10px}
+  body.embed.inline .cardsearch{padding:6px 9px;margin-bottom:4px;font-size:13px}
+  body.embed.inline .cardspanel .lc{width:44px;height:44px}
+  body.embed.inline .libgrid .ghdr{font-size:11px;margin:6px 2px 1px}
+  body.embed.inline .libgrid .ghdr .mkbtn{padding:2px 6px;font-size:11px}
+  body.embed.inline .tplhint{display:none}
+  body.embed.inline .stage2 .canvasWrap{min-height:0;padding:10px;border-width:1px;border-radius:10px}
+  body.embed.inline .stage2 .board{max-width:300px}
+  body.embed.inline .stage2 .board.sort{max-width:300px}
+  body.embed.inline .stage2 .board.single{max-width:220px}
+  body.embed.inline .setlist .sitem .sthumb{width:64px;height:64px}
+  body.embed.inline .setlist .sitem .sthumb svg{width:64px;height:64px}
+  body.embed.inline .setlist .sitem .num{font-size:10px;padding:0 5px}
+  body.embed.inline .stagefoot input{padding:7px 10px;font-size:13.5px}
+  body.embed.tpllock #tplRail{display:none}
+  body.embed.tpllock .studio{grid-template-columns:250px 1fr}
+  body.embed.tpllock .embednote b{color:var(--outline)}
+  #usePlanner{display:none;background:var(--ok);color:#fff;border:0;border-radius:10px;padding:12px 22px;font:inherit;font-weight:700;cursor:pointer;font-size:16px}
+  /* stage */
+  #stage{display:none;position:fixed;inset:0;background:var(--ground);z-index:20;
+        flex-direction:column;align-items:stretch;justify-content:flex-start;text-align:center;
+        padding:0;overflow:hidden}
+  #stageTop{flex:none;display:flex;justify-content:space-between;align-items:center;
+        padding:14px 22px 4px;color:var(--muted);font-size:13px;font-weight:600}
+  #endBtn{background:transparent;border:1px solid var(--line);color:var(--muted);border-radius:8px;
+        padding:4px 9px;font:inherit;font-size:12px;font-weight:600;cursor:pointer;margin-left:8px}
+  #endBtn:hover{border-color:var(--mark);color:var(--mark)}
+  #stFlash{display:flex;align-items:center;gap:6px}
+  .fadj{background:#fff;border:1px solid var(--line);color:var(--outline);border-radius:6px;width:24px;height:24px;font:inherit;font-weight:700;cursor:pointer;line-height:1}
+  .fadj:hover{border-color:var(--outline)}
+  #bar{position:absolute;top:0;left:0;height:5px;background:var(--outline);width:0%}
+  #stageBody{flex:1;min-height:0;display:flex;flex-direction:column;align-items:center;
+        justify-content:flex-start;width:100%;padding:4px 24px 22px;overflow-y:auto}
+  /* centres the card, but lets the top stay reachable when it overflows —
+     a plain justify-content:center clips whatever spills above the fold */
+  #stageBody::before,#stageBody::after{content:"";margin:auto;flex:none}
+  .figbox{width:min(70vw,520px);height:min(70vw,520px);max-height:66vh;display:flex;align-items:center;justify-content:center}
+  /* bound the figure by its box, not just the viewport — a flex-shrunk .figbox
+     otherwise lets the SVG spill out and paint over the question above it */
+  .figbox{overflow:hidden}
+  .figbox svg,.figbox img{max-width:100%;max-height:100%;border-radius:8px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:26px}
+  .gcell{position:relative}
+  .gcell .lab{position:absolute;top:-6px;left:2px;font-weight:800;color:var(--ink)}
+  .count{font-size:120px;font-weight:800;color:var(--outline)}
+  .prompt{font-size:38px;font-weight:800;color:var(--outline);line-height:1.2;max-width:900px}
+  .promptSub{font-size:18px;color:var(--muted);margin-top:10px}
+  .stageInput{width:min(90vw,620px);margin-top:22px}
+  .cap{font-size:20px;font-weight:700;color:var(--ink);margin-top:16px}
+  .stageBtns{margin-top:22px;display:flex;gap:12px;justify-content:center}
+  /* report */
+  .lvl{display:inline-block;padding:2px 9px;border-radius:999px;font-size:12px;font-weight:700;color:#fff}
+  .lvl0{background:#8a6d3b}.lvl1{background:#2f6f9f}.lvl2{background:#2e7d32}.lvlx{background:#98a2b3}
+  .rrow{display:flex;gap:14px;align-items:center;padding:10px 0;border-top:1px solid var(--line)}
+  .rrow .thumb{width:64px;height:64px;flex:none;display:flex;align-items:center;justify-content:center}
+  .rrow .thumb svg,.rrow .thumb img{max-width:64px;max-height:64px}
+  .said{flex:1;font-size:14px}
+  .fingerprint{display:flex;gap:10px;flex-wrap:wrap;margin:8px 0 4px}
+  .chipbig{padding:8px 14px;border-radius:10px;font-weight:700;font-size:15px;color:#fff}
+  .ok{color:var(--ok);font-weight:700}.no{color:var(--mark);font-weight:700}
+  .small{font-size:12.5px;color:var(--muted)}
+  .ladder{margin:10px 0 8px;padding:10px 12px;background:#f5f8fc;border-radius:10px}
+  .ladrow{padding:3px 0}
+  .tagbtns{display:flex;gap:6px;flex-wrap:wrap}
+  .tagb{border:1px solid var(--line);background:#fff;color:var(--muted);border-radius:999px;padding:4px 10px;font:inherit;font-size:12px;cursor:pointer}
+  .tagb.on{background:var(--outline);color:#fff;border-color:var(--outline)}
+  /* tabs + builder */
+  .tabs{display:inline-flex;gap:6px;margin:2px 0 4px}
+  .tab{border:1px solid var(--line);border-bottom:0;background:#fff;color:var(--muted);border-radius:10px 10px 0 0;padding:9px 18px;font:inherit;font-weight:700;cursor:pointer}
+  .tab.on{background:var(--outline);color:#fff;border-color:var(--outline)}
+  .setlist{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px}
+  .striplabel{font-weight:700;font-size:13px;color:var(--outline);margin:12px 0 6px}
+  .setlist .sitem{position:relative;border:2px solid var(--line);border-radius:12px;padding:5px;background:#fff;cursor:grab;transition:transform .08s,box-shadow .1s}
+  .setlist .sitem:hover{box-shadow:0 3px 10px #0001}
+  .setlist .sitem.editing{outline:3px solid var(--outline);outline-offset:2px}
+  .setlist .sitem.dragging{opacity:.55;transform:scale(.94) rotate(-2deg);box-shadow:0 8px 20px #0003;cursor:grabbing}
+  .sthumb{width:96px;height:96px;display:flex;align-items:center;justify-content:center;cursor:pointer}
+  .setlist .sitem svg,.setlist .sitem img{pointer-events:none}
+  .sitem .grip{position:absolute;top:2px;left:6px;color:#c3cbd6;font-size:16px;line-height:1;cursor:grab;pointer-events:none}
+  .sitem .num{position:absolute;bottom:4px;left:6px;font-size:11px;font-weight:800;color:#fff;background:var(--outline);border-radius:7px;padding:1px 7px;pointer-events:none}
+  .sitem.dl::before,.sitem.dr::after{content:"";position:absolute;top:-5px;bottom:-5px;width:7px;border-radius:4px;background:var(--outline);box-shadow:0 0 0 2px #5590e055}
+  .sitem.dl::before{left:-9px}
+  .sitem.dr::after{right:-9px}
+  .sitem .x,.mc .x{position:absolute;top:-8px;right:-8px;background:var(--mark);color:#fff;border:0;border-radius:999px;width:20px;height:20px;cursor:pointer;font-weight:700;line-height:1;font-size:12px}
+  .builderGrid{display:grid;grid-template-columns:1fr 350px;gap:18px;margin-top:12px}
+  .libgrid{display:flex;flex-wrap:wrap;gap:6px;max-height:470px;overflow:auto;border:1px solid var(--line);border-radius:10px;padding:8px}
+  .libgrid .lc{width:62px;height:62px;border:1px solid #eee;border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;background:#fff}
+  .libgrid .lc:hover{border-color:var(--outline)}
+  .libgrid .ghdr{width:100%;font-size:12px;font-weight:700;color:var(--muted);margin:8px 2px 2px;display:flex;align-items:center;gap:6px}
+  .libgrid details.lgrp{width:100%}
+  .libgrid summary.ghdr{list-style:none;cursor:default}
+  .libgrid summary.ghdr::-webkit-details-marker{display:none}
+  .libgrid .ghdr .car,.libgrid .ghdr .cnt{display:none}
+  .libgrid .lbody{display:flex;flex-wrap:wrap;gap:6px}
+  body.embed.inline .libgrid summary.ghdr{cursor:pointer;padding:5px 6px;border-radius:7px;margin:2px 0}
+  body.embed.inline .libgrid summary.ghdr:hover{background:#eef4fc}
+  body.embed.inline .libgrid details[open]>summary.ghdr{color:var(--outline)}
+  body.embed.inline .libgrid .ghdr .car{display:inline-block;width:12px;transition:transform .12s}
+  body.embed.inline .libgrid details[open]>summary .car{transform:rotate(90deg)}
+  body.embed.inline .libgrid .ghdr .cnt{display:inline;font-weight:500;color:#a9b3c0;margin-left:auto;margin-right:4px}
+  body.embed.inline .libgrid .lbody{padding:2px 0 6px 4px}
+  .mkbtn{padding:2px 8px;font-size:11px;font-weight:700}
+  .setprev{border:1px solid var(--line);border-radius:10px;background:var(--ground);min-height:250px;display:flex;align-items:center;justify-content:center;padding:8px}
+  .setprev svg{max-width:100%;max-height:300px}
+  .memrow{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0 8px;min-height:8px}
+  .memrow .mc{position:relative;width:52px;height:52px;border:1px solid var(--line);border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;background:#fff}
+  .memrow .mc .rot{position:absolute;bottom:-7px;left:50%;transform:translateX(-50%);font-size:10px;color:#fff;background:var(--outline);padding:0 4px;border-radius:5px}
+  #toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 18px;border-radius:10px;z-index:50;font-size:14px;opacity:0;transition:opacity .3s;pointer-events:none}
+  /* KidPix canvas + paint */
+  .kidfont{font-family:"Comic Sans MS","Comic Neue","Chalkboard SE",system-ui,sans-serif}
+  #builder label{font-family:"Comic Sans MS","Comic Neue","Chalkboard SE",inherit;letter-spacing:.2px}
+  .canvasWrap{border:2px solid var(--line);border-radius:14px;background:#fff;padding:14px;min-height:270px;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px}
+  .board{display:grid;gap:8px;width:100%;max-width:340px}
+  .board.wodb{grid-template-columns:1fr 1fr}
+  .board.sort{grid-template-columns:1fr 1fr 1fr;max-width:340px}
+  .board.samediff{grid-template-columns:repeat(2,1fr);max-width:340px}
+  .cell2{aspect-ratio:1;border:2px dashed #cfd6e0;border-radius:12px;display:flex;align-items:center;justify-content:center;
+    cursor:pointer;background:#fff;position:relative;transition:border-color .1s,box-shadow .1s}
+  .cell2.filled{border-style:solid;border-color:var(--line)}
+  .cell2:hover{border-color:var(--outline)}
+  .cell2.sel{border-color:var(--outline);border-style:solid;box-shadow:0 0 0 3px #5590e055}
+  .cell2 .ph{color:#cbd3de;font-size:30px;font-weight:800;line-height:1}
+  .cell2 svg{width:90%;height:90%}
+  .toolstrip{display:flex;flex-wrap:wrap;gap:9px;align-items:center;margin:12px 0;padding:10px 12px;
+    border:2px solid var(--line);border-radius:14px;background:#fbfaf6}
+  .swatch{width:26px;height:26px;border-radius:50%;border:2px solid #0002;cursor:pointer}
+  .swatch.sel{outline:3px solid var(--outline);outline-offset:2px}
+  .tbtn{border:2px solid var(--line);background:#fff;border-radius:20px;padding:6px 13px;font:inherit;font-size:13px;font-weight:700;cursor:pointer}
+  .tbtn:hover{border-color:var(--outline)}
+  .memrow .mc.sel{border-color:var(--outline);box-shadow:0 0 0 2px #5590e055}
+  /* Canva-style studio layout */
+  .wrap.wide{max-width:1240px}
+  .bhead .brow{display:flex;gap:14px;align-items:flex-end}
+  .bhead .bname{flex:1}
+  .studio{display:grid;grid-template-columns:80px 250px 1fr;gap:14px;margin-top:14px;align-items:start}
+  .rail{display:flex;flex-direction:column;gap:8px;position:sticky;top:12px}
+  .railbtn{border:2px solid var(--line);background:#fff;border-radius:13px;padding:9px 4px;cursor:pointer;
+    display:flex;flex-direction:column;align-items:center;gap:5px;font:inherit;font-size:10.5px;font-weight:700;color:var(--muted)}
+  .railbtn:hover{border-color:var(--outline)}
+  .railbtn.on{border-color:var(--outline);color:var(--outline);background:#eef4fc}
+  .railbtn svg{width:30px;height:30px}
+  .cardspanel{border:1px solid var(--line);border-radius:14px;background:#fff;padding:10px;max-height:600px;overflow:auto;position:sticky;top:12px}
+  .cardsearch{width:100%;padding:8px 11px;border:1px solid var(--line);border-radius:9px;font:inherit;margin-bottom:8px}
+  .cardspanel .libgrid{border:0;padding:0;max-height:none;gap:6px}
+  .cardspanel .lc{width:50px;height:50px}
+  .stage2{display:flex;flex-direction:column;gap:10px;min-width:0}
+  .stage2 .canvasWrap{min-height:420px}
+  .stage2 .board{max-width:500px}
+  .stage2 .board.sort{max-width:430px}
+  .stage2 .board.single{grid-template-columns:1fr;max-width:320px}
+  .stagefoot{display:flex;gap:10px;align-items:center}
+  .stagefoot input{flex:1}
+  .stagefoot button{flex:none}
+  @media(max-width:860px){
+    .wrap.wide{max-width:960px}
+    .studio{grid-template-columns:1fr;gap:12px}
+    .rail{flex-direction:row;flex-wrap:wrap;justify-content:center;position:static}
+    .railbtn{flex-direction:row;padding:7px 12px;font-size:12px}
+    .railbtn svg{width:22px;height:22px}
+    .cardspanel{max-height:220px;position:static}
+    .cardspanel .libgrid{justify-content:center}
+  }
+  /* presentation library */
+  .libraryGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:16px;margin-top:12px}
+  .pcard{border:1px solid var(--line);border-radius:14px;background:#fff;padding:12px;display:flex;flex-direction:column;gap:9px}
+  .pthumb{height:150px;display:flex;align-items:center;justify-content:center;background:var(--ground);border-radius:10px;cursor:pointer;overflow:hidden}
+  .pthumb:hover{outline:2px solid var(--outline)}
+  .pthumb.noedit{cursor:default}
+  .pthumb.noedit:hover{outline:none}
+  .pthumb svg,.pthumb img{max-width:96%;max-height:142px}
+  .pname{font-weight:700;font-size:15px}
+  .pcount{font-size:12px;color:var(--muted)}
+  .pacts{display:flex;gap:6px;flex-wrap:wrap}
+  .pacts .tbtn{padding:5px 10px;font-size:12px}
+  .makebtn{width:100%;margin-bottom:8px;background:#eef4fc;border-color:var(--outline);color:var(--outline)}
+  /* dot-pattern editor */
+  .modal{position:fixed;inset:0;background:#0007;z-index:60;display:flex;align-items:center;justify-content:center;padding:20px}
+  .modalbox{background:#fff;border-radius:16px;padding:18px 20px 16px;max-width:560px;width:100%;box-shadow:0 12px 44px #0005}
+  .modalhd{display:flex;justify-content:space-between;align-items:center;font-weight:800;font-size:18px;color:var(--outline)}
+  .dehint{font-size:12.5px;color:var(--muted);margin:6px 0 14px}
+  .dewrap{display:flex;gap:20px;align-items:center;flex-wrap:wrap;justify-content:center}
+  .degrid{display:grid;gap:7px;width:264px;height:264px}
+  .decell{border:2px solid var(--line);border-radius:50%;cursor:pointer;background:#fff}
+  .decell:hover{border-color:var(--outline)}
+  .decell.on{background:#2b2b2b;border-color:#2b2b2b}
+  .decell.red{background:#c62828;border-color:#c62828}
+  .degrid.tf .decell{border-radius:7px}
+  .depreview{width:200px;height:200px;border:1px solid var(--line);border-radius:12px;display:flex;align-items:center;justify-content:center;background:var(--ground)}
+  .defoot{display:flex;justify-content:flex-end;gap:10px;margin-top:16px}
+
+  /* ===== phase header + routine drawer ===== */
+  #apphdr{padding-bottom:0}
+  #builder,#handoff,#analyze{padding-top:8px}
+  .hdrbar{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+  .drawerToggle{border:2px solid var(--outline);background:#fff;color:var(--outline);border-radius:11px;
+    padding:9px 15px;font:inherit;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:7px}
+  .drawerToggle:hover{background:#eef4fc}
+  .phasebar{display:inline-flex;gap:0;margin:2px 0 4px;border:2px solid var(--outline);border-radius:12px;overflow:hidden}
+  .phase{border:0;border-right:2px solid var(--outline);background:#fff;color:var(--outline);
+    padding:10px 20px;font:inherit;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:8px}
+  .phase:last-child{border-right:0}
+  .phase.on{background:var(--outline);color:#fff}
+  .phase .pnum{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;
+    border-radius:50%;background:currentColor;font-size:11px;font-weight:800;flex:none}
+  .phase .pnum b{color:#fff}
+  .phase.on .pnum b{color:var(--outline)}
+  .phase:disabled{opacity:.4;cursor:not-allowed}
+  #drawer{position:fixed;top:0;left:0;bottom:0;width:min(420px,92vw);background:#fff;z-index:40;
+    border-right:1px solid var(--line);box-shadow:6px 0 26px #0002;transform:translateX(-102%);
+    transition:transform .22s ease;overflow-y:auto;padding:18px 18px 40px}
+  #drawer.open{transform:translateX(0)}
+  #drawerBack{position:fixed;inset:0;background:#0004;z-index:39;display:none}
+  #drawerBack.open{display:block}
+  .drawerHd{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px}
+  .drawerHd h2{font-size:19px;margin:0;color:var(--outline)}
+  .drow{border:1px solid var(--line);border-radius:12px;padding:10px;margin-top:10px;display:flex;gap:11px;align-items:center}
+  .drow .dthumb{width:66px;height:66px;flex:none;display:flex;align-items:center;justify-content:center;
+    background:var(--ground);border-radius:9px;overflow:hidden}
+  .drow .dthumb svg,.drow .dthumb img{max-width:62px;max-height:62px}
+  .drow .dmeta{flex:1;min-width:0}
+  .drow .dname{font-weight:700;font-size:14px}
+  .drow .dsub{font-size:11.5px;color:var(--muted)}
+  .drow .dacts{display:flex;gap:5px;flex-wrap:wrap;margin-top:5px}
+  .drow .dacts .tbtn{padding:3px 9px;font-size:11.5px;border-width:1px}
+  /* ===== analyze phase ===== */
+  .tscript{border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-top:10px;
+    display:flex;gap:12px;align-items:center;cursor:pointer;background:#fff}
+  .tscript:hover{border-color:var(--outline)}
+  .tscript.done{background:#f3f9f3;border-color:#bcd9bd}
+  .anrow{display:flex;gap:12px;align-items:flex-start;padding:9px 10px;border:1px solid var(--line);
+    border-radius:10px;margin-top:7px;background:#fff;cursor:pointer}
+  .anrow:hover{border-color:var(--outline)}
+  .anrow.picked{border-color:var(--outline);background:#eef4fc;box-shadow:0 0 0 2px #5590e033}
+  .anrow .abox{flex:none;width:20px;height:20px;border:2px solid var(--line);border-radius:5px;
+    display:flex;align-items:center;justify-content:center;font-weight:800;color:#fff;font-size:13px;margin-top:2px}
+  .anrow.picked .abox{background:var(--outline);border-color:var(--outline)}
+  .anrow .athumb{width:54px;height:54px;flex:none;display:flex;align-items:center;justify-content:center}
+  .anrow .athumb svg,.anrow .athumb img{max-width:54px;max-height:54px}
+  .anrow .asaid{flex:1;font-size:14px;min-width:0}
+  .anrow .anum{font-weight:800;color:var(--muted);font-size:12px}
+  .needs{color:var(--mark);font-weight:600;font-size:12.5px}
+  .inert{opacity:.42;pointer-events:none;filter:grayscale(.4)}
+  .whybox{min-height:56px;font-size:13px}
+  .anrow .abox{color:#fff}
+  .anrow:not(.picked) .abox{color:var(--muted);background:#fff}
+  .lvlpick{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0 4px}
+  .lvlbtn{border:2px solid var(--line);background:#fff;border-radius:12px;padding:9px 14px;font:inherit;
+    font-weight:700;cursor:pointer;text-align:left;color:var(--ink);max-width:250px}
+  .lvlbtn:hover{border-color:var(--outline)}
+  .lvlbtn.on{border-color:var(--outline);background:#eef4fc}
+  .lvlbtn .lname{display:block;font-size:14px;color:var(--outline)}
+  .lvlbtn .ldesc{display:block;font-size:11.5px;color:var(--muted);font-weight:400;margin-top:3px;line-height:1.35}
+  .claimcard{border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-top:12px;background:#fff}
+  .claimhd{display:flex;justify-content:space-between;align-items:center;gap:10px}
+  .locate{background:#f5f8fc;border-radius:10px;padding:10px 13px;font-size:13px;margin:10px 0}
+  .stepnote{font-size:13px;color:var(--muted);margin:2px 0 12px}
+  .handback{font-size:30px;font-weight:800;color:var(--outline);line-height:1.25}
+</style>
+</head>
+<body>
+<div class="wrap wide" id="apphdr">
+  <div class="hdrbar">
+    <button class="drawerToggle" id="drawerToggle" title="Open your prompt packs — the ready-made ones and any you have built or imported.">📚 <span>Prompt packs</span></button>
+    <h1>nVoke <small>build it · pose it · read it</small></h1>
+  </div>
+  <div class="phasebar" id="phasebar">
+    <button class="phase on" data-phase="build" title="Phase 1 — Build. Make the prompt pack you will pose: pick a layout, drag in shapes, write the question.">
+      <span class="pnum"><b>1</b></span> Build</button>
+    <button class="phase" data-phase="handoff" title="Phase 2 — Handoff. Give your laptop to your partner. They answer; you sit beside them and ask, never tell.">
+      <span class="pnum"><b>2</b></span> Handoff</button>
+    <button class="phase" data-phase="analyze" title="Phase 3 — Analyze. Read your partner's answers through the van Hiele levels and decide what to offer them next.">
+      <span class="pnum"><b>3</b></span> Analyze</button>
+  </div>
+</div>
+
+<!-- prompt pack drawer -->
+<div id="drawerBack"></div>
+<div id="drawer">
+  <div class="drawerHd"><h2>📚 Prompt packs</h2><button class="tbtn" id="drawerClose">✕</button></div>
+  <div class="small">Ready-made packs and any you have built. Click <b>Use</b> to load one into whatever phase you are in.</div>
+  <div style="margin:12px 0 2px"><button class="ghost" id="importLib" style="width:100%" title="Load a prompt pack (.json) a classmate exported, or image files from your computer.">⬆ Import a prompt pack (.json)…</button>
+    <input id="fileIn" type="file" multiple accept=".json,image/*" style="display:none"></div>
+  <div id="drawerList"></div>
+</div>
+
+<!-- ===== phase 1 · BUILD ===== -->
+<div class="wrap panel wide" id="builder">
+  <div class="card bhead">
+    <div class="brow">
+      <div class="bname"><label>Prompt pack name</label><input id="presName" type="text" placeholder="Type a name for your prompt pack…"></div>
+      <button class="ghost" id="newPres" title="Clear the builder and start a brand-new, empty prompt pack. Anything unsaved is lost.">＋ New pack</button>
+      <button class="primary" id="savePres" title="Keep this pack on this device so you can pose it in Handoff. Save before you leave the Build tab.">💾 Save pack</button>
+      <button id="usePlanner" title="Send these cards back to the BDA Planner's Before.">✓ Use these cards in the Planner</button>
+      <button class="ghost" id="exportPres" title="Download the pack itself as a .json file — the task only, nobody's answers. Use it to hand your pack to a classmate. This is NOT what you turn in: the PDF you submit comes from the Analyze tab.">⬇ Export pack (.json)</button>
+    </div>
+    <div class="striplabel">🖐 Your cards — <b>drag</b> to reorder · <b>click</b> a card to edit</div>
+    <div class="setlist" id="setList"></div>
+  </div>
+  <div class="studio">
+    <div class="rail" id="tplRail">
+      <button class="railbtn on" data-tpl="wodb" title="Which One Doesn't Belong? — four figures, and every one of them can be argued out. Shows you which property a person is reasoning from. Holds up to 4."><svg viewBox="0 0 36 36" fill="currentColor"><rect x="4" y="4" width="12" height="12" rx="2"/><rect x="20" y="4" width="12" height="12" rx="2"/><rect x="4" y="20" width="12" height="12" rx="2"/><rect x="20" y="20" width="12" height="12" rx="2"/></svg><span>WODB</span></button>
+      <button class="railbtn" data-tpl="same-diff" title="Same &amp; Different — two figures side by side. Name what holds and what changes; pushes past the label toward properties. Holds 2."><svg viewBox="0 0 36 36" fill="currentColor"><rect x="3" y="11" width="13" height="14" rx="2"/><rect x="20" y="11" width="13" height="14" rx="2"/></svg><span>Same&amp;Diff</span></button>
+      <button class="railbtn" data-tpl="sort" title="Sort — a handful of figures. Group them and state the rule, then regroup a different way. The rule is the diagnosis. Holds up to 9."><svg viewBox="0 0 36 36" fill="currentColor"><rect x="4" y="4" width="8" height="8" rx="1.5"/><rect x="14" y="4" width="8" height="8" rx="1.5"/><rect x="24" y="4" width="8" height="8" rx="1.5"/><rect x="4" y="14" width="8" height="8" rx="1.5"/><rect x="14" y="14" width="8" height="8" rx="1.5"/><rect x="24" y="14" width="8" height="8" rx="1.5"/><rect x="4" y="24" width="8" height="8" rx="1.5"/><rect x="14" y="24" width="8" height="8" rx="1.5"/><rect x="24" y="24" width="8" height="8" rx="1.5"/></svg><span>Sort</span></button>
+      <button class="railbtn" data-tpl="ispy" title="I Spy — a field of figures. Name a property and let them find everything that fits. Holds up to 24."><svg viewBox="0 0 36 36" fill="currentColor"><circle cx="9" cy="11" r="5"/><rect x="19" y="5" width="10" height="10" rx="1.5"/><path d="M17 31 L10 20 L24 20 Z"/><circle cx="27" cy="26" r="4"/></svg><span>I Spy</span></button>
+      <button class="railbtn" data-tpl="single" title="Single — one figure, asked wide open: what do you see, and how do you know? Holds 1."><svg viewBox="0 0 36 36" fill="currentColor"><rect x="8" y="8" width="20" height="20" rx="3"/></svg><span>Single</span></button>
+    </div>
+    <div class="cardspanel">
+      <input id="cardSearch" class="cardsearch" type="text" placeholder="Search shapes…">
+      <div class="libgrid" id="libGrid"></div>
+    </div>
+    <div class="stage2">
+      <div class="tplhint hint kidfont" id="tplHint"></div>
+      <div class="toolstrip" id="toolStrip" style="display:none"></div>
+      <div class="canvasWrap" id="canvasWrap"></div>
+      <div class="stagefoot">
+        <input id="setPrompt" type="text" placeholder="Question your partner will see (optional)…">
+        <button class="ghost" id="addSet" title="Add what you have built on the canvas to the pack as one card. Build another after it.">＋ Add card</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== phase 2 · HANDOFF ===== -->
+<div class="wrap panel" id="handoff" style="display:none">
+  <div class="ferpa">🔒 Everything stays on this device — nothing is ever uploaded.</div>
+  <div class="card">
+    <label>Prompt pack</label>
+    <div class="row">
+      <div><select id="packSel"></select></div>
+      <div style="flex:none"><button class="ghost" id="loadBtn" title="Load a prompt pack (.json) or image files from your computer.">Load from a file…</button></div>
+    </div>
+    <div class="hint" id="packInfo"></div>
+
+    <label>Who is taking this?</label>
+    <div class="seg" id="modeSeg">
+      <button data-mode="diagnostic" class="on">One person · answers are kept</button>
+      <button data-mode="presentation">The whole room · nothing kept</button>
+    </div>
+    <div class="hint" id="modeHint"></div>
+
+    <div class="row" style="margin-top:14px">
+      <div style="flex:none">
+        <label>Order</label>
+        <div class="seg" id="orderSeg">
+          <button data-order="as" class="on">As-is</button>
+          <button data-order="shuffle">Shuffle</button>
+        </div>
+      </div>
+      <div id="flashWrap" style="display:none">
+        <label>Flash time: <span id="flashLbl">1s</span></label>
+        <input type="range" id="flash" min="1" max="5" step="1" value="1">
+        <div class="hint">Only the dot and ten-frame cards flash. Geometry cards stay on screen while your partner thinks.</div>
+      </div>
+    </div>
+
+    <div id="doerNameWrap" style="margin-top:6px">
+      <label>Label for this transcript <span style="font-weight:400;color:var(--muted)">— optional, no full names</span></label>
+      <input id="doerLabel" type="text" placeholder="e.g. Doer · my partner, or Doer · age 8">
+    </div>
+
+    <div class="locate" id="handoffNote"></div>
+    <div style="margin-top:14px"><button class="primary" id="startBtn">Hand it over ▶</button></div>
+  </div>
+</div>
+
+<!-- ===== phase 3 · ANALYZE ===== -->
+<div class="wrap panel" id="analyze" style="display:none"></div>
+
+<!-- dot-pattern editor -->
+<div id="dotEditor" class="modal" style="display:none">
+  <div class="modalbox">
+    <div class="modalhd"><span id="deTitle">Make a dot pattern</span> <button class="tbtn" id="deClose">✕</button></div>
+    <div class="dehint" id="deHint">Click a cell: empty → <b>dot</b> → <b style="color:#c62828">red</b> (decomposition) → empty.</div>
+    <div class="dewrap">
+      <div class="degrid" id="deGrid"></div>
+      <div class="depreview" id="dePreview"></div>
+    </div>
+    <div class="defoot">
+      <button class="tbtn" id="deClear">Clear</button>
+      <button class="primary" id="deAdd">Add to canvas</button>
+    </div>
+  </div>
+</div>
+
+<!-- run stage -->
+<div id="stage">
+  <div id="bar"></div>
+  <div id="stageTop"><span id="stCount"></span><span id="stFlash"></span><span><span id="stName"></span> <button id="endBtn">✕ End &amp; reset</button></span></div>
+  <div id="stageBody"></div>
+</div>
+
+<!-- report -->
+<div class="wrap" id="report" style="display:none"></div>
+<div id="toast"></div>
+
+<script>
+const OUTLINE="#1a1a1a", FILL="#e9e9e9", MARK="#c62828";
+
+/* ================= van Hiele levels (reference only — the app never assigns one) ================= */
+const VAN_HIELE=[
+ {n:1, name:"Level 1 · Visual",
+  short:"describes shapes by their appearance",
+  desc:"Describes a shape by how the whole thing looks, or by how it is turned \u2014 \u201ca diamond,\u201d \u201ca door.\u201d A square and a rectangle feel like separate things.",
+  example:"\u201cIt\u2019s a diamond.\u201d"},
+ {n:2, name:"Level 2 · Analysis",
+  short:"describes shapes by their properties",
+  desc:"Describes a shape by its properties and parts \u2014 \u201cfour equal sides,\u201d \u201cstraight sides, closed\u201d \u2014 but still treats the classes as separate things.",
+  example:"\u201cFour equal sides and square corners.\u201d"},
+ {n:3, name:"Level 3 · Abstraction",
+  short:"relates the properties to each other",
+  desc:"Recognises how properties depend on one another and orders the classes logically \u2014 one kind of shape can be a special case of another.",
+  example:"\u201cA square is a special rectangle.\u201d"}
+];
+/* Howse & Howse number the ladder 1-5; levels 4 (Deduction) and 5 (Rigor) are
+   named in the reading but never offered here \u2014 nothing a grade 2-4 learner
+   says should be filed under them. Look up by value, never by array index. */
+function levelOf(n){ return VAN_HIELE.find(L=>L.n===n) || VAN_HIELE[0]; }
+const LEVELS_NOTE="The levels are sequential, invariant and hierarchical \u2014 experience-driven, not age-based. You locate a level in order to offer the right next experience: locate, don\u2019t rank.";
+
+/* ================= built-in geometry pack ================= */
+const GEOMETRY_PACK = {
+  packFormat:"provoke-cards/v1", name:"van Hiele Geometry", builtIn:true, mode:"see", builtWith:"builder",
+  prompt:"What did you see? · How do you know?", levels:"vanhiele",
+  /* Four cards, sized for a ten-minute pose. Between them they reach every level a
+     grade 2-4 learner will produce: the WODB pulls property talk out of an obvious
+     answer, square against rectangle is the class-inclusion probe Higgins's own
+     teachers split over (p. 494), the tilted square is the cheapest Level 1 read
+     there is, and the spiral asks her question outright — is this a shape?
+     Greyscale on purpose: Higgins found colour is what students reach for first,
+     and colour sits nowhere on the van Hiele ladder. */
+  cards:[
+    {id:"wodb-1", template:"wodb",
+     members:[
+       {ref:"square", rotate:0, color:"gray"},
+       {ref:"rect-wide", rotate:0, color:"gray"},
+       {ref:"tri-equilateral", rotate:0, color:"gray"},
+       {ref:"circle-sm", rotate:0, color:"gray"}
+     ],
+     prompt:"Which one doesn't belong? Say how you know."},
+
+    {id:"same-diff-3", template:"same-diff",
+     members:[
+       {ref:"square", rotate:0, color:"gray"},
+       {ref:"rect-wide", rotate:0, color:"gray"}
+     ],
+     prompt:"What's the same? What's different?"},
+
+    {id:"single-4", template:"single",
+     members:[
+       {ref:"square", rotate:45, color:"red"}
+     ],
+     prompt:"What shape is this? How do you know?"},
+
+    {id:"single-5", template:"single",
+     members:[
+       {ref:"spiral", rotate:0, color:"gray"}
+     ],
+     prompt:"Is this a shape? Why or why not?"}
+  ]
+};
+
+const CURVES_PACK = {
+  packFormat:"provoke-cards/v1", name:"van Hiele · Curves and Corners", builtIn:true, mode:"see", builtWith:"builder",
+  prompt:"What did you see? · How do you know?", levels:"vanhiele",
+  /* The curved family, for anyone who wants more than the four. One card asks you to
+     tell two curved figures apart; the other asks whether a curved figure belongs at
+     all. Shape 7 is the crescent — it curves like the circle and oval but comes to two
+     points like the star, so whether it "has corners" is genuinely undecidable. */
+  cards:[
+    {id:"same-diff-2", template:"same-diff",
+     members:[
+       {ref:"circle-lg", rotate:0, color:"gray"},
+       {ref:"oval", rotate:0, color:"gray"}
+     ],
+     prompt:"What's the same? What's different?"},
+
+    {id:"sort-6", template:"sort",
+     members:[
+       {ref:"square", rotate:0, color:"gray"},
+       {ref:"rect-wide", rotate:0, color:"gray"},
+       {ref:"hexagon", rotate:0, color:"gray"},
+       {ref:"tri-equilateral", rotate:0, color:"gray"},
+       {ref:"circle-lg", rotate:0, color:"gray"},
+       {ref:"oval", rotate:0, color:"gray"},
+       {ref:"crescent", rotate:0, color:"gray"},
+       {ref:"star5", rotate:0, color:"gray"},
+       {ref:"spiral", rotate:0, color:"gray"}
+     ],
+     prompt:"Which, if any, of the following items belong with shape 7? Type their numbers below and explain why they belong together."}
+  ]
+};
+
+/* ================= subitizing packs (ten-frames + dots) ================= */
+const SUB_LEVELS={"0":{name:"Count by ones",marker:"counted each dot, one at a time"},"1":{name:"Subitize a group",marker:"saw a group at a glance"},"2":{name:"Compose / decompose",marker:"combined or broke apart groups (“5 and 3”, “made ten”)"}};
+const SUB_RULES={
+  only0:"Lots of counting by ones → the arrangement isn't being SEEN as groups yet. Next: brief flashes (too fast to count) that push toward seeing groups.",
+  reached1:"You subitized groups on sight → perceptual subitizing is there.",
+  reached2:"You combined or broke apart groups (“4 and 4”, “made ten”) → conceptual subitizing, the goal.",
+  note:"How you SAW it matters more than the number — a mirror, not a score."
+};
+const SUB_LF={
+  "0":["counted","count","1 2 3","one by one","by ones","each one","one at a time"],
+  "1":["just saw","knew","saw five","recognized","like a die","dice","instantly"],
+  "2":["and 1","and 2","and 3","and 4","and 5","5 and","4 and","3 and","two groups","group of","made ten","make ten","10 minus","doubles","two fives"]
+};
+const tf=(id,cells)=>({id, figure:{type:"tenframe",cells}, lookFors:SUB_LF});
+const TEN_FRAMES_PACK={packFormat:"provoke-cards/v1", name:"Ten-Frame Flash", mode:"see", builtIn:true,
+  prompt:"How many did you see? How did you see it?", levels:SUB_LEVELS, reportRules:SUB_RULES,
+  cards:[ tf("4-row",[0,1,2,3]), tf("4-as-2+2",[0,1,5,6]), tf("5-row",[0,1,2,3,4]),
+    tf("6-as-5+1",[0,1,2,3,4,5]), tf("7",[0,1,2,3,5,6,7]), tf("8-as-3+5",[0,1,2,5,6,7,8,9]),
+    tf("8-as-4+4",[0,1,2,3,5,6,7,8]), tf("9-as-5+4",[0,1,2,3,4,5,6,7,8]) ]};
+const dp=(id,points,hi)=>({id, figure:{type:"dots",points,hi:hi||[]}, lookFors:SUB_LF});
+const DOT_PATTERNS_PACK={packFormat:"provoke-cards/v1", name:"Dot Patterns", mode:"see", builtIn:true,
+  prompt:"How many did you see? How did you see it?", levels:SUB_LEVELS, reportRules:SUB_RULES,
+  cards:[
+    dp("5-scatter",[[-0.9,0.5],[0.25,0.85],[0.8,-0.1],[-0.35,-0.55],[0.05,0.15]]),
+    dp("6-as-4+2",[[-0.8,0.35],[-0.25,0.35],[-0.8,-0.2],[-0.25,-0.2],[0.55,0.6],[0.65,-0.05]],[4,5]),
+    dp("6-line",[[-0.95,0],[-0.57,0],[-0.19,0],[0.19,0],[0.57,0],[0.95,0]]),
+    dp("7-as-5+2",[[-0.75,0.55],[-0.2,0.55],[-0.45,0.2],[-0.75,-0.15],[-0.2,-0.15],[0.5,0.4],[0.5,-0.15]],[5,6]),
+    dp("7-scatter",[[-0.9,0.55],[-0.3,0.82],[0.45,0.65],[0.8,0.15],[-0.55,-0.15],[0.1,-0.35],[0.6,-0.62]]),
+    dp("8-as-5+3",[[-0.9,0.2],[-0.55,0.55],[-0.1,0.68],[0.35,0.52],[0.62,0.18],[-0.3,-0.42],[0.1,-0.62],[0.5,-0.42]],[0,1,2,3,4]),
+    dp("9-as-4+4+1",[[-0.8,0.6],[-0.3,0.6],[-0.8,0.1],[-0.3,0.1],[0.3,0.6],[0.8,0.6],[0.3,0.1],[0.8,0.1],[0.0,-0.62]],[8]),
+    dp("10-as-5+5",[[-0.8,0.45],[-0.35,0.45],[-0.8,-0.05],[-0.35,-0.05],[-0.575,0.2],[0.35,0.45],[0.8,0.45],[0.35,-0.05],[0.8,-0.05],[0.575,0.2]],[0,1,2,3,4]),
+    dp("5-die",[[-0.7,-0.7],[0.7,-0.7],[0,0],[-0.7,0.7],[0.7,0.7]]),
+    dp("9-as-3x3",[[-0.75,-0.75],[0,-0.75],[0.75,-0.75],[-0.75,0],[0,0],[0.75,0],[-0.75,0.75],[0,0.75],[0.75,0.75]])
+  ]};
+
+/* ================= geometry renderer (SVG) ================= */
+const rot=(vs,deg)=>{const a=deg*Math.PI/180,c=Math.cos(a),s=Math.sin(a);
+  return vs.map(([x,y])=>[x*c-y*s, x*s+y*c]);};
+const SH={
+  square:(s=0.95)=>[[-s,-s],[s,-s],[s,s],[-s,s]],
+  rect:(w=1.32,h=0.7)=>[[-w,-h],[w,-h],[w,h],[-w,h]],
+  rhombus:(a=1.12,b=0.72)=>[[0,-b],[a,0],[0,b],[-a,0]],
+  parallelogram:(w=1,h=0.7,k=0.55)=>[[-w-k,-h],[w-k,-h],[w+k,h],[-w+k,h]],
+  triUp:(s=1.05)=>[[-s,-0.82*s],[s,-0.82*s],[0,0.95*s]],
+  triDown:(s=1.05)=>[[-s,0.82*s],[s,0.82*s],[0,-0.95*s]],
+  triSkinny:()=>[[-1.15,-0.55],[1.15,-0.35],[0.35,0.75]],
+  hexReg:(r=1.05)=>[0,1,2,3,4,5].map(i=>{const a=Math.PI/3*i+Math.PI/6;return[r*Math.cos(a),r*Math.sin(a)];}),
+  hexIrr:()=>[[-1.1,-0.2],[-0.5,-0.95],[0.7,-0.82],[1.16,0.1],[0.4,0.92],[-0.72,0.75]],
+  quadSkew:()=>[[-1.0,-0.92],[1.08,-1.0],[1.0,0.98],[-1.06,0.9]]
+};
+const CELL={
+  "rect-wide":{shape:"rect"},"square":{shape:"square"},
+  "rect-long":{shape:"rect",_wh:[1.42,0.42]},"rect-near":{shape:"rect",_wh:[1.02,0.8]}
+};
+function buildFig(spec){
+  let v;
+  switch(spec.shape){
+    case "square": v=SH.square(); break;
+    case "rect": case "rectangle": v=spec._wh?SH.rect(spec._wh[0],spec._wh[1]):SH.rect(); break;
+    case "rhombus": v=SH.rhombus(); break;
+    case "parallelogram": v=SH.parallelogram(); break;
+    case "triangle":
+      v = spec.variant==="skinny"?SH.triSkinny(): SH.triUp();
+      if(spec.orientation==="point-down") v=SH.triDown();
+      break;
+    case "hexagon": v=spec.variant==="irregular"?SH.hexIrr():SH.hexReg(); break;
+    case "quad-skew": v=SH.quadSkew(); break;
+    case "poly": v=spec.pts.map(p=>[p[0],p[1]]); break;
+    default: v=SH.square();
+  }
+  if(spec.rotate) v=rot(v,spec.rotate);
+  const n=v.length;
+  const ticks=spec.ticks==="all"?[...Array(n).keys()]:(spec.ticks||[]);
+  const rights=spec.rights==="all"?[...Array(n).keys()]:(spec.rights||[]);
+  return {v,ticks,rights};
+}
+function tickSVG(p1,p2,z=0.11){let dx=p2[0]-p1[0],dy=p2[1]-p1[1];const L=Math.hypot(dx,dy);dx/=L;dy/=L;
+  const mx=(p1[0]+p2[0])/2,my=(p1[1]+p2[1])/2,px=-dy,py=dx;
+  return `<line x1="${mx-px*z}" y1="${my-py*z}" x2="${mx+px*z}" y2="${my+py*z}" stroke="${MARK}" stroke-width="0.05" stroke-linecap="round"/>`;}
+function rightSVG(v,i,z=0.2){const c=v[i],a=v[(i-1+v.length)%v.length],b=v[(i+1)%v.length];
+  let ax=a[0]-c[0],ay=a[1]-c[1],bx=b[0]-c[0],by=b[1]-c[1];const la=Math.hypot(ax,ay),lb=Math.hypot(bx,by);
+  ax/=la;ay/=la;bx/=lb;by/=lb;
+  const p1=[c[0]+ax*z,c[1]+ay*z],p2=[c[0]+(ax+bx)*z,c[1]+(ay+by)*z],p3=[c[0]+bx*z,c[1]+by*z];
+  return `<polyline points="${p1} ${p2} ${p3}" fill="none" stroke="${MARK}" stroke-width="0.04"/>`;}
+function figSVG(spec,px=300){
+  const {v,ticks,rights}=buildFig(spec);
+  const poly=`<polygon points="${v.map(p=>p.join(',')).join(' ')}" fill="${FILL}" stroke="${OUTLINE}" stroke-width="0.06" stroke-linejoin="round"/>`;
+  const t=ticks.map(e=>tickSVG(v[e],v[(e+1)%v.length])).join("");
+  const r=rights.map(i=>rightSVG(v,i)).join("");
+  return `<svg viewBox="-1.85 -1.85 3.7 3.7" width="${px}" height="${px}"><g transform="scale(1,-1)">${poly}${t}${r}</g></svg>`;
+}
+function sceneSVG(items,px=340){
+  let g="";
+  for(const it of items){
+    let v=buildFig({shape:it.shape,_wh:it.wh,pts:it.pts}).v;
+    const s=it.scale||1; v=v.map(([x,y])=>[x*s,y*s]);
+    if(it.rotate) v=rot(v,it.rotate);
+    v=v.map(([x,y])=>[x+(it.x||0),y+(it.y||0)]);
+    g+=`<polygon points="${v.map(p=>p.join(',')).join(' ')}" fill="${FILL}" stroke="${OUTLINE}" stroke-width="0.05" stroke-linejoin="round"/>`;
+  }
+  return `<svg viewBox="-3 -3 6 6" width="${px}" height="${px}"><g transform="scale(1,-1)">${g}</g></svg>`;
+}
+function tenFrameSVG(cells,px=340){
+  const set=new Set(cells);
+  let g=`<rect x="0" y="0" width="5" height="2" fill="#fff" stroke="${OUTLINE}" stroke-width="0.05"/>`;
+  for(let i=1;i<5;i++) g+=`<line x1="${i}" y1="0" x2="${i}" y2="2" stroke="${OUTLINE}" stroke-width="0.03"/>`;
+  g+=`<line x1="0" y1="1" x2="5" y2="1" stroke="${OUTLINE}" stroke-width="0.03"/>`;
+  for(let p=0;p<10;p++){ if(!set.has(p)) continue; const col=p%5,row=p<5?0:1;
+    g+=`<circle cx="${col+0.5}" cy="${row+0.5}" r="0.36" fill="${MARK}"/>`; }
+  return `<svg viewBox="-0.5 -2 6 6" width="${px}" height="${px}">${g}</svg>`;
+}
+function dotsSVG(points,hi,px=320){
+  const H=new Set(hi||[]);
+  const g=points.map((p,i)=>`<circle cx="${p[0]}" cy="${p[1]}" r="0.2" fill="${H.has(i)?MARK:"#2b2b2b"}"/>`).join("");
+  return `<svg viewBox="-1.35 -1.35 2.7 2.7" width="${px}" height="${px}">${g}</svg>`;
+}
+function pathsSVG(items,px=340){
+  return `<div class="grid2">`+items.map(it=>
+    `<div class="gcell">`+
+    `<svg viewBox="0 0 2 2" width="${Math.round(px*0.6)}" height="${Math.round(px*0.6)}">`+
+    `<path d="${it.d}" fill="${FILL}" stroke="${OUTLINE}" stroke-width="0.05" stroke-linejoin="round"/></svg></div>`).join("")+`</div>`;
+}
+function cardVisual(card,px=320){
+  if(card.image) return `<img src="${card.image}" alt="">`;
+  if(card.cells){
+    return `<div class="grid2">`+card.cells.map(c=>
+      `<div class="gcell">${figSVG(CELL[c]||{shape:"square"},210)}</div>`).join("")+`</div>`;
+  }
+  if(card.template) return imageSetSVG(card,px);
+  const f=card.figure;
+  if(f){
+    if(f.kind) return atomSVG(f,px);
+    if(f.type==="tenframe") return tenFrameSVG(f.cells,px);
+    if(f.type==="dots") return dotsSVG(f.points,f.hi,px);
+    if(f.type==="scene") return sceneSVG(f.items,px);
+    if(f.type==="paths") return pathsSVG(f.items,px);
+    return figSVG(f,px);
+  }
+  return "";
+}
+
+/* ================= atom library (single-shape cards → templates) ================= */
+const D2R=Math.PI/180;
+const rectPts=(w,h)=>[[-w,-h],[w,-h],[w,h],[-w,h]];
+const ngon=(n,r,rot=-90)=>Array.from({length:n},(_,i)=>{const a=(rot+360/n*i)*D2R;return[+(r*Math.cos(a)).toFixed(3),+(r*Math.sin(a)).toFixed(3)];});
+const starPts=(n,ro,ri,rot=-90)=>{const p=[];for(let i=0;i<2*n;i++){const r=i%2?ri:ro;const a=(rot+180/n*i)*D2R;p.push([+(r*Math.cos(a)).toFixed(3),+(r*Math.sin(a)).toFixed(3)]);}return p;};
+const SPIRAL_D=(()=>{let p=[],t=0;while(t<=4.2*Math.PI){const r=0.10+0.088*t;p.push(`${(r*Math.cos(t)).toFixed(3)} ${(r*Math.sin(t)).toFixed(3)}`);t+=0.18;}return "M "+p.join(" L ");})();
+
+/* KidPix paint palette (default = greyscale; color is an authoring choice) */
+const PAINT={gray:"#e9e9e9",white:"#ffffff",red:"#ef5b53",orange:"#f39a3e",yellow:"#f4cf46",green:"#5cba6a",teal:"#3fb6ad",blue:"#5590e0",purple:"#a56fd0",pink:"#ef86bd"};
+const PAINT_ORDER=["gray","white","red","orange","yellow","green","teal","blue","purple","pink"];
+function shade(hex,pct){let n=parseInt(hex.slice(1),16),r=(n>>16)&255,g=(n>>8)&255,b=n&255;const t=pct<0?0:255,p=Math.abs(pct)/100;
+  r=Math.round((t-r)*p)+r; g=Math.round((t-g)*p)+g; b=Math.round((t-b)*p)+b; return "#"+(0x1000000+(r<<16)+(g<<8)+b).toString(16).slice(1);}
+function paintStyle(m){
+  const c=(m&&m.color)||"gray", base=PAINT[c]||FILL;
+  const ink=(c==="gray"||c==="white")?OUTLINE:shade(base,-40);
+  if(m&&m.fillStyle==="outline") return {fill:"none", stroke:ink, sw:0.12};
+  return {fill:base, stroke:ink, sw:0.06};
+}
+function atomElt(a, st){
+  st=st||{}; const F=st.fill!==undefined?st.fill:FILL, S=st.stroke!==undefined?st.stroke:OUTLINE, W=st.sw!==undefined?st.sw:0.06;
+  if(a.kind==="circle") return `<circle cx="${a.cx||0}" cy="${a.cy||0}" r="${a.r}" fill="${F}" stroke="${S}" stroke-width="${W}"/>`;
+  if(a.kind==="ellipse") return `<ellipse cx="0" cy="0" rx="${a.rx}" ry="${a.ry}" fill="${F}" stroke="${S}" stroke-width="${W}"/>`;
+  if(a.kind==="path") return `<path d="${a.d}" fill="${F}" stroke="${S}" stroke-width="${W}" stroke-linejoin="round"/>`;
+  if(a.kind==="stroke") return `<path d="${a.d}" fill="none" stroke="${st.stroke!==undefined?st.stroke:OUTLINE}" stroke-width="${a.sw||0.11}" stroke-linecap="round"/>`;
+  if(a.kind==="group") return a.parts.map(p=>atomElt(p,st)).join("");
+  if(a.kind==="dots"){
+    const hi=new Set(a.hi||[]);
+    return `<g transform="scale(1.4)">`+a.points.map((p,i)=>`<circle cx="${p[0]}" cy="${p[1]}" r="0.2" fill="${hi.has(i)?MARK:'#2b2b2b'}"/>`).join("")+`</g>`;
+  }
+  if(a.kind==="tenframe"){
+    const set=new Set(a.cells);
+    let g=`<rect x="0" y="0" width="5" height="2" fill="none" stroke="${OUTLINE}" stroke-width="0.1"/>`;
+    for(let i=1;i<5;i++) g+=`<line x1="${i}" y1="0" x2="${i}" y2="2" stroke="${OUTLINE}" stroke-width="0.06"/>`;
+    g+=`<line x1="0" y1="1" x2="5" y2="1" stroke="${OUTLINE}" stroke-width="0.06"/>`;
+    for(let p=0;p<10;p++){ if(!set.has(p)) continue; const col=p%5,row=p<5?0:1; g+=`<circle cx="${col+0.5}" cy="${row+0.5}" r="0.34" fill="${MARK}"/>`; }
+    return `<g transform="translate(-1.3 -0.52) scale(0.52)">${g}</g>`;
+  }
+  if(!a.pts) return "";
+  let s=`<polygon points="${a.pts.map(q=>q.join(',')).join(' ')}" fill="${F}" stroke="${S}" stroke-width="${W}" stroke-linejoin="round"/>`;
+  if(a.ticks) s+=a.pts.map((_,i)=>tickSVG(a.pts[i],a.pts[(i+1)%a.pts.length])).join("");
+  if(a.rights) s+=(a.rights==="all"?a.pts.map((_,i)=>i):a.rights).map(i=>rightSVG(a.pts,i)).join("");
+  return s;
+}
+function atomSVG(a,px=300,st){
+  const rot=a.rotate?` transform="rotate(${a.rotate})"`:"";
+  return `<svg viewBox="-1.85 -1.85 3.7 3.7" width="${px}" height="${px}"><g${rot}>${atomElt(a,st)}</g></svg>`;
+}
+
+const CARD_LIBRARY=[
+ {id:"square",label:"Square",group:"Quadrilaterals",figure:{kind:"poly",pts:rectPts(0.95,0.95)}},
+ {id:"rect-wide",label:"Rectangle",group:"Quadrilaterals",figure:{kind:"poly",pts:rectPts(1.35,0.72)}},
+ {id:"rect-long",label:"Long rectangle",group:"Quadrilaterals",figure:{kind:"poly",pts:rectPts(1.55,0.42)}},
+ {id:"rect-vlong",label:"Very long rectangle",group:"Quadrilaterals",figure:{kind:"poly",pts:rectPts(1.62,0.24)}},
+ {id:"rhombus",label:"Rhombus",group:"Quadrilaterals",figure:{kind:"poly",pts:[[0,-0.72],[1.12,0],[0,0.72],[-1.12,0]]}},
+ {id:"parallelogram",label:"Parallelogram",group:"Quadrilaterals",figure:{kind:"poly",pts:[[-1.55,-0.7],[0.45,-0.7],[1.55,0.7],[-0.45,0.7]]}},
+ {id:"kite",label:"Kite",group:"Quadrilaterals",figure:{kind:"poly",pts:[[0,-1.25],[0.72,-0.15],[0,1.15],[-0.72,-0.15]]}},
+ {id:"dart",label:"Concave kite (dart)",group:"Quadrilaterals",figure:{kind:"poly",pts:[[0,-1.25],[0.72,0.55],[0,0.02],[-0.72,0.55]]}},
+ {id:"tri-equilateral",label:"Equilateral triangle",group:"Triangles",figure:{kind:"poly",pts:ngon(3,1.15,-90)}},
+ {id:"tri-right",label:"Right triangle",group:"Triangles",figure:{kind:"poly",pts:[[-1.0,-0.95],[-1.0,1.0],[1.15,1.0]]}},
+ {id:"tri-obtuse",label:"Obtuse triangle",group:"Triangles",figure:{kind:"poly",pts:[[-1.35,0.55],[1.35,0.7],[0.55,-0.7]]}},
+ {id:"tri-skinny",label:"Skinny triangle",group:"Triangles",figure:{kind:"poly",pts:[[-1.15,-0.55],[1.15,-0.35],[0.35,0.75]]}},
+ {id:"pentagon",label:"Pentagon",group:"Many-sided",figure:{kind:"poly",pts:ngon(5,1.2,-90)}},
+ {id:"hexagon",label:"Hexagon",group:"Many-sided",figure:{kind:"poly",pts:ngon(6,1.12,-90)}},
+ {id:"hexagon-irr",label:"Irregular hexagon",group:"Many-sided",figure:{kind:"poly",pts:[[-1.1,-0.2],[-0.5,-0.95],[0.7,-0.82],[1.16,0.1],[0.4,0.92],[-0.72,0.75]]}},
+ {id:"star5",label:"5-point star",group:"Many-sided",figure:{kind:"poly",pts:starPts(5,1.3,0.52)}},
+ {id:"star6",label:"6-point star",group:"Many-sided",figure:{kind:"poly",pts:starPts(6,1.25,0.72)}},
+ {id:"circle-lg",label:"Circle",group:"Curved",figure:{kind:"circle",r:1.25}},
+ {id:"circle-sm",label:"Small circle",group:"Curved",figure:{kind:"circle",r:0.7}},
+ {id:"oval",label:"Oval / egg",group:"Curved",figure:{kind:"ellipse",rx:0.9,ry:1.2}},
+ {id:"heart",label:"Heart",group:"Curved",figure:{kind:"path",d:"M 0 1.15 C -1.35 0.05 -1.05 -1.0 0 -0.35 C 1.05 -1.0 1.35 0.05 0 1.15 Z"}},
+ {id:"cone",label:"Ice-cream cone",group:"Curved",figure:{kind:"group",parts:[{kind:"circle",cx:0,cy:-0.5,r:0.75},{kind:"path",d:"M -0.62 -0.15 L 0.62 -0.15 L 0 1.3 Z"}]}},
+ {id:"crescent",label:"Crescent moon",group:"Curved",figure:{kind:"path",d:"M 0.35 -1.15 A 1.2 1.2 0 1 0 0.35 1.15 A 0.9 0.9 0 1 1 0.35 -1.15 Z"}},
+ {id:"teardrop",label:"Teardrop",group:"Curved",figure:{kind:"path",d:"M 0 -1.25 C 0.85 -0.25 0.72 1.15 0 1.15 C -0.72 1.15 -0.85 -0.25 0 -1.25 Z"}},
+ {id:"spiral",label:"Spiral",group:"Curved",figure:{kind:"stroke",d:SPIRAL_D}},
+ {id:"arrow",label:"Arrow",group:"Directional",figure:{kind:"poly",pts:[[0,-1.3],[0.75,-0.35],[0.28,-0.35],[0.28,1.2],[-0.28,1.2],[-0.28,-0.35],[-0.75,-0.35]]}},
+ {id:"chevron",label:"Chevron",group:"Directional",figure:{kind:"poly",pts:[[0,-1.0],[1.0,0.05],[1.0,0.55],[0,-0.5],[-1.0,0.55],[-1.0,0.05]]}},
+ {id:"arc-smile",label:"Arc (smile)",group:"Arcs",figure:{kind:"stroke",d:"M -1.3 -0.45 A 1.8 1.8 0 0 0 1.3 -0.45"}},
+ {id:"arc-bowl",label:"Arc (bowl)",group:"Arcs",figure:{kind:"stroke",d:"M -1.3 -0.3 A 1.3 1.3 0 0 0 1.3 -0.3"}},
+ {id:"arc-quarter",label:"Arc (quarter)",group:"Arcs",figure:{kind:"stroke",d:"M -1.15 1.0 A 2.15 2.15 0 0 1 1.0 -1.15"}},
+ {id:"arc-wave",label:"Arc (wave)",group:"Arcs",figure:{kind:"stroke",d:"M -1.4 0 C -0.7 -1.0 0.0 -1.0 0 0 C 0 1.0 0.7 1.0 1.4 0"}},
+];
+/* subitizing content → library cards: familiar dice faces (the builder makes the rest) + ten-frames */
+const DICE=[
+ [[0,0]],
+ [[-0.62,-0.62],[0.62,0.62]],
+ [[-0.68,-0.68],[0,0],[0.68,0.68]],
+ [[-0.62,-0.62],[0.62,-0.62],[-0.62,0.62],[0.62,0.62]],
+ [[-0.62,-0.62],[0.62,-0.62],[0,0],[-0.62,0.62],[0.62,0.62]],
+ [[-0.62,-0.7],[-0.62,0],[-0.62,0.7],[0.62,-0.7],[0.62,0],[0.62,0.7]]
+];
+DICE.forEach((pts,i)=>CARD_LIBRARY.push({id:"die-"+(i+1), label:"Die "+(i+1), group:"Dot patterns", figure:{kind:"dots", points:pts}}));
+TEN_FRAMES_PACK.cards.forEach(c=>CARD_LIBRARY.push({id:"tf-"+c.id, label:"Ten-frame "+c.id, group:"Ten-frames", figure:{kind:"tenframe", cells:c.figure.cells}}));
+const GROUP_ORDER=["Dot patterns","Ten-frames","Quadrilaterals","Triangles","Many-sided","Curved","Directional","Arcs"];
+const LIB=Object.fromEntries(CARD_LIBRARY.map(c=>[c.id,c]));
+
+/* ---- templates: arrange cards into an image set ---- */
+/* `sub` is the small line under the question. It is not the same sentence everywhere:
+   "How do you know?" asks you to warrant a claim, which only makes sense once you have
+   made one. Same & Different asks for observations, and the sort card already asks for
+   the rule, so neither wants it. */
+const TEMPLATES={
+  wodb:{label:"Which One Doesn't Belong?", max:4, prompt:"Which one doesn't belong? Say how you know.", sub:"How do you know?"},
+  "same-diff":{label:"Same & Different", max:2, prompt:"What's the same? What's different?", sub:"What do you see?"},
+  sort:{label:"Sort", max:9, prompt:"Sort these and state your rule.", sub:""},
+  ispy:{label:"I Spy", max:24, prompt:"I spy a shape that… (name a property)", sub:"How do you know it fits?"},
+  single:{label:"Single card", max:1, prompt:"What do you see? · How do you know?", sub:"How do you know?"}
+};
+function posLabel(t,x,y){
+  /* darker than a decoration: a question can ask "which belong with shape 7?" */
+  return `<text x="${x}" y="${y}" font-size="0.46" font-weight="800" fill="#5b6b82" font-family="Inter,system-ui,sans-serif">${t}</text>`;
+}
+function memberFig(m){return m.figure||(LIB[m.ref]&&LIB[m.ref].figure)||null;}
+function placeMember(m,cx,cy,s){
+  const fig=memberFig(m); if(!fig) return "";
+  const rot=m.rotate?` rotate(${m.rotate})`:"";
+  return `<g transform="translate(${cx} ${cy}) scale(${s})${rot}">${atomElt(fig, paintStyle(m))}</g>`;
+}
+function scatterLayout(n){
+  const cols=Math.max(1,Math.ceil(Math.sqrt(n*1.5))), rows=Math.ceil(n/cols), gap=2.7, out=[];
+  for(let i=0;i<n;i++){const c=i%cols, r=Math.floor(i/cols);
+    out.push({cx:+((c-(cols-1)/2)*gap+Math.sin(i*2.7)*0.55).toFixed(2),
+              cy:+((r-(rows-1)/2)*gap+Math.cos(i*1.9)*0.55).toFixed(2),
+              s:+(0.55+((i*37)%38)/100).toFixed(2), rot:(i*45)%360});}
+  return {places:out, W:+(cols*gap+2).toFixed(2), H:+(rows*gap+2).toFixed(2)};
+}
+function imageSetSVG(set,px=520){
+  const M=set.members||[], T=set.template;
+  const svg=(vb,w,h,inner)=>`<svg viewBox="${vb}" width="${w}" height="${h}" style="background:#fffdf5">${inner}</svg>`;
+  if(T==="single") return svg("-1.95 -1.95 3.9 3.9", px, px, M[0]?placeMember(M[0],0,0,1.35):"");
+  if(T==="wodb"){
+    const c=[[-1.75,-1.75],[1.75,-1.75],[-1.75,1.75],[1.75,1.75]];
+    const g=`<line x1="0" y1="-3.7" x2="0" y2="3.7" stroke="#cfcfcf" stroke-width="0.05"/><line x1="-3.7" y1="0" x2="3.7" y2="0" stroke="#cfcfcf" stroke-width="0.05"/>`;
+    const lab=M.slice(0,4).map((m,i)=>posLabel("ABCD"[i], c[i][0]-1.42, c[i][1]-1.18)).join("");
+    return svg("-3.7 -3.7 7.4 7.4",px,px, g+M.slice(0,4).map((m,i)=>placeMember(m,c[i][0],c[i][1],0.92)).join("")+lab);
+  }
+  if(T==="same-diff"){
+    const n=Math.min(Math.max(M.length,1),2), gap=3.4, W=n*gap;
+    const body=M.slice(0,2).map((m,i)=>placeMember(m,(i-(n-1)/2)*gap,0,1.05)).join("");
+    const lab=M.slice(0,2).map((m,i)=>posLabel("AB"[i], (i-(n-1)/2)*gap-1.35, -1.45)).join("");
+    return svg(`${-W/2} -1.9 ${W} 3.8`, px, Math.round(px*3.8/W), body+lab);
+  }
+  if(T==="sort"){
+    const gap=2.5, out=[], lab=[];
+    for(let i=0;i<Math.min(M.length,9);i++){const c=i%3,r=Math.floor(i/3);
+      out.push(placeMember(M[i],(c-1)*gap,(r-1)*gap,0.72));
+      lab.push(posLabel(String(i+1),(c-1)*gap-0.98,(r-1)*gap-0.82));}
+    return svg("-3.9 -3.9 7.8 7.8",px,px,out.join("")+lab.join(""));
+  }
+  const L=scatterLayout(M.length), places=set.layout||L.places;
+  const body=M.slice(0,places.length).map((m,i)=>{const p=places[i];
+    return placeMember(Object.assign({},m,{rotate:(m.rotate||0)+(p.rot||0)}),p.cx,p.cy,p.s);}).join("");
+  return svg(`${(-L.W/2).toFixed(2)} ${(-L.H/2).toFixed(2)} ${L.W} ${L.H}`, px, Math.round(px*L.H/L.W), body);
+}
+
+/* ---- convert any pack card → an editable builder image set ---- */
+function shapeToAtom(spec){
+  try{ const {v,ticks,rights}=buildFig(spec); const a={kind:"poly", pts:v.map(p=>[+p[0].toFixed(3),+(-p[1]).toFixed(3)])};
+    if(ticks&&ticks.length) a.ticks=1; if(rights&&rights.length) a.rights=rights; return a; }
+  catch(e){ return {kind:"circle", r:0.9}; }
+}
+function pathToAtom(d){ // parse an M/L/Z polygon path → a centered poly atom
+  const nums=(String(d).match(/-?\d*\.?\d+/g)||[]).map(Number), pts=[];
+  for(let i=0;i+1<nums.length;i+=2) pts.push([nums[i],nums[i+1]]);
+  if(pts.length<3) return {kind:"circle", r:0.6};
+  const mx=pts.reduce((a,p)=>a+p[0],0)/pts.length, my=pts.reduce((a,p)=>a+p[1],0)/pts.length;
+  return {kind:"poly", pts:pts.map(p=>[+(p[0]-mx).toFixed(3), +(-(p[1]-my)).toFixed(3)])};
+}
+function normalizeFigure(f){
+  if(!f) return {kind:"circle", r:0.9};
+  if(f.kind) return f;
+  if(f.type==="tenframe") return {kind:"tenframe", cells:f.cells};
+  if(f.type==="dots") return {kind:"dots", points:f.points, hi:f.hi};
+  if(f.shape) return shapeToAtom(f);
+  return {kind:"circle", r:0.9};
+}
+function cardToImageSet(card){
+  if(card.template) return {template:card.template, members:(card.members||[]).map(m=>Object.assign({},m)), layout:card.layout, prompt:card.prompt||""};
+  if(card.cells) return {template:"wodb", members:card.cells.slice(0,4).map(c=>({figure:shapeToAtom(CELL[c]||{shape:"square"}), rotate:0, color:"gray"})), prompt:card.prompt||""};
+  const f=card.figure;
+  if(f && f.type==="scene") return {template:"ispy", members:f.items.map(it=>({figure:shapeToAtom({shape:it.shape, _wh:it.wh, pts:it.pts, rotate:it.rotate}), rotate:0, color:"gray"})), prompt:card.prompt||""};
+  if(f && f.type==="paths") return {template:"ispy", members:f.items.map(it=>({figure:pathToAtom(it.d), rotate:0, color:"gray"})), prompt:card.prompt||""};
+  return {template:"single", members:[{figure:normalizeFigure(card.figure), rotate:0, color:"gray"}], prompt:card.prompt||""};
+}
+
+/* ================= IndexedDB pack store ================= */
+const DBN="nvoke-standalone",STORE="packs";
+function idb(){return new Promise((res,rej)=>{const r=indexedDB.open(DBN,1);
+  r.onupgradeneeded=()=>r.result.createObjectStore(STORE);r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);});}
+function idbPut(k,v){return idb().then(db=>new Promise((res,rej)=>{const t=db.transaction(STORE,"readwrite");
+  t.objectStore(STORE).put(v,k);t.oncomplete=res;t.onerror=()=>rej(t.error);}));}
+function idbGet(k){return idb().then(db=>new Promise(res=>{const t=db.transaction(STORE,"readonly");
+  const q=t.objectStore(STORE).get(k);q.onsuccess=()=>res(q.result||null);q.onerror=()=>res(null);}));}
+function idbKeys(){return idb().then(db=>new Promise(res=>{const t=db.transaction(STORE,"readonly");
+  const q=t.objectStore(STORE).getAllKeys();q.onsuccess=()=>res(q.result||[]);q.onerror=()=>res([]);}));}
+function idbDel(k){return idb().then(db=>new Promise((res,rej)=>{const t=db.transaction(STORE,"readwrite");
+  t.objectStore(STORE).delete(k);t.oncomplete=res;t.onerror=()=>rej(t.error);}));}
+
+/* ================= state ================= */
+let PACKS={}; // name -> prompt pack
+let TRANSCRIPTS=[]; // saved Doer runs, newest first
+let cfg={packName:GEOMETRY_PACK.name, mode:"diagnostic", flash:1, order:"as", hide:true, doerLabel:""};
+let phase="build";
+
+async function init(){
+  PACKS[GEOMETRY_PACK.name]=GEOMETRY_PACK;
+  PACKS[CURVES_PACK.name]=CURVES_PACK;
+  PACKS[TEN_FRAMES_PACK.name]=TEN_FRAMES_PACK;
+  PACKS[DOT_PATTERNS_PACK.name]=DOT_PATTERNS_PACK;
+  refreshPackSel(); wireUI(); updateHints(); initBuilder(); renderDrawer(); initEmbed();
+  try{
+    for(const k of await idbKeys()){ const p=await idbGet(k); if(p&&p.cards) PACKS[p.name||k]=p; }
+    TRANSCRIPTS=await tsAll();
+    refreshPackSel(); renderDrawer(); renderAnalyze();
+  }catch(err){ console.warn("persisted data unavailable:",err); }
+}
+function refreshPackSel(){
+  const sel=document.getElementById("packSel");
+  sel.innerHTML=Object.keys(PACKS).map(n=>`<option ${n===cfg.packName?"selected":""}>${escapeHtml(n)}</option>`).join("");
+}
+function curPack(){return PACKS[cfg.packName]||GEOMETRY_PACK;}
+/* a card flashes only if it is a subitizing card; geometry stays on screen */
+function isFlashCard(c){
+  const f=c&&c.figure;
+  return !!(f&&(f.type==="tenframe"||f.type==="dots"||f.kind==="tenframe"||f.kind==="dots"));
+}
+function packHasFlash(p){return (p.cards||[]).some(isFlashCard);}
+function updateHints(){
+  const p=curPack();
+  document.getElementById("packInfo").textContent=
+    `${p.cards.length} card${p.cards.length===1?"":"s"}${packHasFlash(p)?" · includes flash cards":""}`;
+  document.getElementById("modeHint").textContent = cfg.mode==="presentation"
+    ? "Projected for a group. The question comes up, you talk it through together, and nothing is written down."
+    : "Your partner answers on this device, one card at a time. Their answers are saved here for you to read in Analyze.";
+  document.getElementById("flashWrap").style.display = packHasFlash(p) ? "" : "none";
+  document.getElementById("doerNameWrap").style.display = cfg.mode==="presentation" ? "none" : "";
+  document.getElementById("handoffNote").innerHTML = cfg.mode==="presentation"
+    ? "<b>You drive.</b> Put it on the projector and run the cards for the room."
+    : "<b>Hand your laptop to your partner.</b> Sit beside them. Ask <i>“How do you know?”</i> — ask, never tell. They type; you listen.";
+}
+
+/* ================= UI wiring ================= */
+function wireUI(){
+  const $=id=>document.getElementById(id);
+  $("packSel").onchange=e=>{cfg.packName=e.target.value;updateHints();};
+  $("flash").oninput=e=>{cfg.flash=+e.target.value;$("flashLbl").textContent=cfg.flash+"s";};
+  $("doerLabel").oninput=e=>{cfg.doerLabel=e.target.value;};
+  segWire("modeSeg","mode",v=>{cfg.mode=v;updateHints();});
+  segWire("orderSeg","order",v=>cfg.order=v);
+  $("loadBtn").onclick=()=>$("fileIn").click();
+  $("importLib").onclick=()=>$("fileIn").click();
+  $("fileIn").onchange=onFiles;
+  $("startBtn").onclick=startRun;
+  document.querySelectorAll(".phase").forEach(b=>b.onclick=()=>switchPhase(b.dataset.phase));
+  $("drawerToggle").onclick=()=>toggleDrawer(true);
+  $("drawerClose").onclick=()=>toggleDrawer(false);
+  $("drawerBack").onclick=()=>toggleDrawer(false);
+  $("exportPres").onclick=()=>{
+    const n=(document.getElementById("presName").value||"").trim();
+    if(!n||!PACKS[n]){toast("Save your prompt pack first, then export it.");return;}
+    exportPresentation(n);
+  };
+}
+/* ---- embedded in the BDA Planner: the Planner sends a pack in (nvoke-load) and takes one back (nvoke-pack) ---- */
+function initEmbed(){
+  const embed=new URLSearchParams(location.search).get("embed"); if(!embed) return;
+  document.body.classList.add("embed");
+  const tpl=new URLSearchParams(location.search).get("tpl"); const embedTpl=(tpl&&TEMPLATES[tpl])?tpl:null;
+  const pick=t=>{ const b=document.querySelector(`#tplRail .railbtn[data-tpl="${t}"]`); if(b) b.click(); };
+  if(embedTpl){ document.body.classList.add("tpllock"); pick(embedTpl); }
+  const hdr=document.querySelector("#apphdr .hdrbar"); if(hdr){ const n=document.createElement("div"); n.className="embednote"; n.innerHTML=(embedTpl?`<b>${escapeHtml(TEMPLATES[embedTpl].label||embedTpl)}</b> — `:"")+"build the cards for your Before routine, then press “Use these cards in the Planner.” Nothing here is turned in."; hdr.after(n); }
+  document.getElementById("presName").placeholder="Name these cards (e.g. Same or Different — triangles)…";
+  window.addEventListener("message",e=>{
+    const d=e.data||{}; if(d.type!=="nvoke-load"||!d.pack||!Array.isArray(d.pack.cards)) return;
+    builder.sets=d.pack.cards.map(cardToImageSet); builder.cur={template:embedTpl||"wodb", members:[], prompt:""}; builder.sel=-1; builder.editing=-1; builder.origName=null;
+    document.getElementById("addSet").textContent="＋ Add card";
+    document.getElementById("presName").value=d.pack.name||"";
+    document.querySelectorAll("#tplRail .railbtn").forEach(x=>x.classList.toggle("on",x.dataset.tpl===(embedTpl||"wodb")));
+    renderTplHint(); renderCanvas(); renderTool(); renderSetList(); switchPhase("build");
+  });
+  if(new URLSearchParams(location.search).get("inline")){ document.body.classList.add("inline"); renderLibGrid(); }
+  document.getElementById("usePlanner").onclick=()=>{
+    if(!builder.sets.length){ toast("Add at least one card first (build it, then ＋ Add card)."); return; }
+    syncToPlanner();
+  };
+  window.parent.postMessage({type:"nvoke-ready"}, "*");
+}
+function syncToPlanner(){
+  const name=(document.getElementById("presName").value||"").trim()||"Before cards";
+  const pack={packFormat:"provoke-cards/v1", name, mode:"see", builtWith:"builder", prompt:"What did you see? · How do you know?",
+    cards:builder.sets.map((st,i)=>({id:`${st.template}-${i+1}`, template:st.template, members:st.members, layout:st.layout, prompt:st.prompt||TEMPLATES[st.template].prompt}))};
+  const thumbs=builder.sets.map(st=>imageSetSVG(st,160));
+  window.parent.postMessage({type:"nvoke-pack", pack, thumbs, inline:document.body.classList.contains("inline")}, "*");
+}
+function toggleDrawer(open){
+  document.getElementById("drawer").classList.toggle("open",open);
+  document.getElementById("drawerBack").classList.toggle("open",open);
+  if(open) renderDrawer();
+}
+function switchPhase(t){
+  phase=t;
+  document.querySelectorAll(".phase").forEach(b=>b.classList.toggle("on",b.dataset.phase===t));
+  document.getElementById("builder").style.display=t==="build"?"block":"none";
+  document.getElementById("handoff").style.display=t==="handoff"?"block":"none";
+  document.getElementById("analyze").style.display=t==="analyze"?"block":"none";
+  if(t==="handoff"){ refreshPackSel(); updateHints(); }
+  if(t==="analyze") renderAnalyze();
+  toggleDrawer(false);
+  window.scrollTo(0,0);
+}
+
+/* ================= transcript store ================= */
+const TDBN="nvoke-standalone-transcripts";
+function tdb(){return new Promise((res,rej)=>{const r=indexedDB.open(TDBN,1);
+  r.onupgradeneeded=()=>r.result.createObjectStore("runs",{keyPath:"id"});
+  r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);});}
+function tsPut(v){return tdb().then(db=>new Promise((res,rej)=>{const t=db.transaction("runs","readwrite");
+  t.objectStore("runs").put(v);t.oncomplete=res;t.onerror=()=>rej(t.error);}));}
+function tsAll(){return tdb().then(db=>new Promise(res=>{const t=db.transaction("runs","readonly");
+  const q=t.objectStore("runs").getAll();q.onsuccess=()=>res((q.result||[]).sort((a,b)=>b.at-a.at));q.onerror=()=>res([]);}))
+  .catch(()=>[]);}
+function tsDel(id){return tdb().then(db=>new Promise((res,rej)=>{const t=db.transaction("runs","readwrite");
+  t.objectStore("runs").delete(id);t.oncomplete=res;t.onerror=()=>rej(t.error);}));}
+
+
+function toast(t){let el=document.getElementById("toast");el.textContent=t;el.style.opacity="1";clearTimeout(el._t);el._t=setTimeout(()=>el.style.opacity="0",2800);}
+
+/* ================= BUILDER ================= */
+let builder={sets:[], sel:-1, editing:-1, dragFrom:null, origName:null, cur:{template:"wodb", members:[], prompt:""}};
+function initBuilder(){
+  renderLibGrid(); renderTplHint(); renderCanvas(); renderTool(); renderSetList();
+  document.querySelectorAll("#tplRail .railbtn").forEach(b=>b.onclick=()=>{
+    document.querySelectorAll("#tplRail .railbtn").forEach(x=>x.classList.toggle("on",x===b));
+    builder.cur.template=b.dataset.tpl; builder.sel=-1;
+    const max=TEMPLATES[b.dataset.tpl].max; if(builder.cur.members.length>max) builder.cur.members=builder.cur.members.slice(0,max);
+    renderTplHint(); renderCanvas(); renderTool();});
+  document.getElementById("cardSearch").oninput=e=>renderLibGrid(e.target.value.trim().toLowerCase());
+  document.getElementById("addSet").onclick=addSet;
+  document.getElementById("newPres").onclick=newPresentation;
+  document.getElementById("savePres").onclick=savePresentation;
+  document.getElementById("deClose").onclick=closeEditor;
+  document.getElementById("deClear").onclick=()=>{de.cells=new Array(de.rows*de.cols).fill(0); renderDE();};
+  document.getElementById("deAdd").onclick=()=>{
+    if(!deHasContent()){toast("Place at least one counter.");return;}
+    if(addCardFigure(deFigure())) closeEditor();};
+  document.getElementById("setPrompt").oninput=e=>builder.cur.prompt=e.target.value;
+}
+function renderTplHint(){const t=TEMPLATES[builder.cur.template];
+  document.getElementById("tplHint").textContent=`${t.label} · holds ${t.max===1?"1 shape":"up to "+t.max+" shapes"} · your partner is asked: “${t.prompt}”`;}
+function renderLibGrid(q){
+  const groups={};
+  CARD_LIBRARY.forEach(c=>{ if(q && !c.label.toLowerCase().includes(q) && !c.group.toLowerCase().includes(q)) return;
+    (groups[c.group]=groups[c.group]||[]).push(c);});
+  const el=document.getElementById("libGrid");
+  const gi=g=>{const i=GROUP_ORDER.indexOf(g);return i<0?99:i;};
+  const keys=Object.keys(groups).sort((a,b)=>gi(a)-gi(b));
+  const mk={"Dot patterns":"dots","Ten-frames":"tenframe"};
+  const acc=document.body.classList.contains("inline"); // the Planner's Before editor: groups fold, closed by default
+  const isOpen=g=>!acc||!!q||libOpen===g;
+  el.innerHTML=keys.length ? keys.map(g=>
+    `<details class="lgrp" data-g="${g}" ${isOpen(g)?"open":""}><summary class="ghdr"><span class="car">▸</span>${g}<span class="cnt">${groups[g].length}</span>${mk[g]?` <button class="tbtn mkbtn" data-make="${mk[g]}" title="${mk[g]==="dots"?"Draw your own dot arrangement — click cells to place dots, and mark some red to show a grouping.":"Fill your own ten-frame — click cells to add or remove counters."}">✏️ Make</button>`:``}</summary><div class="lbody">`
+    +groups[g].map(c=>`<div class="lc" data-id="${c.id}" title="${c.label}">${atomSVG(c.figure,46)}</div>`).join("")+`</div></details>`).join("")
+    : `<div class="small" style="padding:8px">No shapes match “${q}”.</div>`;
+  el.querySelectorAll(".lc").forEach(d=>d.onclick=()=>addCard(d.dataset.id));
+  el.querySelectorAll(".mkbtn").forEach(b=>b.onclick=e=>{ e.preventDefault(); e.stopPropagation(); openEditor(b.dataset.make); });
+  if(acc) el.querySelectorAll("details.lgrp").forEach(d=>d.ontoggle=()=>{ if(d.open){ libOpen=d.dataset.g; el.querySelectorAll("details.lgrp").forEach(o=>{ if(o!==d) o.open=false; }); } else if(libOpen===d.dataset.g) libOpen=null; });
+}
+let libOpen=null;
+function addCard(id){
+  const cur=builder.cur, max=TEMPLATES[cur.template].max;
+  if(cur.members.length>=max){ toast(`That template holds up to ${max} cards.`); return; }
+  cur.members.push({ref:id, rotate:0, color:"gray"}); builder.sel=cur.members.length-1;
+  renderCanvas(); renderTool();
+}
+function addCardFigure(figure){
+  const cur=builder.cur, max=TEMPLATES[cur.template].max;
+  if(cur.members.length>=max){ toast(`That template holds up to ${max} cards.`); return false; }
+  cur.members.push({figure:figure, rotate:0, color:"gray"}); builder.sel=cur.members.length-1;
+  renderCanvas(); renderTool(); return true;
+}
+/* ---- dot-pattern + ten-frame editor ---- */
+let de={mode:"dots", rows:5, cols:5, cells:[]};
+function openEditor(mode){
+  de.mode=mode; de.rows=(mode==="tenframe"?2:5); de.cols=5;
+  de.cells=new Array(de.rows*de.cols).fill(0);
+  document.getElementById("deTitle").textContent = mode==="tenframe"?"Make a ten-frame":"Make a dot pattern";
+  document.getElementById("deHint").innerHTML = mode==="tenframe"
+    ? "Click a cell to place or remove a counter."
+    : `Click a cell: empty → <b>dot</b> → <b style="color:#c62828">red</b> (decomposition) → empty.`;
+  document.getElementById("dotEditor").style.display="flex"; renderDE();
+}
+function closeEditor(){ document.getElementById("dotEditor").style.display="none"; }
+function deHasContent(){ return de.cells.some(v=>v); }
+function deFigure(){
+  if(de.mode==="tenframe"){ const cells=[]; de.cells.forEach((v,i)=>{ if(v) cells.push(i); }); return {kind:"tenframe", cells}; }
+  const N=de.cols, sp=1.7/(N-1), pts=[], hi=[];
+  de.cells.forEach((v,i)=>{ if(!v) return; const c=i%N, r=Math.floor(i/N);
+    if(v===2) hi.push(pts.length);
+    pts.push([+(-0.85+c*sp).toFixed(3), +(-0.85+r*sp).toFixed(3)]); });
+  return {kind:"dots", points:pts, hi};
+}
+function renderDE(){
+  const g=document.getElementById("deGrid"), states=(de.mode==="tenframe"?2:3);
+  g.style.gridTemplateColumns=`repeat(${de.cols},1fr)`;
+  g.style.width=(de.mode==="tenframe"?"330px":"264px");
+  g.style.height=(de.mode==="tenframe"?"138px":"264px");
+  g.classList.toggle("tf", de.mode==="tenframe");
+  g.innerHTML=de.cells.map((v,i)=>{
+    const cls = de.mode==="tenframe" ? (v?"red":"") : (v===1?"on":v===2?"red":"");
+    return `<div class="decell ${cls}" data-i="${i}"></div>`;}).join("");
+  g.querySelectorAll(".decell").forEach(d=>d.onclick=()=>{const i=+d.dataset.i; de.cells[i]=(de.cells[i]+1)%states; renderDE();});
+  document.getElementById("dePreview").innerHTML = deHasContent()? atomSVG(deFigure(),180) : `<span class="small">preview</span>`;
+}
+function selectMember(i){ builder.sel=(builder.sel===i?-1:i); renderCanvas(); renderTool(); }
+function rotateSel(){const m=builder.cur.members[builder.sel]; if(m){m.rotate=((m.rotate||0)+45)%360; renderCanvas(); renderTool();}}
+function paintSel(c){const m=builder.cur.members[builder.sel]; if(m){m.color=c; renderCanvas(); renderTool();}}
+function fillSel(){const m=builder.cur.members[builder.sel]; if(m){m.fillStyle=(m.fillStyle==="outline"?undefined:"outline"); renderCanvas(); renderTool();}}
+function removeSel(){if(builder.sel<0)return; builder.cur.members.splice(builder.sel,1); builder.sel=-1; renderCanvas(); renderTool();}
+function cellSVG(m,px){return atomSVG(Object.assign({},memberFig(m),{rotate:m.rotate}), px||100, paintStyle(m));}
+function renderCanvas(){
+  const cur=builder.cur, wrap=document.getElementById("canvasWrap"), t=cur.template;
+  if(t==="ispy"){
+    wrap.innerHTML=(cur.members.length?`<div style="width:100%;text-align:center">${imageSetSVG(cur,340)}</div>`
+      :`<span class="small">Click cards on the left to scatter them here…</span>`)
+      +`<div class="memrow" style="width:100%;justify-content:center">`+cur.members.map((m,i)=>
+        `<div class="mc ${i===builder.sel?'sel':''}" data-i="${i}" title="click to select">${cellSVG(m,40)}</div>`).join("")+`</div>`;
+    wrap.querySelectorAll(".mc").forEach(d=>d.onclick=()=>selectMember(+d.dataset.i));
+    return;
+  }
+  const cls=t==="wodb"?"wodb":t==="sort"?"sort":t==="single"?"single":"samediff", n=TEMPLATES[t].max;
+  let cells="";
+  for(let i=0;i<n;i++){const m=cur.members[i];
+    cells+= m
+      ? `<div class="cell2 filled ${i===builder.sel?'sel':''}" data-i="${i}">${cellSVG(m)}</div>`
+      : `<div class="cell2 empty" data-i="${i}"><span class="ph">＋</span></div>`;}
+  wrap.innerHTML=`<div class="board ${cls}">${cells}</div>`;
+  wrap.querySelectorAll(".cell2").forEach(d=>d.onclick=()=>{const i=+d.dataset.i;
+    if(cur.members[i]) selectMember(i);
+    else { builder.sel=-1; renderTool(); toast("Pick a card on the left to fill this slot."); }});
+}
+function renderTool(){
+  const strip=document.getElementById("toolStrip"), m=builder.cur.members[builder.sel];
+  if(!m){ strip.style.display="none"; return; }
+  strip.style.display="flex";
+  strip.innerHTML=`<span class="kidfont" style="font-weight:700;font-size:13px">Paint:</span>`
+    +PAINT_ORDER.map(c=>`<span class="swatch ${m.color===c?'sel':''}" data-c="${c}" title="${c}" style="background:${PAINT[c]}${c==='white'?';border-color:#bbb':''}"></span>`).join("")
+    +`<button class="tbtn" id="tFill">${m.fillStyle==='outline'?'◻ outline':'◼ solid'}</button>`
+    +`<button class="tbtn" id="tRot">↻ ${m.rotate||0}°</button>`
+    +`<button class="tbtn" id="tDel">🗑 remove</button>`;
+  strip.querySelectorAll(".swatch").forEach(s=>s.onclick=()=>paintSel(s.dataset.c));
+  document.getElementById("tFill").onclick=fillSel;
+  document.getElementById("tRot").onclick=rotateSel;
+  document.getElementById("tDel").onclick=removeSel;
+}
+function addSet(){
+  const cur=builder.cur;
+  if(!cur.members.length){toast("Add some cards first.");return;}
+  const set={template:cur.template, members:cur.members.map(m=>Object.assign({},m)), prompt:cur.prompt||""};
+  if(cur.template==="ispy") set.layout=scatterLayout(set.members.length).places;
+  if(builder.editing>=0 && builder.editing<builder.sets.length){ builder.sets[builder.editing]=set; toast("Card updated."); }
+  else { builder.sets.push(set); toast("Card added — build another, or Save your pack."); }
+  builder.editing=-1;
+  builder.cur={template:cur.template, members:[], prompt:""}; builder.sel=-1;
+  document.getElementById("setPrompt").value="";
+  document.getElementById("addSet").textContent="＋ Add card";
+  renderCanvas(); renderTool(); renderSetList();
+}
+function editImageSet(i){
+  const s=builder.sets[i]; if(!s) return;
+  builder.cur={template:s.template, members:s.members.map(m=>Object.assign({},m)), prompt:s.prompt||"", layout:s.layout};
+  builder.editing=i; builder.sel=-1;
+  document.getElementById("setPrompt").value=s.prompt||"";
+  document.querySelectorAll("#tplRail .railbtn").forEach(x=>x.classList.toggle("on",x.dataset.tpl===s.template));
+  document.getElementById("addSet").textContent="✔ Update card";
+  renderTplHint(); renderCanvas(); renderTool(); renderSetList();
+  toast("Editing this card — change it, then Update.");
+}
+function newPresentation(){
+  builder.sets=[]; builder.cur={template:"wodb", members:[], prompt:""}; builder.sel=-1; builder.editing=-1; builder.origName=null;
+  document.getElementById("presName").value="";
+  document.getElementById("setPrompt").value="";
+  document.getElementById("addSet").textContent="＋ Add card";
+  document.querySelectorAll("#tplRail .railbtn").forEach(x=>x.classList.toggle("on",x.dataset.tpl==="wodb"));
+  renderTplHint(); renderCanvas(); renderTool(); renderSetList(); toast("Started a new prompt pack.");
+}
+function renderSetList(){
+  if(document.body.classList.contains("inline")) syncToPlanner();
+  const el=document.getElementById("setList");
+  if(!builder.sets.length){el.innerHTML=`<span class="small">No cards yet — build one below, then <b>＋ Add card</b>. Click a saved one to edit it · drag to reorder.</span>`;return;}
+  el.innerHTML=builder.sets.map((s,i)=>
+    `<div class="sitem ${i===builder.editing?'editing':''}" draggable="true" data-i="${i}" title="Drag to reorder · click to edit">`
+    +`<span class="grip">⠿</span>`
+    +`<div class="sthumb">${imageSetSVG(s,92)}</div>`
+    +`<span class="num">${i+1}</span>`
+    +`<button class="x" data-i="${i}" title="Remove">✕</button></div>`).join("");
+  const items=el.querySelectorAll(".sitem");
+  const clearDrops=()=>items.forEach(x=>x.classList.remove("dl","dr"));
+  items.forEach(it=>{
+    const i=+it.dataset.i;
+    it.querySelector(".sthumb").onclick=()=>editImageSet(i);
+    it.querySelector(".x").onclick=ev=>{ ev.stopPropagation();
+      builder.sets.splice(i,1);
+      if(builder.editing===i){ builder.editing=-1; document.getElementById("addSet").textContent="＋ Add card"; }
+      else if(builder.editing>i) builder.editing--;
+      renderSetList(); };
+    it.ondragstart=e=>{ builder.dragFrom=i; builder.dropTo=null; e.dataTransfer.effectAllowed="move"; e.dataTransfer.setData("text/plain",String(i)); it.classList.add("dragging"); };
+    it.ondragend=()=>{ it.classList.remove("dragging"); clearDrops(); };
+    it.ondragover=e=>{ e.preventDefault(); if(builder.dragFrom==null) return;
+      const r=it.getBoundingClientRect(), before=e.clientX < r.left+r.width/2;
+      clearDrops(); it.classList.add(before?"dl":"dr"); builder.dropTo=before?i:i+1; };
+    it.ondrop=e=>{ e.preventDefault(); e.stopPropagation(); clearDrops();
+      const from=builder.dragFrom; if(from==null) return;
+      let to=(builder.dropTo!=null?builder.dropTo:i);
+      const editSet = builder.editing>=0? builder.sets[builder.editing] : null;
+      const arr=builder.sets, m=arr.splice(from,1)[0]; if(from<to) to--; arr.splice(to,0,m);
+      builder.editing = editSet? arr.indexOf(editSet) : -1;
+      builder.dragFrom=null; builder.dropTo=null; renderSetList(); };
+  });
+}
+async function savePresentation(){
+  if(!builder.sets.length){toast("Add at least one card first.");return;}
+  let name=(document.getElementById("presName").value||"").trim();
+  if(!name){toast("Give your prompt pack a name first.");document.getElementById("presName").focus();return;}
+  if((PACKS[name]||{}).builtIn){ toast(`“${name}” is a built-in pack — pick a different name.`); return; }
+  const pack={packFormat:"provoke-cards/v1", name, mode:"see", builtWith:"builder",
+    prompt:"What did you see? · How do you know?",
+    cards:builder.sets.map((s,i)=>({id:`${s.template}-${i+1}`, template:s.template,
+      members:s.members, layout:s.layout, prompt:s.prompt||TEMPLATES[s.template].prompt}))};
+  if(builder.origName && builder.origName!==name && !(PACKS[builder.origName]||{}).builtIn){
+    delete PACKS[builder.origName]; try{ await idbDel(builder.origName); }catch(e){}
+  }
+  PACKS[name]=pack; cfg.packName=name; builder.origName=name;
+  try{ await idbPut(name,pack); }catch(err){ console.warn("persist failed",err); }
+  refreshPackSel(); updateHints(); renderDrawer();
+  toast(`Saved “${name}”. Go to Handoff when you are ready to pose it.`);
+}
+/* ---- prompt pack drawer ---- */
+function renderDrawer(){
+  const el=document.getElementById("drawerList"); if(!el) return;
+  const names=Object.keys(PACKS);
+  el.innerHTML=names.map(n=>{
+    const p=PACKS[n], first=p.cards[0], editable=!p.builtIn;
+    return `<div class="drow"><div class="dthumb">${first?cardVisual(first,62):""}</div>`
+      +`<div class="dmeta"><div class="dname">${escapeHtml(n)}</div>`
+      +`<div class="dsub">${p.cards.length} card${p.cards.length!==1?'s':''}${p.builtIn?' · built-in':''}</div>`
+      +`<div class="dacts">`
+      +`<button class="tbtn" data-use="${encodeURIComponent(n)}" title="Load this pack and go to Handoff.">Use ▶</button>`
+      +(editable?`<button class="tbtn" data-edit="${encodeURIComponent(n)}" title="Open this pack in Build.">✎ Edit</button>`:``)
+      +`<button class="tbtn" data-copy="${encodeURIComponent(n)}" title="Make an editable copy.">⧉ Copy</button>`
+      +`<button class="tbtn" data-export="${encodeURIComponent(n)}" title="Download as .json — this is what you submit.">⬇ Export</button>`
+      +(p.builtIn?``:`<button class="tbtn" data-del="${encodeURIComponent(n)}">🗑</button>`)
+      +`</div></div></div>`;
+  }).join("");
+  const dec=x=>decodeURIComponent(x);
+  el.querySelectorAll("[data-use]").forEach(b=>b.onclick=()=>usePack(dec(b.dataset.use)));
+  el.querySelectorAll("[data-edit]").forEach(b=>b.onclick=()=>editPresentation(dec(b.dataset.edit)));
+  el.querySelectorAll("[data-copy]").forEach(b=>b.onclick=()=>copyPresentation(dec(b.dataset.copy)));
+  el.querySelectorAll("[data-export]").forEach(b=>b.onclick=()=>exportPresentation(dec(b.dataset.export)));
+  el.querySelectorAll("[data-del]").forEach(b=>b.onclick=()=>deletePresentation(dec(b.dataset.del)));
+}
+function exportPresentation(name){
+  const p=PACKS[name]; if(!p) return;
+  const blob=new Blob([JSON.stringify(p,null,2)],{type:"application/json"});
+  const url=URL.createObjectURL(blob);
+  const safe=(name.replace(/[^a-z0-9\-_]+/gi,"-").replace(/^-+|-+$/g,"")||"prompt-pack")+".json";
+  const a=document.createElement("a"); a.href=url; a.download=safe;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),1500);
+  toast(`Exported “${name}” as ${safe}`);
+}
+function usePack(name){ if(!PACKS[name])return; cfg.packName=name; cfg.mode="diagnostic";
+  document.querySelectorAll("#modeSeg button").forEach(b=>b.classList.toggle("on",b.dataset.mode==="diagnostic"));
+  refreshPackSel(); updateHints(); switchPhase("handoff"); }
+function editPresentation(name){
+  const p=PACKS[name]; if(!p) return;
+  builder.sets=p.cards.map(cardToImageSet);
+  builder.cur={template:"wodb", members:[], prompt:""}; builder.sel=-1; builder.editing=-1; builder.origName=name;
+  document.getElementById("addSet").textContent="＋ Add card";
+  document.getElementById("presName").value=name;
+  document.querySelectorAll("#tplRail .railbtn").forEach(x=>x.classList.toggle("on",x.dataset.tpl==="wodb"));
+  renderTplHint(); renderCanvas(); renderTool(); renderSetList(); switchPhase("build");
+  toast(`Editing “${name}” — Save keeps the same name.`);
+}
+async function copyPresentation(name){
+  const p=PACKS[name]; if(!p) return;
+  let nn=name+" copy", i=2; while(PACKS[nn]) nn=name+" copy "+(i++);
+  const sets=p.cards.map(cardToImageSet);
+  const clone={packFormat:"provoke-cards/v1", name:nn, mode:"see", builtWith:"builder",
+    prompt:p.prompt||"What did you see? · How do you know?",
+    cards:sets.map((s,idx)=>({id:`${s.template}-${idx+1}`, template:s.template, members:s.members, layout:s.layout, prompt:s.prompt||TEMPLATES[s.template].prompt}))};
+  PACKS[nn]=clone; try{ await idbPut(nn,clone); }catch(e){}
+  refreshPackSel(); renderDrawer(); toast(`Copied to “${nn}” — now editable in Build.`);
+}
+async function deletePresentation(name){
+  if(!confirm(`Delete “${name}”? This cannot be undone.`)) return;
+  delete PACKS[name]; try{ await idbDel(name); }catch(e){}
+  if(cfg.packName===name) cfg.packName=GEOMETRY_PACK.name;
+  refreshPackSel(); updateHints(); renderDrawer(); toast(`Deleted “${name}”.`);
+}
+
+function segWire(id,key,cb){const el=document.getElementById(id);
+  el.querySelectorAll("button").forEach(b=>b.onclick=()=>{
+    el.querySelectorAll("button").forEach(x=>x.classList.remove("on"));b.classList.add("on");
+    cb(b.dataset[key]);});}
+
+/* ---- load packs / images ---- */
+async function onFiles(e){
+  const files=[...e.target.files]; if(!files.length) return;
+  const json=files.find(f=>f.name.endsWith(".json"));
+  let pack;
+  if(json){ pack=JSON.parse(await json.text()); if(!pack.name) pack.name=json.name.replace(/\.json$/,""); }
+  else {
+    const imgs=files.filter(f=>f.type.startsWith("image/"));
+    if(!imgs.length){alert("Select a .json pack or image files.");return;}
+    const cards=[];
+    for(const f of imgs){ cards.push({id:f.name, image:await toDataURL(f),
+      prompt:"What do you see? · How do you know?"}); }
+    pack={packFormat:"provoke-cards/v1", name:prompt("Name this prompt pack:", "My images")||"My images",
+          mode:"see", prompt:"What do you see? · How do you know?", cards};
+  }
+  PACKS[pack.name]=pack; cfg.packName=pack.name;
+  try{ await idbPut(pack.name,pack); }catch(err){ console.warn("persist failed",err); }
+  refreshPackSel(); updateHints(); renderDrawer();
+  toast(`Imported “${pack.name}” into your prompt packs.`);
+  e.target.value="";
+}
+const toDataURL=f=>new Promise(res=>{const r=new FileReader();r.onload=()=>res(r.result);r.readAsDataURL(f);});
+
+/* ================= run ================= */
+let ses=null;
+function lockChrome(on){
+  document.getElementById("apphdr").style.display = on ? "none" : "";
+  if(on) toggleDrawer(false);
+}
+function startRun(){
+  const p=curPack();
+  let idx=p.cards.map((_,i)=>i);
+  if(cfg.order==="shuffle") for(let i=idx.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[idx[i],idx[j]]=[idx[j],idx[i]];}
+  ses={pack:p, mode:cfg.mode, flashMs:cfg.flash*1000, order:idx, i:0, responses:[],
+       doerLabel:(cfg.doerLabel||"").trim(), startedAt:Date.now()};
+  document.getElementById("handoff").style.display="none";
+  document.getElementById("report").style.display="none";
+  document.getElementById("stage").style.display="flex";
+  lockChrome(true);
+  document.getElementById("endBtn").onclick=()=>{
+    if(confirm("End this run? Anything typed so far will be lost.")) endRun();
+  };
+  showCard();
+}
+function stageEl(id){return document.getElementById(id);}
+function curCard(){return ses.pack.cards[ses.order[ses.i]];}
+function renderFlashCtl(){
+  const el=stageEl("stFlash");
+  if(!isFlashCard(curCard())){ el.innerHTML=""; return; }
+  const s=Math.round(ses.flashMs/1000);
+  el.innerHTML=`⏱ <button class="fadj" id="fdn">−</button> <b>${s}s</b> <button class="fadj" id="fup">＋</button>`;
+  stageEl("fdn").onclick=()=>adjFlash(-1);
+  stageEl("fup").onclick=()=>adjFlash(1);
+}
+function adjFlash(d){
+  let s=Math.round(ses.flashMs/1000)+d; s=Math.max(1,Math.min(5,s)); ses.flashMs=s*1000; renderFlashCtl();
+}
+function questionFor(c){ return c.prompt || ses.pack.prompt || "What do you see?"; }
+/* don't repeat "How do you know?" underneath when the question already says it */
+function subFor(c){
+  const t=TEMPLATES[c.template], sub = t && t.sub!==undefined ? t.sub : "How do you know?";
+  if(!sub) return "";
+  /* don't echo a follow-up the question already asks */
+  const q=questionFor(c).toLowerCase(), key=sub.toLowerCase().replace(/[?.]/g,"");
+  return q.includes(key) || /how (do )?you know|why or why not/i.test(q) ? "" : sub;
+}
+/* Every card names its question BEFORE anything is shown. Geometry cards then stay
+   on screen while the Doer reasons; only dot / ten-frame cards flash and hide. */
+function showCard(){
+  const c=curCard();
+  stageEl("stCount").textContent=`${ses.i+1} / ${ses.order.length}`;
+  stageEl("stName").textContent=ses.pack.name;
+  renderFlashCtl();
+  clearTimeout(ses.t);
+  if(isFlashCard(c)) flashPhase(); else steadyPhase();
+}
+function flashPhase(){
+  const c=curCard();
+  stageEl("stageBody").innerHTML=
+    `<div class="prompt" style="font-size:26px">${escapeHtml(questionFor(c))}</div>
+     <div class="figbox">${cardVisual(c)}</div>`;
+  const bar=stageEl("bar"); bar.style.transition="none"; bar.style.width="100%";
+  requestAnimationFrame(()=>{bar.style.transition=`width ${ses.flashMs}ms linear`; bar.style.width="0%";});
+  ses.t=setTimeout(answerPhase, ses.flashMs);
+}
+function steadyPhase(){ answerPhase(); }
+function answerPhase(){
+  const c=curCard(), flash=isFlashCard(c);
+  const bar=stageEl("bar"); bar.style.transition="none"; bar.style.width="0%";
+  /* multi-figure cards need more room than a single figure: you cannot reason about
+     properties from a 50px shape */
+  const many = ((c.members||[]).length > 1) || c.template==="sort" || c.template==="ispy";
+  const figure = flash ? "" :
+    `<div class="figbox" style="max-height:${many?52:44}vh">${cardVisual(c, many?460:340)}</div>`;
+  if(ses.mode==="presentation"){
+    stageEl("stageBody").innerHTML=`
+      <div class="prompt" style="font-size:${questionFor(c).length>70?28:38}px">${escapeHtml(questionFor(c))}</div>
+      <div class="promptSub">${subFor(c)}</div>
+      ${figure}
+      <div class="stageBtns">
+        ${flash?'<button class="ghost" id="look">👁 Show it again</button>':""}
+        <button class="primary" id="next">${ses.i+1<ses.order.length?"Next ▶":"Finish"}</button>
+      </div>`;
+    if(flash) stageEl("look").onclick=peek;
+    stageEl("next").onclick=advance;
+    return;
+  }
+  const draft=ses.draft||""; ses.draft="";
+  stageEl("stageBody").innerHTML=`
+    <div class="prompt" style="font-size:${questionFor(c).length>70?23:30}px">${escapeHtml(questionFor(c))}</div>
+    <div class="promptSub">${subFor(c)}</div>
+    ${figure}
+    <div class="stageInput"><textarea id="resp" placeholder="What you see — and how you know…">${escapeHtml(draft)}</textarea></div>
+    <div class="stageBtns">
+      ${flash?'<button class="ghost" id="look">👁 Look again</button>':""}
+      <button class="primary" id="next">${ses.i+1<ses.order.length?"Next ▶":"Finish"}</button>
+    </div>`;
+  const ta=stageEl("resp"); ta.focus();
+  if(flash) stageEl("look").onclick=()=>{ses.draft=ta.value; peek();};
+  stageEl("next").onclick=()=>{ ses.responses[ses.i]=ta.value.trim(); advance(); };
+  ta.onkeydown=ev=>{ if(ev.key==="Enter"&&(ev.metaKey||ev.ctrlKey)){ses.responses[ses.i]=ta.value.trim();advance();} };
+}
+/* "Look again" is not timed — it stays until you dismiss it */
+function peek(){
+  const c=curCard();
+  stageEl("stageBody").innerHTML=
+    `<div class="prompt" style="font-size:26px">${escapeHtml(questionFor(c))}</div>
+     <div class="figbox">${cardVisual(c)}</div>
+     <div class="stageBtns"><button class="primary" id="backToAns">◀ Back to my answer</button></div>`;
+  stageEl("backToAns").onclick=answerPhase;
+}
+function advance(){
+  if(ses.i+1<ses.order.length){ ses.i++; showCard(); }
+  else finish();
+}
+function endRun(){
+  if(ses) clearTimeout(ses.t);
+  ses=null;
+  lockChrome(false);
+  document.getElementById("stage").style.display="none";
+  document.getElementById("report").style.display="none";
+  switchPhase("handoff");
+}
+async function finish(){
+  clearTimeout(ses.t);
+  document.getElementById("stage").style.display="none";
+  const rep=document.getElementById("report"); rep.style.display="block";
+  if(ses.mode==="presentation"){
+    lockChrome(false);
+    rep.innerHTML=`<div class="card"><h1>Done</h1>
+      <p style="font-size:16px">Nothing was written down — that talk stays in the room.</p>
+      <button class="primary" id="again">◀ Back</button></div>`;
+    rep.querySelector("#again").onclick=()=>{rep.style.display="none";switchPhase("handoff");};
+    return;
+  }
+  const rec={ id:"t"+ses.startedAt, at:ses.startedAt, packName:ses.pack.name,
+    doerLabel:ses.doerLabel||"", thinker:"",
+    cards:ses.order.map(ci=>ses.pack.cards[ci]),
+    responses:ses.order.map((_,k)=>ses.responses[k]||""),
+    claims:[], next:"", done:false };
+  ses=null;
+  /* The Doer never analyses. Dead end: hand the laptop back.
+     Painted first, saved after — the Doer never waits on a disk write. */
+  rep.innerHTML=`<div class="card" style="text-align:center;padding:44px 22px">
+    <div class="handback">Thank you — please hand the laptop back.</div>
+    <p style="font-size:15px;color:var(--muted);margin-top:14px">
+      Your answers are saved on this device for your partner to read. You are done.</p>
+    <div style="margin-top:22px"><button class="ghost" id="owner">I am the owner of this laptop ▶</button></div>
+  </div>`;
+  rep.querySelector("#owner").onclick=()=>{
+    rep.style.display="none"; lockChrome(false); switchPhase("analyze");
+  };
+  try{ await tsPut(rec); TRANSCRIPTS=await tsAll(); }
+  catch(e){
+    console.warn("transcript save failed",e);
+    const w=rep.querySelector(".handback");
+    if(w) w.insertAdjacentHTML("afterend",
+      `<p style="color:var(--mark);font-weight:700;margin-top:12px">This browser would not save the transcript. Do not close the tab — call your instructor over.</p>`);
+  }
+}
+
+/* Browser confirm() only ever offers OK and Cancel, and "OK" reads as agreement
+   with whatever the sentence said last. Name the buttons after the actions. */
+function ask({title, body, go, stay}){
+  return new Promise(res=>{
+    const wrap=document.createElement("div");
+    wrap.className="modal askbox";   /* askbox: the dot editor is also a .modal */
+    wrap.id="askDialog";
+    wrap.innerHTML=`<div class="modalbox" style="max-width:520px">
+      <div class="modalhd">${escapeHtml(title)}</div>
+      <div style="font-size:14.5px;line-height:1.5;white-space:pre-line;margin:12px 0 20px">${escapeHtml(body)}</div>
+      <div class="defoot">
+        ${go?`<button class="ghost" data-a="go">${escapeHtml(go)}</button>`:""}
+        <button class="primary" data-a="stay">${escapeHtml(stay)}</button>
+      </div></div>`;
+    document.body.appendChild(wrap);
+    const done=v=>{ wrap.remove(); res(v); };
+    const g=wrap.querySelector('[data-a="go"]'); if(g) g.onclick=()=>done(true);
+    wrap.querySelector('[data-a="stay"]').onclick=()=>done(false);
+    wrap.onclick=e=>{ if(e.target===wrap) done(false); };
+    wrap.querySelector('[data-a="stay"]').focus();
+  });
+}
+
+/* ================= phase 3 · ANALYZE ================= */
+let an={id:null};
+/* transcripts of the same pack look identical without this */
+function when(ts){
+  if(!ts) return "unknown time";
+  const d=new Date(ts), now=new Date();
+  const t=d.toLocaleTimeString([], {hour:"numeric", minute:"2-digit"});
+  return d.toDateString()===now.toDateString() ? "today "+t : d.toLocaleDateString([], {month:"short", day:"numeric"})+" "+t;
+}
+function renderAnalyze(){
+  const el=document.getElementById("analyze"); if(!el) return;
+  if(an.id){ const t=TRANSCRIPTS.find(x=>x.id===an.id); if(t){ renderOneAnalysis(el,t); return; } an.id=null; }
+  if(!TRANSCRIPTS.length){
+    el.innerHTML=`<div class="card"><h1>Analyze</h1>
+      <p class="stepnote">Nothing to read yet. Build a prompt pack, hand your laptop to your partner in <b>Handoff</b>, and their answers will land here.</p>
+      <div class="locate">${LEVELS_NOTE}</div></div>`;
+    return;
+  }
+  el.innerHTML=`<div class="card"><h1>Analyze</h1>
+    <p class="stepnote">Each transcript below is what one partner typed on this laptop. Read the reasoning, not the label.</p>
+    ${TRANSCRIPTS.map(t=>{
+      const blank=t.responses.filter(r=>!r||!r.trim()).length;
+      const first=(t.responses.find(r=>r&&r.trim())||"").slice(0,60);
+      return `<div class="tscript ${t.done?"done":""}" data-open="${t.id}">
+      <div style="flex:1">
+        <div style="font-weight:700">${escapeHtml(t.doerLabel||"Doer")} · ${escapeHtml(t.packName)}</div>
+        <div class="small">${when(t.at)} · ${t.responses.length} card${t.responses.length===1?"":"s"}${
+          blank?` · <b style="color:var(--mark)">${blank} left blank</b>`:""}${t.done?" · analysis written":""}</div>
+        ${first?`<div class="small" style="font-style:italic">“${escapeHtml(first)}${first.length>=60?"…":""}”</div>`
+               :`<div class="small" style="color:var(--mark)">nothing was typed in this run</div>`}
+      </div>
+      <button class="tbtn" title="Open this transcript and locate the level your partner is reasoning from.">${t.done?"Review":"Analyze ▶"}</button>
+      <button class="tbtn" data-drop="${t.id}" title="Delete this transcript">🗑</button>
+    </div>`;}).join("")}
+    <div class="locate" style="margin-top:16px">${LEVELS_NOTE}</div></div>`;
+  el.querySelectorAll("[data-open]").forEach(d=>d.onclick=ev=>{
+    if(ev.target.dataset.drop) return;
+    an.id=d.dataset.open; renderAnalyze();
+  });
+  el.querySelectorAll("[data-drop]").forEach(b=>b.onclick=async ev=>{
+    ev.stopPropagation();
+    if(!confirm("Delete this transcript?")) return;
+    await tsDel(b.dataset.drop); TRANSCRIPTS=await tsAll(); renderAnalyze();
+  });
+}
+function renderOneAnalysis(el,t){
+  const rows=t.responses.map((r,k)=>{
+    const claimed=t.claims.find(c=>c.evidence.includes(k));
+    return `<div class="anrow ${claimed?"picked":""}" data-ev="${k}" title="${claimed?"Quoted as evidence — click to unquote it.":"Click to quote this answer as evidence for your most recent claim."}">
+      <div class="abox">${claimed?"✓":"+"}</div>
+      <div class="athumb">${cardVisual(t.cards[k],54)}</div>
+      <div class="asaid"><span class="anum">${k+1}.</span> <i>“${escapeHtml(r||"(blank)")}”</i>
+      ${claimed?`<div class="small">evidence for Level ${claimed.level}</div>`:""}</div>
+    </div>`;}).join("");
+  const claims=t.claims.map((c,ci)=>{
+    const L=levelOf(c.level);
+    return `<div class="claimcard">
+      <div class="claimhd"><b>${L.name}</b><button class="tbtn" data-unclaim="${ci}" title="Drop this level claim and the quotes attached to it.">remove</button></div>
+      <div class="small">${L.desc}</div>
+      <div style="margin-top:8px;font-size:13px">${c.evidence.length
+        ? c.evidence.map(i=>`<div>• <i>“${escapeHtml(t.responses[i]||"")}”</i> <span class="small">(card ${i+1})</span></div>`).join("")
+        : `<span class="needs">Nothing quoted yet — click the answers below that show this level.</span>`}</div>
+      <label style="margin-top:10px">Why this level?</label>
+      <textarea class="whybox" data-why="${ci}" title="Say what in their words puts them at this level, and what would have put them higher. This prints under the quotes." placeholder="What in their words puts them here — and what is missing that would put them higher?">${escapeHtml(c.why||"")}</textarea>
+    </div>`;}).join("");
+  el.innerHTML=`<div class="card">
+    <div class="claimhd"><h1 style="margin:0">${escapeHtml(t.doerLabel||"Doer")} · ${escapeHtml(t.packName)}</h1>
+      <button class="tbtn" id="backList" title="Back to every transcript saved on this device.">◀ All transcripts</button></div>
+    <p class="stepnote">You are the <b>Thinker</b>. Locate where your partner is — then decide what to offer next. Locate, don’t rank.</p>
+
+    <label>1 · Which levels do you see most clearly? <span style="font-weight:400;color:var(--mark)">— start here</span></label>
+    <div class="stepnote">Click a level to make a claim. You can claim more than one.</div>
+    <div class="lvlpick">${VAN_HIELE.map(L=>`<button class="lvlbtn ${t.claims.some(c=>c.level===L.n)?"on":""}" data-lvl="${L.n}" title="Claim ${L.name} — then click the answers below that put your partner here. You can claim more than one level.">
+      <span class="lname">${L.name}</span><span class="ldesc">${L.desc}<br><b>e.g.</b> ${L.example}</span></button>`).join("")}</div>
+    ${claims||`<div class="small">Pick a level above to start a claim.</div>`}
+
+    <label style="margin-top:18px">2 · Quote your evidence</label>
+    ${t.claims.length
+      ? `<div class="stepnote">Click any answer below to attach it to <b>${levelOf(t.claims[t.claims.length-1].level).name}</b>. Click again to remove it.</div>${rows}`
+      : `<div class="locate needs">Pick a level above first. Then these answers become clickable, and the ones you click are quoted as your evidence.</div>
+         <div class="inert">${rows}</div>`}
+
+    <label style="margin-top:18px">3 · What would you engage your partner in next?</label>
+    <textarea id="nextExp" title="Pitch it at the level you located. An experience aimed above where someone is only gets memorised." placeholder="Pitch it at the level you just located — an experience aimed above where they are only gets memorised…">${escapeHtml(t.next||"")}</textarea>
+
+    <label style="margin-top:14px">Your name <span style="font-weight:400;color:var(--muted)">— you did this analysis</span></label>
+    <input id="thinkerName" type="text" title="You did this analysis, so your name goes on it. Your partner stays anonymous." placeholder="Your name" value="${escapeHtml(t.thinker||"")}">
+
+    <div style="margin-top:18px;display:flex;gap:10px;flex-wrap:wrap">
+      <button class="primary" id="saveAn" title="Keep your levels, quoted evidence and next experience on this device. You can come back and finish later.">💾 Save analysis</button>
+      <button class="ghost" id="exportPDF" title="Print or save the evidence for Pedagogical Excursion #3 — your partner's answers in their own words, the level you located, and what you would offer next.">📄 Export PDF for submission</button>
+    </div>
+    <div class="locate" style="margin-top:14px">${LEVELS_NOTE}</div>
+  </div>`;
+  el.querySelector("#backList").onclick=()=>{an.id=null;renderAnalyze();};
+  el.querySelectorAll("[data-lvl]").forEach(b=>b.onclick=async()=>{
+    const n=+b.dataset.lvl;
+    if(!t.claims.some(c=>c.level===n)) t.claims.push({level:n,evidence:[]});
+    await tsPut(t); TRANSCRIPTS=await tsAll(); an.id=t.id; renderAnalyze();
+  });
+  el.querySelectorAll("[data-unclaim]").forEach(b=>b.onclick=async()=>{
+    t.claims.splice(+b.dataset.unclaim,1);
+    await tsPut(t); TRANSCRIPTS=await tsAll(); renderAnalyze();
+  });
+  el.querySelectorAll("[data-ev]").forEach(d=>d.onclick=async()=>{
+    if(!t.claims.length){ toast("Pick a level first, then attach evidence to it."); return; }
+    const k=+d.dataset.ev, c=t.claims[t.claims.length-1];
+    const at=c.evidence.indexOf(k);
+    if(at>=0) c.evidence.splice(at,1);
+    else { t.claims.forEach(x=>{const j=x.evidence.indexOf(k); if(j>=0) x.evidence.splice(j,1);}); c.evidence.push(k); }
+    await tsPut(t); TRANSCRIPTS=await tsAll(); renderAnalyze();
+  });
+  el.querySelectorAll("[data-why]").forEach(box=>box.oninput=()=>{
+    t.claims[+box.dataset.why].why=box.value; tsPut(t);
+  });
+  const collect=()=>{
+    t.next=el.querySelector("#nextExp").value;
+    t.thinker=el.querySelector("#thinkerName").value.trim();
+    el.querySelectorAll("[data-why]").forEach(b=>{ t.claims[+b.dataset.why].why=b.value; });
+  };
+  el.querySelector("#saveAn").onclick=async()=>{
+    collect();
+    const bare=t.claims.filter(c=>!c.evidence.length).length;
+    t.done=!!(t.claims.length && t.next.trim() && !bare);
+    await tsPut(t); TRANSCRIPTS=await tsAll();
+    toast(!t.claims.length ? "Pick a level first."
+        : bare ? `Saved — but ${bare===1?"a claim has":bare+" claims have"} no quoted evidence. Click the answers that show it.`
+        : !t.next.trim() ? "Saved — add what you would offer next to finish it."
+        : "Analysis saved.");
+    renderAnalyze();
+  };
+  el.querySelector("#exportPDF").onclick=async()=>{
+    collect();
+    /* stop before the PDF exists, not after — the PDF is the evidence they hand in */
+    if(!t.claims.length){
+      await ask({title:"Select a level first",
+        body:"Click one of the three levels above, then click the answers that show it.\n\nA transcript with no level located is not a diagnosis.",
+        go:"", stay:"Continue editing"});
+      return;
+    }
+    const bare=t.claims.filter(c=>!c.evidence.length);
+    if(bare.length){
+      const names=bare.map(c=>levelOf(c.level).name).join(" and ");
+      if(!await ask({title:"Select the responses that support your conclusion",
+        body:`${names} ${bare.length===1?"has":"have"} no quoted evidence.\n\nClick the answers below that show this level — the quote is the diagnosis.`,
+        go:"Export PDF anyway", stay:"Continue editing"})) return;
+    }
+    if(!t.next.trim()){
+      if(!await ask({title:"You have not said what to offer next",
+        body:"Locating the level is half of it. The other half is what you would put in front of this learner, pitched at where they are.",
+        go:"Export PDF anyway", stay:"Continue editing"})) return;
+    }
+    tsPut(t); exportPDF(t);
+  };
+}
+function exportPDF(t){
+  const rows=t.responses.map((r,k)=>{
+    const claimed=t.claims.find(c=>c.evidence.includes(k));
+    return `<div class="pr"><div class="pi">${cardVisual(t.cards[k],110)}</div>
+      <div class="pt"><b>${k+1}.</b> “${escapeHtml(r||"")}”${claimed?`<br><span class="ev">cited as evidence for ${levelOf(claimed.level).name}</span>`:""}</div></div>`;}).join("");
+  const claims=t.claims.length? t.claims.map(c=>{
+    const L=levelOf(c.level);
+    return `<div class="cl"><b>${L.name}</b> — ${L.short}
+      <ul>${c.evidence.length?c.evidence.map(i=>`<li>“${escapeHtml(t.responses[i]||"")}” <i>(card ${i+1})</i></li>`).join(""):"<li><i>nothing quoted yet</i></li>"}</ul>
+      ${c.why&&c.why.trim()?`<div style="margin-top:6px">${escapeHtml(c.why)}</div>`:""}</div>`;
+    }).join("") : "<p><i>No level located.</i></p>";
+  const doc=`<!doctype html><html><head><meta charset="utf-8"><title>nVoke — ${escapeHtml(t.packName)}</title>
+<style>body{font-family:Inter,system-ui,sans-serif;color:#1a2b4a;max-width:720px;margin:24px auto;padding:0 16px}
+h1{color:#1F4E96;margin-bottom:2px}h3{color:#1F4E96;margin-top:22px}
+.pr{display:flex;gap:14px;align-items:center;border-top:1px solid #e5e5e5;padding:8px 0}
+.pi svg,.pi img{max-width:105px;max-height:105px}.pt{font-size:14px}
+.ev{font-size:12px;color:#1F4E96;font-weight:700}
+.cl{background:#f5f8fc;border-radius:8px;padding:10px 14px;margin:8px 0;font-size:14px}
+.cl ul{margin:6px 0 0}
+.meta{background:#f5f8fc;border-radius:8px;padding:12px;font-size:14px;white-space:pre-wrap}
+.note{font-size:12px;color:#666}
+@media print{body{margin:0}}</style>
+</head><body>
+<h1>nVoke — ${escapeHtml(t.packName)}</h1>
+<p class="note"><b>Doer:</b> ${escapeHtml(t.doerLabel||"anonymous")} — these are the Doer's own words.<br>
+<b>Thinker:</b> ${escapeHtml(t.thinker||"(unsigned)")} — posed the pack and wrote the analysis below.<br>
+Everything stayed on the Thinker's device; this was exported deliberately.</p>
+<h3>Locate the level, with evidence</h3>${claims}
+<h3>What I would offer next</h3><div class="meta">${escapeHtml(t.next)||"(not written)"}</div>
+<h3>The Doer's answers, in full</h3>${rows}
+</body></html>`;
+  /* Printed from a hidden iframe rather than a new window: pop-up blockers cannot
+     stop it, and nobody ends up with a stray .html file they have to open by hand. */
+  const old=document.getElementById("printFrame"); if(old) old.remove();
+  const f=document.createElement("iframe");
+  f.id="printFrame";
+  f.setAttribute("aria-hidden","true");
+  f.style.cssText="position:fixed;right:0;bottom:0;width:0;height:0;border:0;visibility:hidden";
+  document.body.appendChild(f);
+  try{
+    const d=f.contentWindow.document;
+    d.open(); d.write(doc); d.close();
+    setTimeout(()=>{
+      try{ f.contentWindow.focus(); f.contentWindow.print(); }
+      catch(e){ console.warn("print failed",e); toast("Your browser would not open the print dialog."); }
+    }, 400);
+  }catch(e){
+    console.warn("print frame failed",e);
+    toast("Could not build the printable page.");
+  }
+}
+
+function escapeHtml(s){return (s||"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));}
+
+init();
+</script>
+</body>
+</html>

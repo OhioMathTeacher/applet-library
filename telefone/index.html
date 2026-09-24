@@ -184,8 +184,8 @@ dialog.ai::backdrop { background: rgba(20,16,10,.45); }
 dialog.about { border: 1px solid var(--comment-border); border-radius: 14px; background: var(--comment-bg); color: var(--ink);
   max-width: 460px; width: calc(100% - 32px); padding: 0; box-shadow: 0 18px 50px rgba(44,36,22,.28); }
 dialog.about::backdrop { background: rgba(20,16,10,.55); }
-.ab-top { text-align: center; padding: 26px 24px 18px; background: linear-gradient(var(--margin-bg), var(--comment-bg)); }
-.ab-mark { font-size: 40px; line-height: 1; }
+.ab-top { text-align: center; padding: 30px 24px 20px; background: linear-gradient(var(--margin-bg), var(--comment-bg)); }
+.ab-mark { font-size: 72px; line-height: 1; color: var(--accent); }
 .ab-top h2 { margin: 8px 0 2px; font-size: 25px; }
 .ab-tag { margin: 0; color: var(--muted); font-size: 14.5px; }
 .ab-body { padding: 18px 24px 4px; }
@@ -200,16 +200,13 @@ dialog.about::backdrop { background: rgba(20,16,10,.55); }
 .ab-links { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px 18px;
   border-top: 1px solid var(--comment-border); padding: 14px 24px 4px; font-size: 13.5px; }
 .ab-links a { color: var(--accent); text-decoration: underline; text-underline-offset: 2px; }
-.ab-stamp { text-align: center; font-size: 12px; color: var(--muted); padding: 8px 24px 4px; font-variant-numeric: tabular-nums; }
-.ab-floppy { text-align: center; font-size: 12px; color: var(--muted); opacity: .8; padding: 0 24px 6px; }
+.ab-floppy { text-align: center; font-size: 12px; color: var(--muted); opacity: .8; padding: 12px 24px 6px; }
 .ab-foot { display: flex; padding: 10px 24px 18px; }
 .ab-foot .btn { margin: 0 auto; }
 button.brand { font: inherit; font-weight: 700; font-size: 17px; letter-spacing: .01em; color: inherit;
   background: none; border: 0; padding: 2px 6px; margin-left: -6px; border-radius: 7px; cursor: pointer; }
 button.brand:hover { background: var(--highlight-soft); color: var(--accent); }
 
-footer.about { margin-top: 26px; padding-top: 14px; border-top: 1px solid var(--comment-border); font-size: 13.5px; color: var(--muted); max-width: 80ch; }
-footer.about a { color: var(--accent); }
 </style>
 </head>
 <body>
@@ -221,11 +218,6 @@ footer.about a { color: var(--accent); }
     <button class="btn ghost sm" id="dlBtn" title="Save every round to one text file">Save rounds</button>
   </div>
   <div id="frame"></div>
-  <footer class="about">
-    Telefone is the Generation Loss lab from <a href="https://github.com/OhioMathTeacher/journaler">Journaler</a>, pulled out to stand on its own.
-    Nothing is submitted and nothing is graded: the rounds live in this browser only, and the text you put in round 0 goes to whichever
-    AI provider you chose &mdash; to that company, not to anyone here.
-  </footer>
 </div>
 
 <dialog class="about" id="aboutDlg">
@@ -254,7 +246,6 @@ footer.about a { color: var(--accent); }
     <a href="https://github.com/OhioMathTeacher/applet-library/issues" target="_blank" rel="noopener">Report a problem &#8599;</a>
     <a href="https://github.com/OhioMathTeacher/journaler" target="_blank" rel="noopener">Journaler &#8599;</a>
   </div>
-  <div class="ab-stamp" id="abStamp"></div>
   <div class="ab-floppy" id="abFloppy"></div>
   <div class="ab-foot"><button type="button" class="btn sm" id="abClose">Close</button></div>
 </dialog>
@@ -1038,7 +1029,7 @@ document.getElementById('dlBtn').addEventListener('click', () => {
 //
 // ⚠ BUMP BUILD.date WHENEVER THIS FILE CHANGES, or the check will keep reporting an
 //   update that the reader has, in fact, already got.
-const BUILD = { version: '1.1.0', date: '2026-09-24' };
+const BUILD = { version: '1.2.0', date: '2026-09-24' };
 const REPO = 'OhioMathTeacher/applet-library';
 const SELF = 'telefone/index.html';
 
@@ -1057,7 +1048,6 @@ function floppyLine(bytes){
 }
 function openAbout(){
   document.getElementById('abVer').innerHTML = '<b>Version ' + BUILD.version + '</b><br><span class="note">Built ' + BUILD.date + '</span>';
-  document.getElementById('abStamp').textContent = 'Version ' + BUILD.version + ' · ' + BUILD.date;
   let size = 0;
   try {
     const nav = performance.getEntriesByType('navigation')[0];

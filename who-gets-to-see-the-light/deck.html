@@ -209,7 +209,14 @@
 <!-- 6  LIVE: Allegory -->
 <section class="slide appslide" data-app="allegory">
   <div class="applabel">Allegory · lyrics</div>
-  <iframe data-app-frame="allegory"></iframe>
+  <div class="appfallback">
+    <div class="af-name">Allegory</div>
+    <div class="af-sub">lyrics</div>
+    <div class="af-body">In the room this slide is the app itself &mdash; a folder of your own
+    music, with Socrates in the sidebar. Allegory runs on the presenter&rsquo;s machine and is
+    not published yet, so there is nothing here to embed. Clique and Marginalia, on the next
+    two slides, are live and you can use them now.</div>
+  </div>
 </section>
 
 <!-- 7  LIVE: Clique -->
@@ -552,48 +559,5 @@ showBar();   // reveal briefly on load so the controls are discoverable
 })();
 </script>
 <a class="backtopage" href="./" title="Back to the talk page">&larr; the page</a>
-
-<script>
-/* Public copy only. Allegory is not published, so on the web its slide would be a
-   blank frame. The caption sits behind the iframe and is shown only when no local
-   Allegory answers.
-
-   The check runs EVERY time the slide is entered, not once at load, so Allegory can
-   be started (or restarted) at any point during a talk and the slide picks it up on
-   the next visit -- no reloading the deck mid-presentation. The iframe is hidden
-   rather than removed, so the deck's own loadApp() still drives it when it is live. */
-(function () {
-  var slide = document.querySelector('.appslide[data-app="allegory"]');
-  if (!slide) return;
-  var frame = slide.querySelector('[data-app-frame="allegory"]');
-  slide.insertAdjacentHTML("beforeend",
-    '<div class="appfallback" id="allegoryFallback">' +
-      '<div class="af-name">Allegory</div>' +
-      '<div class="af-sub">lyrics</div>' +
-      '<div class="af-body">In the room, this slide is the app itself &mdash; a folder of your own ' +
-      'music, with Socrates in the sidebar. Allegory runs on your machine and is not published ' +
-      'yet, so there is nothing here to embed. Clique and Marginalia, the next two slides, are ' +
-      'live and you can use them now.</div>' +
-    '</div>');
-  var cap = document.getElementById("allegoryFallback");
-
-  async function recheck() {
-    var live = false;
-    for (const u of ["http://localhost:4173/", "https://localhost:5173/", "http://localhost:5173/"]) {
-      try { await fetch(u, { mode: "no-cors", cache: "no-store" }); live = true; break; } catch (e) {}
-    }
-    cap.style.display = live ? "none" : "flex";
-    if (frame) frame.style.visibility = live ? "visible" : "hidden";
-  }
-
-  /* The deck marks the current slide with .active; watch for it rather than patching
-     the deck's own show(). Additive -- if the deck changes, this simply stops firing. */
-  new MutationObserver(function () {
-    if (slide.classList.contains("active")) recheck();
-  }).observe(slide, { attributes: true, attributeFilter: ["class"] });
-
-  recheck();
-})();
-</script>
 </body>
 </html>

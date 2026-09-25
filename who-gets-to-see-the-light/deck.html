@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<!--
+  WHO GETS TO SEE THE LIGHT — Cincy AI Week
+  "White Album" deck. Single file. Zero dependencies. Fully offline.
+  Open in any browser (File > Open, or double-click). Nothing loads from the internet.
+
+  CONTROLS:  → / Space  next     ← prev     F fullscreen     N speaker notes     Esc exit fullscreen
+  APPS:      the three app slides embed your LOCAL apps live (iframes).
+             Set their URLs in APP_URLS below. Allegory is pre-wired to :5173.
+             The apps must be running locally (and using a LOCAL model) for full offline.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Who gets to see the light?</title>
+<style>
+  :root { --ink:#2b2b2b; --faint:#bbbbbb; }
+  html,body { margin:0; height:100%; background:#fff; color:var(--ink);
+              font-family:"XCharter","Charter",Georgia,"Times New Roman",serif;
+              overflow:hidden; }
+  .slide { position:fixed; inset:0; display:none; align-items:center; justify-content:center;
+           padding:9vh 10vw; box-sizing:border-box; text-align:center; }
+  .slide.active { display:flex; }
+  .big   { font-size:6vw; font-weight:normal; line-height:1.25; }
+  /* cover / title slide — title in .big, speaker name + affiliation beneath */
+  .byline { margin-top:6vh; line-height:1.55; }
+  .byline .name { font-size:2.1vw; color:var(--ink); }
+  .byline .role { font-size:1.3vw; color:var(--faint); letter-spacing:.03em; margin-top:0.7vh; }
+  /* hover-reveal quote (Douglass under "kept in the dark") — same idiom as the frees */
+  .reveal .quote { opacity:0; transition:opacity .4s ease; margin-top:5vh; max-width:62vw; margin-left:auto; margin-right:auto; }
+  .reveal:hover .quote { opacity:1; }
+  .reveal .q { display:block; font-size:1.5vw; line-height:1.5; color:var(--faint); font-style:italic; }
+  .reveal .cite { display:block; font-size:1.1vw; color:var(--faint); margin-top:1.2vh; font-style:normal; }
+  .frac  { font-size:13vw; font-weight:normal; }
+  /* slide 2: three incarcerated-population fractions, raw, one word each */
+  .fractions { display:flex; gap:8vw; align-items:center; justify-content:center; }
+  .frac-item { display:flex; flex-direction:column; align-items:center; position:relative; }
+  .frac-stack{ display:flex; flex-direction:column; align-items:center; line-height:1.08; font-size:7.5vw; font-weight:normal; }
+  .frac-stack .den { border-top:0.16vw solid var(--ink); margin-top:0.4vh; padding-top:0.6vh; }
+  .frac-label{ position:absolute; top:100%; left:50%; transform:translateX(-50%); margin-top:1.4vh; white-space:nowrap; font-size:1.5vw; color:var(--faint); letter-spacing:.08em; opacity:0; transition:opacity .3s ease; }
+  .frac-item:hover .frac-label{ opacity:1; }  /* labels hidden from the room; hover to reveal */
+  /* "free, free, free" — three senses of the word; meaning reveals on hover (like the fractions) */
+  .frees { display:flex; gap:5vw; align-items:center; justify-content:center; }
+  .free-item { display:flex; flex-direction:column; align-items:center; width:24vw; position:relative; }
+  .free-word { font-size:6vw; font-weight:normal; line-height:1.1; }
+  .free-cap { position:absolute; top:100%; left:0; right:0; margin-top:1.5vh; opacity:0; transition:opacity .3s ease; text-align:center; line-height:1.5; }
+  .free-cap b { display:block; font-size:1.9vw; color:var(--ink); font-weight:600; letter-spacing:.04em; margin-bottom:0.8vh; }
+  .free-cap span { font-size:1.4vw; color:var(--faint); letter-spacing:.03em; }
+  .free-item:hover .free-cap{ opacity:1; }
+  .drive-icon { width:40vw; height:auto; }
+  .drivewrap  { display:flex; flex-direction:column; align-items:center; gap:4vh; }
+  .drive-specs{ font-size:1.05vw; color:var(--faint); text-align:center; line-height:1.7; letter-spacing:.02em; }
+  .apps  { font-size:6vw; }
+  .apps .row    { display:flex; flex-direction:column; gap:4vh; justify-content:center; align-items:center; }
+  .apps .name   { display:flex; flex-direction:column; align-items:center; line-height:1.1; }
+  .apps .whisper{ color:var(--faint); font-size:1.7vw; margin-top:0.15em; letter-spacing:.06em; }
+
+  /* app slides: full-bleed live iframe, one faint label */
+  .appslide { padding:0; }
+  .appslide iframe { border:0; width:100%; height:100%; background:#fff; }
+  .applabel { position:fixed; top:.8em; left:1.1em; color:var(--faint); font-size:1vw; z-index:3; }
+  .appmissing { color:var(--faint); font-size:2vw; }
+
+  .pageno { position:fixed; bottom:1.1em; right:1.5em; color:var(--faint); font-size:.85vw; z-index:5; }
+  /* faint per-slide pacing target — "be off this slide by ___". A subtle translucent
+     pill so it reads cleanly on any background: near-invisible on the white content
+     slides, a soft readable chip over the live apps. */
+  .slidetime { position:fixed; bottom:1.0em; left:1.1em; z-index:12;
+               font-size:.95vw; letter-spacing:.03em; font-variant-numeric:tabular-nums;
+               background:rgba(18,18,20,.62); padding:.28em .8em; border-radius:999px;
+               display:flex; gap:.55em; align-items:baseline; box-shadow:0 1px 6px rgba(0,0,0,.25); }
+  .slidetime .se-elapsed { font-weight:600; }       /* coloured green/red by JS */
+  .slidetime .se-target  { color:#cfcfcf; }
+
+  /* speaker notes panel */
+  .notes { position:fixed; left:0; right:0; bottom:0; background:var(--ink); color:#eee;
+           padding:1.4em 2.2em; font-family:system-ui,-apple-system,sans-serif;
+           font-size:1.05vw; line-height:1.55; display:none;
+           box-shadow:0 -8px 30px rgba(0,0,0,.25); z-index:6; }
+  .notes.show { display:block; }
+  .notes b { color:#fff; }
+  .notes-body { max-height:38vh; overflow:auto; white-space:pre-wrap; }
+  .notes-close { position:absolute; top:.2em; right:.5em; background:none; border:0;
+                 color:#999; font-size:1.9vw; line-height:1; cursor:pointer; padding:.1em .3em; }
+  .notes-close:hover { color:#fff; }
+
+  /* always-visible edge arrows for navigation — work even over an app iframe */
+  /* edge arrows: just the glyph — no gradient "shadow", no giant click slab */
+  .nav { position:fixed; top:50%; transform:translateY(-50%); padding:1.4vh 1.1vw; display:flex;
+         align-items:center; justify-content:center; font-size:3.4vw; color:#777; cursor:pointer;
+         z-index:8; user-select:none; opacity:.45; transition:opacity .2s, color .2s; background:none; }
+  .nav:hover { opacity:1; color:#444; }
+  .navL { left:0.4vw; }
+  .navR { right:0.4vw; }
+
+  /* record + notes control bar — bottom-center; auto-hides on content slides, hidden on app slides */
+  .ctrlbar { position:fixed; left:50%; bottom:2.4vh; transform:translateX(-50%);
+             display:flex; align-items:center; gap:0.5vw; z-index:11;
+             background:rgba(255,255,255,.94); border:1px solid #e4e4e4; border-radius:999px;
+             padding:0.7vh 1.1vw; box-shadow:0 3px 16px rgba(0,0,0,.13);
+             opacity:0; pointer-events:none; transition:opacity .3s ease; cursor:move; }
+  .ctrlbar.show { opacity:1; pointer-events:auto; }
+  .cbtn { display:flex; align-items:center; justify-content:center;
+          width:2.5vw; height:2.5vw; min-width:34px; min-height:34px;
+          border:0; background:transparent; color:#3a3a3a; cursor:pointer;
+          border-radius:50%; font-size:1.7vw; line-height:1;
+          transition:background .15s ease, color .15s ease; }
+  .cbtn:hover { background:rgba(0,0,0,.08); color:#000; }
+  .cbtn svg { width:1.5vw; height:1.5vw; min-width:20px; min-height:20px; fill:currentColor; }
+  .cbtn svg.stroke { fill:none; stroke:currentColor; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
+  .crec { color:#c0392b; }
+  .ctrlbar.recording .crec { animation:recpulse 1.4s ease-in-out infinite; }
+  .ctrlbar.local .crec { color:#C08A2E; }
+  @keyframes recpulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+  .ctime { font-size:1vw; color:#777; letter-spacing:.06em; font-variant-numeric:tabular-nums;
+           min-width:5em; text-align:center; }
+  .ctrlbar.recording .ctime { color:#c0392b; }
+  .ctrlbar.local .ctime { color:#C08A2E; }
+  .cdiv { width:1px; height:1.6vw; min-height:20px; background:#e0e0e0; margin:0 0.2vw; }
+  /* always-available way out: Esc exits fullscreen; ✕ closes the show */
+  .reh-quit  { position:fixed; top:.45em; left:.6em; font-size:1.2vw; line-height:1;
+               color:var(--faint); cursor:pointer; z-index:9; opacity:.3; transition:opacity .2s; }
+  .reh-quit:hover { opacity:1; }
+  /* brief confirmation toast (e.g. after a "clean slate" reset) */
+  .toast { position:fixed; left:50%; bottom:9vh; transform:translateX(-50%) translateY(10px);
+           background:#2b2b2b; color:#fff; font-size:1.1vw; padding:0.9vh 1.6vw; border-radius:999px;
+           opacity:0; pointer-events:none; transition:opacity .25s ease, transform .25s ease; z-index:50; }
+  .toast.show { opacity:.95; transform:translateX(-50%) translateY(0); }
+
+  /* --- public copy: the presenter rig has no meaning on the web --- */
+  .slidetime, .ctrlbar, .reh-quit { display:none !important; }
+  /* --- public copy: shown on the Allegory slide when no local Allegory answers --- */
+  .appfallback { position:absolute; inset:0; display:flex; flex-direction:column;
+                 align-items:center; justify-content:center; gap:1.2vh; padding:0 10vw;
+                 background:#fff; text-align:center; }
+  .appfallback .af-name { font-size:4.2vw; letter-spacing:.02em; }
+  .appfallback .af-sub  { font-size:1.5vw; color:var(--faint); letter-spacing:.04em; }
+  .appfallback .af-body { font-size:1.35vw; color:var(--ink); max-width:46vw; line-height:1.6; }
+  .appfallback a { color:inherit; text-underline-offset:3px; }
+</style>
+</head>
+<body>
+
+<!-- ===== SLIDES ===== -->
+
+<!-- COVER · title + speaker (slide 1) -->
+<section class="slide"><div>
+  <div class="big">Who gets to see the light?</div>
+  <div class="byline">
+    <div class="name">Michael Todd Edwards</div>
+    <div class="role">Professor, Curriculum and Instruction &middot; Miami University</div>
+  </div>
+</div></section>
+
+<!-- 1 · hover reveals the challenge question the next slide (the fractions) answers -->
+<section class="slide"><div class="reveal">
+  <div class="big">Fractions are freedom.</div>
+  <div class="quote">
+    <span class="q">How do you challenge a mind with fourth-grade fractions?</span>
+  </div>
+</div></section>
+
+<!-- 2 -->
+<section class="slide"><div class="fractions">
+  <div class="frac-item"><div class="frac-stack"><span class="num">1</span><span class="den">700</span></div><div class="frac-label">today&rsquo;s world</div></div>
+  <div class="frac-item"><div class="frac-stack"><span class="num">1</span><span class="den">15</span></div><div class="frac-label">Lifetime (USA)</div></div>
+  <div class="frac-item"><div class="frac-stack"><span class="num">1</span><span class="den">5</span></div><div class="frac-label">Black men (USA)</div></div>
+</div></section>
+
+<!-- 3 -->
+<section class="slide"><div class="big">Cy</div></section>
+
+<!-- 4 · hover reveals the (deliberately humble) hardware it all runs on -->
+<section class="slide"><div class="reveal"><div class="drivewrap"><svg class="drive-icon" viewBox="0 0 260 120" fill="none"
+  stroke="#2b2b2b" stroke-width="5" stroke-linejoin="round" stroke-linecap="round"
+  xmlns="http://www.w3.org/2000/svg" aria-label="USB thumb drive">
+  <!-- USB metal connector -->
+  <rect x="12" y="40" width="54" height="40" rx="3"/>
+  <line x1="26" y1="52" x2="52" y2="52"/>
+  <line x1="26" y1="68" x2="52" y2="68"/>
+  <!-- neck -->
+  <rect x="66" y="46" width="16" height="28"/>
+  <!-- body -->
+  <rect x="82" y="26" width="166" height="68" rx="14"/>
+  <!-- cap seam -->
+  <line x1="110" y1="26" x2="110" y2="94"/>
+  <!-- keyring hole -->
+  <circle cx="224" cy="60" r="8"/>
+</svg>
+<div class="drive-specs">Allegory · Clique · Marginalia ≈ 4.5 MB &nbsp;·&nbsp; Gemma&nbsp;2&nbsp;·&nbsp;2B model ≈ 2 GB<br>the whole kit — offline, no account, no internet</div>
+<div class="quote"><span class="q">This is a four-year-old base-model laptop &mdash; no graphics card, no dedicated video memory &mdash; running with the wifi off.</span></div>
+</div></div></section>
+
+<!-- 5 -->
+<section class="slide"><div class="apps"><div class="row">
+  <div class="name">Allegory<span class="whisper">lyrics</span></div>
+  <div class="name">Clique<span class="whisper">words</span></div>
+  <div class="name">Marginalia<span class="whisper">text</span></div>
+</div></div></section>
+
+<!-- 6  LIVE: Allegory -->
+<section class="slide appslide" data-app="allegory">
+  <div class="applabel">Allegory · lyrics</div>
+  <iframe data-app-frame="allegory"></iframe>
+</section>
+
+<!-- 7  LIVE: Clique -->
+<section class="slide appslide" data-app="clique">
+  <div class="applabel">Clique · words</div>
+  <iframe data-app-frame="clique"></iframe>
+</section>
+
+<!-- 8  LIVE: Marginalia -->
+<section class="slide appslide" data-app="marginalia">
+  <div class="applabel">Marginalia · text</div>
+  <iframe data-app-frame="marginalia"></iframe>
+</section>
+
+<!-- 9 -->
+<section class="slide"><div class="frees">
+  <div class="free-item"><span class="free-word">free.</span><div class="free-cap"><b>free of cost</b><span>a free model, open tools, a $5 drive&nbsp;&mdash; copy it, give it away; no subscription, no gatekeeper.</span></div></div>
+  <div class="free-item"><span class="free-word">free.</span><div class="free-cap"><b>free from being watched</b><span>your reading, questions, and notes never leave the machine&nbsp;&mdash; no account, no logging, no one watching what you wonder.</span></div></div>
+  <div class="free-item"><span class="free-word">free.</span><div class="free-cap"><b>free to think &middot; free to question</b><span>what my students in prison wanted most: to be taken seriously as minds&nbsp;&mdash; heard, and challenged. A mind free to question can&rsquo;t be kept in the dark.</span></div></div>
+</div></section>
+
+<!-- 10 · the answer — last content slide before Q&A; hover reveals Douglass -->
+<section class="slide"><div class="reveal">
+  <div class="big">the right not to be<br>kept in the dark</div>
+  <div class="quote">
+    <span class="q">&ldquo;To make a contented slave, it is necessary to make a thoughtless one. It is necessary to darken his moral and mental vision, and, as far as possible, to annihilate the power of reason.&rdquo;</span>
+    <span class="cite">&mdash; Frederick Douglass, <em>My Bondage and My Freedom</em> (1855)</span>
+  </div>
+</div></section>
+
+<!-- 12 -->
+<section class="slide"><div class="big">Questions? &nbsp; Comments? &nbsp; Concerns?<br>Let&rsquo;s share.</div></section>
+
+<div class="pageno"></div>
+<div class="slidetime" id="slidetime"><span class="se-elapsed" id="seElapsed">0:00</span><span class="se-target" id="seTarget"></span></div>
+<div class="notes" id="notes">
+  <button class="notes-close" id="notesClose" title="Close notes" aria-label="Close notes">&times;</button>
+  <div class="notes-body" id="notesBody"></div>
+</div>
+<div class="reh-quit" id="rehQuit" title="Exit the show (Esc to leave fullscreen)">✕</div>
+<div class="toast" id="toast" aria-live="polite"></div>
+
+<!-- One icon-only control bar — same on every slide; auto-hides when the mouse is idle. -->
+<!-- prev/next arrows, centered at the left/right edges — on every slide, incl. apps -->
+<div class="nav navL" id="navL" title="Previous">&lsaquo;</div>
+<div class="nav navR" id="navR" title="Next">&rsaquo;</div>
+
+<!-- record + notes controls; bottom-center; auto-hide on content slides, hidden on app slides -->
+<div class="ctrlbar" id="ctrlbar" aria-label="Deck controls">
+  <button class="cbtn" id="cPrev" title="Previous" aria-label="Previous slide">&lsaquo;</button>
+  <span class="cdiv"></span>
+  <button class="cbtn crec" id="cRec" title="Record (start / resume)" aria-label="Record">
+    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="7"/></svg></button>
+  <button class="cbtn" id="cPause" title="Pause" aria-label="Pause recording">
+    <svg viewBox="0 0 24 24"><rect x="6.5" y="5" width="3.6" height="14" rx="1"/><rect x="13.9" y="5" width="3.6" height="14" rx="1"/></svg></button>
+  <button class="cbtn" id="cStop" title="Stop" aria-label="Stop recording">
+    <svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="1.6"/></svg></button>
+  <span class="ctime" id="ctime">0:00</span>
+  <span class="cdiv"></span>
+  <button class="cbtn" id="cNotes" title="Speaker notes" aria-label="Toggle notes">
+    <svg viewBox="0 0 24 24" class="stroke"><path d="M6 3.5h9l3 3v14H6z"/><path d="M9 9h7M9 13h7M9 17h4"/></svg></button>
+  <button class="cbtn" id="cFull" title="Fullscreen" aria-label="Toggle fullscreen">
+    <svg viewBox="0 0 24 24" class="stroke"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
+  <span class="cdiv"></span>
+  <button class="cbtn" id="cReset" title="Clean slate — reset all three apps (Socrates chat, Clique board, Marginalia notes) for a fresh run · Shift+R" aria-label="Clean slate: reset apps">
+    <svg viewBox="0 0 24 24" class="stroke"><path d="M3.5 12a8.5 8.5 0 1 0 2.6-6.1"/><path d="M3 4.5V10h5.5"/></svg></button>
+  <span class="cdiv"></span>
+  <button class="cbtn" id="cNext" title="Next" aria-label="Next slide">&rsaquo;</button>
+</div>
+
+<script>
+// ---- LOCAL app URLs (offline). Allegory pre-wired; set the other two. ----
+// Portable across machines: open this deck THROUGH the local server
+// (http://localhost:8000/summer-2026/who-gets-to-see-the-light.html), NOT by
+// double-clicking the file. Then Clique + Marginalia are same-origin relative
+// paths — no ports, no CORS, no certs — identical on Fedora and macOS.
+const APP_URLS = {
+  allegory:   "http://localhost:4173/?view=playlists",   // own server; port + scheme auto-detected below; opens on Playlists
+  clique:     "https://ohiomathteacher.github.io/clique-app/",          // same origin as this deck (:8000)
+  marginalia: "https://ohiomathteacher.github.io/marginalia-app/close-reader.html",
+};
+
+// Allegory runs its own Vite server. From the thumbdrive it is `vite preview`
+// on :4173, plain HTTP. On a dev machine it is `vite` on :5173, and serves
+// HTTPS when an mkcert cert is present (Fedora) and plain HTTP otherwise (a Mac
+// with no cert). Certs are per-machine and gitignored, so port and scheme both
+// differ between computers — probe each and use whichever is actually live.
+(async () => {
+  for (const u of ["http://localhost:4173/", "https://localhost:5173/", "http://localhost:5173/"]) {
+    try { await fetch(u, { mode: "no-cors", cache: "no-store" }); APP_URLS.allegory = u + "?view=playlists"; break; }
+    catch (e) { /* not on this scheme — try the next */ }
+  }
+})();
+
+// ---- Speaker notes, one per slide (your spoken script) ----
+const NOTES = [
+  "Title card. A breath to greet the room — your name and what you do. Let the question sit on the screen; you'll return to it at the very end. Then advance to open.",
+  "Let it sit. Don't talk yet.\nFractions are freedom. I taught math for ~X years and said that to my kids. A fraction? The thing that makes you cry in fifth grade? But I meant it. A kid who can't split a bill, read a dose, tell when a deal is a lie is at someone's mercy. The math is the lock. The day it clicks, nobody can lie to her with numbers again. Not arithmetic — a door opening.\n(Hover reveals the challenge question: 'How do you challenge a mind with fourth-grade fractions?' — the NEXT slide, the fractions, is the answer: you point simple arithmetic at a truth that implicates the learner (1/700, 1/15, 1/5 for a Black man). The challenge was never harder math — it was making the fraction tell the truth about their world.)",
+  "Every time we invent a new door to the mind, somebody decides who's allowed through. Reading was once a crime to teach [your example]. Not because letters are dangerous — because a person who can read can't be kept. The light was real, so they rationed it. New tool, new door, immediately: who gets in? Hold that.\n\n[SLIDE: three fractions — all currently/ever incarcerated. 1/700 the world (now) · 1/15 America (lifetime) · 1/5 Black men (lifetime). SAY ALOUD: 'one in three — a generation ago.' (It fell from 1 in 3 to 1 in 5 — reform works.) Honest-numbers note: world is a snapshot, US/Black-men are lifetime; figures trace to the 2001 birth cohort. Sources: World Prison Brief 2024; BJS Bonczar 2003; Sentencing Project 'One in Five' 2024 / Duke Demography 2023.]",
+  "CY — YOUR BEAT. Your facts, your voice. One person. What the wall was, what it cost. No abstraction.\nCy didn't need someone to carry them to the light. They needed someone to stop standing in the doorway.\nEmotional floor. If your voice goes, let it — the crack is the evidence.",
+  "Hold up the real drive. Everything I'm about to show you fits on this. No account, no subscription, no login, no company deciding who's allowed in. A free model, one teacher, a thumb drive. Runs with the wifi off — in a second you'll see why that matters.\n(Hover reveals the rig: a four-year-old base-model laptop — no graphics card, no dedicated video memory — wifi off. The point: this is ordinary, humble hardware, not a special machine.)",
+  "I built three things. Honest: they're all the same thing. Watch for it. (Title card — then arrow into the live apps.)",
+  "ALLEGORY — the invitation (~4m). You already do this for fun. One song, highlight one line, ask Socrates one question (Old Man / Once in a Lifetime — 'how did I get here?'). Hard stop. A song you love, turned into a text you can question.",
+  "CLIQUE — the bridge (~3m, FIRST TO CUT). Same move, now play, in your language. One round + the multilingual flip. If long/shaky: one screenshot, move on. 有教無類 — in teaching, no classes. Confucius, 2,500 years early.",
+  "MARGINALIA — the destination (~5m, NEVER CUTS). Same move, hardest text. Cave passage → highlight → ask → margin note. Then the Profiler as 'one more thing.' Notes stay yours, never leave the machine. The mirror shows you YOU.\nThen turn to the room: three apps, one move — ask the text. A kid does it with Neil Young; the same move carries her to Plato's sun. Nothing changed but the difficulty. The staircase.",
+  "Three frees — one word, three meanings; hover each as you land it. (1) free of cost — a free model, open apps, a $5 drive; copy it, give it away; no subscription, no gatekeeper. (2) free from being watched — your reading, questions, and notes never leave the machine; no one sees what you wonder (privacy is freedom of thought). (3) free to think / free to question — the climb: what my students in prison wanted most was to be taken seriously as minds, heard AND challenged; a mind free to question can't be kept in the dark. (Wifi off the whole time — did you notice? The un-rationed version.)",
+  "THE LANDING — this answers the question from the cover. Careful: there's a lie that feels good. I am NOT bringing anyone the light — I can't. The prisoner climbs himself; nobody handed Cy anything. The light can't be given, only walled off — and that's the only crime there is. Not 'I bring you enlightenment.' Smaller, truer: I stopped blocking the door. Meet them where they are = take down the wall wherever they're standing. So the human right was never the right to be enlightened — it's the right not to be kept in the dark. (Hover reveals Douglass: 'darken his moral and mental vision… annihilate the power of reason.')\nHold the drive one more time. We can build this so anyone sees the light — or so only those who can pay do. We've made this choice before. [beat] We made it wrong.\nLet it sit — three full seconds; the hold IS the point. Then soften, open your hands, and go to Q&A: 'So — let's sit with that together. What does it stir?' (You're not walking off — you're handing them the question from the cover and staying for it.)",
+  "Q&A — the wrap. Right after the silent hold on the question, this slide goes up. This IS the 5–10 min the organizers asked us to leave. No agenda now — take questions, stay warm, stay curious. If it goes quiet, seed one: 'What would you put on the drive?'",
+];
+
+const slides = [...document.querySelectorAll(".slide")];
+const pageno = document.querySelector(".pageno");
+const slidetimeEl = document.getElementById("slidetime");
+// Pacing target: be OFF each slide by this cumulative time. Tuned to land the close
+// ~22:30 then open Q&A (more room for Marginalia + the silent close than last run).
+const TIMES = [45, 180, 270, 390, 480, 525, 720, 885, 1155, 1245, 1350, null];
+const fmtClock = s => Math.floor(s/60) + ":" + String(s%60).padStart(2,"0");
+const notesEl = document.getElementById("notes");
+let i = 0, notesOn = false;
+
+function loadApp(slide){
+  const frame = slide.querySelector("[data-app-frame]");
+  if (frame && !frame.src){
+    let url = APP_URLS[frame.getAttribute("data-app-frame")];
+    if (url){
+      // Cache-bust each deck load so a freshly-edited LOCAL app never shows a
+      // stale cached copy (no network — just defeats the browser's HTTP cache).
+      url += (url.includes("?") ? "&" : "?") + "cb=" + Date.now();
+      frame.src = url;
+    }
+  }
+}
+function renderNotes(){
+  notesEl.classList.toggle("show", notesOn);
+  if (notesOn) document.getElementById("notesBody").innerHTML = "<b>Slide "+(i+1)+"/"+slides.length+"</b>\n\n"+(NOTES[i]||"");
+}
+function show(n){
+  const prev = i;
+  i = Math.max(0, Math.min(slides.length-1, n));
+  // Leaving the Allegory slide → ask it to fade the music out (cross-origin postMessage).
+  if (prev !== i) {
+    const af = slides[prev].querySelector('[data-app-frame="allegory"]');
+    if (af && af.contentWindow) { try { af.contentWindow.postMessage({ type: "allegory:fadeout", ms: 2000 }, "*"); } catch(e){} }
+  }
+  slides.forEach((s,k)=>s.classList.toggle("active", k===i));
+  loadApp(slides[i]);
+  pageno.textContent = (i+1);
+  renderNotes();
+  // reset the (draggable) bar to its default bottom position on every slide change
+  bar.style.left = ""; bar.style.top = ""; bar.style.bottom = ""; bar.style.transform = ""; bar.style.transition = "";
+  // The control bar lives ONLY on content slides (auto-hides at the bottom). On app
+  // slides it's hidden — the app has its own controls; navigate with the edge ‹ › arrows.
+  if (slides[i].classList.contains("appslide")) bar.classList.remove("show");
+  else showBar();
+}
+document.addEventListener("keydown", e=>{
+  if (e.key==="ArrowRight"||e.key===" "||e.key==="PageDown"){ e.preventDefault(); show(i+1); }
+  else if (e.key==="ArrowLeft"||e.key==="PageUp"){ e.preventDefault(); show(i-1); }
+  else if (e.key==="Home"){ show(0); }
+  else if (e.key==="End"){ show(slides.length-1); }
+  else if (e.key.toLowerCase()==="f"){ if(!document.fullscreenElement) document.documentElement.requestFullscreen?.(); else document.exitFullscreen?.(); }
+  else if (e.key.toLowerCase()==="n"){ notesOn=!notesOn; renderNotes(); }
+  else if (e.key==="R"){ resetApps(); }   // Shift+R — guarded so a stray key won't wipe a live demo
+});
+// click right half = next, left half = prev (for a clicker/remote) — never when
+// clicking the app iframe, the edge arrows, the control bar, or the quit button.
+document.addEventListener("click", e=>{
+  if (e.target.closest("iframe") || e.target.closest(".nav") || e.target.closest("#ctrlbar") || e.target.closest("#rehQuit")) return;
+  show(e.clientX > innerWidth/2 ? i+1 : i-1);
+});
+
+// edge arrows: prev/next on every slide, reliable even over an app iframe
+document.getElementById("navL").addEventListener("click", e=>{ e.stopPropagation(); show(i-1); });
+document.getElementById("navR").addEventListener("click", e=>{ e.stopPropagation(); show(i+1); });
+
+// ── Bottom control bar: prev/next + notes + fullscreen (record/pause/stop wired below) ──
+const bar = document.getElementById("ctrlbar");
+document.getElementById("cPrev").addEventListener("click", e=>{ e.stopPropagation(); show(i-1); });
+document.getElementById("cNext").addEventListener("click", e=>{ e.stopPropagation(); show(i+1); });
+document.getElementById("cNotes").addEventListener("click", e=>{ e.stopPropagation(); notesOn=!notesOn; renderNotes(); });
+document.getElementById("notesClose").addEventListener("click", e=>{ e.stopPropagation(); notesOn=false; renderNotes(); });
+document.getElementById("cFull").addEventListener("click", e=>{ e.stopPropagation(); if(!document.fullscreenElement) document.documentElement.requestFullscreen?.(); else document.exitFullscreen?.(); });
+document.getElementById("cReset").addEventListener("click", e=>{ e.stopPropagation(); resetApps(); });
+
+// ---- Clean slate: wipe each app back to a fresh state for a new run. ----
+// Deck-only, no app changes. Allegory (Socrates chat) and Clique (the board) keep
+// their run state in memory, so reloading their iframe clears it. Marginalia persists
+// notes/journal in our shared (:8000) localStorage, so clear just those two keys —
+// UI language, reading setup, and Clique's hint/relaxed settings are all kept.
+function resetApps(){
+  // Marginalia is same-origin (:8000) — clear its stored state directly. Margin notes
+  // are stored PER READING (cr_margin_notes_<readingId>), so a bare "cr_margin_notes"
+  // never matched — sweep every matching key. Also the notebook journal + freewrite draft.
+  try {
+    for (let n = localStorage.length - 1; n >= 0; n--) {
+      const k = localStorage.key(n);
+      if (k && (k.startsWith("cr_margin_notes") || k === "cr_journal_v1" || k.startsWith("cr_nbdraft_"))) localStorage.removeItem(k);
+    }
+  } catch(e){}
+  // Reload each app that's been opened so its in-memory/run state is wiped.
+  document.querySelectorAll("[data-app-frame]").forEach(frame => {
+    if (!frame.src) return;                         // never opened → already clean, lazy-loads fresh
+    const name = frame.getAttribute("data-app-frame");
+    let url = APP_URLS[name]; if (!url) return;
+    // Allegory is cross-origin (:5173) — the deck can't clear its localStorage, so
+    // reload it with ?reset; Allegory wipes its saved Socrates chat on that flag.
+    if (name === "allegory") url += (url.includes("?") ? "&" : "?") + "reset=1";
+    url += (url.includes("?") ? "&" : "?") + "cb=" + Date.now();
+    frame.src = url;
+  });
+  flashToast("Clean slate — all three apps reset");
+}
+
+// brief, self-dismissing confirmation toast
+let toastT = null; const toastEl = document.getElementById("toast");
+function flashToast(msg){
+  toastEl.textContent = msg; toastEl.classList.add("show");
+  clearTimeout(toastT); toastT = setTimeout(()=>toastEl.classList.remove("show"), 1800);
+}
+
+// Auto-hide at the bottom on content slides; hidden entirely on app slides (the app
+// has its own controls). Reveal on mouse move; stay up while hovered.
+let barHideT = null, barHover = false;
+function showBar(){ if(slides[i].classList.contains("appslide")) return; bar.classList.add("show"); if(barHideT) clearTimeout(barHideT); barHideT = setTimeout(()=>{ if(!barHover) bar.classList.remove("show"); }, 2600); }
+bar.addEventListener("mouseenter", ()=>{ barHover = true; bar.classList.add("show"); });
+bar.addEventListener("mouseleave", ()=>{ barHover = false; showBar(); });
+document.addEventListener("mousemove", showBar);
+
+// Draggable: grab the bar by any non-button area to move it out of the way.
+// It snaps back to the default bottom position whenever you change slides.
+let dragging = false, dragDX = 0, dragDY = 0;
+bar.addEventListener("mousedown", e=>{
+  if (e.target.closest(".cbtn")) return;          // buttons still click normally
+  dragging = true;
+  const r = bar.getBoundingClientRect();
+  dragDX = e.clientX - r.left; dragDY = e.clientY - r.top;
+  bar.style.transition = "none";
+  e.preventDefault();
+});
+document.addEventListener("mousemove", e=>{
+  if (!dragging) return;
+  bar.style.left = (e.clientX - dragDX) + "px";
+  bar.style.top  = (e.clientY - dragDY) + "px";
+  bar.style.bottom = "auto";
+  bar.style.transform = "none";
+});
+document.addEventListener("mouseup", ()=>{ dragging = false; });
+
+show(0);
+showBar();   // reveal briefly on load so the controls are discoverable
+</script>
+
+<script>
+/* ── Recording controls + rehearsal timer (OBS link) ──────────────────────
+   The control bar's ⏺ ⏸ ⏹ drive OBS recording over its WebSocket
+   (127.0.0.1:4455) — no need to look at OBS. The timer warms amber → orange →
+   red toward the 22-minute target. ⏺ glows red ONLY when OBS is actually
+   recording; if OBS isn't reachable the buttons just run the timer locally and
+   it says "no OBS", so there's no ambiguity about whether you're really rolling. */
+(() => {
+  const LAND = 18*60, WRAP = 20*60, OVER = 22*60;
+  const bar = document.getElementById("ctrlbar");
+  const timeEl = document.getElementById("ctime");
+  let elapsed = 0, running = false, last = null, state = "idle"; // idle | recording | paused
+  let ws = null, identified = false, reqId = 0, retry = null;
+
+  const fmt = s => { const m=Math.floor(s/60), ss=Math.floor(s%60); return m+":"+String(ss).padStart(2,"0"); };
+  function paint(){
+    const obs = identified;
+    bar.classList.toggle("recording", running && obs);
+    bar.classList.toggle("local", running && !obs);   // timer-only (OBS not connected)
+    let t = fmt(elapsed);
+    if (running && obs) t = "● " + t;
+    else if (running && !obs) t = t + " · no OBS";
+    timeEl.textContent = t;
+    timeEl.style.color = (running && obs)
+      ? (elapsed>=OVER ? "#B23A2E" : elapsed>=WRAP ? "#C25A1C" : elapsed>=LAND ? "#C08A2E" : "")
+      : "";
+    // Pacing chip (bottom-left, visible on EVERY slide incl. the apps): elapsed ▸ target,
+    // green when at/ahead of this slide's target end, red when past it.
+    const tgt = (typeof TIMES !== "undefined" && TIMES) ? TIMES[i] : null;
+    const se = document.getElementById("seElapsed"), tg = document.getElementById("seTarget");
+    if (se){ se.textContent = fmt(elapsed); se.style.color = (tgt != null && elapsed > tgt) ? "#ff6b5e" : "#56d27e"; }
+    if (tg) tg.textContent = tgt != null ? "▸ " + fmt(tgt) : "";
+  }
+  function frame(now){ if(running){ if(last!=null) elapsed += (now-last)/1000; last=now; } paint(); requestAnimationFrame(frame); }
+  const startTimer = () => { running = true; last = null; };
+  const pauseTimer = () => { running = false; paint(); };
+  const resetTimer = () => { running = false; elapsed = 0; last = null; paint(); };
+
+  function connect(){
+    let s; try { s = new WebSocket("ws://127.0.0.1:4455"); } catch(e){ return sched(); }
+    ws = s;
+    s.onmessage = ev => {
+      const m = JSON.parse(ev.data);
+      if (m.op === 0) s.send(JSON.stringify({ op:1, d:{ rpcVersion:1, eventSubscriptions:64 } }));
+      else if (m.op === 2){ identified = true; paint(); }
+      else if (m.op === 5 && m.d.eventType === "RecordStateChanged"){
+        const st = m.d.eventData.outputState;
+        if (st === "OBS_WEBSOCKET_OUTPUT_STARTED"){ state="recording"; resetTimer(); startTimer(); }
+        else if (st === "OBS_WEBSOCKET_OUTPUT_RESUMED"){ state="recording"; startTimer(); }
+        else if (st === "OBS_WEBSOCKET_OUTPUT_PAUSED"){ state="paused"; pauseTimer(); }
+        else if (st === "OBS_WEBSOCKET_OUTPUT_STOPPED"){ state="idle"; pauseTimer(); }
+        paint();
+      }
+    };
+    s.onclose = () => { identified = false; paint(); sched(); };
+    s.onerror = () => { try{ s.close(); }catch(e){} };
+  }
+  function sched(){ if(retry) return; retry = setTimeout(()=>{ retry=null; connect(); }, 2000); }
+  const send = rt => { if (ws) ws.send(JSON.stringify({ op:6, d:{ requestType:rt, requestId:"r"+(reqId++) } })); };
+
+  // ⏺ record: start a new recording, or resume a paused one
+  document.getElementById("cRec").addEventListener("click", e=>{
+    e.stopPropagation();
+    if (identified) send(state==="paused" ? "ResumeRecord" : "StartRecord");
+    else { if (state!=="recording"){ resetTimer(); state="recording"; startTimer(); paint(); } }  // no OBS → timer only
+  });
+  // ⏸ pause
+  document.getElementById("cPause").addEventListener("click", e=>{
+    e.stopPropagation();
+    if (identified) send("PauseRecord");
+    else { state="paused"; pauseTimer(); }
+  });
+  // ⏹ stop
+  document.getElementById("cStop").addEventListener("click", e=>{
+    e.stopPropagation();
+    if (identified) send("StopRecord");
+    else { state="idle"; resetTimer(); }
+  });
+
+  // quit: leave fullscreen, then close the show window
+  document.getElementById("rehQuit").addEventListener("click", e=>{
+    e.stopPropagation();
+    document.exitFullscreen?.();
+    window.close();
+  });
+
+  paint(); requestAnimationFrame(frame); connect();
+})();
+</script>
+
+<script>
+/* Public copy only. Allegory is not published, so on the web its slide would be a
+   blank frame. Probe for a LOCAL Allegory exactly as the deck does; if one answers
+   (i.e. we are presenting), change nothing. If none does, swap the frame for a caption. */
+(async () => {
+  let live = false;
+  for (const u of ["http://localhost:4173/", "https://localhost:5173/", "http://localhost:5173/"]) {
+    try { await fetch(u, { mode: "no-cors", cache: "no-store" }); live = true; break; } catch (e) {}
+  }
+  if (live) return;
+  const slide = document.querySelector('.appslide[data-app="allegory"]');
+  if (!slide) return;
+  const frame = slide.querySelector('[data-app-frame="allegory"]');
+  if (frame) frame.remove();
+  slide.insertAdjacentHTML("beforeend",
+    '<div class="appfallback">' +
+      '<div class="af-name">Allegory</div>' +
+      '<div class="af-sub">lyrics</div>' +
+      '<div class="af-body">In the room, this slide is the app itself &mdash; a folder of your own ' +
+      'music, with Socrates in the sidebar. Allegory runs on your machine and is not published ' +
+      'yet, so there is nothing here to embed. Clique and Marginalia, the next two slides, are ' +
+      'live and you can use them now.</div>' +
+    '</div>');
+})();
+</script>
+</body>
+</html>

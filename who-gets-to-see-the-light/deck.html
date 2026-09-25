@@ -138,6 +138,13 @@
   .appfallback .af-sub  { font-size:1.5vw; color:var(--faint); letter-spacing:.04em; }
   .appfallback .af-body { font-size:1.35vw; color:var(--ink); max-width:46vw; line-height:1.6; }
   .appfallback a { color:inherit; text-underline-offset:3px; }
+  /* --- public copy: a way back to the talk page. Browser Back also works (the deck
+         writes no history entries), but nobody should have to discover that. It sits
+         in the slot the pacing chip vacated, bottom-left. --- */
+  .backtopage { position:fixed; bottom:1.0em; left:1.1em; z-index:12; font-size:.95vw;
+                color:#b4b4b4; text-decoration:none; letter-spacing:.04em;
+                transition:color .2s; }
+  .backtopage:hover { color:var(--ink); }
 </style>
 </head>
 <body>
@@ -544,6 +551,7 @@ showBar();   // reveal briefly on load so the controls are discoverable
   paint(); requestAnimationFrame(frame); connect();
 })();
 </script>
+<a class="backtopage" href="./" title="Back to the talk page">&larr; the page</a>
 
 <script>
 /* Public copy only. Allegory is not published, so on the web its slide would be a

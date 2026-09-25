@@ -128,16 +128,18 @@
            opacity:0; pointer-events:none; transition:opacity .25s ease, transform .25s ease; z-index:50; }
   .toast.show { opacity:.95; transform:translateX(-50%) translateY(0); }
 
+  /* Allegory is its own window now, not an iframe: the app runs on the machine and
+     is reached with alt-tab, so this slide is a title card and a cue to switch. An
+     iframe could only ever have been a smaller, muted version of the real thing. */
+  .appcard { position:absolute; inset:0; display:flex; flex-direction:column;
+             align-items:center; justify-content:center; gap:1.2vh; background:#fff; }
+  .appcard .ac-name { font-size:7vw; letter-spacing:.01em; line-height:1; }
+  .appcard .ac-sub  { font-size:2vw; color:var(--faint); letter-spacing:.08em; }
+  .appcard .ac-body { font-size:1.35vw; color:var(--ink); max-width:44vw;
+                      line-height:1.6; text-align:center; margin-top:1.5vh; }
+
   /* --- public copy: the presenter rig has no meaning on the web --- */
   .slidetime, .ctrlbar, .reh-quit { display:none !important; }
-  /* --- public copy: shown on the Allegory slide when no local Allegory answers --- */
-  .appfallback { position:absolute; inset:0; display:flex; flex-direction:column;
-                 align-items:center; justify-content:center; gap:1.2vh; padding:0 10vw;
-                 background:#fff; text-align:center; }
-  .appfallback .af-name { font-size:4.2vw; letter-spacing:.02em; }
-  .appfallback .af-sub  { font-size:1.5vw; color:var(--faint); letter-spacing:.04em; }
-  .appfallback .af-body { font-size:1.35vw; color:var(--ink); max-width:46vw; line-height:1.6; }
-  .appfallback a { color:inherit; text-underline-offset:3px; }
   /* --- public copy: a way back to the talk page. Browser Back also works (the deck
          writes no history entries), but nobody should have to discover that. It sits
          in the slot the pacing chip vacated, bottom-left. --- */
@@ -204,18 +206,14 @@
   <div class="name">Allegory<span class="whisper">lyrics</span></div>
   <div class="name">Clique<span class="whisper">words</span></div>
   <div class="name">Marginalia<span class="whisper">text</span></div>
-</div></div></section>
-
-<!-- 6  LIVE: Allegory -->
-<section class="slide appslide" data-app="allegory">
-  <div class="applabel">Allegory · lyrics</div>
-  <div class="appfallback">
-    <div class="af-name">Allegory</div>
-    <div class="af-sub">lyrics</div>
-    <div class="af-body">In the room this slide is the app itself &mdash; a folder of your own
-    music, with Socrates in the sidebar. Allegory runs on the presenter&rsquo;s machine and is
-    not published yet, so there is nothing here to embed. Clique and Marginalia, on the next
-    two slides, are live and you can use them now.</div>
+</div></div></section><section class="slide">
+  <div class="appcard">
+    <div class="ac-name">Allegory</div>
+    <div class="ac-sub">lyrics</div>
+    <div class="ac-body">In the room this slide is the app itself &mdash; a folder of your
+    own music, with Socrates in the sidebar. Allegory runs on the presenter&rsquo;s machine
+    and is not published yet, so there is nothing here to embed. Clique and Marginalia, on
+    the next two slides, are live and you can use them now.</div>
   </div>
 </section>
 

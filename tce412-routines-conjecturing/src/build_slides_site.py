@@ -18,6 +18,7 @@ BLOBS = {
     '45fe414d065924b0cea607e711165765': ('slidepics/erdos-straus.png', 'erdos-straus.png'),
     '09ef38674b241cce0bfea53254a21002': ('slidepics/odd-perfect.png', 'odd-perfect.png'),
     '85db1e695648d7214e5f8ec9cd4e8910': ('slidepics/lonely-runner.png', 'lonely-runner.png'),
+    '9fcd1d2aea5174f27a92b61be9226683': ('loops-qr.png', 'loops-qr.png'),
 }
 for src, dst in BLOBS.values():
     shutil.copy(os.path.join(S, src), os.path.join(OUT, 'img', dst))

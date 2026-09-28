@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Conjecturing with Orbit Explorer</title>
+<style>
+  @page { size: letter; margin: 0.5in 0.6in; }
+  :root { --ink:#1d232b; --muted:#5b6570; --rule:#e3e6ea; --accent:#4f46e5; --soft:#f5f7ff; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: "Source Sans 3", "Segoe UI", Roboto, Helvetica, Arial, sans-serif; color: var(--ink); font-size: 10pt; line-height: 1.38; }
+  a { color: var(--accent); text-decoration: none; font-weight: 600; }
+  header { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; border-bottom: 2px solid var(--ink); padding-bottom: 7px; margin-bottom: 12px; }
+  h1 { font-size: 21pt; letter-spacing: -0.3px; line-height: 1.1; white-space: nowrap; }
+  .stripe { display: inline-flex; gap: 3px; vertical-align: 4px; margin-left: 8px; }
+  .stripe span { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
+  .sub { color: var(--muted); font-size: 10pt; margin-top: 3px; }
+  .meta { text-align: right; font-size: 8.8pt; color: var(--muted); line-height: 1.5; white-space: nowrap; }
+  h2 { font-size: 8.8pt; text-transform: uppercase; letter-spacing: 1.2px; color: var(--muted); margin-bottom: 5px; break-after: avoid; }
+  .top { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 12px; break-inside: avoid; }
+  .rule { border: 1px solid #c7d2fe; background: var(--soft); border-radius: 8px; padding: 9px 12px; }
+  .rule .eq { font-size: 12pt; margin: 4px 0; }
+  .rule .eq span { display: inline-block; min-width: 110px; color: var(--muted); font-size: 10pt; }
+  .rule p { color: #333b44; font-size: 9.4pt; }
+  .conj p { color: #333b44; }
+  .conj .claim { font-style: italic; color: #22282f; font-size: 11pt; margin: 3px 0 5px; }
+  .status { font-size: 8.8pt; color: var(--muted); margin-top: 4px; }
+  .task { display: grid; grid-template-columns: 30px 1fr; gap: 10px; border: 1px solid var(--rule); border-left: 4px solid var(--c); border-radius: 8px; padding: 8px 12px; margin-bottom: 8px; break-inside: avoid; }
+  .num { width: 26px; height: 26px; border-radius: 50%; background: var(--c); color: #fff; font-weight: 800; display: flex; align-items: center; justify-content: center; }
+  .task h3 { font-size: 11.2pt; line-height: 1.25; }
+  .task h3 .time { font-size: 8.4pt; color: var(--muted); font-weight: 600; margin-left: 6px; }
+  .task p { color: #333b44; margin-top: 2px; }
+  .write { border-bottom: 1px solid #cbd5e1; height: 20px; }
+  .log { width: 100%; border-collapse: collapse; margin-top: 5px; font-size: 9pt; }
+  .log th { text-align: left; font-size: 8pt; text-transform: uppercase; letter-spacing: 0.6px; color: var(--muted); border-bottom: 1.5px solid var(--ink); padding: 2px 6px; }
+  .log td { border-bottom: 1px solid var(--rule); height: 21px; padding: 2px 6px; color: #333b44; }
+  .lens { background: #f5f8f6; border-left: 3px solid #10b981; border-radius: 0 6px 6px 0; padding: 8px 12px; margin-top: 10px; break-inside: avoid; }
+  .lens h2 { color: #047857; }
+  .lens ul { padding-left: 16px; color: #333b44; }
+  .lens li { margin-bottom: 2px; }
+  footer { margin-top: 9px; font-size: 8.4pt; color: var(--muted); border-top: 1px solid var(--rule); padding-top: 5px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>Conjecturing with Orbit Explorer<span class="stripe"><span style="background:#8b5cf6"></span><span style="background:#3b82f6"></span><span style="background:#22c55e"></span><span style="background:#eab308"></span></span></h1>
+    <div class="sub">Predict, run, notice, conjecture: the way mathematicians work on an open problem</div>
+  </div>
+  <div class="meta">TCE 412M · Guest session with Todd Edwards<br><a href="https://ohiomathteacher.github.io/orbit-explorer/">ohiomathteacher.github.io/orbit-explorer</a></div>
+</header>
+
+<div class="top">
+  <div class="conj">
+    <h2>An unsolved problem</h2>
+    <p>Pick a whole number and apply the rule to the right, over and over. Watch where your number goes.</p>
+    <p class="claim">Where does every starting number end up? Nobody has proved it.</p>
+    <p>Whatever you notice today is real mathematical evidence, not a rediscovery of something in the back of a book.</p>
+  </div>
+  <div class="rule">
+    <h2>The rule</h2>
+    <p class="eq"><span>If <i>n</i> is even:</span> <b><i>n</i> ÷ 2</b></p>
+    <p class="eq"><span>If <i>n</i> is odd:</span> <b>3<i>n</i> − 1</b></p>
+    <p style="margin-top:5px">Orbit Explorer starts on this rule. Its sliders set <i>m</i>, <i>b</i>, and <i>d</i> in: odd → <i>m</i>·<i>n</i> + <i>b</i>, even → <i>n</i> ÷ <i>d</i>. Today's rule is <i>m</i> = 3, <i>b</i> = −1, <i>d</i> = 2.</p>
+  </div>
+</div>
+
+<h2>Commit to a prediction before you press anything</h2>
+
+<div class="task" style="--c:#8b5cf6">
+  <div class="num">1</div>
+  <div>
+    <h3>By hand: 1, 2, 3, 4, 5<span class="time">~5 min</span></h3>
+    <p>Follow each one until something repeats. What happened to each number?</p>
+    <p style="margin-top:6px">1: _______________ &nbsp; 2: _______________ &nbsp; 3: _______________</p>
+    <p style="margin-top:4px">4: _______________ &nbsp; 5: ______________________________________</p>
+  </div>
+</div>
+
+<div class="task" style="--c:#3b82f6">
+  <div class="num">2</div>
+  <div>
+    <h3>Go bigger, then pool the class data<span class="time">~10 min</span></h3>
+    <p>Pick numbers from 21 to 50. Predict, then run each one in Orbit Explorer. Where did it end up? Share with the class: how many different endings have we found?</p>
+    <table class="log">
+      <tr><th style="width:14%">Start</th><th style="width:30%">My prediction</th><th>Where it ended up</th></tr>
+      <tr><td></td><td></td><td></td></tr>
+      <tr><td></td><td></td><td></td></tr>
+      <tr><td></td><td></td><td></td></tr>
+    </table>
+  </div>
+</div>
+
+<div class="task" style="--c:#22c55e">
+  <div class="num">3</div>
+  <div>
+    <h3>Change one thing<span class="time">~5 min</span></h3>
+    <p>Move <i>b</i> to <b>+1</b>, so odd numbers go to 3<i>n</i> + 1. Set <b>max steps to 200</b>. Now run <b>27</b>. Before you press: how many steps? How high will it climb?</p>
+  </div>
+</div>
+
+<div class="task" style="--c:#ca8a04">
+  <div class="num">4</div>
+  <div>
+    <h3>Make a conjecture<span class="time">~5 min</span></h3>
+    <p style="margin-top:4px"><b>I conjecture that</b></p><div class="write"></div><div class="write"></div>
+    <p style="margin-top:6px"><b>I wonder</b></p><div class="write"></div>
+  </div>
+</div>
+
+<div class="lens">
+  <h2>Now put your teacher hat on</h2>
+  <ul>
+    <li>What did the tool let you notice that pencil and paper couldn't? What did the pencil give you that the tool didn't?</li>
+    <li>Where would you pause a class of seventh graders, and what would you ask?</li>
+    <li>Which routine from the field guide could open this lesson <i>without giving it away</i>?</li>
+  </ul>
+</div>
+
+<footer>
+  Orbit Explorer is free, runs in any browser, and includes an optional AI thinking partner. For more open problems your students can explore: ohiomathteacher.github.io/applet-library/open-problems
+</footer>
+
+</body>
+</html>

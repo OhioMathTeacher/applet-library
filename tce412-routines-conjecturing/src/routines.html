@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Math Routines Field Guide</title>
+<style>
+  @page { size: letter; margin: 0.5in 0.55in; }
+  :root { --ink:#1d232b; --muted:#5b6570; --rule:#e3e6ea; --accent:#4f46e5; --soft:#f5f7ff; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: "Source Sans 3", "Segoe UI", Roboto, Helvetica, Arial, sans-serif; color: var(--ink); font-size: 9.4pt; line-height: 1.32; }
+  a { color: var(--accent); text-decoration: none; font-weight: 600; }
+  header { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; border-bottom: 2px solid var(--ink); padding-bottom: 7px; margin-bottom: 10px; }
+  h1 { font-size: 21pt; letter-spacing: -0.3px; line-height: 1.1; white-space: nowrap; }
+  .stripe { display: inline-flex; gap: 3px; vertical-align: 4px; margin-left: 8px; }
+  .stripe span { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
+  .sub { color: var(--muted); font-size: 9.6pt; margin-top: 3px; }
+  .meta { text-align: right; font-size: 8.8pt; color: var(--muted); line-height: 1.5; white-space: nowrap; }
+  h2 { font-size: 8.6pt; text-transform: uppercase; letter-spacing: 1.2px; color: var(--muted); margin-bottom: 5px; break-after: avoid; }
+  .lede { display: grid; grid-template-columns: 1.3fr 1fr; gap: 16px; margin-bottom: 10px; break-inside: avoid; }
+  .lede p { color: #333b44; }
+  blockquote { font-style: italic; color: #22282f; border-left: 3px solid var(--rule); padding-left: 9px; margin: 3px 0 4px; }
+  .cite { font-size: 8.4pt; color: var(--muted); }
+  .principle { background: var(--soft); border-left: 3px solid var(--accent); border-radius: 0 6px 6px 0; padding: 7px 11px; }
+  .principle h2 { color: var(--accent); }
+  .principle p { color: #333b44; }
+  .cards { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 12px; margin-bottom: 10px; }
+  .card { border: 1px solid var(--rule); border-top: 4px solid var(--c); border-radius: 8px; padding: 7px 10px 8px; break-inside: avoid; }
+  .card h3 { font-size: 11.2pt; line-height: 1.2; display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+  .card h3 a { font-size: 8.4pt; color: var(--c); white-space: nowrap; }
+  .ask { font-style: italic; margin: 3px 0 3px; color: #22282f; }
+  .row { color: #333b44; margin-top: 2px; }
+  .row b { color: var(--ink); }
+  .bottom { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; break-inside: avoid; }
+  .more ul { list-style: none; }
+  .more li { padding: 3px 0; border-bottom: 1px dashed var(--rule); color: #333b44; }
+  .more li:last-child { border-bottom: none; }
+  .nvoke { border: 1px solid #c7d2fe; background: linear-gradient(135deg, #eef2ff, #fdf2f8); border-radius: 8px; padding: 8px 11px; }
+  .nvoke h3 { font-size: 11.2pt; margin-bottom: 3px; }
+  .nvoke p { color: #333b44; }
+  .steps3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin: 6px 0 5px; }
+  .steps3 div { background: #fff; border-radius: 6px; padding: 4px 7px; font-size: 8.8pt; color: #333b44; }
+  .steps3 b { display: block; color: var(--accent); font-size: 9.2pt; }
+  .moves { margin-top: 10px; break-inside: avoid; }
+  .moves-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px 12px; }
+  .moves-grid div { font-size: 9pt; color: #333b44; }
+  .moves-grid b { color: var(--ink); }
+  footer { margin-top: 9px; font-size: 8.2pt; color: var(--muted); border-top: 1px solid var(--rule); padding-top: 5px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>Math Routines Field Guide<span class="stripe"><span style="background:#ef4444"></span><span style="background:#f97316"></span><span style="background:#22c55e"></span><span style="background:#3b82f6"></span><span style="background:#8b5cf6"></span></span></h1>
+    <div class="sub">Short, predictable structures that get every student talking about mathematics</div>
+  </div>
+  <div class="meta">TCE 412M · Guest session with Todd Edwards<br>Tuesday, 29 September 2026</div>
+</header>
+
+<div class="lede">
+  <div>
+    <h2>What is a routine?</h2>
+    <blockquote>“A mathematical routine is a short activity with a specific structure that allows students to engage in sense making through discourse, reasoning, and justification.”</blockquote>
+    <p class="cite">Newell &amp; Orton (2018), <a href="https://www.jstor.org/stable/10.5951/teacchilmath.25.2.0094">“Classroom Routines: An Invitation for Discourse,”</a> <i>Teaching Children Mathematics</i> 25(2), 94–102.</p>
+    <p style="margin-top:4px">Because the structure stays the same from day to day, students stop worrying about <i>what to do</i> and put their energy into <i>the mathematics</i>. A new image or prompt, but the same moves.</p>
+  </div>
+  <div class="principle">
+    <h2>Warm it up, don't give it away</h2>
+    <p>A routine often opens a lesson. The best ones warm up the <b>same mathematics</b> the main task explores and let you hear how students already think, <b>without</b> handing over the strategy the task is meant to reveal.</p>
+    <p style="margin-top:4px">Test: <i>after this warm-up, could a student still show me something of their own on the task?</i></p>
+  </div>
+</div>
+
+<h2>The four routines in the reading</h2>
+<div class="cards">
+
+  <div class="card" style="--c:#ef4444">
+    <h3>Number Talk Images <a href="http://ntimages.weebly.com">ntimages.weebly.com</a></h3>
+    <p class="ask">“How many do you see? How do you see them?”</p>
+    <p class="row"><b>Builds:</b> flexible structure: grouping, arrays, multiplication, area.</p>
+    <p class="row"><b>Your move:</b> annotate the image as students explain, so each strategy becomes visible to everyone.</p>
+  </div>
+
+  <div class="card" style="--c:#f97316">
+    <h3>Which One Doesn't Belong? <a href="https://talkingmathwithkids.com/wodb/">Talking Math with Kids</a></h3>
+    <p class="ask">“Which one doesn't belong? Why?”</p>
+    <p class="row"><b>Builds:</b> precise vocabulary and justification. Sets exist for shapes, numbers, graphs, and equations.</p>
+    <p class="row"><b>Your move:</b> make sure everyone knows <i>any</i> of the four can be the answer. The argument is the point.</p>
+  </div>
+
+  <div class="card" style="--c:#22c55e">
+    <h3>Estimation 180 <a href="https://estimation180.com">estimation180.com</a></h3>
+    <p class="ask">“What's a number that's too low? Too high? Your estimate, and why?”</p>
+    <p class="row"><b>Builds:</b> number sense, reasonableness, and ratio and proportion reasoning.</p>
+    <p class="row"><b>Your move:</b> collect the too-low and too-high bounds first. Every student can get in, whatever they know.</p>
+  </div>
+
+  <div class="card" style="--c:#3b82f6">
+    <h3>Would You Rather? <a href="https://www.wouldyourathermath.com">wouldyourathermath.com</a></h3>
+    <p class="ask">“Would you rather…? Justify your choice.”</p>
+    <p class="row"><b>Builds:</b> comparison: unit rates, percents, deals, and area, with a real decision to make.</p>
+    <p class="row"><b>Your move:</b> have students commit to a side before calculating, then let the math confirm or change their minds.</p>
+  </div>
+
+</div>
+
+<div class="bottom">
+  <div class="more">
+    <h2>More routines to explore</h2>
+    <ul>
+      <li><a href="https://www.samebutdifferentmath.com">Same But Different</a>: two images. How are they alike? How are they different?</li>
+      <li><a href="https://slowrevealgraphs.com">Slow Reveal Graphs</a>: a real graph revealed a piece at a time. Notice, wonder, revise.</li>
+      <li><a href="https://visualpatterns.org">Visual Patterns</a>: growing figures. What would step 43 look like?</li>
+      <li><a href="https://www.openmiddle.com">Open Middle</a>: one answer, many paths, and a “best” one to hunt for.</li>
+      <li><a href="https://fractiontalks.com">Fraction Talks</a>: what fraction of the shape is shaded?</li>
+      <li><a href="https://visiblethinking.weebly.com/daily-routines.html">Daily Routines Library</a>: routines sorted by concept.</li>
+    </ul>
+  </div>
+
+  <div class="nvoke">
+    <h3>Make your own with nVoke</h3>
+    <p>A free tool for building your own visual routines and hearing how someone else sees the figures.</p>
+    <div class="steps3">
+      <div><b>1 · Build</b>A prompt pack: WODB, Same &amp; Different, Sort, I Spy</div>
+      <div><b>2 · Hand off</b>Give the device to a partner, or project it for the room</div>
+      <div><b>3 · Analyze</b>Read their answers and decide what to offer next</div>
+    </div>
+    <p><a href="https://ohiomathteacher.github.io/applet-library/nvoke/">ohiomathteacher.github.io/applet-library/nvoke</a></p>
+    <p style="font-size:8.6pt;color:var(--muted);margin-top:2px">Nothing is uploaded; everything stays on your device.</p>
+  </div>
+</div>
+
+<div class="moves">
+  <h2>Moves that make any routine work</h2>
+  <div class="moves-grid">
+    <div><b>Think time first.</b> Silent thumbs-up on the chest when ready, so no one gets rushed.</div>
+    <div><b>Turn and talk.</b> Everyone says their idea out loud before anyone shares with the class.</div>
+    <div><b>Record publicly.</b> Write or draw each idea where all can see it.</div>
+    <div><b>Revoice and connect.</b> “Where do you see her 4 + 6 in the picture?”</div>
+    <div><b>Ask for another way.</b> “Did anyone see it differently?”</div>
+    <div><b>Keep it short.</b> Five to ten minutes. The routine is the warm-up, not the lesson.</div>
+  </div>
+</div>
+
+<footer>
+  Routines and sites curated by the #MTBoS / #iteachmath community of teachers: Pierre Tranchemontagne (Number Talk Images), Christopher Danielson (WODB), Andrew Stadel (Estimation 180), John Stevens (Would You Rather?).
+</footer>
+
+</body>
+</html>

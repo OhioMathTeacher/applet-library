@@ -1,0 +1,431 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Routines &amp; Conjecturing · TCE 412M</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Rubik:wght@500;600;700&family=Nunito+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+html,body{margin:0;height:100%;background:#0F0D2E;overflow:hidden;font-family:'Nunito Sans',Arial,sans-serif}
+#stage{position:absolute;left:50%;top:50%;width:1920px;height:1080px;transform-origin:0 0}
+.slide{position:absolute;inset:0}
+.slide[hidden]{display:none}
+.slide>section{position:absolute;inset:0;box-sizing:border-box;width:1920px;height:1080px;overflow:hidden}
+.slide *{box-sizing:border-box;margin:0}
+.slide h1{font-size:96px;font-weight:600;line-height:1.1}
+.slide h2{font-size:64px;font-weight:600;line-height:1.15}
+.slide h3{font-size:44px;font-weight:600;line-height:1.2}
+.slide p{font-size:32px;line-height:1.4}
+.slide a{color:inherit}
+.slide hr{border:0;width:100%}
+.slide aside{display:none}
+#bar{position:fixed;left:0;right:0;bottom:0;display:flex;justify-content:center;align-items:center;gap:14px;padding:8px;
+  font:14px 'Nunito Sans',Arial,sans-serif;color:#C7D2FE;opacity:0;transition:opacity .25s}
+body:hover #bar,#bar:focus-within{opacity:1}
+#bar button{background:#312E81;color:#fff;border:0;border-radius:999px;padding:6px 14px;font:inherit;cursor:pointer}
+#notes{position:fixed;left:16px;right:16px;bottom:52px;max-height:34vh;overflow:auto;background:rgba(15,13,46,.94);color:#E0E7FF;
+  border:1px solid #4F46E5;border-radius:12px;padding:14px 18px;font:17px/1.5 'Nunito Sans',Arial,sans-serif;display:none}
+body.show-notes #notes{display:block}
+</style></head><body>
+<div id="stage">
+<div class="slide" hidden><section id="cover" data-transition="fade" style="background:#1E1B4B; color:#F4F3FF; font-family:'Nunito Sans', Arial, sans-serif; padding:128px; display:flex; flex-direction:column; justify-content:center; gap:40px">
+<div style="position:absolute; left:0; top:0; width:1920px; height:16px; background:linear-gradient(90deg, #EF4444, #F97316, #EAB308, #22C55E, #3B82F6, #8B5CF6)"></div>
+<p style="font-size:32px; font-weight:700; color:#FDBA74; letter-spacing:4px; text-transform:uppercase">TCE 412M · Middle Grades Mathematics</p>
+<h1 style="font-family:'Rubik', Arial, sans-serif; font-size:120px; font-weight:700; line-height:1.05; color:#F4F3FF">Routines &amp;<br>Conjecturing</h1>
+<p style="font-size:44px; color:#C7D2FE; line-height:1.3">Two ways to get every student doing mathematics</p>
+<p style="position:absolute; left:128px; bottom:96px; width:1664px; font-size:32px; color:#A5B4FC">Todd Edwards · Tuesday, 29 September 2026 · 316 McGuffey</p>
+<aside>Welcome. Thank Naz. 10:05 start; we stop about 11:15. Pass out nothing yet: the handouts come after they've done the routines, so the reading and the doing connect.</aside>
+</section></div>
+<div class="slide" hidden><section id="plan" data-transition="fade" style="background:#FAFAF7; color:#1E1B4B; font-family:'Nunito Sans', Arial, sans-serif; padding:128px; display:flex; flex-direction:column; gap:64px">
+<h2 style="font-family:'Rubik', Arial, sans-serif; font-size:72px; font-weight:700; line-height:1.1">Today</h2>
+<div style="display:flex; gap:32px">
+<div style="flex:1; display:flex; flex-direction:column; gap:16px; background:#FFFFFF; border-top:12px solid #F97316; border-radius:16px; padding:40px; box-shadow:0 8px 24px rgba(30,27,75,0.08)">
+<p style="font-size:32px; font-weight:700; color:#C2410C">10:05</p>
+<h3 style="font-family:'Rubik', Arial, sans-serif; font-size:44px; font-weight:600; line-height:1.15">Do three routines</h3>
+<p style="font-size:32px; color:#4A4870">As learners, not teachers</p>
+</div>
+<div style="flex:1; display:flex; flex-direction:column; gap:16px; background:#FFFFFF; border-top:12px solid #22C55E; border-radius:16px; padding:40px; box-shadow:0 8px 24px rgba(30,27,75,0.08)">
+<p style="font-size:32px; font-weight:700; color:#15803D">10:30</p>
+<h3 style="font-family:'Rubik', Arial, sans-serif; font-size:44px; font-weight:600; line-height:1.15">Step back</h3>
+<p style="font-size:32px; color:#4A4870">Name the moves that made them work</p>
+</div>
+<div style="flex:1; display:flex; flex-direction:column; gap:16px; background:#FFFFFF; border-top:12px solid #4F46E5; border-radius:16px; padding:40px; box-shadow:0 8px 24px rgba(30,27,75,0.08)">
+<p style="font-size:32px; font-weight:700; color:#4F46E5">10:40</p>
+<h3 style="font-family:'Rubik', Arial, sans-serif; font-size:44px; font-weight:600; line-height:1.15">Conjecture</h3>
+<p style="font-size:32px; color:#4A4870">An unsolved problem, in Orbit Explorer</p>
+</div>
+<div style="flex:1; display:flex; flex-direction:column; gap:16px; background:#FFFFFF; border-top:12px solid #8B5CF6; border-radius:16px; padding:40px; box-shadow:0 8px 24px rgba(30,27,75,0.08)">
+<p style="font-size:32px; font-weight:700; color:#6D28D9">11:05</p>
+<h3 style="font-family:'Rubik', Arial, sans-serif; font-size:44px; font-weight:600; line-height:1.15">Teacher hat</h3>
+<p style="font-size:32px; color:#4A4870">What would you do with seventh graders?</p>
+</div>
+</div>
+<aside>Keep this quick. The point to land: for the first half hour they're students, not teachers. We'll switch hats afterward.</aside>
+</section></div>
+<div class="slide" hidden><section id="act1" data-section="Doing three routines as learners" data-transition="fade" style="background:#FAFAF7; color:#1E1B4B; font-family:'Nunito Sans', Arial, sans-serif; padding:128px 128px 160px; display:grid; grid-template-columns:1fr 880px; gap:64px; align-items:center">
+<div style="display:flex; flex-direction:column; gap:28px">
+<p style="font-size:28px; font-weight:700; color:#C2410C; letter-spacing:3px; text-transform:uppercase">Routine 1 · Three-act task · Act 1</p>
+<h2 style="font-family:'Rubik', Arial, sans-serif; font-size:64px; font-weight:700; line-height:1.1">How many boxes of cookies fit in that trunk?</h2>
+<div style="display:flex; flex-direction:column; gap:14px">
+<div style="display:flex; gap:24px; align-items:baseline; background:#EEF2FF; border-radius:16px; padding:20px 28px">
+<h3 style="font-family:'Rubik', Arial, sans-serif; font-size:36px; font-weight:600; white-space:nowrap">Too low</h3>
+<p style="font-size:28px; color:#4A4870">A number you know is too small</p>
+</div>
+<div style="display:flex; gap:24px; align-items:baseline; background:#EEF2FF; border-radius:16px; padding:20px 28px">
+<h3 style="font-family:'Rubik', Arial, sans-serif; font-size:36px; font-weight:600; white-space:nowrap">Too high</h3>
+<p style="font-size:28px; color:#4A4870">A number you know is too big</p>
+</div>
+<div style="display:flex; gap:24px; align-items:baseline; background:#FFF1E6; border:3px solid #F97316; border-radius:16px; padding:20px 28px">
+<h3 style="font-family:'Rubik', Arial, sans-serif; font-size:36px; font-weight:600; white-space:nowrap">My estimate</h3>
+<p style="font-size:28px; color:#4A4870">…and the reason why</p>
+</div>
+</div>
+</div>
+<img src="img/gs-act1.jpg" alt="The open trunk of an SUV packed floor to ceiling with colorful boxes of Girl Scout cookies" style="width:880px; height:495px; object-fit:cover; border-radius:24px">
+<p style="position:absolute; left:128px; bottom:64px; width:1664px; font-size:28px; color:#4A4870">Play the 20-second video: <a target="_blank" rel="noopener" href="https://vimeo.com/157324585">vimeo.com/157324585</a> · Dan Meyer, CC-BY, from a Nissan ad</p>
+<aside>Play the Vimeo video first; don't show the question yet. Ask "What do you notice? What do you wonder?" and collect wonders until someone asks how many boxes fit. THEN show the question on this slide. Too low, too high, estimate with a reason, just as in Estimation 180. Adults have little experience here, so estimates will spread widely. That's good.</aside>
+</section></div>
+<div class="slide" hidden><section id="act2" data-transition="fade" style="background:#FAFAF7; color:#1E1B4B; font-family:'Nunito Sans', Arial, sans-serif; padding:128px 128px 160px; display:grid; grid-template-columns:1fr 1fr; gap:64px; align-items:center">
+<div style="display:flex; flex-direction:column; gap:32px">
+<p style="font-size:28px; font-weight:700; color:#C2410C; letter-spacing:3px; text-transform:uppercase">Act 2</p>
+<h2 style="font-family:'Rubik', Arial, sans-serif; font-size:64px; font-weight:700; line-height:1.1">What information would help?</h2>
+<div style="display:flex; flex-direction:column; gap:16px">
+<div style="background:#FFFFFF; border-left:12px solid #4F46E5; border-radius:0 16px 16px 0; padding:24px 32px; box-shadow:0 6px 18px rgba(30,27,75,0.07)">
+<p style="font-size:28px; color:#4A4870">Cargo space</p>
+<p style="font-family:'Rubik', Arial, sans-serif; font-size:56px; font-weight:700">39.3 cubic feet</p>
+</div>
+<div style="background:#FFFFFF; border-left:12px solid #F97316; border-radius:0 16px 16px 0; padding:24px 32px; box-shadow:0 6px 18px rgba(30,27,75,0.07)">
+<p style="font-size:28px; color:#4A4870">One box of cookies</p>
+<p style="font-family:'Rubik', Arial, sans-serif; font-size:56px; font-weight:700">7 × 2.3 × 4.6 inches</p>
+</div>
+</div>
+</div>
+<img src="img/gs-info.jpg" alt="A Nissan Rogue with the caption: So, we filled the Nissan Rogue's 39.3 cubic feet of cargo space with them" style="width:800px; height:451px; object-fit:cover; border-radius:24px">
+<p style="position:absolute; left:128px; bottom:64px; width:1664px; font-size:28px; color:#4A4870">Measurements from Nissan and Dan Meyer's task notes</p>
+<aside>Ask what they'd need to know BEFORE revealing the two cards, and have them estimate those quantities too (Meyer's design choice: he cut this screen from Act 1 so students would ask for it). Then reveal. Watch for the trap: feet vs. inches. 39.3 ft³ × 1,728 = 67,910 in³; one box is 7 × 2.3 × 4.6 ≈ 74.1 in³; 67,910 ÷ 74.1 ≈ 917 boxes if packed perfectly. Anyone who divides 39.3 by 74.1 gets about half a box. A great moment to revoice.</aside>
+</section></div>
+<div class="slide" hidden><section id="act3" data-transition="fade" style="background:#1E1B4B; color:#F4F3FF; font-family:'Nunito Sans', Arial, sans-serif; padding:128px 128px 160px; display:flex; flex-direction:column; justify-content:center; gap:48px">
+<p style="font-size:28px; font-weight:700; color:#FDBA74; letter-spacing:3px; text-transform:uppercase">Act 3 · The reveal</p>
+<h2 style="font-family:'Rubik', Arial, sans-serif; font-size:88px; font-weight:700; line-height:1.1; color:#FFFFFF">How many did Nissan actually fit?</h2>
+<div style="background:#312E81; border-radius:24px; padding:40px 48px">
+<p style="font-size:44px; line-height:1.3; color:#E0E7FF">Compare the real count to your math. <b>Why might they differ?</b></p>
+</div>
+<p style="position:absolute; left:128px; bottom:64px; width:1664px; font-size:28px; color:#A5B4FC">Nissan's reveal video: <a target="_blank" rel="noopener" href="https://www.facebook.com/nissanusa/videos/10156496173410375/" style="color:#FDBA74">facebook.com/nissanusa/videos/10156496173410375</a></p>
+<aside>Play Nissan's reveal video. CHECK THIS LINK BEFORE CLASS: it's on Facebook and may need a login. I couldn't confirm the real count; the math says about 917 if packed perfectly. The discussion is the point: the trunk isn't a rectangular prism (sloped seatbacks, wheel wells), boxes leave gaps, and "39.3 cubic feet" is a manufacturer's measurement. Meyer's own Act 3 prompt: "Ask for reasons why our mathematical answer differs from the actual answer."</aside>
+</section></div>
+<div class="slide" hidden><section id="wodb" data-transition="fade" style="background:#FAFAF7; color:#1E1B4B; font-family:'Nunito Sans', Arial, sans-serif; padding:128px 128px 160px; display:grid; grid-template-columns:1fr 1.25fr; gap:80px; align-items:center">
+<div style="display:flex; flex-direction:column; gap:32px">
+<p style="font-size:32px; font-weight:700; color:#15803D; letter-spacing:3px; text-transform:uppercase">Routine 2</p>
+<h2 style="font-family:'Rubik', Arial, sans-serif; font-size:72px; font-weight:700; line-height:1.1">Which one doesn't belong?</h2>
+<p style="font-size:32px; color:#4A4870">Every one of them can be the answer. Find a reason for each.</p>
+</div>
+<div style="display:grid; grid-template-columns:1fr 1fr; gap:24px">
+<div style="background:#FFFFFF; border:3px solid #22C55E; border-radius:24px; padding:48px; display:flex; flex-direction:column; align-items:center; gap:4px">
+<p style="font-size:28px; font-weight:700; color:#4A4870">A</p>
+<p style="font-family:'Rubik', Arial, sans-serif; font-size:160px; font-weight:700; line-height:1; text-align:center">9</p>
+</div>
+<div style="background:#FFFFFF; border:3px solid #22C55E; border-radius:24px; padding:48px; display:flex; flex-direction:column; align-items:center; gap:4px">
+<p style="font-size:28px; font-weight:700; color:#4A4870">B</p>
+<p style="font-family:'Rubik', Arial, sans-serif; font-size:160px; font-weight:700; line-height:1; text-align:center">16</p>
+</div>
+<div style="background:#FFFFFF; border:3px solid #22C55E; border-radius:24px; padding:48px; display:flex; flex-direction:column; align-items:center; gap:4px">
+<p style="font-size:28px; font-weight:700; color:#4A4870">C</p>
+<p style="font-family:'Rubik', Arial, sans-serif; font-size:160px; font-weight:700; line-height:1; text-align:center">25</p>
+</div>
+<div style="background:#FFFFFF; border:3px solid #22C55E; border-radius:24px; padding:48px; display:flex; flex-direction:column; align-items:center; gap:4px">
+<p style="font-size:28px; font-weight:700; color:#4A4870">D</p>
+<p style="font-family:'Rubik', Arial, sans-serif; font-size:160px; font-weight:700; line-height:1; text-align:center">43</p>
+</div>
+</div>
+<p style="position:absolute; left:128px; bottom:64px; width:1664px; font-size:28px; color:#4A4870">More sets at <a target="_blank" rel="noopener" href="https://talkingmathwithkids.com/wodb/">talkingmathwithkids.com/wodb</a> · Christopher Danielson</p>
+<aside>Think time, then turn and talk. Push for a reason for EACH one. 9: the only one-digit number. 16: the only even number. 25: the only multiple of 5. 43: the only one that isn't a perfect square (and the only prime). Revoice precisely: "not a square" vs. "not a square number." More sets to pull from live: talkingmathwithkids.com/wodb.</aside>
+</section></div>
+<div class="slide" hidden><section id="wyr" data-transition="fade" style="background:#FAFAF7; color:#1E1B4B; font-family:'Nunito Sans', Arial, sans-serif; padding:128px 128px 160px; display:flex; flex-direction:column; gap:48px">
+<p style="font-size:32px; font-weight:700; color:#1D4ED8; letter-spacing:3px; text-transform:uppercase">Routine 3 · Would You Rather?</p>
+<h2 style="font-family:'Rubik', Arial, sans-serif; font-size:72px; font-weight:700; line-height:1.1">Would you rather use…</h2>
+<div style="display:flex; gap:40px; align-items:stretch">
+<div style="flex:1; display:flex; flex-direction:column; gap:16px; background:#EFF6FF; border:3px solid #3B82F6; border-radius:24px; padding:48px">
+<p style="font-size:32px; font-weight:700; color:#1D4ED8">Option A</p>
+<h3 style="font-family:'Rubik', Arial, sans-serif; font-size:56px; font-weight:700; line-height:1.15">One 70% off coupon</h3>
+</div>
+<div style="flex:1; display:flex; flex-direction:column; gap:16px; background:#FFF1E6; border:3px solid #F97316; border-radius:24px; padding:48px">
+<p style="font-size:32px; font-weight:700; color:#C2410C">Option B</p>
+<h3 style="font-family:'Rubik', Arial, sans-serif; font-size:56px; font-weight:700; line-height:1.15">40% off, then 20% off, then 10% off</h3>
+</div>
+</div>
+<p style="font-size:32px; color:#4A4870"><b>Commit to a side before you calculate.</b> Then justify it with mathematics.</p>
+<p style="position:absolute; left:128px; bottom:64px; width:1664px; font-size:28px; color:#4A4870"><a target="_blank" rel="noopener" href="https://www.wouldyourathermath.com/would-you-rather-50/">wouldyourathermath.com</a> · John Stevens, after Robert Kaplinsky</p>
+<aside>Hands up for A or B BEFORE anyone calculates. Many choose B because 40+20+10 = 70 "and you get three coupons." Then let them work it out. B keeps 0.6 × 0.8 × 0.9 = 0.432 of the price: 56.8% off. A wins. Good follow-ups: Does the order of the three coupons matter? (No: multiplication is commutative.) What single coupon equals B? (56.8%.) The move to name: committing first makes the calculation matter to them.</aside>
+</section></div>
+<div class="slide" hidden><section id="moves" data-section="Stepping back to name the moves and the design principle" data-transition="fade" style="background:#EEF2FF; color:#1E1B4B; font-family:'Nunito Sans', Arial, sans-serif; padding:128px; display:flex; flex-direction:column; justify-content:center; gap:40px">
+<p style="font-size:32px; font-weight:700; color:#15803D; letter-spacing:3px; text-transform:uppercase">Switch hats</p>
+<div style="background:#FFFFFF; border-left:12px solid #4F46E5; border-radius:0 16px 16px 0; padding:32px 48px">
+<p style="font-family:'Rubik', Arial, sans-serif; font-size:52px; font-weight:600; line-height:1.2">What are some teacher moves that you observed me doing during the routines?</p>
+</div>
+<div style="background:#FFFFFF; border-left:12px solid #F97316; border-radius:0 16px 16px 0; padding:32px 48px">
+<p style="font-family:'Rubik', Arial, sans-serif; font-size:52px; font-weight:600; line-height:1.2">Were there any moves that seemed odd to you, or that you have questions about?</p>
+</div>
+<div style="background:#FFFFFF; border-left:12px solid #22C55E; border-radius:0 16px 16px 0; padding:32px 48px">
+<p style="font-family:'Rubik', Arial, sans-serif; font-size:52px; font-weight:600; line-height:1.2">Which of those moves would be hardest to pull off with a room of seventh graders, and why?</p>
+</div>
+<aside>Record their answers to the first question on the board; the next two build on that list. For the third, push for specifics: the kid who blurts during think time, the partner who won't talk, the class that races to calculate before committing. Then hand out the Math Routines Field Guide: its "Moves that make any routine work" strip is for comparing with their list afterward, not for presenting. Point to the reading (Newell &amp; Orton 2018): the four routines in the article are the ones on the guide.</aside>
+</section></div>
+<div class="slide" hidden><section id="principle" data-transition="fade" style="background:#4F46E5; color:#F4F3FF; font-family:'Nunito Sans', Arial, sans-serif; padding:128px; display:flex; flex-direction:column; justify-content:center; gap:48px">
+<p style="font-size:32px; font-weight:700; color:#FED7AA; letter-spacing:3px; text-transform:uppercase">When a routine opens a lesson</p>
+<h1 style="font-family:'Rubik', Arial, sans-serif; font-size:120px; font-weight:700; line-height:1.05; color:#FFFFFF">Warm it up.<br>Don't give it away.</h1>
+<p style="font-size:44px; line-height:1.3; color:#E0E7FF">After the warm-up, could a student still show you something of their own on the task?</p>
+<aside>The design principle from TCE 318P. A good opening routine warms up the SAME mathematics the main task explores and lets you hear students' entry thinking, but it withholds the move the task is meant to reveal. Example: if today's task is unit rate, Day 50 is a great warm-up. A worked unit-price example would give the task away. Invite one quick "what would give it away?" for the coupon task.</aside>
+</section></div>
+<div class="slide" hidden><section id="nvoke" data-transition="fade" style="background:#FAFAF7; color:#1E1B4B; font-family:'Nunito Sans', Arial, sans-serif; padding:128px 128px 160px; display:flex; flex-direction:column; gap:48px">
+<p style="font-size:28px; font-weight:700; color:#4F46E5; letter-spacing:3px; text-transform:uppercase">One more tool</p>
+<h2 style="font-family:'Rubik', Arial, sans-serif; font-size:72px; font-weight:700; line-height:1.1">Try a prompt pack in nVoke</h2>
+<div style="display:flex; gap:32px">
+<div style="flex:1; display:flex; flex-direction:column; gap:12px; background:#EEF2FF; border-radius:16px; padding:36px">
+<p style="font-family:'Rubik', Arial, sans-serif; font-size:64px; font-weight:700; color:#4F46E5; line-height:1">1</p>
+<h3 style="font-family:'Rubik', Arial, sans-serif; font-size:40px; font-weight:600">Open a pack</h3>
+<p style="font-size:28px; color:#4A4870">Prompt packs → van Hiele Geometry → Use</p>
+</div>
+<div style="flex:1; display:flex; flex-direction:column; gap:12px; background:#EEF2FF; border-radius:16px; padding:36px">
+<p style="font-family:'Rubik', Arial, sans-serif; font-size:64px; font-weight:700; color:#4F46E5; line-height:1">2</p>
+<h3 style="font-family:'Rubik', Arial, sans-serif; font-size:40px; font-weight:600">Play it for the room</h3>
+<p style="font-size:28px; color:#4A4870">Choose “The whole room”: nothing is kept</p>
+</div>
+<div style="flex:1; display:flex; flex-direction:column; gap:12px; background:#EEF2FF; border-radius:16px; padding:36px">
+<p style="font-family:'Rubik', Arial, sans-serif; font-size:64px; font-weight:700; color:#4F46E5; line-height:1">3</p>
+<h3 style="font-family:'Rubik', Arial, sans-serif; font-size:40px; font-weight:600">Talk through a few</h3>
+<p style="font-size:28px; color:#4A4870">What do you see? How do you know?</p>
+</div>
+</div>
+<div style="background:#FFF1E6; border-left:12px solid #F97316; border-radius:0 16px 16px 0; padding:28px 40px">
+<p style="font-size:32px; line-height:1.35">You can also <b>build your own packs</b>, with your own shapes, dot patterns, and ten-frames. We won't today, but check it out and see what it can do.</p>
+</div>
+<p style="position:absolute; left:128px; bottom:64px; width:1664px; font-size:28px; color:#4A4870"><a target="_blank" rel="noopener" href="https://ohiomathteacher.github.io/applet-library/nvoke/">ohiomathteacher.github.io/applet-library/nvoke</a> · free, in any browser, nothing uploaded</p>
+<aside>About 5 minutes. Project nVoke, load the van Hiele Geometry pack, choose "The whole room" so nothing is saved, and run three or four cards as a class using the same moves as before: think time, turn and talk, share. Then point to the orange box: it lets you build your own packs. Encourage them to explore; don't demo it. Transition: "nVoke makes students' thinking about shapes visible. Next, a tool that makes their thinking about an unsolved problem visible."</aside>
+</section></div>
+<div class="slide" hidden><section id="research-math" data-section="Conjecturing on an open problem with Orbit Explorer" data-transition="fade" style="background:#FAFAF7; color:#1E1B4B; font-family:'Nunito Sans', Arial, sans-serif; padding:112px 128px; display:flex; flex-direction:column; gap:36px">
+<h2 style="font-family:'Rubik', Arial, sans-serif; font-size:72px; font-weight:700; line-height:1.1">School math vs. research math</h2>
+<div style="display:grid; grid-template-columns:1fr 1fr; gap:32px">
+<div style="background:#F1F1EC; border-radius:24px; padding:32px 44px; display:flex; flex-direction:column; gap:14px">
+<h3 style="font-family:'Rubik', Arial, sans-serif; font-size:40px; font-weight:600; color:#4A4870">School math</h3>
+<p style="font-size:28px; color:#4A4870; line-height:1.35">The answer already exists, in the teacher's key.</p>
+<p style="font-size:28px; color:#4A4870; line-height:1.35">You check your work by comparing it to the answer.</p>
+<p style="font-size:28px; color:#4A4870; line-height:1.35">A wrong answer is a mistake.</p>
+</div>
+<div style="background:#EEF2FF; border:3px solid #4F46E5; border-radius:24px; padding:32px 44px; display:flex; flex-direction:column; gap:14px">
+<h3 style="font-family:'Rubik', Arial, sans-serif; font-size:40px; font-weight:600; color:#4F46E5">Research math</h3>
+<p style="font-size:28px; line-height:1.35">Nobody knows the answer. Not your teacher, not the internet, not AI.</p>
+<p style="font-size:28px; line-height:1.35">You gather evidence, make claims, and hunt for counterexamples.</p>
+<p style="font-size:28px; line-height:1.35">A counterexample is progress.</p>
+</div>
+</div>
+<div style="background:#FFF1E6; border-left:12px solid #F97316; border-radius:0 16px 16px 0; padding:28px 40px; display:flex; flex-direction:column; gap:10px">
+<p style="font-size:32px; line-height:1.3">Are you suggesting that middle grades students engage in math research, in addition to (or in lieu of) school math?</p>
+<p style="font-family:'Rubik', Arial, sans-serif; font-size:40px; font-weight:700; color:#C2410C">Why yes, I am!</p>
+<p style="font-size:32px; font-weight:700">Why would I do that?</p>
+</div>
+<aside>Read the question aloud as if a student asked it, answer "Why yes, I am!", then turn the last question back to the room and take a few answers before moving on. Ideas to draw out if they don't come up: students almost never get to do mathematics where the answer doesn't exist yet; when no key exists, they have to decide what counts as evidence, how much to trust a pattern, and whether examples ever add up to a proof; and in a world where AI can produce answers on demand, a problem nobody has solved is one it can't simply hand them. Plant for the teacher-hat discussion: "How many cases would convince you? Would any number of cases be a proof?"</aside>
+</section></div>
+<div class="slide" hidden><section id="collatz" data-transition="fade" style="background:#1E1B4B; color:#F4F3FF; font-family:'Nunito Sans', Arial, sans-serif; padding:128px; display:grid; grid-template-columns:1.1fr 1fr; gap:80px; align-items:center">
+<div style="display:flex; flex-direction:column; gap:32px">
+<p style="font-size:32px; font-weight:700; color:#FDBA74; letter-spacing:3px; text-transform:uppercase">An unsolved problem</p>
+<h2 style="font-family:'Rubik', Arial, sans-serif; font-size:72px; font-weight:700; line-height:1.1; color:#FFFFFF">Try 1, 2, 3, 4, and 5. Apply the rule. Repeat.</h2>
+<p style="font-size:44px; line-height:1.3; color:#C7D2FE"><i>What happened to your number?</i></p>
+</div>
+<div style="display:flex; flex-direction:column; gap:24px; background:#312E81; border-radius:24px; padding:56px">
+<p style="font-size:32px; color:#C7D2FE">If <i>n</i> is even</p>
+<p style="font-family:'Rubik', Arial, sans-serif; font-size:88px; font-weight:700; color:#FFFFFF; line-height:1">n ÷ 2</p>
+<hr style="border-top:2px solid #4F46E5">
+<p style="font-size:32px; color:#C7D2FE">If <i>n</i> is odd</p>
+<p style="font-family:'Rubik', Arial, sans-serif; font-size:88px; font-weight:700; color:#FDBA74; line-height:1">3n − 1</p>
+</div>
+<aside>By hand, before anyone opens the applet. Pairs can split the five numbers. For you: 1 and 2 bounce back and forth (1 → 2 → 1). 3 goes 3 → 8 → 4 → 2 → 1 and joins them. 4 → 2 → 1. But 5 makes its own loop: 5 → 14 → 7 → 20 → 10 → 5. Two different endings from five tiny numbers is the hook. Ask: "Is that all the loops there are?" Hand out the Orbit Explorer task card now. Don't name the problem; the reveal comes after move 3.</aside>
+</section></div>
+<div class="slide" hidden><section id="orbit-task" data-transition="fade" style="background:#FAFAF7; color:#1E1B4B; font-family:'Nunito Sans', Arial, sans-serif; padding:128px 128px 160px; display:flex; flex-direction:column; gap:48px">
+<h2 style="font-family:'Rubik', Arial, sans-serif; font-size:72px; font-weight:700; line-height:1.1">Four moves: predict before you press</h2>
+<div style="display:grid; grid-template-columns:1fr 1fr; gap:28px">
+<div style="background:#FFFFFF; border-left:12px solid #8B5CF6; border-radius:0 16px 16px 0; padding:32px 40px; display:flex; flex-direction:column; gap:8px; box-shadow:0 6px 18px rgba(30,27,75,0.07)"><h3 style="font-family:'Rubik', Arial, sans-serif; font-size:44px; font-weight:600">1 · Go bigger</h3><p style="font-size:32px; color:#4A4870">Pick a number from 21 to 50. Predict, then run it.</p></div>
+<div style="background:#FFFFFF; border-left:12px solid #3B82F6; border-radius:0 16px 16px 0; padding:32px 40px; display:flex; flex-direction:column; gap:8px; box-shadow:0 6px 18px rgba(30,27,75,0.07)"><h3 style="font-family:'Rubik', Arial, sans-serif; font-size:44px; font-weight:600">2 · Pool the class data</h3><p style="font-size:32px; color:#4A4870">Where did everyone end up? How many different loops?</p></div>
+<div style="background:#FFFFFF; border-left:12px solid #22C55E; border-radius:0 16px 16px 0; padding:32px 40px; display:flex; flex-direction:column; gap:8px; box-shadow:0 6px 18px rgba(30,27,75,0.07)"><h3 style="font-family:'Rubik', Arial, sans-serif; font-size:44px; font-weight:600">3 · Change one thing</h3><p style="font-size:32px; color:#4A4870">Move b to +1 and set max steps to 200. Now try 27.</p></div>
+<div style="background:#FFFFFF; border-left:12px solid #CA8A04; border-radius:0 16px 16px 0; padding:32px 40px; display:flex; flex-direction:column; gap:8px; box-shadow:0 6px 18px rgba(30,27,75,0.07)"><h3 style="font-family:'Rubik', Arial, sans-serif; font-size:44px; font-weight:600">4 · Conjecture</h3><p style="font-size:32px; color:#4A4870">“I conjecture that…” and one “I wonder…”</p></div>
+</div>
+<p style="position:absolute; left:128px; bottom:64px; width:1664px; font-size:28px; color:#4A4870"><a target="_blank" rel="noopener" href="https://ohiomathteacher.github.io/orbit-explorer/">ohiomathteacher.github.io/orbit-explorer</a> · pairs, about 25 minutes</p>
+<aside>Orbit Explorer opens on this rule (m = 3, b = −1, d = 2), so moves 1 and 2 need no slider changes. For you (don't give it away): every start from 21 to 50 ends in one of three loops. The 1 ↔ 2 loop catches 9 of them, the 5-loop catches 8, and a loop of 18 numbers through 17 (17, 50, 25, 74, 37, 110, 55, 164, 82, 41, 122, 61, 182, 91, 272, 136, 68, 34) catches 13. Pooling the class data to find "exactly three loops, so far" is the research moment. Ask "how many cases would convince you?" For move 3, max steps MUST go up: at the default 50, 27 stops partway at 1,132. At 200, it shows the whole climb to 9,232 and the fall to 1 (111 steps). Then go to the reveal.</aside>
+</section></div>
+<div class="slide" hidden><section id="collatz-reveal" data-transition="fade" style="background:#4F46E5; color:#F4F3FF; font-family:'Nunito Sans', Arial, sans-serif; padding:128px; display:flex; flex-direction:column; justify-content:center; gap:44px">
+<p style="font-size:32px; font-weight:700; color:#FED7AA; letter-spacing:3px; text-transform:uppercase">The reveal</p>
+<h1 style="font-family:'Rubik', Arial, sans-serif; font-size:96px; font-weight:700; line-height:1.08; color:#FFFFFF">That +1 version has a name: the Collatz conjecture.</h1>
+<p style="font-size:44px; line-height:1.3; color:#E0E7FF">Does every starting number end at 1? Nobody knows. It has been open since 1937.</p>
+<p style="font-size:36px; line-height:1.3; color:#C7D2FE">And your 3n − 1 question, whether every number lands in one of the loops you found, is unsolved too.</p>
+<aside>Let this land: they just did research on a famous open problem without knowing it, which is exactly the point of withholding the name. Computers have checked the +1 version past 10²⁰ starting numbers; for the −1 version, only three loops are known, and no one has proved there are no others. Then move to the teacher-hat questions.</aside>
+</section></div>
+<div class="slide" hidden><section id="teacher-hat" data-transition="fade" style="background:#EEF2FF; color:#1E1B4B; font-family:'Nunito Sans', Arial, sans-serif; padding:128px; display:flex; flex-direction:column; gap:56px">
+<p style="font-size:32px; font-weight:700; color:#15803D; letter-spacing:3px; text-transform:uppercase">Now put your teacher hat on</p>
+<div style="display:flex; flex-direction:column; gap:28px">
+<div style="background:#FFFFFF; border-radius:16px; padding:36px 48px"><p style="font-size:44px; font-weight:600; line-height:1.25">What did the tool let you notice that pencil and paper couldn't? What did the pencil give you that the tool didn't?</p></div>
+<div style="background:#FFFFFF; border-radius:16px; padding:36px 48px"><p style="font-size:44px; font-weight:600; line-height:1.25">Where would you pause a class of seventh graders, and what would you ask?</p></div>
+<div style="background:#FFFFFF; border-radius:16px; padding:36px 48px"><p style="font-size:44px; font-weight:600; line-height:1.25">Which routine could open this lesson without giving it away?</p></div>
+</div>
+<aside>Whole group, about 7 minutes. Take a few conjectures first and write them up as CONJECTURES, not facts. The third question ties both halves of the session together. Possible answers: a Which One Doesn't Belong on four number sequences, or an Estimation 180-style "how many steps for 7?" Too-low/too-high works nicely here.</aside>
+</section></div>
+<div class="slide" hidden><section id="close" data-section="Wrapping up with open problems for their future classrooms" data-transition="fade" style="background:#1E1B4B; color:#F4F3FF; font-family:'Nunito Sans', Arial, sans-serif; padding:128px; display:flex; flex-direction:column; gap:44px">
+<div style="position:absolute; left:0; top:0; width:1920px; height:16px; background:linear-gradient(90deg, #EF4444, #F97316, #EAB308, #22C55E, #3B82F6, #8B5CF6)"></div>
+<h2 style="font-family:'Rubik', Arial, sans-serif; font-size:72px; font-weight:700; line-height:1.1; color:#FFFFFF">Open problems your students can work on</h2>
+<div style="display:grid; grid-template-columns:1fr 1fr 1fr 1fr; gap:20px">
+<p style="font-size:32px; font-weight:600; background:#312E81; border-radius:12px; padding:24px 28px"><a target="_blank" rel="noopener" href="https://ohiomathteacher.github.io/applet-library/open-problems/goldbach.html"><span style="color:#FFFFFF">Goldbach ↗</span></a></p>
+<p style="font-size:32px; font-weight:600; background:#312E81; border-radius:12px; padding:24px 28px"><a target="_blank" rel="noopener" href="https://ohiomathteacher.github.io/applet-library/open-problems/twin-primes.html"><span style="color:#FFFFFF">Twin primes ↗</span></a></p>
+<p style="font-size:32px; font-weight:600; background:#312E81; border-radius:12px; padding:24px 28px"><a target="_blank" rel="noopener" href="https://ohiomathteacher.github.io/applet-library/open-problems/legendre.html"><span style="color:#FFFFFF">Legendre ↗</span></a></p>
+<p style="font-size:32px; font-weight:600; background:#312E81; border-radius:12px; padding:24px 28px"><a target="_blank" rel="noopener" href="https://ohiomathteacher.github.io/applet-library/open-problems/gilbreath.html"><span style="color:#FFFFFF">Gilbreath ↗</span></a></p>
+<p style="font-size:32px; font-weight:600; background:#312E81; border-radius:12px; padding:24px 28px"><a target="_blank" rel="noopener" href="https://ohiomathteacher.github.io/applet-library/open-problems/196.html"><span style="color:#FFFFFF">The 196 problem ↗</span></a></p>
+<p style="font-size:32px; font-weight:600; background:#312E81; border-radius:12px; padding:24px 28px"><a target="_blank" rel="noopener" href="https://ohiomathteacher.github.io/applet-library/open-problems/erdos-straus.html"><span style="color:#FFFFFF">Erdős–Straus ↗</span></a></p>
+<p style="font-size:32px; font-weight:600; background:#312E81; border-radius:12px; padding:24px 28px"><a target="_blank" rel="noopener" href="https://ohiomathteacher.github.io/applet-library/open-problems/odd-perfect.html"><span style="color:#FFFFFF">Odd perfect numbers ↗</span></a></p>
+<p style="font-size:32px; font-weight:600; background:#312E81; border-radius:12px; padding:24px 28px"><a target="_blank" rel="noopener" href="https://ohiomathteacher.github.io/applet-library/open-problems/lonely-runner.html"><span style="color:#FFFFFF">Lonely runner ↗</span></a></p>
+</div>
+<p style="font-size:40px; line-height:1.3; color:#C7D2FE">Each one: easy to state, easy to try by hand, and nobody knows the answer.</p>
+<p style="font-size:30px; color:#E0E7FF">Handout and all eight pages: <a target="_blank" rel="noopener" href="https://ohiomathteacher.github.io/applet-library/open-problems/"><span style="color:#FDBA74">ohiomathteacher.github.io/applet-library/open-problems</span></a></p>
+<p style="position:absolute; left:128px; bottom:72px; width:1664px; font-size:30px; color:#FDBA74; font-weight:700">Thank you! · mtoddedwards@proton.me</p>
+<aside>Hand out "Open Problems for Middle School" as they leave, or point them to the link: it has the handout PDF and a page for each problem. Each name on this slide opens that problem's page. The slides after this one show each problem in class if there's time. Thank Naz; stop by 11:15 (her next class starts right after).</aside>
+</section></div>
+<div class="slide" hidden><section id="op-intro" data-section="Eight open problems, one slide each" data-transition="fade" style="background:#4F46E5; color:#F4F3FF; font-family:'Nunito Sans', Arial, sans-serif; padding:128px; display:flex; flex-direction:column; justify-content:center; gap:44px">
+<p style="font-size:32px; font-weight:700; color:#FED7AA; letter-spacing:3px; text-transform:uppercase">For your classroom</p>
+<h1 style="font-family:'Rubik', Arial, sans-serif; font-size:112px; font-weight:700; line-height:1.05; color:#FFFFFF">Eight open problems</h1>
+<p style="font-size:44px; line-height:1.3; color:#E0E7FF">Each has its own page online, with a picture and a detailed one-pager to print.</p>
+<p style="font-size:32px; color:#E0E7FF"><a target="_blank" rel="noopener" href="https://ohiomathteacher.github.io/applet-library/open-problems/"><span style="color:#FFFFFF">ohiomathteacher.github.io/applet-library/open-problems</span></a> · <a target="_blank" rel="noopener" href="https://ohiomathteacher.github.io/applet-library/open-problems/open-problems-handout.pdf"><span style="color:#FED7AA">Handout (PDF)</span></a></p>
+<aside>Optional section: use these if there's time, or leave them for students to browse afterward. Each problem slide links its web page and its detailed one-pager in the footer.</aside>
+</section></div>
+<div class="slide" hidden><section id="op-goldbach" data-transition="fade" style="background:#FAFAF7; color:#1E1B4B; font-family:'Nunito Sans', Arial, sans-serif; padding:128px 128px 160px; display:grid; grid-template-columns:1fr 900px; gap:64px; align-items:center">
+<div style="display:flex; flex-direction:column; gap:28px">
+<p style="font-size:26px; font-weight:700; color:#B91C1C; letter-spacing:3px; text-transform:uppercase">Primes · Grades 6–8</p>
+<h2 style="font-family:'Rubik', Arial, sans-serif; font-size:64px; font-weight:700; line-height:1.1">Goldbach's Conjecture</h2>
+<p style="font-size:34px; font-weight:600; line-height:1.3; border-left:10px solid #EF4444; padding-left:24px">Every even number bigger than 2 can be made by adding two primes.</p>
+<div style="background:#FFF1E6; border-radius:16px; padding:24px 28px; display:flex; flex-direction:column; gap:8px">
+<p style="font-size:24px; font-weight:700; color:#C2410C; letter-spacing:2px; text-transform:uppercase">Ask your students</p>
+<p style="font-size:30px; line-height:1.3">Which even numbers can be made the most ways?</p>
+</div>
+</div>
+<img src="img/goldbach.png" alt="The Goldbach comet: for each even number up to 3,000, how many ways it splits into two primes. The count keeps growing and never hits zero." style="width:900px; height:620px; object-fit:contain; background:#FFFFFF; border-radius:24px">
+<p style="position:absolute; left:128px; bottom:64px; width:1664px; font-size:26px; color:#4A4870"><a target="_blank" rel="noopener" href="https://ohiomathteacher.github.io/applet-library/open-problems/goldbach.html">Page ↗</a> · <a target="_blank" rel="noopener" href="https://ohiomathteacher.github.io/applet-library/open-problems/pdf/goldbach.pdf">One-pager (PDF) ↗</a></p>
+<aside>10 = 3 + 7 = 5 + 5; 100 works six ways. Goldbach wrote it to Euler in 1742; computers have checked into the billions of billions. Each dot is an even number and how many ways it splits; the orange band is multiples of 3.</aside>
+</section></div>
+<div class="slide" hidden><section id="op-twin-primes" data-transition="fade" style="background:#FAFAF7; color:#1E1B4B; font-family:'Nunito Sans', Arial, sans-serif; padding:128px 128px 160px; display:grid; grid-template-columns:1fr 900px; gap:64px; align-items:center">
+<div style="display:flex; flex-direction:column; gap:28px">
+<p style="font-size:26px; font-weight:700; color:#C2410C; letter-spacing:3px; text-transform:uppercase">Primes · Grades 6–8</p>
+<h2 style="font-family:'Rubik', Arial, sans-serif; font-size:64px; font-weight:700; line-height:1.1">Twin Prime Conjecture</h2>
+<p style="font-size:34px; font-weight:600; line-height:1.3; border-left:10px solid #F97316; padding-left:24px">Primes that are just 2 apart, like 11 and 13, keep showing up forever.</p>
+<div style="background:#FFF1E6; border-radius:16px; padding:24px 28px; display:flex; flex-direction:column; gap:8px">
+<p style="font-size:24px; font-weight:700; color:#C2410C; letter-spacing:2px; text-transform:uppercase">Ask your students</p>
+<p style="font-size:30px; line-height:1.3">Look at the number between each twin pair: 4, 6, 12, 18, 30… What do you notice?</p>
+</div>
+</div>
+<img src="img/twin-primes.png" alt="A hundred chart with primes shaded and twin-prime pairs in orange." style="width:900px; height:620px; object-fit:contain; background:#FFFFFF; border-radius:24px">
+<p style="position:absolute; left:128px; bottom:64px; width:1664px; font-size:26px; color:#4A4870"><a target="_blank" rel="noopener" href="https://ohiomathteacher.github.io/applet-library/open-problems/twin-primes.html">Page ↗</a> · <a target="_blank" rel="noopener" href="https://ohiomathteacher.github.io/applet-library/open-problems/pdf/twin-primes.pdf">One-pager (PDF) ↗</a></p>
+<aside>After 3 and 5, every number between twins is a multiple of 6. Since 2013 we know primes keep coming within 246 of each other forever; getting that down to 2 is the open part.</aside>
+</section></div>
+<div class="slide" hidden><section id="op-legendre" data-transition="fade" style="background:#FAFAF7; color:#1E1B4B; font-family:'Nunito Sans', Arial, sans-serif; padding:128px 128px 160px; display:grid; grid-template-columns:1fr 900px; gap:64px; align-items:center">
+<div style="display:flex; flex-direction:column; gap:28px">
+<p style="font-size:26px; font-weight:700; color:#A16207; letter-spacing:3px; text-transform:uppercase">Primes and squares · Grades 7–9</p>
+<h2 style="font-family:'Rubik', Arial, sans-serif; font-size:64px; font-weight:700; line-height:1.1">Legendre's Conjecture</h2>
+<p style="font-size:34px; font-weight:600; line-height:1.3; border-left:10px solid #CA8A04; padding-left:24px">Between any two perfect squares that sit next to each other, there's always a prime.</p>
+<div style="background:#FFF1E6; border-radius:16px; padding:24px 28px; display:flex; flex-direction:column; gap:8px">
+<p style="font-size:24px; font-weight:700; color:#C2410C; letter-spacing:2px; text-transform:uppercase">Ask your students</p>
+<p style="font-size:30px; line-height:1.3">Which strip has the fewest primes? Could one ever have none?</p>
+</div>
+</div>
+<img src="img/legendre.png" alt="Ten strips from one perfect square to the next, with the primes in each marked in orange. Every strip has at least two." style="width:900px; height:620px; object-fit:contain; background:#FFFFFF; border-radius:24px">
+<p style="position:absolute; left:128px; bottom:64px; width:1664px; font-size:26px; color:#4A4870"><a target="_blank" rel="noopener" href="https://ohiomathteacher.github.io/applet-library/open-problems/legendre.html">Page ↗</a> · <a target="_blank" rel="noopener" href="https://ohiomathteacher.github.io/applet-library/open-problems/pdf/legendre.pdf">One-pager (PDF) ↗</a></p>
+<aside>Between 4 and 9: 5 and 7. Between 16 and 25: 17, 19, 23. One of four prime problems listed as out of reach in 1912; all four are still open. Proved cousin: there's always a prime between any number and its double.</aside>
+</section></div>
+<div class="slide" hidden><section id="op-gilbreath" data-transition="fade" style="background:#FAFAF7; color:#1E1B4B; font-family:'Nunito Sans', Arial, sans-serif; padding:128px 128px 160px; display:grid; grid-template-columns:1fr 900px; gap:64px; align-items:center">
+<div style="display:flex; flex-direction:column; gap:28px">
+<p style="font-size:26px; font-weight:700; color:#15803D; letter-spacing:3px; text-transform:uppercase">Primes and subtraction · Grades 5–8</p>
+<h2 style="font-family:'Rubik', Arial, sans-serif; font-size:64px; font-weight:700; line-height:1.1">Gilbreath's Conjecture</h2>
+<p style="font-size:34px; font-weight:600; line-height:1.3; border-left:10px solid #16A34A; padding-left:24px">List the primes. Subtract neighbors to make a new row. Keep going. Every new row starts with 1.</p>
+<div style="background:#FFF1E6; border-radius:16px; padding:24px 28px; display:flex; flex-direction:column; gap:8px">
+<p style="font-size:24px; font-weight:700; color:#C2410C; letter-spacing:2px; text-transform:uppercase">Ask your students</p>
+<p style="font-size:30px; line-height:1.3">Start with a different list, like 1, 2, 4, 8, 16. Does it still work?</p>
+</div>
+</div>
+<img src="img/gilbreath.png" alt="The Gilbreath triangle: the first 14 primes, then rows of differences. Every row after the first starts with 1." style="width:900px; height:620px; object-fit:contain; background:#FFFFFF; border-radius:24px">
+<p style="position:absolute; left:128px; bottom:64px; width:1664px; font-size:26px; color:#4A4870"><a target="_blank" rel="noopener" href="https://ohiomathteacher.github.io/applet-library/open-problems/gilbreath.html">Page ↗</a> · <a target="_blank" rel="noopener" href="https://ohiomathteacher.github.io/applet-library/open-problems/pdf/gilbreath.pdf">One-pager (PDF) ↗</a></p>
+<aside>Only subtraction. Norman Gilbreath noticed it in 1958 doodling on a napkin; computers have checked hundreds of billions of rows. Great whole-class build on the board.</aside>
+</section></div>
+<div class="slide" hidden><section id="op-196" data-transition="fade" style="background:#FAFAF7; color:#1E1B4B; font-family:'Nunito Sans', Arial, sans-serif; padding:128px 128px 160px; display:grid; grid-template-columns:1fr 900px; gap:64px; align-items:center">
+<div style="display:flex; flex-direction:column; gap:28px">
+<p style="font-size:26px; font-weight:700; color:#0F766E; letter-spacing:3px; text-transform:uppercase">Addition · Grades 4–7</p>
+<h2 style="font-family:'Rubik', Arial, sans-serif; font-size:64px; font-weight:700; line-height:1.1">The 196 Problem</h2>
+<p style="font-size:34px; font-weight:600; line-height:1.3; border-left:10px solid #0D9488; padding-left:24px">Reverse a number and add. Repeat until it reads the same both ways. Does 196 ever get there?</p>
+<div style="background:#FFF1E6; border-radius:16px; padding:24px 28px; display:flex; flex-direction:column; gap:8px">
+<p style="font-size:24px; font-weight:700; color:#C2410C; letter-spacing:2px; text-transform:uppercase">Ask your students</p>
+<p style="font-size:30px; line-height:1.3">89 and 98 take the same number of steps. Why?</p>
+</div>
+</div>
+<img src="img/196.png" alt="Bar chart of steps to a palindrome for starting numbers 10 to 199. Most take one or two steps; 196 is marked with a question mark." style="width:900px; height:620px; object-fit:contain; background:#FFFFFF; border-radius:24px">
+<p style="position:absolute; left:128px; bottom:64px; width:1664px; font-size:26px; color:#4A4870"><a target="_blank" rel="noopener" href="https://ohiomathteacher.github.io/applet-library/open-problems/196.html">Page ↗</a> · <a target="_blank" rel="noopener" href="https://ohiomathteacher.github.io/applet-library/open-problems/pdf/196.pdf">One-pager (PDF) ↗</a></p>
+<aside>57 + 75 = 132, 132 + 231 = 363: done in 2 steps. 89 takes 24 steps. Computers have followed 196 for hundreds of millions of digits with no palindrome. Only addition, so it fits the youngest students.</aside>
+</section></div>
+<div class="slide" hidden><section id="op-erdos-straus" data-transition="fade" style="background:#FAFAF7; color:#1E1B4B; font-family:'Nunito Sans', Arial, sans-serif; padding:128px 128px 160px; display:grid; grid-template-columns:1fr 900px; gap:64px; align-items:center">
+<div style="display:flex; flex-direction:column; gap:28px">
+<p style="font-size:26px; font-weight:700; color:#1D4ED8; letter-spacing:3px; text-transform:uppercase">Fractions · Grades 5–8</p>
+<h2 style="font-family:'Rubik', Arial, sans-serif; font-size:64px; font-weight:700; line-height:1.1">Erdős–Straus Conjecture</h2>
+<p style="font-size:34px; font-weight:600; line-height:1.3; border-left:10px solid #2563EB; padding-left:24px">Any fraction with 4 on top can be split into three fractions with 1 on top.</p>
+<div style="background:#FFF1E6; border-radius:16px; padding:24px 28px; display:flex; flex-direction:column; gap:8px">
+<p style="font-size:24px; font-weight:700; color:#C2410C; letter-spacing:2px; text-transform:uppercase">Ask your students</p>
+<p style="font-size:30px; line-height:1.3">Try 4/9. What's your first move?</p>
+</div>
+</div>
+<img src="img/erdos-straus.png" alt="Fraction bars: four fifths of a bar, and the same length built from one half, one fourth, and one twentieth." style="width:900px; height:620px; object-fit:contain; background:#FFFFFF; border-radius:24px">
+<p style="position:absolute; left:128px; bottom:64px; width:1664px; font-size:26px; color:#4A4870"><a target="_blank" rel="noopener" href="https://ohiomathteacher.github.io/applet-library/open-problems/erdos-straus.html">Page ↗</a> · <a target="_blank" rel="noopener" href="https://ohiomathteacher.github.io/applet-library/open-problems/pdf/erdos-straus.pdf">One-pager (PDF) ↗</a></p>
+<aside>4/5 = 1/2 + 1/4 + 1/20. For 4/9, the greedy move (take away the biggest unit fraction that fits) gives 1/3 + 1/9, only two pieces. Splitting 1/9 into 1/10 + 1/90 makes three. Egyptian scribes wrote fractions this way almost 4,000 years ago.</aside>
+</section></div>
+<div class="slide" hidden><section id="op-odd-perfect" data-transition="fade" style="background:#FAFAF7; color:#1E1B4B; font-family:'Nunito Sans', Arial, sans-serif; padding:128px 128px 160px; display:grid; grid-template-columns:1fr 900px; gap:64px; align-items:center">
+<div style="display:flex; flex-direction:column; gap:28px">
+<p style="font-size:26px; font-weight:700; color:#6D28D9; letter-spacing:3px; text-transform:uppercase">Factors · Grades 5–8</p>
+<h2 style="font-family:'Rubik', Arial, sans-serif; font-size:64px; font-weight:700; line-height:1.1">Odd Perfect Numbers</h2>
+<p style="font-size:34px; font-weight:600; line-height:1.3; border-left:10px solid #7C3AED; padding-left:24px">A number is perfect when its factors add up to it, like 6 = 1 + 2 + 3. Is any perfect number odd?</p>
+<div style="background:#FFF1E6; border-radius:16px; padding:24px 28px; display:flex; flex-direction:column; gap:8px">
+<p style="font-size:24px; font-weight:700; color:#C2410C; letter-spacing:2px; text-transform:uppercase">Ask your students</p>
+<p style="font-size:30px; line-height:1.3">Can an odd number's factors ever add to more than it? Try 945.</p>
+</div>
+</div>
+<img src="img/odd-perfect.png" alt="Bars for 1 through 30 showing each number's factors added up, with a line at the number itself. Only 6 and 28 match exactly." style="width:900px; height:620px; object-fit:contain; background:#FFFFFF; border-radius:24px">
+<p style="position:absolute; left:128px; bottom:64px; width:1664px; font-size:26px; color:#4A4870"><a target="_blank" rel="noopener" href="https://ohiomathteacher.github.io/applet-library/open-problems/odd-perfect.html">Page ↗</a> · <a target="_blank" rel="noopener" href="https://ohiomathteacher.github.io/applet-library/open-problems/pdf/odd-perfect.pdf">One-pager (PDF) ↗</a></p>
+<aside>28 = 1 + 2 + 4 + 7 + 14. About fifty perfect numbers are known, all even. 945 is the smallest odd number whose factors add to more than itself, a great surprise for students who conjecture "never."</aside>
+</section></div>
+<div class="slide" hidden><section id="op-lonely-runner" data-transition="fade" style="background:#FAFAF7; color:#1E1B4B; font-family:'Nunito Sans', Arial, sans-serif; padding:128px 128px 160px; display:grid; grid-template-columns:1fr 900px; gap:64px; align-items:center">
+<div style="display:flex; flex-direction:column; gap:28px">
+<p style="font-size:26px; font-weight:700; color:#BE185D; letter-spacing:3px; text-transform:uppercase">Rates and motion · Grades 7–10</p>
+<h2 style="font-family:'Rubik', Arial, sans-serif; font-size:64px; font-weight:700; line-height:1.1">Lonely Runner Conjecture</h2>
+<p style="font-size:34px; font-weight:600; line-height:1.3; border-left:10px solid #DB2777; padding-left:24px">Runners start together on a round track, at different speeds. Will each one, at some moment, be far from everyone else?</p>
+<div style="background:#FFF1E6; border-radius:16px; padding:24px 28px; display:flex; flex-direction:column; gap:8px">
+<p style="font-size:24px; font-weight:700; color:#C2410C; letter-spacing:2px; text-transform:uppercase">Ask your students</p>
+<p style="font-size:30px; line-height:1.3">Act it out with three speeds. Freeze! Who's lonely?</p>
+</div>
+</div>
+<img src="img/lonely-runner.png" alt="A circular track: after 30 seconds, runners B and C are back at the start while runner A is halfway around, so A is lonely." style="width:900px; height:620px; object-fit:contain; background:#FFFFFF; border-radius:24px">
+<p style="position:absolute; left:128px; bottom:64px; width:1664px; font-size:26px; color:#4A4870"><a target="_blank" rel="noopener" href="https://ohiomathteacher.github.io/applet-library/open-problems/lonely-runner.html">Page ↗</a> · <a target="_blank" rel="noopener" href="https://ohiomathteacher.github.io/applet-library/open-problems/pdf/lonely-runner.pdf">One-pager (PDF) ↗</a></p>
+<aside>"Far" depends on how many runners: half a lap for 2, a third for 3, a quarter for 4. Proved for up to seven runners; for eight or more, nobody knows. Rates and fractions of a lap in disguise.</aside>
+</section></div>
+</div>
+<div id="notes"></div>
+<nav id="bar"><button id="prev" aria-label="Previous slide">←</button><span id="count"></span><button id="next" aria-label="Next slide">→</button>
+<button id="nbtn">Notes (N)</button><button id="fs">Full screen (F)</button>
+<a href="handouts/" style="color:#FDBA74">Handouts</a></nav>
+<script>
+const slides=[...document.querySelectorAll('.slide')], stage=document.getElementById('stage');
+let i=0;
+function fit(){const s=Math.min(innerWidth/1920,innerHeight/1080);stage.style.transform=`scale(${s}) translate(-50%,-50%)`;}
+function show(n){i=Math.max(0,Math.min(slides.length-1,n));slides.forEach((s,k)=>s.hidden=k!==i);
+  document.getElementById('count').textContent=`${i+1} / ${slides.length}`;
+  const a=slides[i].querySelector('aside');document.getElementById('notes').textContent=a?a.textContent:'(No notes for this slide.)';
+  history.replaceState(null,'','#'+(i+1));}
+addEventListener('resize',fit);
+addEventListener('keydown',e=>{
+  if(['ArrowRight','PageDown',' '].includes(e.key)){e.preventDefault();show(i+1)}
+  else if(['ArrowLeft','PageUp'].includes(e.key)){e.preventDefault();show(i-1)}
+  else if(e.key==='Home')show(0); else if(e.key==='End')show(slides.length-1);
+  else if(e.key==='n'||e.key==='N')document.body.classList.toggle('show-notes');
+  else if(e.key==='f'||e.key==='F')toggleFs();});
+function toggleFs(){document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen()}
+document.getElementById('prev').onclick=()=>show(i-1);document.getElementById('next').onclick=()=>show(i+1);
+document.getElementById('nbtn').onclick=()=>document.body.classList.toggle('show-notes');document.getElementById('fs').onclick=toggleFs;
+stage.addEventListener('click',e=>{if(e.target.closest('a'))return;show(e.clientX>innerWidth/2?i+1:i-1)});
+let tx=null;addEventListener('touchstart',e=>tx=e.touches[0].clientX);addEventListener('touchend',e=>{if(tx===null)return;const d=e.changedTouches[0].clientX-tx;if(Math.abs(d)>50)show(d<0?i+1:i-1);tx=null});
+fit();show((parseInt(location.hash.slice(1))||1)-1);
+</script></body></html>

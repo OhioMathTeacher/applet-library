@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Open Problems for Middle School</title>
+<style>
+  @page { size: letter; margin: 0.55in 0.6in; }
+  :root { --ink:#1d232b; --muted:#5b6570; --rule:#e3e6ea; --accent:#4f46e5; --soft:#f5f7ff; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: "Source Sans 3", "Segoe UI", Roboto, Helvetica, Arial, sans-serif; color: var(--ink); font-size: 10pt; line-height: 1.38; }
+  header { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; border-bottom: 2px solid var(--ink); padding-bottom: 8px; margin-bottom: 12px; }
+  h1 { font-size: 21pt; letter-spacing: -0.3px; line-height: 1.1; white-space: nowrap; }
+  .stripe { display: inline-flex; gap: 3px; vertical-align: 4px; margin-left: 8px; }
+  .stripe span { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
+  .sub { color: var(--muted); font-size: 10pt; margin-top: 3px; }
+  .meta { text-align: right; font-size: 9pt; color: var(--muted); line-height: 1.5; white-space: nowrap; }
+  .intro { display: grid; grid-template-columns: 1.15fr 1fr; gap: 18px; margin-bottom: 14px; break-inside: avoid; }
+  .intro p { color: #333b44; }
+  .why { background: var(--soft); border-left: 3px solid var(--accent); border-radius: 0 6px 6px 0; padding: 8px 12px; }
+  .why ol { padding-left: 16px; color: #333b44; }
+  .why li { margin-bottom: 2px; }
+  h2 { font-size: 9pt; text-transform: uppercase; letter-spacing: 1.2px; color: var(--muted); margin-bottom: 5px; break-after: avoid; }
+  .why h2 { color: var(--accent); }
+  .section-title { margin: 4px 0 8px; break-after: avoid; }
+  .cards { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 14px; }
+  .card { border: 1px solid var(--rule); border-top: 4px solid var(--c); border-radius: 8px; padding: 9px 11px 10px; break-inside: avoid; page-break-inside: avoid; }
+  .card h3 { font-size: 12pt; line-height: 1.2; display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+  .tag { font-size: 7.8pt; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px; color: var(--c); white-space: nowrap; }
+  .claim { font-style: italic; margin: 4px 0 5px; color: #22282f; }
+  .row { margin-top: 4px; color: #333b44; }
+  .row b { color: var(--ink); }
+  .status { font-size: 8.8pt; color: var(--muted); margin-top: 5px; border-top: 1px dashed var(--rule); padding-top: 4px; }
+  .start { margin-top: 14px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; break-inside: avoid; }
+  .start div { background: #f5f8f6; border-radius: 6px; padding: 8px 10px; border-left: 3px solid #10b981; }
+  .start b { display: block; }
+  .start p { color: #333b44; font-size: 9.4pt; }
+  .start-wrap { break-inside: avoid; }
+  footer { margin-top: 12px; font-size: 8.4pt; color: var(--muted); border-top: 1px solid var(--rule); padding-top: 6px; break-inside: avoid; }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>Open Problems for Middle School<span class="stripe"><span style="background:#ef4444"></span><span style="background:#eab308"></span><span style="background:#22c55e"></span><span style="background:#3b82f6"></span><span style="background:#8b5cf6"></span></span></h1>
+    <div class="sub">Unsolved problems your students can understand, try, and make real conjectures about</div>
+  </div>
+  <div class="meta">TCE 412M · Guest session with Todd Edwards<br>Tuesday, 29 September 2026</div>
+</header>
+
+<div class="intro">
+  <div>
+    <h2>The idea</h2>
+    <p>Collatz works in a middle-school classroom because it is a real open problem that anyone can start on: pick a number, follow a rule, watch what happens. Each problem below has that same shape, and each sits on content you will teach: primes, factors, fractions, rates. Nobody knows the answers, so your students are doing genuine mathematics. They gather evidence, spot patterns, and argue for conjectures of their own, instead of rediscovering a textbook result.</p>
+  </div>
+  <div class="why">
+    <h2>What makes an open problem classroom-ready</h2>
+    <ol>
+      <li><b>Easy to state.</b> A 12-year-old can understand the claim.</li>
+      <li><b>Easy to try by hand.</b> Small cases take a pencil, not a proof.</li>
+      <li><b>Better with technology.</b> A spreadsheet or applet checks thousands of cases and reveals patterns no one would see by hand.</li>
+      <li><b>Something to look at.</b> The data makes a picture: a plot, a triangle, a spiral.</li>
+    </ol>
+  </div>
+</div>
+
+<h2 class="section-title">Eight problems</h2>
+
+<div class="cards">
+
+  <div class="card" style="--c:#ef4444">
+    <h3><a href="https://ohiomathteacher.github.io/applet-library/open-problems/goldbach.html" style="color:inherit;text-decoration:none">Goldbach's Conjecture ↗</a> <span class="tag">Primes · Gr 6–8</span></h3>
+    <p class="claim">Every even number greater than 2 is the sum of two primes.</p>
+    <p class="row"><b>Why it works:</b> Checking one number is easy (10 = 3 + 7 = 5 + 5), but counting <i>how many ways</i> each number works, and plotting the counts, produces the striking “Goldbach comet”: the data fans out in bands nobody predicted.</p>
+    <p class="row"><b>With technology:</b> Pick an even number, see every prime pair; slide up to 10,000 and watch the comet grow.</p>
+    <p class="status">Open since 1742. Checked by computer up to 4 × 10<sup>18</sup>.</p>
+  </div>
+
+  <div class="card" style="--c:#f97316">
+    <h3><a href="https://ohiomathteacher.github.io/applet-library/open-problems/twin-primes.html" style="color:inherit;text-decoration:none">Twin Prime Conjecture ↗</a> <span class="tag">Primes · Gr 6–8</span></h3>
+    <p class="claim">There are infinitely many pairs of primes that differ by 2, like 11 and 13 or 41 and 43.</p>
+    <p class="row"><b>Why it works:</b> Twins seem to thin out as numbers grow, yet they keep turning up. A running count lets students argue from evidence about whether they ever stop, which is the heart of the problem.</p>
+    <p class="row"><b>With technology:</b> A number line or Ulam spiral that lights up twin pairs, with a live count and a chart of the gaps between primes.</p>
+    <p class="status">Open. In 2013 Yitang Zhang proved some gap under 70 million repeats forever; that bound is now down to 246.</p>
+  </div>
+
+  <div class="card" style="--c:#ca8a04">
+    <h3><a href="https://ohiomathteacher.github.io/applet-library/open-problems/legendre.html" style="color:inherit;text-decoration:none">Legendre's Conjecture ↗</a> <span class="tag">Primes · Gr 7–9</span></h3>
+    <p class="claim">There is always at least one prime between any two consecutive perfect squares.</p>
+    <p class="row"><b>Why it works:</b> It connects primes to squares, which students can draw. The number of primes in each gap grows, but unevenly, so there is always a new question: which gap is the most crowded? The emptiest?</p>
+    <p class="row"><b>With technology:</b> Slide <i>n</i> and see the interval from <i>n</i>² to (<i>n</i>+1)² drawn as a strip, with its primes marked and counted.</p>
+    <p class="status">Open. With Goldbach and twin primes, one of Landau's four “unattackable” problems of 1912.</p>
+  </div>
+
+  <div class="card" style="--c:#22c55e">
+    <h3><a href="https://ohiomathteacher.github.io/applet-library/open-problems/gilbreath.html" style="color:inherit;text-decoration:none">Gilbreath's Conjecture ↗</a> <span class="tag">Primes · Gr 5–8</span></h3>
+    <p class="claim">List the primes, then take differences between neighbors again and again. Every row after the first starts with 1.</p>
+    <p class="row"><b>Why it works:</b> The whole thing is subtraction, and it builds a triangle that is almost begging to be colored in. It is the most surprising problem here for the least mathematical background.</p>
+    <p class="row"><b>With technology:</b> A growing difference triangle, colored by value, that students can extend row by row, or try with other starting lists to see if it still works.</p>
+    <p class="status">Open since 1958. Checked for the first 3.4 × 10<sup>11</sup> primes.</p>
+  </div>
+
+  <div class="card" style="--c:#14b8a6">
+    <h3><a href="https://ohiomathteacher.github.io/applet-library/open-problems/196.html" style="color:inherit;text-decoration:none">The 196 Problem ↗</a> <span class="tag">Arithmetic · Gr 4–7</span></h3>
+    <p class="claim">Reverse a number's digits and add: 57 + 75 = 132, 132 + 231 = 363, a palindrome. Starting from 196, does it ever reach one?</p>
+    <p class="row"><b>Why it works:</b> Only addition is needed, so it fits the youngest students here. Most numbers finish in a few steps, which makes 196 all the stranger. Like Collatz, each starting number has its own “journey.”</p>
+    <p class="row"><b>With technology:</b> Step through the reverse-and-add journey, then map which starting numbers finish fast, slowly, or seemingly never.</p>
+    <p class="status">Open. Computers have followed 196 for hundreds of millions of digits without a palindrome.</p>
+  </div>
+
+  <div class="card" style="--c:#3b82f6">
+    <h3><a href="https://ohiomathteacher.github.io/applet-library/open-problems/erdos-straus.html" style="color:inherit;text-decoration:none">Erdős–Straus Conjecture ↗</a> <span class="tag">Fractions · Gr 5–8</span></h3>
+    <p class="claim">For every whole number <i>n</i> ≥ 2, the fraction 4/<i>n</i> can be written as 1/<i>x</i> + 1/<i>y</i> + 1/<i>z</i>.</p>
+    <p class="row"><b>Why it works:</b> It is a research problem about ordinary fractions and unit fractions, a weak spot for many students and teachers. Hunting for solutions is real fraction practice with a purpose.</p>
+    <p class="row"><b>With technology:</b> Pick <i>n</i>, search for (or try to guess) the three unit fractions, and see them as pieces of a fraction bar.</p>
+    <p class="status">Open since 1948. Checked for every <i>n</i> up to 10<sup>17</sup>.</p>
+  </div>
+
+  <div class="card" style="--c:#8b5cf6">
+    <h3><a href="https://ohiomathteacher.github.io/applet-library/open-problems/odd-perfect.html" style="color:inherit;text-decoration:none">Odd Perfect Numbers ↗</a> <span class="tag">Factors · Gr 5–8</span></h3>
+    <p class="claim">A number is perfect if its factors (not counting itself) add up to it: 6 = 1 + 2 + 3. Every known perfect number is even. Is there an odd one?</p>
+    <p class="row"><b>Why it works:</b> It rests on factors, a core middle-school topic. Along the way students sort numbers as “abundant” or “deficient” and find patterns in which ones are which.</p>
+    <p class="row"><b>With technology:</b> Show each number's factors as bars that stack up against the number itself; color numbers by abundant, deficient, or perfect.</p>
+    <p class="status">Open for over 2,000 years. No odd perfect number exists below 10<sup>1500</sup>.</p>
+  </div>
+
+  <div class="card" style="--c:#ec4899">
+    <h3><a href="https://ohiomathteacher.github.io/applet-library/open-problems/lonely-runner.html" style="color:inherit;text-decoration:none">Lonely Runner Conjecture ↗</a> <span class="tag">Motion · Gr 7–10</span></h3>
+    <p class="claim">Runners circle a track, each at a different constant speed. Will every runner, at some moment, be far from all the others?</p>
+    <p class="row"><b>Why it works:</b> It is the most visual problem on this list: an animation. Students can set speeds, run the race, and watch for the “lonely” moment, then connect what they see to fractions and rates.</p>
+    <p class="row"><b>With technology:</b> An animated circular track with adjustable speeds that flags each runner's loneliest moment.</p>
+    <p class="status">Open in general; proved when there are only a few runners (seven or fewer, as of 2008).</p>
+  </div>
+
+</div>
+
+<div class="start-wrap">
+  <h2 class="section-title" style="margin-top:14px">Where to start with a class</h2>
+  <div class="start" style="margin-top:0">
+    <div><b>The 196 Problem</b><p>Only addition, so every student can play. Assign each group a range of starting numbers and pool the results.</p></div>
+    <div><b>Gilbreath's Conjecture</b><p>Just subtraction, and the triangle can be built on the board as a whole class. The surprise lands every time.</p></div>
+    <div><b>Goldbach's Conjecture</b><p>Great practice with primes. Have students find every pair for their own number, then graph the class's data.</p></div>
+  </div>
+</div>
+
+<footer>
+  Click any problem name for its page, picture, and a detailed one-pager: <a href="https://ohiomathteacher.github.io/applet-library/open-problems/" style="color:#4f46e5;font-weight:600;text-decoration:none">ohiomathteacher.github.io/applet-library/open-problems/</a><br>
+  Whatever the problem: have students predict before they compute, keep a log of cases, and write the conjecture their evidence supports, along with what would change their mind.
+</footer>
+
+</body>
+</html>

@@ -30,15 +30,7 @@
 
     /* Intro: text on the left, Explore links on the right */
     .intro h1 { margin-bottom: 14px; }
-    .intro p { font-size: 17px; line-height: 1.55; color: var(--muted); margin: 0 0 22px; }
-    /* Section links in one row, breadcrumb-style */
-    .crumbs { display: flex; flex-wrap: wrap; align-items: center; row-gap: 6px; border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule); padding: 12px 0; font-size: 15px; }
-    .crumbs a { text-decoration: none; display: inline-flex; align-items: center; gap: 6px; }
-    .crumbs a:hover { text-decoration: underline; }
-    .crumbs a + a::before { content: "/"; color: #b5b5b5; margin: 0 14px; display: inline-block; text-decoration: none; }
-    .crumbs a:last-child { margin-left: auto; }
-    .crumbs a:last-child::before { display: none; }
-    .crumbs svg { width: 11px; height: 11px; }
+    .intro p { font-size: 17px; line-height: 1.55; color: var(--muted); margin: 0; }
     [hidden] { display: none !important; }
     .one-section .sec { margin-top: 0; }
     .one-section .wrap { padding-top: 8px; }
@@ -55,6 +47,7 @@
     .card:hover b { text-decoration: underline; }
     .card .blurb { display: block; font-size: 14px; line-height: 1.45; color: var(--muted); }
 
+    footer a { color: inherit; }
     footer { margin-top: 64px; padding-top: 16px; border-top: 1px solid var(--rule); font-size: 13px; color: #6b6b6b; }
 
     /* Shared icon strokes */
@@ -62,9 +55,6 @@
     .ic-thin { stroke: var(--ink); stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
 
     @media (max-width: 760px) {
-      .crumbs { font-size: 14px; }
-      .crumbs a + a::before { margin: 0 8px; }
-      .crumbs a:last-child { margin-left: 0; flex-basis: 100%; }
       .cards { grid-template-columns: 1fr; gap: 20px; }
       .card { grid-template-columns: 112px minmax(0, 1fr); gap: 14px; }
       .tile { width: 112px; height: 112px; }
@@ -82,13 +72,6 @@
     <section class="intro">
       <h1>Applet Library</h1>
       <p>A collection of interactive web applets for mathematics and science education, created by Todd Edwards of Miami University, primarily as tools for teaching and learning. They are designed for hands-on mathematical exploration in the classroom. Each applet is self-contained with its own README and can be used independently.</p>
-      <nav class="crumbs" aria-label="Sections">
-        <a href="#talks">Talks</a>
-        <a href="#teaching">Teaching &amp; Learning</a>
-        <a href="#utilities">Utilities</a>
-        <a href="#research">Research</a>
-        <a href="https://github.com/OhioMathTeacher/applet-library">Source on GitHub <svg aria-hidden="true"><use href="#arrow"/></svg></a>
-      </nav>
     </section>
 
     <section class="sec" id="talks">
@@ -287,13 +270,13 @@
       </div>
     </section>
 
+    <footer><a href="https://github.com/OhioMathTeacher/applet-library">Source on GitHub ↗</a></footer>
   </main>
+  <script src="site-header.js" data-current="auto" defer></script>
   <script>
-    // Embedded (e.g. in Google Sites): open applets in a new tab rather than inside the embed box,
-    // and drop the section links, since the host site's own menu does that job.
+    // Embedded (e.g. in Google Sites): open applets in a new tab rather than inside the embed box.
     if (window.top !== window.self) {
-      document.querySelectorAll('a.card, .crumbs a[href^="http"]').forEach(a => { a.target = '_blank'; a.rel = 'noopener'; });
-      document.querySelector('.crumbs').hidden = true;
+      document.querySelectorAll('a.card, footer a').forEach(a => { a.target = '_blank'; a.rel = 'noopener'; });
     }
     // ?section=talks|teaching|utilities|research shows just that section, for one-section pages.
     const only = new URLSearchParams(location.search).get('section');

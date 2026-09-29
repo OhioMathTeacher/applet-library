@@ -22,6 +22,9 @@ Records a meeting as **two separate tracks** — your microphone and everyone el
 ### 🔲 [Standards Crossword](https://ohiomathteacher.github.io/applet-library/standards-crossword/)
 An NYT-style crossword for reviewing academic content standards: pick a framework, content area, grade and standard, and solve. Teacher-made puzzles come first; for other standards, genAI can generate one from the standard's official text, clearly labeled. Standards data from the Common Standards Project, bundled so it works offline.
 
+### 🟩 [PEMDAS Wordle](https://ohiomathteacher.github.io/PEMDAS-Wordle/)
+A Wordle-like game for equations. Lives in its own repo, [OhioMathTeacher/PEMDAS-Wordle](https://github.com/OhioMathTeacher/PEMDAS-Wordle).
+
 ### 🧲 [Forces on a Ramp](https://ohiomathteacher.github.io/applet-library/forces-on-ramp/)
 Interactive physics simulation for exploring forces on inclined planes. Visualize force decomposition, friction effects, and energy conservation with draggable objects and real-time physics.
 

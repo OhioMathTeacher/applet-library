@@ -285,5 +285,11 @@
     </section>
 
   </main>
+  <script>
+    // Embedded (e.g. in Google Sites), open applets in a new tab rather than inside the embed box.
+    if (window.top !== window.self) {
+      document.querySelectorAll('a.card, .crumbs a[href^="http"]').forEach(a => { a.target = '_blank'; a.rel = 'noopener'; });
+    }
+  </script>
 </body>
 </html>

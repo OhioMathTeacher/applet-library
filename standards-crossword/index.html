@@ -135,7 +135,7 @@
 
   /* Student pickers + genAI */
   .pickbar { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)) minmax(0, 2.2fr); gap: 10px; margin: 0 0 14px; }
-  .pickbar label { display: block; font-size: 12px; font-weight: 600; color: var(--muted); }
+  .pickbar label { min-width: 0; display: block; font-size: 12px; font-weight: 600; color: var(--muted); }
   .pickbar select { display: block; width: 100%; margin-top: 3px; border: 1px solid #bdbdbd; border-radius: 4px; padding: 7px 8px; font-size: 14px; background: #fff; color: var(--ink); }
   .gen { border-top: 1px solid var(--rule); padding: 28px 0 48px; max-width: 62ch; }
   .gen h2 { font-size: 20px; margin: 0 0 16px; }
@@ -147,10 +147,22 @@
     .pickbar .std-pick { grid-column: 1 / -1; }
   }
 
+  /* Puzzle list (front page) */
+  .back { display: inline-block; font-size: 13px; color: var(--muted); text-decoration: none; margin-bottom: 8px; }
+  .back:hover { text-decoration: underline; }
+  .list { border-top: 1px solid var(--rule); padding-bottom: 48px; }
+  .list h2 { font-size: 22px; font-weight: 800; margin: 28px 0 12px; }
+  .pzgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; }
+  .pz { display: block; border: 1px solid var(--rule); border-radius: 6px; padding: 14px 16px; text-decoration: none; color: inherit; background: #fff; }
+  .pz:hover { border-color: #9a9a9a; background: #fafafa; }
+  .pz b { display: block; font-size: 16px; margin-bottom: 4px; }
+  .pz span { display: block; font-size: 13px; color: var(--muted); line-height: 1.4; }
+  .pz .codes { font-size: 12px; margin-top: 4px; overflow-wrap: anywhere; }
+
   .version { position: fixed; right: 10px; bottom: 8px; font-size: 11px; color: #a0a0a0; font-variant-numeric: tabular-nums; pointer-events: none; }
 
   @media print {
-    .version, .pickbar, #ai-redo,
+    .version, .pickbar, #ai-redo, .back,
     .toolbar, .cluebar, .modal, #kbd { display: none !important; }
     .cell.sel, .cell.inword { background: #fff; }
     .cluelist { max-height: none !important; overflow: visible; }
@@ -162,6 +174,7 @@
 <body>
 <div class="wrap">
   <header class="masthead">
+    <a class="back" id="back" href="#" hidden>← All puzzles</a>
     <h1 id="title">Crossword</h1>
     <p id="sub"></p>
     <details class="stds" id="stds" hidden>
@@ -181,6 +194,8 @@
     <label>Grade <select id="s-grade"></select></label>
     <label class="std-pick">Standard <select id="s-std"></select></label>
   </div>
+
+  <div class="list" id="list" hidden></div>
 
   <div class="gen" id="gen" hidden>
     <h2>No teacher-made puzzle for this standard yet</h2>
@@ -299,7 +314,7 @@
 const LIBRARY = window.PUZZLE_LIBRARY || [];
 
 // Bump on every change so it's obvious which build is on screen.
-const VERSION = 'v0.5 · 2026-09-29';
+const VERSION = 'v0.7 · 2026-09-29';
 
 // --- UTILITIES ---
 const $ = s => document.querySelector(s);
@@ -1006,6 +1021,8 @@ function showGenPanel(docId, code) {
   if (!std) return;
   GEN = { docId, code, std };
   P = null;
+  $('#list').hidden = true;
+  $('#back').hidden = false;
   $('#solver').hidden = true;
   $('#gen').hidden = false;
   setHeader(`Review: ${code}`, '', std);
@@ -1306,11 +1323,59 @@ $('#b-key-forget').addEventListener('click', () => {
   rebuild();
 });
 
+// --- PUZZLE LIST: the front page, every library puzzle grouped by content area ---
+const AREA_ORDER = ['Mathematics', 'English Language Arts', 'Science', 'Social Studies', 'Computer Science'];
+const DOC_RANK = {};
+INDEX.forEach(fw => fw.subjects.forEach(a => a.docs.forEach(d => { DOC_RANK[d.id] = Object.keys(DOC_RANK).length; })));
+
+function showList() {
+  P = null;
+  $('#solver').hidden = true;
+  $('#gen').hidden = true;
+  $('#list').hidden = false;
+  $('#back').hidden = true;
+  setHeader('Standards Crossword', 'Pick a puzzle, or choose any standard with the menus.');
+  if (INDEX.length && !$('#s-std').options.length) fillStandards(sPick.doc);
+
+  const groups = {};
+  LIBRARY.forEach((p, i) => {
+    const m = DOC_META[p.doc];
+    const area = m ? m.a : 'Other';
+    (groups[area] = groups[area] || []).push({ p, i, m });
+  });
+  const areas = Object.keys(groups).sort((x, y) =>
+    (AREA_ORDER.indexOf(x) + 1 || 99) - (AREA_ORDER.indexOf(y) + 1 || 99));
+  const list = $('#list');
+  list.innerHTML = '';
+  if (!areas.length) list.appendChild(Object.assign(document.createElement('p'), { className: 'note', textContent: 'No puzzles in the library yet.' }));
+  areas.forEach(area => {
+    list.appendChild(Object.assign(document.createElement('h2'), { textContent: area }));
+    const grid = list.appendChild(Object.assign(document.createElement('div'), { className: 'pzgrid' }));
+    groups[area]
+      .sort((x, y) => (DOC_RANK[x.p.doc] ?? 1e9) - (DOC_RANK[y.p.doc] ?? 1e9))
+      .forEach(({ p, m }) => {
+        const a = Object.assign(document.createElement('a'), { className: 'pz', href: '#' });
+        a.append(
+          Object.assign(document.createElement('b'), { textContent: p.t }),
+          Object.assign(document.createElement('span'), { textContent: m ? `${m.f} · ${m.grade}` : '' }),
+          Object.assign(document.createElement('span'), { className: 'codes', textContent: p.codes.join(', ') }),
+        );
+        a.addEventListener('click', e => {
+          e.preventDefault();
+          loadDoc(p.doc).catch(() => null).then(() => goPuzzle(libraryData(p)));
+        });
+        grid.appendChild(a);
+      });
+  });
+}
+
 // --- ROUTING: #puzzle-builder, #p=<puzzle>, or the first library puzzle ---
 function onRoute() {
   const h = location.hash.slice(1);
   $('#done').hidden = true;
   $('#gen').hidden = true;
+  $('#list').hidden = true;
+  $('#back').hidden = h === 'puzzle-builder';
   if (h === 'puzzle-builder') {
     currentRoute = 'build';
     $('#solver').hidden = true;
@@ -1339,20 +1404,7 @@ function onRoute() {
     syncPickers(data.std);
     return;
   }
-  const p = LIBRARY[0];
-  if (!p) {
-    P = null;
-    $('#solver').hidden = true;
-    setHeader('Crossword', 'Pick a standard above to start.');
-    return;
-  }
-  loadDoc(p.doc).catch(() => null).then(() => {
-    if (currentRoute !== 'solve' || location.hash) return;
-    const data = libraryData(p);
-    $('#solver').hidden = false;
-    startSolver(data, hashStr('#p=' + encode(data)));
-    syncPickers(data.std);
-  });
+  showList();
 }
 
 $('#version').textContent = VERSION;

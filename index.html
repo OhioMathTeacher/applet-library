@@ -39,6 +39,9 @@
     .crumbs a:last-child { margin-left: auto; }
     .crumbs a:last-child::before { display: none; }
     .crumbs svg { width: 11px; height: 11px; }
+    [hidden] { display: none !important; }
+    .one-section .sec { margin-top: 0; }
+    .one-section .wrap { padding-top: 8px; }
 
     /* Sections of cards */
     .sec { margin-top: 56px; }
@@ -286,9 +289,18 @@
 
   </main>
   <script>
-    // Embedded (e.g. in Google Sites), open applets in a new tab rather than inside the embed box.
+    // Embedded (e.g. in Google Sites): open applets in a new tab rather than inside the embed box,
+    // and drop the section links, since the host site's own menu does that job.
     if (window.top !== window.self) {
       document.querySelectorAll('a.card, .crumbs a[href^="http"]').forEach(a => { a.target = '_blank'; a.rel = 'noopener'; });
+      document.querySelector('.crumbs').hidden = true;
+    }
+    // ?section=talks|teaching|utilities|research shows just that section, for one-section pages.
+    const only = new URLSearchParams(location.search).get('section');
+    if (only && document.getElementById(only)) {
+      document.querySelector('.intro').hidden = true;
+      document.querySelectorAll('section.sec').forEach(sec => { sec.hidden = sec.id !== only; });
+      document.body.classList.add('one-section');
     }
   </script>
 </body>

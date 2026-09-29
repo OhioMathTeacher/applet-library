@@ -29,16 +29,16 @@
     .wrap { max-width: 1040px; margin: 0 auto; padding: 40px 16px 64px; }
 
     /* Intro: text on the left, Explore links on the right */
-    .intro { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 48px; align-items: start; }
-    h1 { font-size: 32px; font-weight: 800; letter-spacing: -0.01em; margin: 0 0 18px; }
-    .intro p { font-size: 17px; line-height: 1.5; color: var(--muted); margin: 0 0 12px; }
-    .explore { padding-top: 58px; }
-    .explore h2 { font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; margin: 0 0 14px; }
-    .explore ul { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--rule); }
-    .explore li { border-bottom: 1px solid var(--rule); }
-    .explore a { display: flex; align-items: center; gap: 10px; padding: 14px 0; font-size: 16px; text-decoration: none; }
-    .explore a:hover span { text-decoration: underline; }
-    .explore svg { width: 12px; height: 12px; flex-shrink: 0; }
+    .intro h1 { margin-bottom: 14px; }
+    .intro p { font-size: 17px; line-height: 1.55; color: var(--muted); margin: 0 0 22px; }
+    /* Section links in one row, breadcrumb-style */
+    .crumbs { display: flex; flex-wrap: wrap; align-items: center; row-gap: 6px; border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule); padding: 12px 0; font-size: 15px; }
+    .crumbs a { text-decoration: none; display: inline-flex; align-items: center; gap: 6px; }
+    .crumbs a:hover { text-decoration: underline; }
+    .crumbs a + a::before { content: "/"; color: #b5b5b5; margin: 0 14px; display: inline-block; text-decoration: none; }
+    .crumbs a:last-child { margin-left: auto; }
+    .crumbs a:last-child::before { display: none; }
+    .crumbs svg { width: 11px; height: 11px; }
 
     /* Sections of cards */
     .sec { margin-top: 56px; }
@@ -59,8 +59,9 @@
     .ic-thin { stroke: var(--ink); stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
 
     @media (max-width: 760px) {
-      .intro { grid-template-columns: 1fr; gap: 8px; }
-      .explore { padding-top: 12px; }
+      .crumbs { font-size: 14px; }
+      .crumbs a + a::before { margin: 0 8px; }
+      .crumbs a:last-child { margin-left: 0; flex-basis: 100%; }
       .cards { grid-template-columns: 1fr; gap: 20px; }
       .card { grid-template-columns: 112px minmax(0, 1fr); gap: 14px; }
       .tile { width: 112px; height: 112px; }
@@ -76,20 +77,14 @@
 
   <main class="wrap">
     <section class="intro">
-      <div>
-        <h1>Applet Library</h1>
-        <p>A collection of interactive web applets for mathematics and science education.</p>
-        <p>These applets are designed for hands-on mathematical exploration in the classroom. Each applet is self-contained with its own README and can be used independently.</p>
-      </div>
-      <nav class="explore" aria-label="Explore">
-        <h2>Explore</h2>
-        <ul>
-          <li><a href="#talks"><svg aria-hidden="true"><use href="#arrow"/></svg><span>Talks</span></a></li>
-          <li><a href="#teaching"><svg aria-hidden="true"><use href="#arrow"/></svg><span>Teaching &amp; Learning</span></a></li>
-          <li><a href="#utilities"><svg aria-hidden="true"><use href="#arrow"/></svg><span>Utilities</span></a></li>
-          <li><a href="#research"><svg aria-hidden="true"><use href="#arrow"/></svg><span>Research</span></a></li>
-          <li><a href="https://github.com/OhioMathTeacher/applet-library"><svg aria-hidden="true"><use href="#arrow"/></svg><span>Source on GitHub</span></a></li>
-        </ul>
+      <h1>Applet Library</h1>
+      <p>A collection of interactive web applets for mathematics and science education, created by Todd Edwards of Miami University, primarily as tools for teaching and learning. They are designed for hands-on mathematical exploration in the classroom. Each applet is self-contained with its own README and can be used independently.</p>
+      <nav class="crumbs" aria-label="Sections">
+        <a href="#talks">Talks</a>
+        <a href="#teaching">Teaching &amp; Learning</a>
+        <a href="#utilities">Utilities</a>
+        <a href="#research">Research</a>
+        <a href="https://github.com/OhioMathTeacher/applet-library">Source on GitHub <svg aria-hidden="true"><use href="#arrow"/></svg></a>
       </nav>
     </section>
 

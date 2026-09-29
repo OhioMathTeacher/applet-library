@@ -19,6 +19,9 @@ Records a student's conversation with an AI exactly as it happens and returns on
 ### 🎙️ [meetcap](https://github.com/OhioMathTeacher/meetcap)
 Records a meeting as **two separate tracks** — your microphone and everyone else's audio — and transcribes them locally with Whisper. Because the sides never mix during capture, the transcript knows who spoke without any diarization model, and one recorder dying does not take the other with it. The app lists your recordings with **Play** and **PDF** on every row, plays back either side or both mixed together, and **highlights the transcript as the audio plays** so you can read along and jump to any moment. Transcription adapts to the machine it is on, measuring the actual GPU, VRAM and RAM to pick the largest Whisper model that both fits and finishes in reasonable time. Linux desktop app (PipeWire), not a browser applet. **Nothing leaves your computer** — no account, no cloud service, no API key.
 
+### 🔲 [Standards Crossword](https://ohiomathteacher.github.io/applet-library/standards-crossword/)
+An NYT-style crossword for reviewing academic content standards: pick a framework, content area, grade and standard, and solve. Teacher-made puzzles come first; for other standards, genAI can generate one from the standard's official text, clearly labeled. Standards data from the Common Standards Project, bundled so it works offline.
+
 ### 🧲 [Forces on a Ramp](https://ohiomathteacher.github.io/applet-library/forces-on-ramp/)
 Interactive physics simulation for exploring forces on inclined planes. Visualize force decomposition, friction effects, and energy conservation with draggable objects and real-time physics.
 

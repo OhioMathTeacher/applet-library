@@ -4,166 +4,276 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Applet Library</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Libre+Franklin:wght@400;500;700;800&display=swap" rel="stylesheet">
   <style>
-    body {
-      font-family: system-ui, sans-serif;
-      background: #fff;
-      color: #222;
-      margin: 0;
-      padding: 0;
+    :root {
+      --ink: #121212;
+      --muted: #363636;
+      --rule: #dcdcdc;
+      --tile: #f7f6f3;
+      /* Icon palette, after the NYT Games set */
+      --yellow: #f7da21;
+      --green: #6aaa64;
+      --blue: #6f95e8;
+      --purple: #b582d6;
+      --pink: #f4a3c0;
+      --teal: #5cc4b8;
+      --orange: #f39b4a;
     }
-    .container {
-      max-width: 800px;
-      margin: 40px auto;
-      background: #fff;
-      padding: 32px 32px 24px 32px;
-      border-radius: 8px;
-      box-shadow: 0 2px 8px #0001;
-    }
-    .container > p {
-      margin: 0.35em 0 0.5em;
-    }
-    h1 {
-      font-size: 2.2em;
-      margin-top: 0;
-      margin-bottom: 0.2em;
-      display: flex;
-      align-items: center;
-      gap: 0.5em;
-    }
-    h2 {
-      margin-top: 2em;
-      font-size: 1.3em;
-      border-bottom: 2px solid #eee;
-      padding-bottom: 0.2em;
-      margin-bottom: 0.4em;
-    }
-    /* Every h2 here follows a rule, which already does the work of separating
-       sections. A full 2em on top of that reads as a hole in the page. */
-    hr + h2 {
-      margin-top: 0.4em;
-    }
-    .applet-list {
-      margin: 0.9em 0 1em 0;
-      padding: 0;
-      list-style: none;
-    }
-    /* Direct child only — the 2em separates whole applets. Bullets nested
-       inside a description are a list within one entry and want tight
-       spacing, not the gap that says "new applet". */
-    .applet-list > li {
-      margin-bottom: 2em;
-    }
-    /* The gap after the last entry is the list's job, not the entry's. */
-    .applet-list > li:last-child {
-      margin-bottom: 0;
-    }
-    .applet-desc ul {
-      margin: 0.5em 0;
-      padding-left: 1.2em;
-    }
-    .applet-desc ul li {
-      margin-bottom: 0.35em;
-    }
-    .applet-title {
-      font-size: 1.2em;
-      font-weight: bold;
-      display: flex;
-      align-items: center;
-      gap: 0.5em;
-    }
-    .applet-title a {
-      color: #2563eb;
-      text-decoration: none;
-    }
-    .applet-title a:hover {
-      text-decoration: underline;
-    }
-    .applet-desc {
-      margin: 0.3em 0 0 2em;
-      color: #444;
-    }
-    hr {
-      border: none;
-      border-top: 2px solid #eee;
-      margin: 0.5em 0 0.4em 0;
-    }
-    @media (max-width: 600px) {
-      .container { padding: 12px; }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; background: #fff; color: var(--ink); }
+    body { font-family: "Libre Franklin", system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+    a { color: inherit; }
+    .wrap { max-width: 1040px; margin: 0 auto; padding: 40px 16px 64px; }
+
+    /* Intro: text on the left, Explore links on the right */
+    .intro { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 48px; align-items: start; }
+    h1 { font-size: 32px; font-weight: 800; letter-spacing: -0.01em; margin: 0 0 18px; }
+    .intro p { font-size: 17px; line-height: 1.5; color: var(--muted); margin: 0 0 12px; }
+    .explore { padding-top: 58px; }
+    .explore h2 { font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; margin: 0 0 14px; }
+    .explore ul { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--rule); }
+    .explore li { border-bottom: 1px solid var(--rule); }
+    .explore a { display: flex; align-items: center; gap: 10px; padding: 14px 0; font-size: 16px; text-decoration: none; }
+    .explore a:hover span { text-decoration: underline; }
+    .explore svg { width: 12px; height: 12px; flex-shrink: 0; }
+
+    /* Sections of cards */
+    .sec { margin-top: 56px; }
+    .sec h2 { font-size: 26px; font-weight: 800; letter-spacing: -0.01em; margin: 0 0 24px; }
+    .cards { display: grid; grid-template-columns: 1fr 1fr; gap: 28px 40px; }
+    .card { display: grid; grid-template-columns: 150px minmax(0, 1fr); gap: 18px; align-items: start; text-decoration: none; }
+    .tile { width: 150px; height: 150px; background: var(--tile); display: flex; align-items: center; justify-content: center; transition: background .15s; }
+    .tile svg { width: 72px; height: 72px; overflow: visible; }
+    .card:hover .tile { background: #efede8; }
+    .card b { display: block; font-size: 15px; font-weight: 700; margin: 2px 0 6px; }
+    .card:hover b { text-decoration: underline; }
+    .card .blurb { display: block; font-size: 14px; line-height: 1.45; color: var(--muted); }
+
+    footer { margin-top: 64px; padding-top: 16px; border-top: 1px solid var(--rule); font-size: 13px; color: #6b6b6b; }
+
+    /* Shared icon strokes */
+    .ic { stroke: var(--ink); stroke-width: 3.5; stroke-linejoin: round; stroke-linecap: round; }
+    .ic-thin { stroke: var(--ink); stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
+
+    @media (max-width: 760px) {
+      .intro { grid-template-columns: 1fr; gap: 8px; }
+      .explore { padding-top: 12px; }
+      .cards { grid-template-columns: 1fr; gap: 20px; }
+      .card { grid-template-columns: 112px minmax(0, 1fr); gap: 14px; }
+      .tile { width: 112px; height: 112px; }
+      .tile svg { width: 56px; height: 56px; }
     }
   </style>
 </head>
 <body>
-  <div class="container">
-    <h1><span role="img" aria-label="applet">&#129513;</span> Applet Library</h1>
-    <p>A collection of interactive web applets for mathematics and science education.</p>
-    <hr>
-    <h2>Talks</h2>
-    <ul class="applet-list">
-      <li>
-        <span class="applet-title">&#128269; <a href="tce412-routines-conjecturing/">Routines &amp; Conjecturing</a></span>
-        <div class="applet-desc">A guest session for future middle-grades teachers (TCE 412M, September 2026). Three classroom <strong>routines</strong> done as learners &mdash; a three-act task, Which One Doesn't Belong?, and Would You Rather? &mdash; then a turn to <strong>research math</strong>: an unsolved problem explored by hand and in <a href="https://ohiomathteacher.github.io/orbit-explorer/">Orbit Explorer</a>. The <strong>slides</strong> (press N for speaker notes), the three <strong>handouts</strong>, and <a href="open-problems/">eight open problems</a> for the middle-school classroom.</div>
-      </li>
-      <li>
-        <span class="applet-title">&#128161; <a href="who-gets-to-see-the-light/">Who Gets to See the Light</a></span>
-        <div class="applet-desc">An hour for teachers on free AI in the classroom, kept in one place for anyone who was in the room or wishes they had been. The <strong>recording</strong>, the <strong>slides</strong>, <em>Two math games, six questions</em> (a one-page tool for judging a math game, with a blank column for yours), and the two openers &mdash; <strong>Reach</strong> and <strong>Name Game</strong>. Includes the three apps of the talk &mdash; Allegory, Clique and Marginalia &mdash; with a three-step recipe for running a free model on your own laptop, wifi off.</div>
-      </li>
-    </ul>
-    <hr>
-    <h2>Teaching &amp; Learning</h2>
-    <ul class="applet-list">
-      <li>
-        <span class="applet-title">&#127963;&#65039; <a href="https://ohiomathteacher.github.io/marginalia-app/">Marginalia</a></span>
-        <div class="applet-desc">A reading-and-writing studio: read and annotate five source documents &mdash; Plato's <em>Allegory of the Cave</em>, Gandhi, Confucius, Bryant and Ibsen &mdash; with the interface in six languages. Select any passage to think in the margin: <strong>freewrite</strong> privately in the spirit of Peter Elbow, send passages to a dated <strong>Writer's Journal</strong>, and call on two AI thinking partners, <strong>Socrates</strong> who questions and <strong>Elbow</strong> who encourages. Everything saves to your browser; export to JSON for backup or transfer.</div>
-      </li>
-      <li>
-        <span class="applet-title">&#9742;&#65039; <a href="telefone/index.html">Telefone</a></span>
-        <div class="applet-desc">Telephone, except the machine is every player. Hand it a page, ask it to revise, and watch what it corrects away &mdash; each round revises the last one, so the losses compound, and each tab wears the share of the student's words still standing. It <strong>ends itself</strong> when under a fifth survive, leaving round 0 beside the ending round, which is the finding. Bring your own model; nothing is submitted and nothing is graded.</div>
-      </li>
-      <li>
-        <span class="applet-title">&#128071; <a href="nvoke/index.html">nVoke</a></span>
-        <div class="applet-desc">Find out how someone actually sees a shape, in three phases: <strong>build</strong> a prompt pack &mdash; Which One Doesn't Belong?, Same &amp; Different, Sort, I Spy or a single card &mdash; from a library of 45 figures, plus editors for your own dot patterns and ten-frames. Then <strong>hand the device over</strong> to your partner, either as a diagnostic whose answers are kept or for a whole room with nothing kept, with optional flash timing on the dot and ten-frame cards. Finally, <strong>read the answers</strong> against the van Hiele levels and decide what to offer next. Everything stays on the device; packs export and import as <code>.json</code>.</div>
-      </li>
-      <li>
-        <span class="applet-title">&#128450;&#65039; <a href="https://ohiomathteacher.github.io/tce318p-fa26/week-3-geometry-van-hiele/sort-lab.html">Sort Lab</a></span>
-        <div class="applet-desc">An open-sort surface for talking about how learners categorize. Students drag items into groups they invent themselves, then name the rule behind each group. Six sets ship with it, and any item can be turned or flipped, so a class can test whether orientation belongs in the rule; the interface runs in English, Spanish and Chinese.</div>
-      </li>
-      <li>
-        <span class="applet-title">&#129504; <a href="https://ohiomathteacher.github.io/tce318p-fa26/metacog-suite/">Watch Your Own Thinking</a></span>
-        <div class="applet-desc">Three metacognitive math puzzles that record how you solve, then hand the reasoning back to you: <strong>Metadoku</strong> (constraint deduction), <strong>Metaplete</strong> (hypothesis-testing) and <strong>Metagons</strong> (inverse reasoning). Infer the rules from a worked example, then solve with every move quietly time-stamped, scrub back through your own solve and attach notes at the moments that carried real reasoning. Then generate an editable &ldquo;thinking analysis&rdquo; &mdash; your strategy, in your words. No data leaves the device.</div>
-      </li>
-      <li>
-        <span class="applet-title">&#129698; <a href="https://ohiomathteacher.github.io/clique-app/">Clique</a></span>
-        <div class="applet-desc">A Connections-style word puzzle game for the classroom: build, share and play 4&times;4 puzzles where players group 16 items into four hidden categories. Puzzles are organized by grade band and content area.</div>
-      </li>
-      <li>
-        <span class="applet-title">&#129680; <a href="https://ohiomathteacher.github.io/orbit-explorer/">Orbit Explorer</a></span>
-        <div class="applet-desc">Explore the dynamics of Collatz-style functions: set the parameters m, b and d to define a function pair, seed the iteration with a starting value, watch the trajectory and any cycle it falls into, and save interesting cases for comparison. Includes an AI thinking partner &mdash; pick any model in the &#129302; AI Setup menu.</div>
-      </li>
-    </ul>
-    <hr>
-    <h2>Utilities</h2>
-    <ul class="applet-list">
-      <li>
-        <span class="applet-title">&#127897;&#65039; <a href="https://github.com/OhioMathTeacher/meetcap">meetcap</a></span>
-        <div class="applet-desc">Records a meeting as <strong>two separate tracks</strong> &mdash; your microphone and everyone else's audio &mdash; and transcribes them locally with Whisper. Because the sides never mix during capture, the transcript knows who spoke without any diarization model, and one recorder dying does not take the other with it. Plays back either side or both mixed, highlights the transcript as the audio plays, and picks the largest Whisper model the machine can actually finish. Linux desktop app (PipeWire), not a browser applet; <strong>nothing leaves your computer</strong>.</div>
-      </li>
-      <li>
-        <span class="applet-title">&#128220; <a href="teleprompter/index.html">Teleprompter</a></span>
-        <div class="applet-desc">A single-file browser teleprompter for recording short video lessons and podcasts. Load a script from a .txt file or paste it directly, adjust scroll speed and font size live, pick a reading theme, and save multiple scripts for reuse. Works offline, no account; great as an OBS Browser Source &mdash; drop the URL into OBS and it scrolls inside your recording scene.</div>
-      </li>
-    </ul>
-    <hr>
-    <h2>Research</h2>
-    <ul class="applet-list">
-      <li>
-        <span class="applet-title">&#128483;&#65039; <a href="https://ohiomathteacher.github.io/verbatim-app/">verbatim</a></span>
-        <div class="applet-desc">Records a student's conversation with an AI exactly as it happens, and hands back one JSON file per student ready for analysis. Every turn is tagged <strong>student</strong> or <strong>ai</strong> at the moment it is made, so who said what is a fact rather than something inferred from a transcript afterwards. The activity is yours &mdash; swap the prompt and the closing questions and the same instrument runs a different study &mdash; and a built-in calculator, grapher and table of values are recorded alongside the conversation.</div>
-      </li>
-    </ul>
-    <hr>
-    <h2>About</h2>
-    <p>These applets are designed for hands-on mathematical exploration in the classroom. Each applet is self-contained with its own README and can be used independently.</p>
-  </div>
+  <!-- One arrow, reused by every Explore link -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <symbol id="arrow" viewBox="0 0 12 12"><path d="M2 10 L10 2 M4 2 H10 V8" fill="none" stroke="currentColor" stroke-width="1.4"/></symbol>
+  </svg>
+
+  <main class="wrap">
+    <section class="intro">
+      <div>
+        <h1>Applet Library</h1>
+        <p>A collection of interactive web applets for mathematics and science education.</p>
+        <p>These applets are designed for hands-on mathematical exploration in the classroom. Each applet is self-contained with its own README and can be used independently.</p>
+      </div>
+      <nav class="explore" aria-label="Explore">
+        <h2>Explore</h2>
+        <ul>
+          <li><a href="#talks"><svg aria-hidden="true"><use href="#arrow"/></svg><span>Talks</span></a></li>
+          <li><a href="#teaching"><svg aria-hidden="true"><use href="#arrow"/></svg><span>Teaching &amp; Learning</span></a></li>
+          <li><a href="#utilities"><svg aria-hidden="true"><use href="#arrow"/></svg><span>Utilities</span></a></li>
+          <li><a href="#research"><svg aria-hidden="true"><use href="#arrow"/></svg><span>Research</span></a></li>
+          <li><a href="https://github.com/OhioMathTeacher/applet-library"><svg aria-hidden="true"><use href="#arrow"/></svg><span>Source on GitHub</span></a></li>
+        </ul>
+      </nav>
+    </section>
+
+    <section class="sec" id="talks">
+      <h2>Talks</h2>
+      <div class="cards">
+        <a class="card" href="tce412-routines-conjecturing/">
+          <span class="tile"><!-- Which One Doesn't Belong? -->
+            <svg viewBox="0 0 64 64" aria-hidden="true">
+              <rect class="ic" x="6" y="6" width="52" height="52" rx="7" fill="#fff"/>
+              <path class="ic-thin" d="M32 8 V56 M8 32 H56"/>
+              <circle cx="19.5" cy="19.5" r="7" style="fill:var(--yellow)" class="ic-thin"/>
+              <rect x="38" y="13" width="13" height="13" style="fill:var(--yellow)" class="ic-thin"/>
+              <path d="M19.5 38 L27 50 H12 Z" style="fill:var(--yellow)" class="ic-thin"/>
+              <path d="M44.5 37 L52 44.5 L44.5 52 L37 44.5 Z" style="fill:var(--blue)" class="ic-thin"/>
+            </svg>
+          </span>
+          <span><b>Routines &amp; Conjecturing</b><span class="blurb">A guest session for future middle-grades teachers (TCE 412M, September 2026): slides, handouts and eight open problems.</span></span>
+        </a>
+        <a class="card" href="who-gets-to-see-the-light/">
+          <span class="tile"><!-- light -->
+            <svg viewBox="0 0 64 64" aria-hidden="true">
+              <path class="ic-thin" d="M32 4 V10 M10 14 L14.5 18.5 M54 14 L49.5 18.5 M4 34 H10 M54 34 H60"/>
+              <path d="M32 14 C21 14 15 22 15 30 C15 37 20 41 23 45 V49 H41 V45 C44 41 49 37 49 30 C49 22 43 14 32 14 Z" style="fill:var(--yellow)" class="ic"/>
+              <path class="ic" d="M24 55 H40 M27 60 H37"/>
+            </svg>
+          </span>
+          <span><b>Who Gets to See the Light</b><span class="blurb">An hour for teachers on free AI in the classroom, kept in one place for anyone who was in the room or wishes they had been.</span></span>
+        </a>
+      </div>
+    </section>
+
+    <section class="sec" id="teaching">
+      <h2>Teaching &amp; Learning</h2>
+      <div class="cards">
+        <a class="card" href="https://ohiomathteacher.github.io/marginalia-app/">
+          <span class="tile"><!-- page with a note in the margin -->
+            <svg viewBox="0 0 64 64" aria-hidden="true">
+              <rect class="ic" x="10" y="5" width="44" height="54" rx="4" fill="#fff"/>
+              <path class="ic-thin" d="M17 16 H36 M17 24 H36 M17 32 H36 M17 40 H36 M17 48 H30"/>
+              <rect x="40" y="20" width="9" height="16" rx="1.5" style="fill:var(--orange)" class="ic-thin"/>
+            </svg>
+          </span>
+          <span><b>Marginalia</b><span class="blurb">A reading-and-writing studio: read and annotate five source documents, and think in the margin.</span></span>
+        </a>
+        <a class="card" href="telefone/index.html">
+          <span class="tile"><!-- the message shrinking each round -->
+            <svg viewBox="0 0 64 64" aria-hidden="true">
+              <path d="M4 10 H34 V28 H16 L9 34 V28 H4 Z" style="fill:var(--pink)" class="ic"/>
+              <path d="M26 34 H50 V48 H36 L31 53 V48 H26 Z" style="fill:var(--pink)" fill-opacity=".55" class="ic"/>
+              <path d="M44 54 H60 V62 H44 Z" fill="#fff" class="ic-thin"/>
+            </svg>
+          </span>
+          <span><b>Telefone</b><span class="blurb">Telephone, except the machine is every player.</span></span>
+        </a>
+        <a class="card" href="nvoke/index.html">
+          <span class="tile"><!-- ten-frame -->
+            <svg viewBox="0 0 64 64" aria-hidden="true">
+              <rect class="ic" x="4" y="18" width="56" height="28" rx="3" fill="#fff"/>
+              <path class="ic-thin" d="M15.2 18 V46 M26.4 18 V46 M37.6 18 V46 M48.8 18 V46 M4 32 H60"/>
+              <g style="fill:var(--blue)" class="ic-thin">
+                <circle cx="9.6" cy="25" r="3.6"/><circle cx="20.8" cy="25" r="3.6"/><circle cx="32" cy="25" r="3.6"/>
+                <circle cx="43.2" cy="25" r="3.6"/><circle cx="54.4" cy="25" r="3.6"/><circle cx="9.6" cy="39" r="3.6"/>
+                <circle cx="20.8" cy="39" r="3.6"/>
+              </g>
+            </svg>
+          </span>
+          <span><b>nVoke</b><span class="blurb">Find out how someone actually sees a shape.</span></span>
+        </a>
+        <a class="card" href="https://ohiomathteacher.github.io/tce318p-fa26/week-3-geometry-van-hiele/sort-lab.html">
+          <span class="tile"><!-- two sorted groups -->
+            <svg viewBox="0 0 64 64" aria-hidden="true">
+              <rect class="ic" x="4" y="10" width="26" height="44" rx="4" fill="#fff"/>
+              <rect class="ic" x="34" y="10" width="26" height="44" rx="4" fill="#fff"/>
+              <g class="ic-thin" style="fill:var(--purple)">
+                <circle cx="17" cy="22" r="5"/><circle cx="17" cy="42" r="5"/>
+                <path d="M47 16 L53 27 H41 Z"/><path d="M47 36 L53 47 H41 Z"/>
+              </g>
+            </svg>
+          </span>
+          <span><b>Sort Lab</b><span class="blurb">An open-sort surface for talking about how learners categorize.</span></span>
+        </a>
+        <a class="card" href="https://ohiomathteacher.github.io/tce318p-fa26/metacog-suite/">
+          <span class="tile"><!-- a puzzle grid, watched -->
+            <svg viewBox="0 0 64 64" aria-hidden="true">
+              <rect class="ic" x="6" y="6" width="52" height="52" rx="6" fill="#fff"/>
+              <path class="ic-thin" d="M23.3 6 V58 M40.7 6 V58 M6 23.3 H58 M6 40.7 H58"/>
+              <rect x="6" y="6" width="17.3" height="17.3" style="fill:var(--green)" class="ic-thin"/>
+              <rect x="40.7" y="40.7" width="17.3" height="17.3" style="fill:var(--green)" class="ic-thin"/>
+              <path d="M24.5 32 C27 28 37 28 39.5 32 C37 36 27 36 24.5 32 Z" fill="#fff" class="ic-thin"/>
+              <circle cx="32" cy="32" r="2.4" style="fill:var(--ink)"/>
+            </svg>
+          </span>
+          <span><b>Watch Your Own Thinking</b><span class="blurb">Three metacognitive math puzzles that record how you solve, then hand the reasoning back to you.</span></span>
+        </a>
+        <a class="card" href="standards-crossword/">
+          <span class="tile"><!-- crossword with the current word lit -->
+            <svg viewBox="0 0 64 64" aria-hidden="true">
+              <rect class="ic" x="6" y="6" width="52" height="52" rx="6" fill="#fff"/>
+              <rect x="6" y="23.3" width="17.3" height="17.4" style="fill:var(--yellow)" class="ic-thin"/>
+              <rect x="23.3" y="23.3" width="34.7" height="17.4" style="fill:#a7d8ff" class="ic-thin"/>
+              <rect x="40.7" y="6" width="17.3" height="17.3" style="fill:var(--ink)" class="ic-thin"/>
+              <rect x="6" y="40.7" width="17.3" height="17.3" style="fill:var(--ink)" class="ic-thin"/>
+              <path class="ic-thin" d="M23.3 6 V58 M40.7 6 V58 M6 23.3 H58 M6 40.7 H58"/>
+              <rect class="ic" x="6" y="6" width="52" height="52" rx="6" fill="none"/>
+            </svg>
+          </span>
+          <span><b>Standards Crossword</b><span class="blurb">Pick a framework, grade and standard, then solve a crossword that reviews it.</span></span>
+        </a>
+        <a class="card" href="https://ohiomathteacher.github.io/clique-app/">
+          <span class="tile"><!-- four groups of four -->
+            <svg viewBox="0 0 64 64" aria-hidden="true">
+              <rect class="ic" x="6" y="6" width="52" height="52" rx="6" fill="#fff"/>
+              <rect x="6" y="6" width="52" height="13" style="fill:var(--yellow)" class="ic-thin"/>
+              <rect x="6" y="19" width="52" height="13" style="fill:var(--green)" class="ic-thin"/>
+              <path class="ic-thin" d="M19 32 V58 M32 32 V58 M45 32 V58 M6 45 H58"/>
+              <rect class="ic" x="6" y="6" width="52" height="52" rx="6" fill="none"/>
+            </svg>
+          </span>
+          <span><b>Clique</b><span class="blurb">A Connections-style word puzzle game for the classroom.</span></span>
+        </a>
+        <a class="card" href="https://ohiomathteacher.github.io/orbit-explorer/">
+          <span class="tile"><!-- a trajectory falling into a cycle -->
+            <svg viewBox="0 0 64 64" aria-hidden="true">
+              <ellipse class="ic" cx="34" cy="36" rx="22" ry="14" fill="#fff"/>
+              <path class="ic-thin" d="M6 8 L14 20 L10 26 L20 25" fill="none"/>
+              <circle cx="6" cy="8" r="3.5" fill="#fff" class="ic-thin"/>
+              <circle cx="14" cy="20" r="3.5" fill="#fff" class="ic-thin"/>
+              <circle cx="12" cy="36" r="4.5" style="fill:var(--blue)" class="ic-thin"/>
+              <circle cx="45" cy="23.8" r="4.5" style="fill:var(--blue)" class="ic-thin"/>
+              <circle cx="45" cy="48.2" r="4.5" style="fill:var(--blue)" class="ic-thin"/>
+              <circle cx="56" cy="36" r="4.5" style="fill:var(--blue)" class="ic-thin"/>
+            </svg>
+          </span>
+          <span><b>Orbit Explorer</b><span class="blurb">Explore the dynamics of Collatz-style functions: watch the trajectory and any cycle it falls into.</span></span>
+        </a>
+      </div>
+    </section>
+
+    <section class="sec" id="utilities">
+      <h2>Utilities</h2>
+      <div class="cards">
+        <a class="card" href="https://github.com/OhioMathTeacher/meetcap">
+          <span class="tile"><!-- two separate tracks -->
+            <svg viewBox="0 0 64 64" aria-hidden="true">
+              <rect class="ic" x="4" y="8" width="56" height="21" rx="4" fill="#fff"/>
+              <rect class="ic" x="4" y="35" width="56" height="21" rx="4" fill="#fff"/>
+              <path d="M10 18.5 H14 L17 13 L21 24 L25 15 L29 22 L33 18.5 H54" fill="none" stroke="var(--teal)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M10 45.5 H24 L27 40 L31 51 L35 42 L39 49 L42 45.5 H54" fill="none" stroke="var(--orange)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </span>
+          <span><b>meetcap</b><span class="blurb">Records a meeting as two separate tracks and transcribes them locally with Whisper. Linux desktop app.</span></span>
+        </a>
+        <a class="card" href="teleprompter/index.html">
+          <span class="tile"><!-- script scrolling up a screen -->
+            <svg viewBox="0 0 64 64" aria-hidden="true">
+              <rect class="ic" x="4" y="8" width="56" height="40" rx="5" fill="#fff"/>
+              <rect x="4" y="22" width="56" height="12" style="fill:var(--yellow)" class="ic-thin"/>
+              <path class="ic-thin" d="M12 15 H40 M12 28 H48 M12 41 H34"/>
+              <path class="ic" d="M24 58 H40 M32 48 V58"/>
+              <rect class="ic" x="4" y="8" width="56" height="40" rx="5" fill="none"/>
+            </svg>
+          </span>
+          <span><b>Teleprompter</b><span class="blurb">A single-file browser teleprompter for recording short video lessons and podcasts.</span></span>
+        </a>
+      </div>
+    </section>
+
+    <section class="sec" id="research">
+      <h2>Research</h2>
+      <div class="cards">
+        <a class="card" href="https://ohiomathteacher.github.io/verbatim-app/">
+          <span class="tile"><!-- student and ai turns, each tagged -->
+            <svg viewBox="0 0 64 64" aria-hidden="true">
+              <path d="M4 8 H38 V28 H16 L9 34 V28 H4 Z" fill="#fff" class="ic"/>
+              <path d="M26 32 H60 V52 H55 V58 L48 52 H26 Z" style="fill:var(--teal)" class="ic"/>
+              <path class="ic-thin" d="M11 15 H31 M11 21 H24 M33 39 H53 M33 45 H46"/>
+            </svg>
+          </span>
+          <span><b>verbatim</b><span class="blurb">Records a student's conversation with an AI exactly as it happens, and hands back one JSON file per student ready for analysis.</span></span>
+        </a>
+      </div>
+    </section>
+
+  </main>
 </body>
 </html>

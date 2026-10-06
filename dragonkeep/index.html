@@ -1,0 +1,2417 @@
+<!--
+  ┌──────────────────────────────────────────────────────────────────────────┐
+  │  GENERATED FILE - DO NOT EDIT                                            │
+  │                                                                          │
+  │  Source:    ../dragons-keep/index.html                                   │
+  │  Rewritten: python3 sync-dragonkeep.py                                   │
+  │                                                                          │
+  │  Edits made here are lost on the next sync. Fix the game in the          │
+  │  dragons-keep repo and re-run the script.                                │
+  └──────────────────────────────────────────────────────────────────────────┘
+-->
+<title>Dragonkeep</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Press+Start+2P&display=swap">
+<style>
+  :root{
+    --ground:#EDEEE8;
+    --surface:#F7F8F3;
+    --surface-2:#E3E5DB;
+    --line:#CBCFC2;
+    --line-2:#B2B7A6;
+    --ink:#191C19;
+    --ink-2:#4B5149;
+    --ink-3:#787F75;
+    --accent:#C81A7D;
+    --accent-2:#FFA600;
+    --war:#D63200;
+    --spirit:#1C86C4;
+    --screen:#0C0005;
+    --radius:3px;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --ground:#17191A; --surface:#1F2223; --surface-2:#292D2E;
+      --line:#383D3E; --line-2:#4C5253;
+      --ink:#E8EAE5; --ink-2:#AFB5AE; --ink-3:#7E857D;
+      --accent:#FF3276; --accent-2:#FFA600;
+      --war:#FF5A2B; --spirit:#5ACBFF;
+    }
+  }
+  :root[data-theme="dark"]{
+    --ground:#17191A; --surface:#1F2223; --surface-2:#292D2E;
+    --line:#383D3E; --line-2:#4C5253;
+    --ink:#E8EAE5; --ink-2:#AFB5AE; --ink-3:#7E857D;
+    --accent:#FF3276; --accent-2:#FFA600;
+    --war:#FF5A2B; --spirit:#5ACBFF;
+  }
+
+  /* The hidden attribute loses to any author display rule, and .cols sets
+     display:grid -- so Creator and Play both rendered at once as a standalone
+     file. The artifact host injects this same rule, which is why it only broke
+     outside it. Covers #warden too, which sets display:flex. */
+  [hidden]{display:none!important}
+
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0;background:var(--ground);color:var(--ink);
+    font-family:Archivo,"Helvetica Neue",Arial,sans-serif;
+    font-size:14px;line-height:1.45;-webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1180px;margin:0 auto;padding:0 16px;padding-block:20px 48px}
+
+  header.top{display:flex;flex-wrap:wrap;align-items:flex-end;gap:16px 24px;margin-bottom:18px}
+  h1{
+    font-family:"Press Start 2P",Archivo,monospace;
+    font-size:clamp(12px,2.5vw,17px);line-height:1.5;margin:0;text-wrap:balance;
+  }
+  h1 .dr{color:var(--accent)}
+  h1 .amp{font-size:.72em;color:var(--ink-3)}
+  .tagline{color:var(--ink-2);max-width:50ch;margin:7px 0 0;font-size:13.5px}
+
+  /* Lean: the masthead costs ~150px that Play has better uses for. The logo
+     and the mode switch stay; the title and tagline go. */
+  .wrap.lean header.top{margin-bottom:11px;align-items:center}
+  .wrap.lean header.top h1,
+  .wrap.lean header.top .tagline{display:none}
+  .wrap.lean .brand{padding:3px}
+  .wrap.lean .brand svg{width:23px;height:23px}
+  .leanbtn{margin-left:8px;flex:0 0 auto}
+  .leanbtn[aria-pressed="true"]{color:var(--ink);border-color:var(--ink)}
+
+  .modes{display:flex;margin-left:auto;border:1.5px solid var(--ink);border-radius:var(--radius);overflow:hidden;flex-shrink:0}
+  .modes button{
+    font:inherit;font-weight:600;font-size:12.5px;letter-spacing:.04em;text-transform:uppercase;
+    padding:8px 15px;border:0;background:var(--surface);color:var(--ink-2);cursor:pointer;
+  }
+  .modes button + button{border-left:1.5px solid var(--ink)}
+  .modes button[aria-pressed="true"]{background:var(--ink);color:var(--ground)}
+  .modes button:focus-visible{outline:2px solid var(--accent);outline-offset:-4px}
+
+  .cols{display:grid;grid-template-columns:minmax(0,1fr) 304px;gap:22px;align-items:start}
+  @media (max-width:860px){.cols{grid-template-columns:minmax(0,1fr)}}
+
+  .panel{background:var(--surface);border:1.5px solid var(--line);border-radius:var(--radius)}
+  .panel > h2{margin:0;border-bottom:1.5px solid var(--line)}
+  .panel > h2 .phead{
+    font-family:inherit;width:100%;display:flex;align-items:center;gap:9px;
+    padding:9px 13px;cursor:pointer;background:transparent;border:0;text-align:left;
+    font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);
+  }
+  .panel > h2 .phead:hover{color:var(--ink)}
+  .panel > h2 .phead:focus-visible{outline:2px solid var(--accent);outline-offset:-3px}
+  .panel > h2 .chev{
+    margin-left:auto;font-size:9px;line-height:1;transition:transform .14s;
+    font-family:ui-monospace,monospace;
+  }
+  .panel.collapsed > h2{border-bottom:0}
+  .panel.collapsed > h2 .chev{transform:rotate(-90deg)}
+  .panel.collapsed > .body{display:none}
+  .panel > .body{padding:13px}
+  .panelbar{display:flex;gap:5px;margin-bottom:12px;flex-wrap:wrap}
+
+  .stage{background:var(--screen);border:1.5px solid var(--ink);border-radius:var(--radius);overflow:hidden;position:relative}
+  canvas{display:block;width:100%;height:auto;image-rendering:pixelated}
+  #plan{cursor:crosshair;background:var(--screen)}
+
+  .tools{display:grid;grid-template-columns:repeat(auto-fill,minmax(84px,1fr));gap:5px}
+  .tools button{
+    font:inherit;font-size:11.5px;font-weight:500;text-align:left;
+    display:flex;align-items:center;gap:6px;padding:6px 7px;
+    background:var(--surface-2);color:var(--ink);
+    border:1.5px solid transparent;border-radius:var(--radius);cursor:pointer;
+  }
+  .tools button[aria-pressed="true"]{border-color:var(--ink);background:var(--surface)}
+  .tools button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+  .sw{width:13px;height:13px;flex:0 0 13px;border:1px solid rgba(0,0,0,.35);border-radius:1px}
+  .group-label{font-size:10.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);margin:12px 0 5px}
+  .group-label:first-child{margin-top:0}
+
+  .math{font-family:"IBM Plex Mono",ui-monospace,monospace;font-variant-numeric:tabular-nums}
+  .mrow{display:flex;justify-content:space-between;align-items:baseline;gap:10px;padding:5px 0;border-bottom:1px dotted var(--line)}
+  .mrow:last-child{border-bottom:0}
+  .mrow dt{font-size:11.5px;color:var(--ink-2);font-family:Archivo,sans-serif}
+  .mrow dd{margin:0;font-size:15px;font-weight:600;letter-spacing:-.01em}
+  .mrow dd small{font-size:10.5px;font-weight:400;color:var(--ink-3);margin-left:3px}
+  dl{margin:0}
+  .formula{
+    font-family:"IBM Plex Mono",monospace;font-size:11.5px;color:var(--ink-2);
+    background:var(--surface-2);border-left:2.5px solid var(--accent);
+    padding:7px 9px;margin:10px 0 0;border-radius:0 var(--radius) var(--radius) 0;
+    overflow-x:auto;white-space:nowrap;
+  }
+  .formula b{color:var(--ink);font-weight:600}
+  .gauge{height:6px;background:var(--surface-2);border-radius:99px;overflow:hidden;margin-top:7px}
+  .gauge i{display:block;height:100%;background:var(--accent);border-radius:99px}
+
+  /* ---------- puzzle editor ---------- */
+  .pzlist{display:flex;flex-direction:column;gap:4px;margin-bottom:10px}
+  .pzrow{
+    display:flex;align-items:center;gap:7px;padding:6px 8px;
+    background:var(--surface-2);border:1.5px solid transparent;border-radius:var(--radius);
+  }
+  .pzrow[data-sel="1"]{border-color:var(--ink);background:var(--surface)}
+  .pzrow .pzt{flex:1;min-width:0;font-size:12px;font-weight:600;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .pzrow .pzc{font-family:"IBM Plex Mono",monospace;font-size:10.5px;color:var(--ink-3)}
+  .pzrow button{
+    font:inherit;font-size:10.5px;font-weight:600;cursor:pointer;padding:2px 7px;
+    background:transparent;color:var(--ink-2);border:1.5px solid var(--line-2);border-radius:2px;
+  }
+  .pzrow button:hover{color:var(--ink);border-color:var(--ink)}
+  .pzform{display:flex;flex-direction:column;gap:6px}
+  .pzform label{font-size:10.5px;font-weight:700;letter-spacing:.09em;
+    text-transform:uppercase;color:var(--ink-3)}
+  .pzform input,.pzform textarea{
+    font-family:Archivo,sans-serif;font-size:12.5px;width:100%;
+    padding:6px 8px;color:var(--ink);background:var(--ground);
+    border:1.5px solid var(--line-2);border-radius:var(--radius);
+  }
+  .pzform textarea{min-height:58px;resize:vertical;line-height:1.4}
+  .pzform input:focus,.pzform textarea:focus{outline:2px solid var(--accent);outline-offset:-1px}
+  .pzwarn{font-size:11.5px;color:var(--ink-2);margin:9px 0 0;line-height:1.45}
+  .pzwarn b{color:var(--accent)}
+  #bundle{
+    font-family:"IBM Plex Mono",monospace;font-size:10.5px;width:100%;min-height:72px;
+    padding:7px;color:var(--ink);background:var(--ground);
+    border:1.5px solid var(--line-2);border-radius:var(--radius);resize:vertical;
+  }
+  #warden input.ans{
+    font-family:"IBM Plex Mono",monospace;font-size:16px;font-weight:600;
+    padding:8px 12px;width:min(260px,100%);color:#FFFCFF;
+    background:rgba(255,255,255,.07);border:1.5px solid #A1A1A1;border-radius:3px;
+  }
+  #warden input.ans:focus{outline:2px solid #FAEA27;outline-offset:2px}
+
+  .presets{display:flex;flex-direction:column;gap:4px}
+  .presets button{
+    font:inherit;font-size:12px;text-align:left;padding:7px 9px;cursor:pointer;
+    background:var(--surface-2);color:var(--ink);border:1.5px solid transparent;border-radius:var(--radius);
+  }
+  .presets button:hover{border-color:var(--line-2)}
+  .presets button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+  .presets button span{display:block;font-size:10.5px;color:var(--ink-3);margin-top:1px}
+
+  .ctl{display:flex;align-items:center;gap:9px;margin-top:11px}
+  .ctl:first-child{margin-top:0}
+  .ctl label{font-size:11.5px;color:var(--ink-2);flex:0 0 5.6em}
+  input[type=range]{flex:1;min-width:0;accent-color:var(--accent)}
+  .ctl output{font-family:"IBM Plex Mono",monospace;font-size:12.5px;font-weight:600;min-width:4.2em;text-align:right}
+
+  .ghostbtn{
+    font:inherit;font-size:11.5px;font-weight:600;padding:6px 11px;cursor:pointer;
+    background:transparent;color:var(--ink-2);border:1.5px solid var(--line-2);border-radius:var(--radius);
+  }
+  .ghostbtn:hover{color:var(--ink);border-color:var(--ink)}
+  .ghostbtn:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+
+  .hud{display:grid;grid-template-columns:repeat(auto-fit,minmax(132px,1fr));gap:11px;margin-top:13px}
+  .vital{background:var(--surface);border:1.5px solid var(--line);border-radius:var(--radius);padding:9px 11px}
+  .vital .lbl{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3)}
+  .vital .num{font-family:"IBM Plex Mono",monospace;font-size:19px;font-weight:600;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+  .bar{height:7px;background:var(--surface-2);border-radius:99px;overflow:hidden;margin-top:5px}
+  .bar i{display:block;height:100%;transition:width .18s}
+  .war .num{color:var(--war)} .war .bar i{background:var(--war)}
+  .spirit .num{color:var(--spirit)} .spirit .bar i{background:var(--spirit)}
+
+  .keypad{display:grid;grid-template-columns:repeat(3,1fr);gap:4px}
+  .keypad button{
+    font:inherit;cursor:pointer;padding:8px 3px 7px;
+    background:var(--surface-2);border:1.5px solid var(--line);border-radius:var(--radius);
+    color:var(--ink);display:flex;flex-direction:column;align-items:center;gap:2px;
+  }
+  .keypad button:active{background:var(--ink);color:var(--ground)}
+  .keypad button:disabled{opacity:.42;cursor:default}
+  .keypad button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+  .keypad .kn{font-family:"Press Start 2P",monospace;font-size:10px;color:var(--ink-3)}
+  .keypad button:active .kn{color:var(--ground)}
+  .keypad .kf{font-size:9.5px;font-weight:600;text-align:center;line-height:1.15}
+  .keypad button.wide{grid-column:span 3}
+  .keypad button.w2{grid-column:span 2}
+
+  .binds{display:flex;flex-direction:column;gap:3px}
+  .bindrow{display:flex;align-items:center;gap:8px;font-size:11.5px}
+  .bindrow .ba{flex:1;color:var(--ink-2)}
+  .bindrow button{
+    font-family:"IBM Plex Mono",monospace;font-size:11px;font-weight:600;
+    min-width:5.6em;padding:4px 7px;cursor:pointer;
+    background:var(--surface-2);color:var(--ink);
+    border:1.5px solid var(--line);border-radius:var(--radius);
+  }
+  .bindrow button:hover{border-color:var(--ink)}
+  .bindrow button[data-listening="1"]{background:var(--accent);color:#FFFCFF;border-color:var(--accent)}
+  .bindrow button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+
+  #log{
+    font-family:"IBM Plex Mono",monospace;font-size:11.5px;line-height:1.55;
+    max-height:118px;overflow-y:auto;margin:0;padding:0;list-style:none;color:var(--ink-2);
+  }
+  #log li{padding:2px 0;border-bottom:1px dotted var(--line)}
+  #log li:first-child{color:var(--ink);font-weight:500}
+  #log b{color:var(--accent)}
+
+  /* ---------- the warden's gate ---------- */
+  #warden{
+    position:absolute;inset:0;background:rgba(12,0,5,.93);
+    display:flex;flex-direction:column;justify-content:center;gap:13px;
+    padding:20px 22px;color:#FFFCFF;
+  }
+  #warden .who{
+    font-family:"Press Start 2P",monospace;font-size:11px;color:#C81A7D;line-height:1.6;
+  }
+  #warden .q{font-size:15px;font-weight:600;max-width:42ch;line-height:1.4;text-wrap:balance}
+  #warden .opts{display:flex;flex-wrap:wrap;gap:7px}
+  #warden .opts button{
+    font-family:"IBM Plex Mono",monospace;font-size:15px;font-weight:600;
+    padding:8px 17px;cursor:pointer;color:#FFFCFF;
+    background:rgba(255,255,255,.07);border:1.5px solid #A1A1A1;border-radius:var(--radius);
+  }
+  #warden .opts button:hover{background:#C81A7D;border-color:#C81A7D}
+  #warden .opts button:focus-visible{outline:2px solid #FAEA27;outline-offset:2px}
+  #warden .why{font-size:12.5px;color:#A1A1A1;max-width:48ch;line-height:1.5}
+  #warden .why b{color:#FAEA27;font-weight:600}
+
+  /* ---------- immersive mode ----------
+     Native fullscreen when the sandbox allows it; either way the stage takes
+     the whole viewport and every piece of page furniture goes away. */
+  #imHud{display:none}
+  :root.immersive{padding:0!important}
+  :root.immersive body{background:#0C0005;overflow:hidden}
+  :root.immersive .wrap{max-width:none;padding:0}
+  :root.immersive header.top,
+  :root.immersive #createView,
+  :root.immersive #playView .hud,
+  :root.immersive #playView > div:nth-child(2){display:none!important}
+  :root.immersive #playView{display:block}
+  :root.immersive .stage{
+    position:fixed;inset:0;z-index:9000;
+    border:0;border-radius:0;
+    display:grid;place-items:center;background:#0C0005;
+  }
+  :root.immersive #imHud{
+    display:flex;position:fixed;left:0;right:0;bottom:0;z-index:9001;
+    gap:7px 18px;justify-content:center;align-items:center;flex-wrap:wrap;
+    padding:8px 16px;padding-bottom:calc(8px + env(safe-area-inset-bottom, 0px));
+    background:rgba(12,0,5,.84);color:#FFFCFF;
+    font-family:"IBM Plex Mono",ui-monospace,monospace;
+    font-size:12px;font-variant-numeric:tabular-nums;
+  }
+  #imHud span u{color:#A1A1A1;text-decoration:none;margin-right:5px}
+  #imHud .w{color:#FF5A2B} #imHud .s{color:#5ACBFF} #imHud .d{color:#FAEA27}
+  #imHud button{
+    font:inherit;cursor:pointer;padding:3px 10px;
+    background:transparent;color:#FFFCFF;border:1.5px solid #A1A1A1;border-radius:3px;
+  }
+  #imHud button:hover{border-color:#FFFCFF}
+
+  /* ---------- About, to the suite's standard: .brand opens #aboutOverlay,
+     and the panel stays dark on a light app the way the others do ---------- */
+  :root{
+    --panel-bg:#17141A; --panel-ink:#E9E6E2; --panel-lbl:#A1A1A1;
+    --panel-accent:#FFA600; --panel-line:#3A343F; --panel-dim:#7E7986;
+  }
+  .brand{
+    display:inline-flex;align-items:center;flex:0 0 auto;
+    padding:5px;margin-right:2px;border:none;border-radius:8px;
+    background:none;color:var(--accent);cursor:pointer;
+  }
+  .brand:hover{background:var(--surface-2)}
+  .brand:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+  .brand svg{display:block;width:30px;height:30px;flex:0 0 auto}
+
+  .ai-modal-overlay{
+    position:fixed;inset:0;z-index:9500;display:none;
+    align-items:center;justify-content:center;padding:1rem;
+    background:rgba(8,5,11,.74);
+  }
+  .ai-modal-overlay.open{display:flex}
+  .ai-modal{
+    background:var(--panel-bg);color:var(--panel-ink);
+    border:1.5px solid var(--panel-line);border-radius:6px;
+    padding:22px 24px;position:relative;
+  }
+  .ai-modal.about-modal{
+    width:min(940px,calc(100vw - 2rem));
+    max-height:calc(100vh - 2rem);max-height:calc(100dvh - 2rem);
+    display:flex;flex-direction:column;
+  }
+  .modal-x{
+    position:absolute;top:10px;right:12px;font:inherit;font-size:16px;line-height:1;
+    padding:5px 8px;cursor:pointer;background:transparent;color:var(--panel-lbl);
+    border:1.5px solid transparent;border-radius:4px;
+  }
+  .modal-x:hover{color:var(--panel-ink);border-color:var(--panel-line)}
+  .about-modal h2{
+    margin:0 0 4px;font-family:"Press Start 2P",monospace;
+    font-size:13px;line-height:1.5;color:var(--panel-ink);font-weight:400;
+  }
+  .about-modal .about-lead{
+    font-size:15px;line-height:1.55;color:var(--panel-ink);
+    margin:6px 0 14px;max-width:62ch;
+  }
+  #aboutTabs{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:14px}
+  .set-tab{
+    font:inherit;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;
+    padding:6px 11px;cursor:pointer;color:var(--panel-lbl);
+    background:transparent;border:1.5px solid var(--panel-line);border-radius:3px;
+  }
+  .set-tab:hover{color:var(--panel-ink)}
+  .set-tab.on{background:var(--panel-ink);color:var(--panel-bg);border-color:var(--panel-ink)}
+  .set-tab:focus-visible{outline:2px solid var(--panel-accent);outline-offset:1px}
+  .about-panes{min-height:0;overflow-y:auto}
+  .about-pane{display:none}
+  .about-pane.on{display:block}
+  .about-body{columns:2;column-gap:32px}
+  .ab-sec{break-inside:avoid;margin:0 0 18px}
+  .about-modal h3{
+    font-size:12px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;
+    color:var(--panel-accent);margin:0 0 5px;
+  }
+  .about-modal p{font-size:13.5px;line-height:1.6;color:var(--panel-ink);margin:0 0 7px;max-width:58ch}
+  .about-modal p:last-child{margin-bottom:0}
+  .about-modal b{color:#FFFCFF;font-weight:700}
+  .about-modal code{
+    font-family:"IBM Plex Mono",monospace;font-size:12.5px;
+    background:rgba(255,255,255,.08);padding:1px 4px;border-radius:2px;
+  }
+  .about-links{
+    display:flex;flex-wrap:wrap;gap:8px 28px;margin:16px 0 0;
+    padding-top:13px;border-top:1px solid var(--panel-line);
+  }
+  .about-links a{font-size:13.5px;font-weight:600;color:var(--panel-accent);text-decoration:none}
+  .about-links a:hover{text-decoration:underline}
+  .about-build{
+    margin-top:12px!important;font-family:"IBM Plex Mono",monospace;
+    font-size:11.5px;color:var(--panel-dim)!important;
+  }
+  @media (max-width:720px){
+    .ai-modal.about-modal{width:min(520px,calc(100vw - 2rem));padding:18px}
+    .about-body{columns:1}
+  }
+  :root.immersive .ai-modal-overlay{display:none!important}
+  @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <button class="brand" id="aboutBtn" title="About Dragonkeep" aria-label="About Dragonkeep">
+      <svg viewBox="0 0 24 24" width="30" height="30" aria-hidden="true">
+        <g fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round">
+          <rect x="2.4" y="3.4" width="19.2" height="17.2" rx="1"/>
+          <rect x="8.6" y="8.6" width="6.8" height="6.8" rx=".5"/>
+          <path d="M2.4 3.4 8.6 8.6M21.6 3.4 15.4 8.6M2.4 20.6 8.6 15.4M21.6 20.6 15.4 15.4"/>
+        </g>
+      </svg>
+    </button>
+    <div>
+      <h1><span class="dr">Dragon</span>keep</h1>
+      <p class="tagline">Draw a floor plan and it becomes a prism you can walk through. The geometry you design is the geometry you see &mdash; and the geometry the warden asks about.</p>
+    </div>
+    <div class="modes" role="group" aria-label="Mode">
+      <button id="mCreate" aria-pressed="true">Creator</button>
+      <button id="mPlay" aria-pressed="false">Play</button>
+    </div>
+    <button class="ghostbtn leanbtn" id="leanBtn" aria-pressed="false"
+            title="Hide the title and tagline">Hide title</button>
+  </header>
+
+  <!-- ============ CREATOR ============ -->
+  <div id="createView" class="cols">
+    <div>
+      <div class="stage"><canvas id="plan" width="640" height="640" aria-label="Floor plan grid, 11 by 11"></canvas></div>
+      <div class="panel" style="margin-top:14px">
+        <h2>Extrusion &amp; visibility</h2>
+        <div class="body">
+          <div class="ctl">
+            <label for="hSlider">Height <i>h</i></label>
+            <input id="hSlider" type="range" min="1" max="6" step="1" value="2">
+            <output id="hOut">2</output>
+          </div>
+          <div class="ctl">
+            <label for="fogSlider">Mist</label>
+            <input id="fogSlider" type="range" min="0" max="4" step="1" value="1">
+            <output id="fogOut">thin</output>
+          </div>
+          <div class="ctl">
+            <label for="wakeSlider">Wake radius <i>k</i></label>
+            <input id="wakeSlider" type="range" min="1" max="4" step="1" value="2">
+            <output id="wakeOut">2</output>
+          </div>
+          <div class="ctl">
+            <label for="helpSlider">Helpers</label>
+            <input id="helpSlider" type="range" min="0" max="4" step="1" value="2">
+            <output id="helpOut">2</output>
+          </div>
+          <p style="margin:11px 0 0;color:var(--ink-2);font-size:12.5px">
+            Height multiplies volume and wall area by the same factor, and leaves floor and ceiling
+            area untouched. Mist shortens how far you see &mdash; which is what makes a high maze
+            index dangerous rather than merely annoying.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:14px">
+      <div class="panelbar">
+        <button class="ghostbtn" id="allOpen">Expand all</button>
+        <button class="ghostbtn" id="allShut">Collapse all</button>
+      </div>
+      <div class="panel">
+        <h2>Measurements</h2>
+        <div class="body math">
+          <dl>
+            <div class="mrow"><dt>Floor area <i>A</i></dt><dd id="mA">0<small>u²</small></dd></div>
+            <div class="mrow"><dt>Perimeter <i>P</i></dt><dd id="mP">0<small>u</small></dd></div>
+            <div class="mrow"><dt>Volume <i>V</i></dt><dd id="mV">0<small>u³</small></dd></div>
+            <div class="mrow"><dt>Wall area</dt><dd id="mW">0<small>u²</small></dd></div>
+            <div class="mrow"><dt>Interior surface <i>S</i></dt><dd id="mS">0<small>u²</small></dd></div>
+            <div class="mrow"><dt>Maze index</dt><dd id="mI">&mdash;</dd></div>
+          </dl>
+          <div class="gauge"><i id="mGauge" style="width:0%"></i></div>
+          <p class="formula" id="fV">V = A &middot; h</p>
+          <p class="formula" id="fS">S = 2A + P &middot; h</p>
+          <p class="formula" id="fI">index = P &divide; 4&radic;A</p>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>The expedition</h2>
+        <div class="body math">
+          <dl>
+            <div class="mrow"><dt>Bricks carried</dt><dd id="xBrick">0</dd></div>
+            <div class="mrow"><dt>Shortest seal</dt><dd id="xCut">&mdash;</dd></div>
+          </dl>
+          <p class="formula" id="xVerdict" style="white-space:normal">Place a dragon to measure.</p>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>Brush</h2>
+        <div class="body">
+          <div class="group-label">Structure</div>
+          <div class="tools" id="toolsStruct"></div>
+          <p style="margin:7px 0 0;color:var(--ink-3);font-size:11px">
+            <b>Carve</b> toggles: click solid rock to open it, click open floor to fill it back in.
+            Drag to keep doing whichever one you started with. Floor and Rock paint in one
+            direction only, for when you want that.
+          </p>
+          <div class="group-label">Treasure &amp; arms</div>
+          <div class="tools" id="toolsItem"></div>
+          <div class="group-label">Monsters &amp; wardens</div>
+          <div class="tools" id="toolsMob"></div>
+          <div class="group-label">Place a puzzle</div>
+          <div class="tools" id="toolsPz"></div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>Puzzles &amp; riddles</h2>
+        <div class="body">
+          <div class="pzlist" id="pzList"></div>
+          <div class="pzform">
+            <div>
+              <label for="pzTitle">Name</label>
+              <input id="pzTitle" type="text" maxlength="48" placeholder="The Tide Dial">
+            </div>
+            <div>
+              <label for="pzPrompt">What it asks</label>
+              <textarea id="pzPrompt" maxlength="400" placeholder="Three turns at low water. How many at high?"></textarea>
+            </div>
+            <div>
+              <label for="pzAnswer">Answer</label>
+              <input id="pzAnswer" type="text" maxlength="64" placeholder="9">
+            </div>
+            <div>
+              <label for="pzHint">Hint, shown after a wrong try</label>
+              <input id="pzHint" type="text" maxlength="160" placeholder="optional">
+            </div>
+            <div style="display:flex;gap:5px;flex-wrap:wrap">
+              <button class="ghostbtn" id="pzSave">Save puzzle</button>
+              <button class="ghostbtn" id="pzNew">New</button>
+            </div>
+          </div>
+          <p class="pzwarn" id="pzReport">No puzzles yet.</p>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>Save &amp; share</h2>
+        <div class="body">
+          <textarea id="bundle" spellcheck="false" placeholder="Export writes the whole level here as JSON. Paste one in and press Import."></textarea>
+          <div style="display:flex;gap:5px;margin-top:7px;flex-wrap:wrap">
+            <button class="ghostbtn" id="bExport">Export</button>
+            <button class="ghostbtn" id="bImport">Import</button>
+            <button class="ghostbtn" id="bCopy">Select all</button>
+          </div>
+          <p class="pzwarn" id="bMsg">The bundle carries the floor plan, contents, settings and every puzzle.</p>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>Worked examples</h2>
+        <div class="body">
+          <div class="presets" id="presets"></div>
+          <button class="ghostbtn" id="clearBtn" style="margin-top:9px;width:100%">Clear to solid rock</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ PLAY ============ -->
+  <div id="playView" class="cols" hidden>
+    <div>
+      <div class="stage">
+        <canvas id="view" width="640" height="440" aria-label="First-person dungeon view"></canvas>
+        <div id="warden" hidden></div>
+      </div>
+      <div style="display:flex;gap:6px;margin-top:11px;flex-wrap:wrap">
+        <button class="ghostbtn" id="imBtn">Fullscreen</button>
+        <span style="font-size:11.5px;color:var(--ink-3);align-self:center">
+          or press <b>F</b> &middot; Esc to leave
+        </span>
+      </div>
+      <div class="hud">
+        <div class="vital war">
+          <div class="lbl">War health</div>
+          <div class="num" id="hWar">24</div>
+          <div class="bar"><i id="bWar" style="width:100%"></i></div>
+        </div>
+        <div class="vital spirit">
+          <div class="lbl">Spiritual health</div>
+          <div class="num" id="hSpi">24</div>
+          <div class="bar"><i id="bSpi" style="width:100%"></i></div>
+        </div>
+        <div class="vital">
+          <div class="lbl">Armed with</div>
+          <div class="num" id="hWep" style="font-size:14px;line-height:1.5">Bow</div>
+          <div class="lbl" style="margin-top:3px;color:var(--ink-2)" id="hWepKind">war &middot; 3 dmg</div>
+        </div>
+        <div class="vital">
+          <div class="lbl">Treasure</div>
+          <div class="num" id="hGold">0</div>
+          <div class="lbl" style="margin-top:3px;color:var(--ink-2)">score</div>
+        </div>
+        <div class="vital">
+          <div class="lbl">Bricks &middot; helpers</div>
+          <div class="num" id="hBrick">0 &middot; 0</div>
+          <div class="lbl" style="margin-top:3px;color:var(--ink-2)">lay one ahead of you</div>
+        </div>
+        <div class="vital" id="dangerTile">
+          <div class="lbl">The dragon</div>
+          <div class="num" id="hNear">&mdash;</div>
+          <div class="lbl" style="margin-top:3px;color:var(--ink-2)" id="hNearNote">no dragon here</div>
+        </div>
+      </div>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:14px">
+      <div class="panel">
+        <h2>Keypad overlay</h2>
+        <div class="body">
+          <div class="keypad" id="keypad"></div>
+          <p style="margin:10px 0 0;color:var(--ink-3);font-size:11.5px">
+            Laid out the way a physical numpad actually is &mdash; 7&nbsp;8&nbsp;9 across the top.
+            Each key shows whatever you have bound to it.
+          </p>
+        </div>
+      </div>
+      <div class="panel">
+        <h2>Controls</h2>
+        <div class="body">
+          <div class="binds" id="binds"></div>
+          <div style="display:flex;gap:5px;margin-top:11px;flex-wrap:wrap">
+            <button class="ghostbtn" id="presetSpatial">Spatial</button>
+            <button class="ghostbtn" id="presetIntv">Original labels</button>
+          </div>
+          <p style="margin:9px 0 0;color:var(--ink-3);font-size:11.5px">
+            <b>Spatial</b> puts forward on the top-middle key, where your thumb expects it.
+            <b>Original labels</b> matches the 1983 controller, whose keypad ran 1&nbsp;2&nbsp;3
+            across the top &mdash; upside down relative to a numpad. Click any binding and press a key
+            to change it.
+          </p>
+        </div>
+      </div>
+      <div class="panel">
+        <h2>You are standing in</h2>
+        <div class="body math">
+          <dl>
+            <div class="mrow"><dt>Volume of air</dt><dd id="pV">0<small>u³</small></dd></div>
+            <div class="mrow"><dt>Wall around you</dt><dd id="pW">0<small>u²</small></dd></div>
+            <div class="mrow"><dt>Ceiling height</dt><dd id="pH">0<small>u</small></dd></div>
+          </dl>
+          <p style="margin:9px 0 0;color:var(--ink-3);font-size:11.5px;font-family:Archivo,sans-serif">
+            Perimeter is deliberately not shown. The warden will want it.
+          </p>
+        </div>
+      </div>
+      <div class="panel">
+        <h2>Log</h2>
+        <div class="body"><ul id="log"></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="imHud" aria-hidden="true">
+    <span><u>war</u><b class="w" id="imWar">0</b></span>
+    <span><u>spirit</u><b class="s" id="imSpi">0</b></span>
+    <span><u>bricks</u><b id="imBrick">0</b></span>
+    <span><u>helpers</u><b id="imCrew">0</b></span>
+    <span><u>dragon</u><b class="d" id="imNear">&mdash;</b></span>
+    <span style="color:#7E7986">Esc leaves</span>
+    <button id="imExit">Leave fullscreen</button>
+  </div>
+
+  <!-- ============ NOTES ============ -->
+</div>
+
+<div class="ai-modal-overlay" id="aboutOverlay">
+  <div class="ai-modal about-modal" role="dialog" aria-modal="true" aria-labelledby="aboutTitle">
+    <button class="modal-x" id="aboutClose" aria-label="Close" title="Close">&#10005;</button>
+    <h2 id="aboutTitle">About Dragonkeep</h2>
+    <p class="about-lead">A floor plan extruded to a ceiling height is a right prism over an
+      irregular polygon. You draw the prism, the editor measures it, and then you walk through it.</p>
+
+    <div id="aboutTabs">
+      <button class="set-tab on" data-about="app">About</button>
+      <button class="set-tab" data-about="geom">The geometry</button>
+      <button class="set-tab" data-about="win">Winning</button>
+      <button class="set-tab" data-about="keys">Controls</button>
+    </div>
+
+    <div class="about-panes">
+      <div class="about-pane on" id="about-app">
+        <div class="about-body">
+          <section class="ab-sec">
+            <h3>Our icon</h3>
+            <p>Nested squares joined at the corners &mdash; a corridor in one-point perspective.
+            It is not decoration: it is literally how the game renders. Depth is drawn as a
+            sequence of shrinking frames with flat sprites centred in them, the way the 1983
+            first-person crawlers did it, and not a ray is cast anywhere.</p>
+          </section>
+          <section class="ab-sec">
+            <h3>New here?</h3>
+            <p>You start in <b>Creator</b>. Carve floor out of solid rock, drop in arms,
+            treasure, monsters and puzzles, then switch to <b>Play</b> and press the attack key
+            to descend. The <b>Worked examples</b> panel loads levels built to show one idea
+            each.</p>
+          </section>
+          <section class="ab-sec">
+            <h3>Where your work lives</h3>
+            <p>The level you are editing is saved in <b>this browser only</b>. It does not
+            follow you to another machine and Claude never sees it. To move a level, or keep
+            one, use <b>Save &amp; share</b> to export it as JSON.</p>
+          </section>
+          <section class="ab-sec">
+            <h3>What it is</h3>
+            <p>An original game in the spirit of the 1983 Intellivision title <i>Advanced
+            Dungeons &amp; Dragons: Treasure of Tarmin</i>: two parallel health tracks, two
+            matching weapon classes, blocky corridors. All art here is original and the
+            rendering palette is restricted to the sixteen Intellivision colours.</p>
+          </section>
+        </div>
+      </div>
+
+      <div class="about-pane" id="about-geom">
+        <div class="about-body">
+          <section class="ab-sec">
+            <h3>Same volume, different wall</h3>
+            <p>Load <b>Open Hall</b>, then <b>Snake Corridor</b>. Both are sixteen cells, so
+            identical floor area and identical volume. The corridor has more than twice the
+            perimeter, so more than twice the wall.</p>
+            <p>Area does not determine perimeter. Here you build the counterexample, then walk
+            through both and feel the difference.</p>
+          </section>
+          <section class="ab-sec">
+            <h3>Surface area is not additive</h3>
+            <p>Load <b>Two Rooms Apart</b>: two 3&times;3 chambers, <code>A = 18</code>,
+            <code>P = 24</code>. Now <b>Two Rooms Joined</b>, the same eighteen cells pushed
+            together into a 6&times;3 hall: <code>A = 18</code>, but <code>P = 18</code>.</p>
+            <p>Volume unchanged. Six units of perimeter vanished, because a shared wall stops
+            being surface at all. Almost everyone expects both quantities to add.</p>
+          </section>
+          <section class="ab-sec">
+            <h3>The maze index is honest</h3>
+            <p>For any shape of area <i>A</i>, the smallest possible perimeter is
+            <code>4&radic;A</code>, achieved only by a square. So <code>P &divide; 4&radic;A</code>
+            never drops below 1.00.</p>
+            <p>That one number predicts how the level plays. Near 1.00 reads open and safe.
+            Above 2.00 is blind corners. Add mist and it becomes the difficulty curve.</p>
+          </section>
+          <section class="ab-sec">
+            <h3>The square-cube law, felt</h3>
+            <p>Double every dimension and volume goes up eightfold while wall area goes up only
+            fourfold. A keep twice as big in each direction genuinely reads as more open, and
+            that is the ratio doing it rather than a trick of the drawing.</p>
+          </section>
+        </div>
+      </div>
+
+      <div class="about-pane" id="about-win">
+        <div class="about-body">
+          <section class="ab-sec">
+            <h3>You win by not killing it</h3>
+            <p>The dragon cannot be fought. Strike it and it wakes; come within <i>k</i> open
+            steps and it wakes. Either way you die.</p>
+            <p>You win by sealing it off with the bricks your party carries, then walking out
+            while it still breathes.</p>
+          </section>
+          <section class="ab-sec">
+            <h3>Which makes it a minimum cut</h3>
+            <p>&ldquo;Is this level winnable?&rdquo; is the fewest cells you must turn to rock
+            to separate the entrance from the dragon, counting only cells outside the wake
+            radius. <b>The Creator panel solves it exactly</b> with node-split max-flow, so the
+            number it reports is the real one.</p>
+            <p>Proximity is path distance through open floor, not straight line. Bricking only
+            ever removes floor, so distances can only grow &mdash; laying a brick can push a
+            fatal cell out of range. You build your way to safety.</p>
+          </section>
+          <section class="ab-sec">
+            <h3>A gate you cannot answer from home</h3>
+            <p>The warden asks about the room you are standing in. The play HUD gives you
+            volume, wall area and height &mdash; never perimeter. To answer, you need
+            <code>wall = P &middot; h</code> and a division.</p>
+            <p>That is the test for whether a puzzle is bolted on: change the floor plan and a
+            real question changes with it. A syllogism on a door would not.</p>
+          </section>
+          <section class="ab-sec">
+            <h3>Authored puzzles</h3>
+            <p>Puzzles are records; the board holds references to them, so several cells can
+            point at one puzzle. The editor reports what that costs &mdash; which puzzles are
+            unplaced and can never be met, which have no answer and can never be solved.</p>
+            <p>Keep authored content for riddles and story. Anything asserting a fact about the
+            geometry should stay generated, or it will quietly start lying the first time you
+            redraw the floor plan.</p>
+          </section>
+        </div>
+      </div>
+
+      <div class="about-pane" id="about-keys">
+        <div class="about-body">
+          <section class="ab-sec">
+            <h3>The keypad runs the other way</h3>
+            <p>A numpad has <code>7 8 9</code> across the top. The 1983 controller's keypad ran
+            <code>1 2 3</code> across the top. They are vertical mirrors, so one hardcoded map
+            is always wrong for somebody.</p>
+            <p>So bindings are data. <b>Spatial</b> puts forward on the top-middle key, where
+            your thumb expects it. <b>Original labels</b> matches the cartridge overlay. Click
+            any binding in the Controls panel and press a key to change it.</p>
+          </section>
+          <section class="ab-sec">
+            <h3>Beyond the pad</h3>
+            <p>The arrow cluster always steers. <code>.</code> lays a brick, <code>F</code>
+            enters fullscreen and <code>Esc</code> leaves it. The on-screen keypad is generated
+            from your live bindings, so it cannot drift out of step with them.</p>
+          </section>
+          <section class="ab-sec">
+            <h3>Two health tracks</h3>
+            <p>Swords and bows spend <b>War</b>; books and fireballs spend <b>Spiritual</b>.
+            Monsters attack one or both, and a helper will step in front of exactly one blow
+            before they are gone. Run either track to zero and the expedition is over.</p>
+          </section>
+        </div>
+      </div>
+    </div>
+
+    <div class="about-links">
+      <a href="https://github.com/OhioMathTeacher/dragons-keep" target="_blank" rel="noopener">Source on GitHub</a>
+      <a href="#" id="aboutExport">Export this level</a>
+    </div>
+    <p class="about-build" id="aboutBuild"></p>
+  </div>
+</div>
+
+
+<script>
+/* ============================================================
+   Dragonkeep
+   A floor plan is a right prism over an irregular polygon.
+   Creator mode measures it; play mode renders it; the warden
+   asks about it.
+   ============================================================ */
+
+/* the sixteen Intellivision colors — everything drawn comes from here */
+const IV = {
+  K:'#0C0005', B:'#002DFF', R:'#FF3E00', T:'#C9D464',
+  D:'#00780F', G:'#00A720', Y:'#FAEA27', W:'#FFFCFF',
+  A:'#A1A1A1', C:'#5ACBFF', O:'#FFA600', N:'#3C5800',
+  P:'#FF3276', L:'#BD95FF', E:'#6CCD30', U:'#C81A7D'
+};
+
+const GW = 11, GH = 11;
+const ROCK = 0, FLOOR = 1;
+
+let grid   = new Uint8Array(GW*GH);
+let items  = {};
+let mobs   = {};
+let start  = {x:5, y:9, dir:0};          // dir 0=N 1=E 2=S 3=W
+let height = 2;
+let fog    = 1;
+let wake   = 2;      // the dragon hears you within this many open steps
+let helpers= 2;      // each helper carries two bricks
+const BRICKS_BASE = 2, BRICKS_PER_HELPER = 2;
+let brush  = 'carve';
+/* Puzzles are records; the board holds references to them. Only the 'lock'
+   role is used today, but clue and mechanism placements fit the same shape,
+   so adding Myst-style distributed puzzles later is not a rewrite. */
+let puzzles = {};    // pid -> {title, prompt, answer, hint}
+let places  = {};    // cell index -> {pid, role}
+let mode   = 'create';
+
+const idx = (x,y) => y*GW + x;
+const inside = (x,y) => x>=0 && y>=0 && x<GW && y<GH;
+const isFloor = (x,y) => inside(x,y) && grid[idx(x,y)] === FLOOR;
+
+const FOG_NAME = ['clear','thin','drifting','thick','blind'];
+
+/* ---------- 8x8 sprites; '.' transparent, letters key into IV ---------- */
+const SPRITES = {
+  rat:      ['........','..AA.A..','.AAAAAA.','AAWAAWAA','.AAAAAA.','..A..A..','.......A','......AA'],
+  bat:      ['A......A','AA....AA','AAA..AAA','AAAAAAAA','.AAWWAA.','..AAAA..','...AA...','..A..A..'],
+  snake:    ['..GGG...','.G...G..','.G.W.G..','..GGG...','...GG...','..GG....','.GG...GG','.GGGGGG.'],
+  scorpion: ['O......O','OO....OO','.O.OO.O.','..OOOO..','.OOOOOO.','..OOOO..','...OO...','..O..O..'],
+  dragon:   ['R......R','RR.RR.RR','RRRRRRRR','RYRRRRYR','RRRWWRRR','.RRRRRR.','.R.RR.R.','R......R'],
+  minotaur: ['U......U','UU....UU','.UUUUUU.','.URUURU.','.UUUUUU.','UUUUUUUU','.UU..UU.','.U....U.'],
+  warden:   ['..YYYY..','.Y....Y.','Y.YWWY.Y','Y.YWWY.Y','Y..YY..Y','.Y.YY.Y.','..YYYY..','...YY...'],
+  sword:    ['.....A..','....AA..','...AA...','..AA....','.AA.....','NNA.....','.N......','........'],
+  book:     ['.CCCCCC.','.CWWWWC.','.CWCCWC.','.CWWWWC.','.CWCCWC.','.CWWWWC.','.CCCCCC.','........'],
+  fire:     ['...O....','..OYO...','.OYYYO..','.OYWYO..','OYYWYYO.','OOYYYOO.','.OOOOO..','..OOO...'],
+  jewel:    ['..PPPP..','.PWWWWP.','PWPPPPWP','PWPPPPWP','.PWPPWP.','..PPPP..','...PP...','........'],
+  armor:    ['.A....A.','.AAAAAA.','.ACCCCA.','.ACAACA.','.ACCCCA.','.AAAAAA.','.A.AA.A.','........'],
+  potion:   ['...LL...','...LL...','..LLLL..','.LUUUUL.','LUUUUUUL','LUUUUUUL','.LUUUUL.','..LLLL..'],
+  puzzle:   ['...EE...','..EWWE..','.EW..WE.','EW.EE.WE','EW.EE.WE','.EW..WE.','..EWWE..','...EE...']
+};
+
+const ARMS = {
+  bow:    {name:'Bow',       kind:'war',    dmg:3, sprite:'sword'},
+  sword:  {name:'Sword',     kind:'war',    dmg:6, sprite:'sword'},
+  armor:  {name:'Armor',     kind:'armor',  dmg:0, sprite:'armor'},
+  book:   {name:'Spellbook', kind:'spirit', dmg:5, sprite:'book'},
+  fire:   {name:'Fireball',  kind:'spirit', dmg:8, sprite:'fire'},
+  jewel:  {name:'Jewels',    kind:'loot',   dmg:0, sprite:'jewel'},
+  potion: {name:'Potion',    kind:'heal',   dmg:0, sprite:'potion'}
+};
+
+const MOBS = {
+  rat:      {name:'Giant rat',   war:6,  spi:0,  hitWar:2, hitSpi:0, gold:2},
+  bat:      {name:'Bat',         war:5,  spi:3,  hitWar:1, hitSpi:2, gold:3},
+  snake:    {name:'Giant snake', war:11, spi:0,  hitWar:4, hitSpi:0, gold:6},
+  scorpion: {name:'Scorpion',    war:9,  spi:5,  hitWar:3, hitSpi:2, gold:8},
+  dragon:   {name:'Dragon',      war:20, spi:14, hitWar:7, hitSpi:5, gold:25},
+  minotaur: {name:'Minotaur',    war:30, spi:30, hitWar:6, hitSpi:6, gold:100},
+  warden:   {name:'Warden',      war:0,  spi:0,  hitWar:0, hitSpi:0, gold:0, gate:true}
+};
+
+let P = null;
+function freshPlayer(){
+  return {
+    x:start.x, y:start.y, dir:start.dir,
+    war:24, warMax:24, spi:24, spiMax:24,
+    arms:{bow:true, book:true},
+    weapon:'bow', gold:0, done:false, intro:true,
+    bricks:brickBudget(), crew:helpers, sealed:false, solved:{}
+  };
+}
+
+/* ============================================================
+   METRICS — the mathematical spine of the whole page
+   ============================================================ */
+function metrics(){
+  let A = 0, per = 0;
+  for(let y=0;y<GH;y++) for(let x=0;x<GW;x++){
+    if(!isFloor(x,y)) continue;
+    A++;
+    if(!isFloor(x,y-1)) per++;
+    if(!isFloor(x,y+1)) per++;
+    if(!isFloor(x-1,y)) per++;
+    if(!isFloor(x+1,y)) per++;
+  }
+  return {
+    A, P:per,
+    V:A*height,
+    wall:per*height,
+    S:2*A + per*height,
+    // a square of area A has perimeter 4*sqrt(A) — the discrete isoperimetric floor
+    index: A > 0 ? per/(4*Math.sqrt(A)) : 0
+  };
+}
+
+function renderMetrics(){
+  const m = metrics();
+  const set = (id,v,u) => {
+    document.getElementById(id).innerHTML = v + (u ? '<small>'+u+'</small>' : '');
+  };
+  set('mA', m.A, 'u²'); set('mP', m.P, 'u');  set('mV', m.V, 'u³');
+  set('mW', m.wall, 'u²'); set('mS', m.S, 'u²');
+  document.getElementById('mI').textContent = m.A ? m.index.toFixed(2) : '—';
+
+  const pct = m.A ? Math.max(0, Math.min(1, (m.index-1)/1.5))*100 : 0;
+  document.getElementById('mGauge').style.width = pct.toFixed(1)+'%';
+
+  document.getElementById('fV').innerHTML =
+    'V = A &middot; h = <b>'+m.A+'</b> &middot; <b>'+height+'</b> = <b>'+m.V+'</b> u³';
+  document.getElementById('fS').innerHTML =
+    'S = 2A + P&middot;h = 2(<b>'+m.A+'</b>) + <b>'+m.P+'</b>(<b>'+height+'</b>) = <b>'+m.S+'</b> u²';
+  renderExpedition();
+  document.getElementById('fI').innerHTML = m.A
+    ? 'index = P &divide; 4&radic;A = <b>'+m.P+'</b> &divide; '+(4*Math.sqrt(m.A)).toFixed(1)+
+      ' = <b>'+m.index.toFixed(2)+'</b>'
+    : 'index = P &divide; 4&radic;A';
+}
+
+/* ============================================================
+   GRAPH ROUTINES
+   Three questions about a floor plan, answered exactly:
+   who can reach whom, how near the dragon is through open air,
+   and the fewest bricks that would wall it off.
+   ============================================================ */
+const dragonCells = () =>
+  Object.keys(mobs).filter(k => mobs[k].key === 'dragon').map(Number);
+
+function reachable(sx,sy){
+  const seen = new Uint8Array(GW*GH);
+  if(!isFloor(sx,sy)) return seen;
+  const q = [idx(sx,sy)]; seen[q[0]] = 1;
+  for(let h=0; h<q.length; h++){
+    const i = q[h], x = i%GW, y = (i/GW)|0;
+    for(const [dx,dy] of DIRS){
+      const nx = x+dx, ny = y+dy;
+      if(!isFloor(nx,ny)) continue;
+      const j = idx(nx,ny);
+      if(!seen[j]){ seen[j] = 1; q.push(j); }
+    }
+  }
+  return seen;
+}
+
+/* steps through open floor from the nearest dragon; -1 means unreachable */
+function dragonDistance(){
+  const dist = new Int16Array(GW*GH).fill(-1);
+  const q = dragonCells().filter(i => grid[i] === FLOOR);
+  q.forEach(i => dist[i] = 0);
+  for(let h=0; h<q.length; h++){
+    const i = q[h], x = i%GW, y = (i/GW)|0;
+    for(const [dx,dy] of DIRS){
+      const nx = x+dx, ny = y+dy;
+      if(!isFloor(nx,ny)) continue;
+      const j = idx(nx,ny);
+      if(dist[j] < 0){ dist[j] = dist[i]+1; q.push(j); }
+    }
+  }
+  return dist;
+}
+
+/* Minimum vertex cut separating the player's entrance from every dragon,
+   using only cells you could actually stand next to — the wake radius makes
+   the cells near the dragon unbrickable, which is what pushes the cut out.
+   Node-split max flow; the cut equals the flow. */
+const INF = 1e9;
+function sealCost(){
+  const ds = dragonCells();
+  if(!ds.length) return null;
+  if(!isFloor(start.x,start.y)) return null;
+  const sIdx = idx(start.x,start.y);
+  if(ds.includes(sIdx)) return {need:Infinity, why:'the dragon is on the entrance'};
+
+  const dist = dragonDistance();
+  const N = 2*GW*GH + 2, SRC = 2*GW*GH, SNK = SRC+1;
+  const g = Array.from({length:N}, ()=>[]);
+  const edge = (u,v,c) => {
+    g[u].push({v, c, r:g[v].length});
+    g[v].push({v:u, c:0, r:g[u].length-1});
+  };
+  const IN = i => 2*i, OUT = i => 2*i+1;
+
+  for(let i=0;i<GW*GH;i++){
+    if(grid[i] !== FLOOR) continue;
+    // a cell can be bricked unless it is the entrance, holds a dragon,
+    // or sits inside the radius where the dragon would wake
+    const brickable = i !== sIdx && !ds.includes(i) && dist[i] > wake;
+    edge(IN(i), OUT(i), brickable ? 1 : INF);
+    const x = i%GW, y = (i/GW)|0;
+    for(const [dx,dy] of DIRS){
+      const nx = x+dx, ny = y+dy;
+      if(isFloor(nx,ny)) edge(OUT(i), IN(idx(nx,ny)), INF);
+    }
+  }
+  edge(SRC, OUT(sIdx), INF);
+  ds.forEach(d => { if(grid[d] === FLOOR) edge(IN(d), SNK, INF); });
+
+  let flow = 0;
+  for(;;){
+    const prevE = new Int32Array(N).fill(-1), prevV = new Int32Array(N).fill(-1);
+    const q = [SRC]; prevV[SRC] = SRC;
+    for(let h=0; h<q.length && prevV[SNK] < 0; h++){
+      const u = q[h];
+      for(let ei=0; ei<g[u].length; ei++){
+        const e = g[u][ei];
+        if(e.c > 0 && prevV[e.v] < 0){ prevV[e.v] = u; prevE[e.v] = ei; q.push(e.v); }
+      }
+    }
+    if(prevV[SNK] < 0) break;
+    let add = INF;
+    for(let v=SNK; v!==SRC; v=prevV[v]) add = Math.min(add, g[prevV[v]][prevE[v]].c);
+    for(let v=SNK; v!==SRC; v=prevV[v]){
+      const e = g[prevV[v]][prevE[v]];
+      e.c -= add; g[v][e.r].c += add;
+    }
+    flow += add;
+    if(flow > 500) return {need:Infinity, why:'no wall can separate you'};
+  }
+  return {need:flow, why:null};
+}
+
+function brickBudget(){ return BRICKS_BASE + BRICKS_PER_HELPER*helpers; }
+
+function renderExpedition(){
+  const budget = brickBudget();
+  document.getElementById('xBrick').textContent = budget;
+  const cutEl = document.getElementById('xCut');
+  const vEl   = document.getElementById('xVerdict');
+  const sc = sealCost();
+  if(!sc){
+    cutEl.textContent = '—';
+    vEl.innerHTML = 'Place a dragon to measure. The expedition wins by walling it in, never by killing it.';
+    return;
+  }
+  if(!isFinite(sc.need)){
+    cutEl.textContent = '∞';
+    vEl.innerHTML = '<b>Cannot be sealed</b> — ' + sc.why +
+      '. Widen the plan, or lower the wake radius.';
+    return;
+  }
+  if(sc.need === 0){
+    cutEl.textContent = '0';
+    vEl.innerHTML = '<b>Already sealed.</b> No open path runs from the entrance to the dragon.';
+    return;
+  }
+  cutEl.textContent = sc.need;
+  const ok = sc.need <= budget;
+  vEl.innerHTML = ok
+    ? '<b>Winnable.</b> The tightest wall you can reach needs <b>'+sc.need+
+      '</b> bricks and the party carries <b>'+budget+'</b>.'
+    : '<b>Short by '+(sc.need-budget)+'.</b> The tightest reachable wall needs <b>'+sc.need+
+      '</b> bricks; the party carries <b>'+budget+'</b>. Add a helper, or lower k.';
+}
+
+/* ============================================================
+   SPRITES
+   ============================================================ */
+function drawSprite(ctx, key, cx, cy, size){
+  const rows = SPRITES[key];
+  if(!rows) return;
+  const n = rows.length, px = size/n;
+  const ox = cx - size/2, oy = cy - size/2;
+  for(let r=0;r<n;r++){
+    for(let c=0;c<rows[r].length;c++){
+      const ch = rows[r][c];
+      if(ch === '.') continue;
+      ctx.fillStyle = IV[ch] || IV.W;
+      ctx.fillRect(Math.floor(ox+c*px), Math.floor(oy+r*px),
+                   Math.ceil(px)+1, Math.ceil(px)+1);
+    }
+  }
+}
+
+/* ============================================================
+   CREATOR — the plan canvas
+   ============================================================ */
+const planCv = document.getElementById('plan');
+const planCx = planCv.getContext('2d');
+
+function drawPlan(){
+  const S = planCv.width, cell = S/GW;
+  planCx.fillStyle = IV.K;
+  planCx.fillRect(0,0,S,S);
+
+  for(let y=0;y<GH;y++) for(let x=0;x<GW;x++){
+    if(!isFloor(x,y)) continue;
+    planCx.fillStyle = IV.N;
+    planCx.fillRect(x*cell, y*cell, cell, cell);
+    planCx.fillStyle = 'rgba(201,212,100,.14)';
+    planCx.fillRect(x*cell+2, y*cell+2, cell-4, cell-4);
+  }
+
+  planCx.strokeStyle = 'rgba(161,161,161,.22)';
+  planCx.lineWidth = 1;
+  for(let i=0;i<=GW;i++){
+    planCx.beginPath(); planCx.moveTo(i*cell,0); planCx.lineTo(i*cell,S); planCx.stroke();
+    planCx.beginPath(); planCx.moveTo(0,i*cell); planCx.lineTo(S,i*cell); planCx.stroke();
+  }
+
+  /* the perimeter drawn thick — the number in the panel made visible */
+  planCx.strokeStyle = IV.U;
+  planCx.lineWidth = Math.max(3, cell*0.1);
+  planCx.lineCap = 'square';
+  const seg = (x1,y1,x2,y2)=>{
+    planCx.beginPath(); planCx.moveTo(x1,y1); planCx.lineTo(x2,y2); planCx.stroke();
+  };
+  for(let y=0;y<GH;y++) for(let x=0;x<GW;x++){
+    if(!isFloor(x,y)) continue;
+    const L=x*cell, T=y*cell, R=L+cell, B=T+cell;
+    if(!isFloor(x,y-1)) seg(L,T,R,T);
+    if(!isFloor(x,y+1)) seg(L,B,R,B);
+    if(!isFloor(x-1,y)) seg(L,T,L,B);
+    if(!isFloor(x+1,y)) seg(R,T,R,B);
+  }
+
+  for(const k in items){
+    const i=+k, x=i%GW, y=(i/GW)|0;
+    drawSprite(planCx, ARMS[items[k]].sprite, x*cell+cell/2, y*cell+cell/2, cell*0.68);
+  }
+  for(const k in mobs){
+    const i=+k, x=i%GW, y=(i/GW)|0;
+    drawSprite(planCx, mobs[k].key, x*cell+cell/2, y*cell+cell/2, cell*0.78);
+  }
+
+  for(const k in places){
+    const i=+k, x=i%GW, y=(i/GW)|0;
+    if(!puzzles[places[k].pid]) continue;
+    drawSprite(planCx, 'puzzle', x*cell+cell/2, y*cell+cell/2, cell*0.74);
+  }
+
+  if(isFloor(start.x,start.y)){
+    const cx = start.x*cell+cell/2, cy = start.y*cell+cell/2;
+    planCx.strokeStyle = IV.C; planCx.lineWidth = Math.max(2, cell*0.07);
+    planCx.beginPath(); planCx.arc(cx,cy,cell*0.33,0,Math.PI*2); planCx.stroke();
+    planCx.fillStyle = IV.C;
+    planCx.beginPath();
+    const d = cell*0.2, rot = start.dir*Math.PI/2;
+    [[0,-d],[d*0.72,d*0.6],[-d*0.72,d*0.6]].forEach(([vx,vy],n)=>{
+      const rx = vx*Math.cos(rot)-vy*Math.sin(rot), ry = vx*Math.sin(rot)+vy*Math.cos(rot);
+      n ? planCx.lineTo(cx+rx,cy+ry) : planCx.moveTo(cx+rx,cy+ry);
+    });
+    planCx.closePath(); planCx.fill();
+  }
+}
+
+let painting = false;
+/* Fixed at pointer-down and held for the whole drag. Re-deciding per cell
+   would flip a cell back the moment the pointer crossed it twice. */
+let strokeAction = null;
+function cellFromEvent(e){
+  const r = planCv.getBoundingClientRect();
+  const x = Math.floor((e.clientX - r.left)/r.width  * GW);
+  const y = Math.floor((e.clientY - r.top )/r.height * GH);
+  return inside(x,y) ? {x,y} : null;
+}
+function applyBrush(x,y){
+  const i = idx(x,y);
+  if(brush === 'carve'){
+    const want = strokeAction || (isFloor(x,y) ? 'close' : 'open');
+    if(want === 'open') grid[i] = FLOOR;
+    else { grid[i] = ROCK; delete items[i]; delete mobs[i]; delete places[i]; }
+  }
+  else if(brush === 'floor') grid[i] = FLOOR;
+  else if(brush === 'rock'){ grid[i]=ROCK; delete items[i]; delete mobs[i]; delete places[i]; }
+  else if(brush === 'start'){ if(grid[i]===FLOOR){ start.x=x; start.y=y; } }
+  else if(brush === 'erase'){ delete items[i]; delete mobs[i]; delete places[i]; }
+  else if(brush.startsWith('pz:')){
+    const pid = brush.slice(3);
+    if(puzzles[pid]){
+      grid[i]=FLOOR; delete items[i]; delete mobs[i];
+      places[i] = {pid, role:'lock'};
+    }
+  }
+  else if(ARMS[brush]){ grid[i]=FLOOR; delete mobs[i]; items[i]=brush; }
+  else if(MOBS[brush]){
+    grid[i]=FLOOR; delete items[i];
+    mobs[i] = {key:brush, war:MOBS[brush].war, spi:MOBS[brush].spi};
+  }
+  drawPlan(); renderMetrics(); save();
+}
+planCv.addEventListener('pointerdown', e=>{
+  e.preventDefault(); painting = true;
+  try{ planCv.setPointerCapture(e.pointerId); }catch(_){}
+  const c = cellFromEvent(e);
+  if(!c) return;
+  if(brush === 'carve') strokeAction = isFloor(c.x,c.y) ? 'close' : 'open';
+  applyBrush(c.x,c.y);
+});
+planCv.addEventListener('pointermove', e=>{
+  if(!painting) return;
+  const c = cellFromEvent(e); if(c) applyBrush(c.x,c.y);
+});
+addEventListener('pointerup', ()=>{ painting = false; strokeAction = null; });
+planCv.addEventListener('contextmenu', e=>e.preventDefault());
+
+/* ============================================================
+   PLAY — nested-rectangle corridors, the way the original did it
+   ============================================================ */
+const viewCv = document.getElementById('view');
+const viewCx = viewCv.getContext('2d');
+const MAXD = 6;
+const DIRS = [[0,-1],[1,0],[0,1],[-1,0]];
+
+function frameAt(d){
+  const VW = viewCv.width, VH = viewCv.height;
+  const s = 1/(1 + d*0.92);
+  const hw = VW*0.47*s, hh = VH*0.47*s;
+  return {x0:VW/2-hw, x1:VW/2+hw, y0:VH/2-hh, y1:VH/2+hh};
+}
+const SHADE = [IV.T, IV.N, IV.K];
+const shadeFor = d => SHADE[Math.min(SHADE.length-1, Math.floor(d/2))];
+
+function cellAhead(n){
+  const [dx,dy] = DIRS[P.dir];
+  return {x:P.x+dx*n, y:P.y+dy*n};
+}
+function sideCell(n, side){
+  const [dx,dy] = DIRS[P.dir];
+  const [sx,sy] = DIRS[(P.dir + (side>0?1:3))%4];
+  return {x:P.x+dx*n+sx, y:P.y+dy*n+sy};
+}
+
+function titleCard(){
+  const VW = viewCv.width, VH = viewCv.height;
+  viewCx.fillStyle = IV.K; viewCx.fillRect(0,0,VW,VH);
+
+  /* a chunky console-era border */
+  viewCx.strokeStyle = IV.U; viewCx.lineWidth = 8;
+  viewCx.strokeRect(16,16,VW-32,VH-32);
+  viewCx.strokeStyle = IV.O; viewCx.lineWidth = 3;
+  viewCx.strokeRect(28,28,VW-56,VH-56);
+
+  viewCx.textAlign = 'center';
+  viewCx.fillStyle = IV.Y;
+  viewCx.font = '400 40px "Press Start 2P", monospace';
+  viewCx.fillText('DRAGON', VW/2, 150);
+  viewCx.fillStyle = IV.R;
+  viewCx.fillText('KEEP', VW/2, 202);
+  viewCx.fillStyle = IV.A;
+  viewCx.font = '400 10px "Press Start 2P", monospace';
+  viewCx.fillText('A PRISM YOU CAN WALK THROUGH', VW/2, 238);
+
+  /* a row of what waits below */
+  const cast = ['snake','bat','dragon','minotaur','warden'];
+  cast.forEach((k,i)=> drawSprite(viewCx, k, VW/2 + (i-2)*56, 300, 42));
+
+  const m = metrics();
+  viewCx.fillStyle = IV.C;
+  viewCx.font = '400 10px "Press Start 2P", monospace';
+  viewCx.fillText('MAZE INDEX ' + m.index.toFixed(2) + '   MIST ' + FOG_NAME[fog].toUpperCase(),
+                  VW/2, 352);
+  viewCx.fillStyle = IV.W;
+  viewCx.font = '400 11px "Press Start 2P", monospace';
+  viewCx.fillText('PRESS 5 TO DESCEND', VW/2, 392);
+
+  viewCx.fillStyle = 'rgba(0,0,0,.17)';
+  for(let y=0;y<VH;y+=3) viewCx.fillRect(0,y,VW,1);
+}
+
+function drawView(){
+  if(P.intro){ titleCard(); return; }
+
+  const VW = viewCv.width, VH = viewCv.height;
+  viewCx.fillStyle = IV.K; viewCx.fillRect(0,0,VW,VH);
+
+  const seeDist = Math.max(2, MAXD - fog);
+  let stop = seeDist;
+  for(let d=0; d<=seeDist; d++){
+    const c = cellAhead(d);
+    if(!isFloor(c.x,c.y)){ stop = d; break; }
+  }
+
+  const poly = (pts, fill) => {
+    viewCx.beginPath();
+    pts.forEach(([x,y],i)=> i ? viewCx.lineTo(x,y) : viewCx.moveTo(x,y));
+    viewCx.closePath();
+    viewCx.fillStyle = fill; viewCx.fill();
+    viewCx.strokeStyle = IV.K; viewCx.lineWidth = 2; viewCx.stroke();
+  };
+
+  if(stop <= seeDist){
+    const f = frameAt(stop);
+    poly([[f.x0,f.y0],[f.x1,f.y0],[f.x1,f.y1],[f.x0,f.y1]], shadeFor(stop));
+  }
+  for(let d = stop-1; d >= 0; d--){
+    const a = frameAt(d), b = frameAt(d+1), sh = shadeFor(d);
+    poly([[a.x0,a.y0],[b.x0,b.y0],[b.x1,b.y0],[a.x1,a.y0]], d%2 ? IV.K : '#140a14');
+    poly([[a.x0,a.y1],[b.x0,b.y1],[b.x1,b.y1],[a.x1,a.y1]], d%2 ? IV.N : '#2d3f06');
+    const L = sideCell(d,-1), R = sideCell(d,1);
+    if(!isFloor(L.x,L.y)) poly([[a.x0,a.y0],[b.x0,b.y0],[b.x0,b.y1],[a.x0,a.y1]], sh);
+    if(!isFloor(R.x,R.y)) poly([[a.x1,a.y0],[b.x1,b.y0],[b.x1,b.y1],[a.x1,a.y1]], sh);
+  }
+
+  for(let d = stop; d >= 0; d--){
+    const c = cellAhead(d);
+    if(!isFloor(c.x,c.y)) continue;
+    const i = idx(c.x,c.y), f = frameAt(d);
+    const size = (f.y1-f.y0)*0.56;
+    const cx = (f.x0+f.x1)/2, cy = f.y1 - size*0.58;
+    if(mobs[i]) drawSprite(viewCx, mobs[i].key, cx, cy, size*1.12);
+    else if(places[i] && puzzles[places[i].pid])
+      drawSprite(viewCx, 'puzzle', cx, cy, size*0.92);
+    else if(items[i]) drawSprite(viewCx, ARMS[items[i]].sprite, cx, cy, size*0.74);
+  }
+
+  /* mist: nested translucent frames, so darkness accumulates with distance */
+  if(fog > 0){
+    for(let d = stop; d >= 1; d--){
+      const f = frameAt(d);
+      viewCx.fillStyle = 'rgba(12,0,5,'+(0.085*fog).toFixed(3)+')';
+      viewCx.fillRect(f.x0, f.y0, f.x1-f.x0, f.y1-f.y0);
+    }
+  }
+
+  viewCx.fillStyle = 'rgba(0,0,0,.17)';
+  for(let y=0;y<VH;y+=3) viewCx.fillRect(0,y,VW,1);
+
+  if(P.done){
+    const won = P.sealed || (P.war>0 && P.spi>0);
+    viewCx.fillStyle = 'rgba(12,0,5,.86)';
+    viewCx.fillRect(0,0,VW,VH);
+    viewCx.textAlign = 'center';
+    viewCx.fillStyle = won ? IV.Y : IV.R;
+    viewCx.font = '400 24px "Press Start 2P", monospace';
+    viewCx.font = '400 ' + (P.sealed ? '19px' : '24px') + ' "Press Start 2P", monospace';
+    viewCx.fillText(P.sealed ? 'IT SLEEPS' : (won ? 'TREASURE' : 'YOU DIED'), VW/2, VH/2 - 6);
+    viewCx.fillStyle = IV.A;
+    viewCx.font = '400 10px "Press Start 2P", monospace';
+    viewCx.fillText('PRESS 0 TO BEGIN AGAIN', VW/2, VH/2 + 26);
+  }
+}
+
+function say(html){
+  const ul = document.getElementById('log');
+  const li = document.createElement('li');
+  li.innerHTML = html;
+  ul.prepend(li);
+  while(ul.children.length > 40) ul.lastChild.remove();
+}
+
+function renderHud(){
+  const pct = (v,m)=> Math.max(0,Math.min(100, v/m*100)).toFixed(0)+'%';
+  document.getElementById('hWar').textContent = Math.max(0,P.war);
+  document.getElementById('hSpi').textContent = Math.max(0,P.spi);
+  document.getElementById('bWar').style.width = pct(P.war,P.warMax);
+  document.getElementById('bSpi').style.width = pct(P.spi,P.spiMax);
+  const w = ARMS[P.weapon];
+  document.getElementById('hWep').textContent = w.name;
+  document.getElementById('hWepKind').textContent = w.kind+' · '+w.dmg+' dmg';
+  document.getElementById('hGold').textContent = P.gold;
+
+  document.getElementById('hBrick').innerHTML = P.bricks+' &middot; '+P.crew;
+
+  const ds = dragonCells();
+  const nearEl = document.getElementById('hNear'), noteEl = document.getElementById('hNearNote');
+  const tile = document.getElementById('dangerTile');
+  if(!ds.length){
+    nearEl.textContent = '—'; noteEl.textContent = 'no dragon here';
+    tile.style.borderColor = ''; nearEl.style.color = '';
+  } else {
+    const d = dragonDistance()[idx(P.x,P.y)];
+    if(d < 0){
+      nearEl.textContent = 'walled'; noteEl.textContent = 'no open path to it';
+      tile.style.borderColor = '#00A720'; nearEl.style.color = '#00780F';
+    } else {
+      nearEl.textContent = d + (d === 1 ? ' step' : ' steps');
+      const margin = d - wake;
+      noteEl.textContent = margin <= 1 ? 'it stirs — back away' : 'wakes within '+wake;
+      const hot = margin <= 1;
+      tile.style.borderColor = hot ? 'var(--war)' : '';
+      nearEl.style.color = hot ? 'var(--war)' : '';
+    }
+  }
+
+  document.getElementById('imWar').textContent   = Math.max(0,P.war);
+  document.getElementById('imSpi').textContent   = Math.max(0,P.spi);
+  document.getElementById('imBrick').textContent = P.bricks;
+  document.getElementById('imCrew').textContent  = P.crew;
+  document.getElementById('imNear').textContent  = nearEl.textContent;
+
+  const m = metrics();
+  const set = (id,v,u)=>{ document.getElementById(id).innerHTML = v+'<small>'+u+'</small>'; };
+  set('pV', m.V, 'u³'); set('pW', m.wall, 'u²'); set('pH', height, 'u');
+}
+
+/* ============================================================
+   THE WARDEN'S GATE
+   Every question is about the dungeon you are standing in, and
+   none of them can be read straight off the HUD. Redraw the
+   floor plan and the question changes with it.
+   ============================================================ */
+const wardenEl = document.getElementById('warden');
+let gateCell = null;
+
+function gateQuestions(){
+  const m = metrics();
+  return [
+    {
+      q:'Raise this ceiling by one unit. How much new wall appears?',
+      a:m.P,
+      why:'Wall area is <b>P &middot; h</b>, so every extra unit of height adds exactly the '+
+          'perimeter. You see '+m.wall+' u² of wall under a ceiling of '+height+
+          ', so P = '+m.wall+' ÷ '+height+' = <b>'+m.P+'</b>.'
+    },
+    {
+      q:'How many cells of floor does this place have?',
+      a:m.A,
+      why:'Volume is <b>A &middot; h</b>. You stand in '+m.V+' u³ under a ceiling of '+height+
+          ', so A = '+m.V+' ÷ '+height+' = <b>'+m.A+'</b>.'
+    },
+    {
+      q:'Floor and ceiling together. How much surface is that?',
+      a:2*m.A,
+      why:'Two faces, each of area A = '+m.A+'. So <b>2A = '+(2*m.A)+'</b>. '+
+          'Note it does not depend on the height at all.'
+    }
+  ];
+}
+
+/* an authored puzzle, asked where it stands */
+function askPuzzle(pid, cell){
+  const z = puzzles[pid];
+  if(!z){ say('The sigil is blank.'); return; }
+  wardenEl.innerHTML = '';
+  const who = document.createElement('div');
+  who.className = 'who'; who.textContent = (z.title || 'A SIGIL').toUpperCase();
+  const q = document.createElement('div');
+  q.className = 'q'; q.textContent = z.prompt;
+  const row = document.createElement('div');
+  row.className = 'opts';
+  const inp = document.createElement('input');
+  inp.className = 'ans'; inp.type = 'text'; inp.autocomplete = 'off';
+  inp.setAttribute('aria-label','Your answer');
+  const ok = document.createElement('button');
+  ok.textContent = 'Answer';
+  const away = document.createElement('button');
+  away.textContent = 'Back away';
+  row.append(inp, ok, away);
+  wardenEl.append(who, q, row);
+  wardenEl.hidden = false;
+  inp.focus();
+
+  const close = () => { wardenEl.hidden = true; renderHud(); drawView(); };
+  const judge = () => {
+    const given = inp.value.trim(), want = String(z.answer ?? '').trim();
+    const num = (v)=> { const n = Number(v.replace(/[, ]/g,'')); return isFinite(n) ? n : null; };
+    const a = num(given), b = num(want);
+    const right = want !== '' &&
+      ((a !== null && b !== null) ? a === b
+                                  : given.toLowerCase() === want.toLowerCase());
+    if(right){
+      P.solved[pid] = 1;
+      delete places[cell];
+      P.gold += 20;
+      say('<b>'+(z.title||'The sigil')+' yields.</b> The way is open. +20 treasure.');
+      close();
+    } else {
+      P.spi -= 3;
+      say('Wrong. &minus;3 spiritual.' + (z.hint ? ' ('+z.hint+')' : ''));
+      if(P.spi <= 0){ P.done = true; say('<b>Your spirit fails at the sigil.</b>'); close(); return; }
+      inp.value = ''; inp.focus();
+      renderHud();
+      const w = wardenEl.querySelector('.why') || document.createElement('div');
+      w.className = 'why';
+      w.innerHTML = 'Not that.' + (z.hint ? ' <b>'+z.hint+'</b>' : '');
+      if(!w.parentNode) wardenEl.appendChild(w);
+    }
+  };
+  ok.addEventListener('click', judge);
+  away.addEventListener('click', close);
+  inp.addEventListener('keydown', e=>{
+    e.stopPropagation();
+    if(e.key === 'Enter'){ e.preventDefault(); judge(); }
+    if(e.key === 'Escape'){ e.preventDefault(); close(); }
+  });
+}
+
+function askWarden(){
+  const qs = gateQuestions();
+  const pick = qs[Math.floor(Math.random()*qs.length)];
+  const truth = pick.a;
+  /* distractors that are plausible rather than random */
+  const cand = new Set([truth]);
+  [truth+height, Math.max(1,truth-height), truth*2, Math.max(1,Math.round(truth/2)), truth+4]
+    .forEach(v => { if(v !== truth && v > 0 && cand.size < 4) cand.add(v); });
+  const opts = Array.from(cand).sort(()=> Math.random()-0.5);
+
+  wardenEl.innerHTML = '';
+  const who = document.createElement('div');
+  who.className = 'who';
+  who.textContent = 'THE WARDEN BARS THE WAY';
+  const q = document.createElement('div');
+  q.className = 'q'; q.textContent = pick.q;
+  const row = document.createElement('div');
+  row.className = 'opts';
+  wardenEl.append(who, q, row);
+
+  opts.forEach(v=>{
+    const b = document.createElement('button');
+    b.textContent = v;
+    b.addEventListener('click', ()=> answerWarden(v === truth, pick, truth));
+    row.appendChild(b);
+  });
+  wardenEl.hidden = false;
+  row.firstChild?.focus();
+}
+
+function answerWarden(right, pick, truth){
+  const why = document.createElement('div');
+  why.className = 'why';
+  wardenEl.querySelector('.opts').remove();
+
+  if(right){
+    wardenEl.querySelector('.who').textContent = 'THE WARDEN STEPS ASIDE';
+    why.innerHTML = pick.why;
+    if(gateCell !== null) delete mobs[gateCell];
+    say('<b>The warden steps aside.</b> '+pick.q+' &rarr; '+truth+'.');
+    P.gold += 12;
+  } else {
+    wardenEl.querySelector('.who').textContent = 'THE WARDEN HOLDS';
+    why.innerHTML = 'Not that. ' + pick.why + '<br><br>It costs you 4 spiritual health. Try again.';
+    P.spi -= 4;
+    say('The warden refuses. &minus;4 spiritual.');
+    if(P.spi <= 0){ P.done = true; say('<b>Your spirit fails at the gate.</b>'); }
+  }
+
+  const go = document.createElement('button');
+  go.className = 'ghostbtn';
+  go.style.cssText = 'align-self:flex-start;color:#FFFCFF;border-color:#A1A1A1';
+  go.textContent = right ? 'Go on' : (P.done ? 'So be it' : 'Ask again');
+  go.addEventListener('click', ()=>{
+    wardenEl.hidden = true;
+    if(!right && !P.done){ askWarden(); return; }
+    gateCell = null;
+    renderHud(); drawView();
+  });
+  wardenEl.append(why, go);
+  renderHud();
+  go.focus();
+}
+
+/* ============================================================
+   TURNS
+   ============================================================ */
+function monsterTurn(){
+  const c = cellAhead(1);
+  const m = mobs[idx(c.x,c.y)];
+  if(!m || MOBS[m.key].gate) return;
+  const def = MOBS[m.key];
+  if(P.crew > 0){
+    P.crew--;
+    say('A helper steps in front of the blow and does not get up. '+P.crew+' left.');
+    return;
+  }
+  P.war -= def.hitWar; P.spi -= def.hitSpi;
+  const hits = [];
+  if(def.hitWar) hits.push(def.hitWar+' war');
+  if(def.hitSpi) hits.push(def.hitSpi+' spiritual');
+  say(def.name+' strikes for '+hits.join(' and ')+'.');
+  if(P.war<=0 || P.spi<=0){
+    P.done = true;
+    say('<b>'+(P.war<=0 ? 'Your body fails.' : 'Your spirit fails.')+'</b>');
+  }
+}
+
+function attack(){
+  if(P.intro){ P.intro = false; say('You step into the dark.'); drawView(); return; }
+  const c = cellAhead(1), i = idx(c.x,c.y), m = mobs[i];
+  if(!m){ say('You swing at empty air.'); return; }
+  if(MOBS[m.key].gate){ gateCell = i; askWarden(); return; }
+  if(m.key === 'dragon'){
+    P.done = true;
+    say('<b>You strike a sleeping dragon.</b> That was the one thing to avoid.');
+    renderHud(); drawView(); return;
+  }
+  const w = ARMS[P.weapon], def = MOBS[m.key];
+  if(w.kind === 'war') m.war -= w.dmg;
+  else if(w.kind === 'spirit') m.spi -= w.dmg;
+  else { say(w.name+' is not a weapon.'); return; }
+  say('You strike '+def.name+' with '+w.name+' for '+w.dmg+' '+w.kind+'.');
+  if(m.war <= 0 || (def.spi > 0 && m.spi <= 0)){
+    P.gold += def.gold;
+    delete mobs[i];
+    say('<b>'+def.name+' falls.</b> +'+def.gold+' treasure.');
+    if(m.key === 'minotaur'){
+      P.done = true;
+      say('<b>It drops the treasure. You take it, and the dungeon lets you go.</b>');
+    }
+  } else monsterTurn();
+  renderHud(); drawView();
+}
+
+function step(sign){
+  const [dx,dy] = DIRS[P.dir];
+  const nx = P.x+dx*sign, ny = P.y+dy*sign;
+  if(!isFloor(nx,ny)){ say('Solid rock.'); return; }
+  const pl = places[idx(nx,ny)];
+  if(pl && puzzles[pl.pid] && !P.solved[pl.pid]){ askPuzzle(pl.pid, idx(nx,ny)); return; }
+  const blocker = mobs[idx(nx,ny)];
+  if(blocker){
+    if(MOBS[blocker.key].gate){ gateCell = idx(nx,ny); askWarden(); return; }
+    say(MOBS[blocker.key].name+' blocks the way.');
+    return;
+  }
+  P.x = nx; P.y = ny;
+  const i = idx(nx,ny);
+  if(items[i]){
+    const k = items[i], a = ARMS[k];
+    if(a.kind === 'loot'){ P.gold += 15; say('You pocket jewels. +15 treasure.'); }
+    else if(a.kind === 'heal'){
+      P.war = Math.min(P.warMax, P.war+8); P.spi = Math.min(P.spiMax, P.spi+8);
+      say('You drink the potion. +8 to both tracks.');
+    } else if(a.kind === 'armor'){
+      P.warMax += 6; P.war += 6; say('You don armor. War capacity rises to '+P.warMax+'.');
+    } else {
+      P.arms[k] = true; say('You take the '+a.name+'.');
+      if(a.dmg > ARMS[P.weapon].dmg) P.weapon = k;
+    }
+    delete items[i];
+  }
+  checkDragon();
+  if(!P.done){
+    const ah = cellAhead(1), am = mobs[idx(ah.x,ah.y)];
+    if(am) say('<b>'+MOBS[am.key].name+'</b> ahead.');
+  }
+  renderHud(); drawView();
+}
+
+function turn(d){ P.dir = (P.dir+d+4)%4; checkDragon(); drawView(); }
+
+/* lay a brick in the cell you are facing */
+function layBrick(){
+  const c = cellAhead(1), i = idx(c.x,c.y);
+  if(!isFloor(c.x,c.y)){ say('Already solid.'); return; }
+  if(mobs[i]){ say('Something is standing there.'); return; }
+  if(P.bricks <= 0){ say('Out of bricks.'); return; }
+  grid[i] = ROCK;
+  P.bricks--;
+  say('You wall up the passage ahead. '+P.bricks+' bricks left.');
+  checkSealed();
+  if(!P.done) checkDragon();
+  renderHud(); drawView();
+}
+
+/* the ending he wanted: you walk out and it is still breathing */
+function checkSealed(){
+  const ds = dragonCells();
+  if(!ds.length) return;
+  const seen = reachable(P.x, P.y);
+  if(ds.some(d => seen[d])) return;
+  P.sealed = true; P.done = true;
+  const m = metrics();
+  say('<b>The last brick goes in.</b> On the other side of the wall, something enormous '+
+      'turns over in its sleep and does not wake.');
+  say('You walk out alive, and so does it. '+(brickBudget()-P.bricks)+' bricks spent.');
+  P.gold += 50 + 10*P.bricks;
+}
+
+/* approach it through open air and it wakes */
+function checkDragon(){
+  if(P.done) return;
+  const ds = dragonCells();
+  if(!ds.length) return;
+  const d = dragonDistance()[idx(P.x,P.y)];
+  if(d >= 0 && d <= wake){
+    P.done = true;
+    say('<b>Too close.</b> An eye the size of a shield opens in the dark.');
+  }
+}
+
+function cycleWeapon(kind){
+  const have = Object.keys(ARMS).filter(k => P.arms[k] && ARMS[k].kind === kind);
+  if(!have.length){ say('You carry no '+kind+' weapon.'); return; }
+  P.weapon = have[(have.indexOf(P.weapon)+1) % have.length];
+  say('Armed with '+ARMS[P.weapon].name+'.');
+  renderHud();
+}
+
+function act(a){
+  if(mode !== 'play') return;
+  if(!wardenEl.hidden) return;
+  if(P.intro && a !== 'attack'){ return; }
+  if(P.done && a !== 'restart') return;
+  switch(a){
+    case 'fwd':     step(+1); break;
+    case 'back':    step(-1); break;
+    case 'left':    turn(-1); break;
+    case 'right':   turn(+1); break;
+    case 'attack':  attack(); break;
+    case 'war':     cycleWeapon('war'); break;
+    case 'spirit':  cycleWeapon('spirit'); break;
+    case 'brick':   layBrick(); break;
+    case 'restart': startPlay(); break;
+  }
+}
+
+/* ============================================================
+   CONTROLS
+   A numpad runs 7 8 9 across the TOP; the 1983 keypad ran 1 2 3
+   across the top. They are vertical mirrors of each other, so a
+   single hardcoded map is wrong for somebody. Bindings are data,
+   and the on-screen overlay is generated from them.
+   ============================================================ */
+const ACTIONS = {
+  fwd:'Forward', back:'Back', left:'Turn left', right:'Turn right',
+  attack:'Attack', war:'War arm', spirit:'Spirit arm',
+  brick:'Lay brick', immerse:'Fullscreen', restart:'Begin again'
+};
+
+/* spatial: forward sits on the top-middle key of a real numpad */
+const PRESET_SPATIAL = {
+  fwd:['Numpad8','ArrowUp'],     back:['Numpad2','ArrowDown'],
+  left:['Numpad4','ArrowLeft'],  right:['Numpad6','ArrowRight'],
+  attack:['Numpad5','Space'],    war:['Numpad7','Digit1'],
+  spirit:['Numpad9','Digit3'],   brick:['NumpadDecimal','KeyB'],
+  immerse:['KeyF','NumpadMultiply'], restart:['Numpad0','Digit0']
+};
+/* original labels: the digits mean what they meant on the cartridge overlay */
+const PRESET_INTV = {
+  fwd:['Numpad2','ArrowUp'],     back:['Numpad8','ArrowDown'],
+  left:['Numpad4','ArrowLeft'],  right:['Numpad6','ArrowRight'],
+  attack:['Numpad5','Space'],    war:['Numpad1','Digit1'],
+  spirit:['Numpad3','Digit3'],   brick:['NumpadDecimal','KeyB'],
+  immerse:['KeyF','NumpadMultiply'], restart:['Numpad0','Digit0']
+};
+
+let binds = JSON.parse(JSON.stringify(PRESET_SPATIAL));
+
+const KEY_LABEL = code =>
+  code.replace(/^Numpad/,'num ').replace(/^Digit/,'').replace(/^Arrow/,'')
+      .replace('Space','space');
+
+/* physical numpad order — top row first, exactly as the hardware is */
+const PAD = ['Numpad7','Numpad8','Numpad9',
+             'Numpad4','Numpad5','Numpad6',
+             'Numpad1','Numpad2','Numpad3',
+             'Numpad0','NumpadDecimal'];
+
+function actionForCode(code){
+  for(const a in binds) if(binds[a].includes(code)) return a;
+  return null;
+}
+
+const keypadEl = document.getElementById('keypad');
+function drawKeypad(){
+  keypadEl.innerHTML = '';
+  PAD.forEach(code=>{
+    const a = actionForCode(code);
+    const b = document.createElement('button');
+    if(code === 'Numpad0') b.className = 'w2';
+    b.innerHTML = '<span class="kn">'+code.replace('Numpad','').replace('Decimal','.')+'</span>'+
+                  '<span class="kf">'+(a ? ACTIONS[a] : '—')+'</span>';
+    if(!a) b.disabled = true;
+    else b.addEventListener('click', ()=> act(a));
+    keypadEl.appendChild(b);
+  });
+}
+
+const bindsEl = document.getElementById('binds');
+let listeningFor = null;
+function drawBinds(){
+  bindsEl.innerHTML = '';
+  Object.entries(ACTIONS).forEach(([a,label])=>{
+    const row = document.createElement('div');
+    row.className = 'bindrow';
+    const name = document.createElement('span');
+    name.className = 'ba'; name.textContent = label;
+    const btn = document.createElement('button');
+    btn.textContent = binds[a].map(KEY_LABEL).join(' / ');
+    btn.title = 'Click, then press a key';
+    btn.addEventListener('click', ()=>{
+      listeningFor = a;
+      drawBinds();
+      bindsEl.querySelectorAll('button').forEach(x=>{
+        if(x.previousSibling && x.previousSibling.textContent === label){
+          x.dataset.listening = '1'; x.textContent = 'press a key…';
+        }
+      });
+    });
+    if(listeningFor === a){ btn.dataset.listening = '1'; btn.textContent = 'press a key…'; }
+    row.append(name, btn);
+    bindsEl.appendChild(row);
+  });
+}
+
+function applyPreset(pr){
+  binds = JSON.parse(JSON.stringify(pr));
+  listeningFor = null;
+  drawKeypad(); drawBinds(); save();
+}
+document.getElementById('presetSpatial').addEventListener('click', ()=> applyPreset(PRESET_SPATIAL));
+document.getElementById('presetIntv').addEventListener('click',    ()=> applyPreset(PRESET_INTV));
+
+addEventListener('keydown', e=>{
+  /* a focused field owns its keystrokes; otherwise typing "f" in the puzzle
+     editor would throw the page into fullscreen */
+  const t = e.target;
+  if(t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+  /* rebinding takes the next key regardless of mode */
+  if(listeningFor){
+    e.preventDefault();
+    if(e.code === 'Escape'){ listeningFor = null; drawBinds(); return; }
+    for(const a in binds) binds[a] = binds[a].filter(c => c !== e.code);
+    binds[listeningFor] = [e.code];
+    listeningFor = null;
+    drawKeypad(); drawBinds(); save();
+    return;
+  }
+  if(e.code === 'Escape'){
+    if(isImmersive()){ e.preventDefault(); setImmersive(false); return; }
+    if(mode === 'play'){ e.preventDefault(); setMode('create'); return; }
+  }
+  const a = actionForCode(e.code);
+  if(!a) return;
+  if(a === 'immerse'){ e.preventDefault(); setImmersive(!isImmersive()); return; }
+  if(mode !== 'play') return;
+  e.preventDefault();
+  act(a);
+});
+
+/* ============================================================
+   IMMERSIVE MODE
+   Native fullscreen is requested but never relied on: artifact
+   frames may refuse it, so the CSS class does the real work and
+   the API is a bonus when it is granted.
+   ============================================================ */
+const isImmersive = () => document.documentElement.classList.contains('immersive');
+
+function fitStage(){
+  if(!isImmersive()){ viewCv.style.width = ''; viewCv.style.height = ''; return; }
+  const ar = viewCv.width / viewCv.height;
+  const pad = 46;                                  // leave the strip its room
+  let w = innerWidth, h = w/ar;
+  if(h > innerHeight - pad){ h = innerHeight - pad; w = h*ar; }
+  viewCv.style.width  = Math.max(160, Math.floor(w)) + 'px';
+  viewCv.style.height = Math.max(110, Math.floor(h)) + 'px';
+}
+
+function setImmersive(on){
+  if(on && mode !== 'play') setMode('play', {noImmersive:true});
+  document.documentElement.classList.toggle('immersive', !!on);
+  document.getElementById('imHud').setAttribute('aria-hidden', String(!on));
+  if(on){
+    const el = document.documentElement;
+    if(el.requestFullscreen) el.requestFullscreen().catch(()=>{});
+  } else if(document.fullscreenElement){
+    document.exitFullscreen?.().catch(()=>{});
+  }
+  fitStage();
+  if(P) renderHud();
+}
+addEventListener('resize', fitStage);
+document.addEventListener('fullscreenchange', ()=>{
+  /* leaving via the browser's own chrome should also drop the class */
+  if(!document.fullscreenElement && isImmersive()) setImmersive(false);
+});
+document.getElementById('imBtn').addEventListener('click', ()=> setImmersive(true));
+document.getElementById('imExit').addEventListener('click', ()=> setImmersive(false));
+
+/* ============================================================
+   PRESETS — each one is a lesson
+   ============================================================ */
+function blank(){ grid = new Uint8Array(GW*GH); items = {}; mobs = {}; places = {}; }
+function rect(x0,y0,w,h){
+  for(let y=y0;y<y0+h;y++) for(let x=x0;x<x0+w;x++) if(inside(x,y)) grid[idx(x,y)] = FLOOR;
+}
+function put(x,y,k){
+  const i = idx(x,y); grid[i] = FLOOR;
+  if(ARMS[k]) items[i] = k;
+  else mobs[i] = {key:k, war:MOBS[k].war, spi:MOBS[k].spi};
+}
+
+const PRESETS = {
+  hall: {
+    label:'Open Hall', note:'16 cells, A=16, P=16 — index exactly 1.00',
+    build(){ blank(); rect(4,4,4,4); start={x:5,y:7,dir:0};
+      put(6,4,'dragon'); put(4,4,'jewel'); }
+  },
+  snake: {
+    label:'Snake Corridor', note:'the same 16 cells folded — same volume, double the wall',
+    build(){ blank();
+      rect(2,2,7,1); rect(8,3,1,1); rect(2,4,7,1); rect(2,5,1,1); rect(2,6,7,1);
+      start={x:2,y:2,dir:1};
+      put(8,4,'snake'); put(5,6,'rat'); put(2,6,'fire'); }
+  },
+  apart: {
+    label:'Two Rooms Apart', note:'two 3×3 chambers, A=18 but P=24',
+    build(){ blank(); rect(1,4,3,3); rect(7,4,3,3);
+      start={x:2,y:6,dir:0}; put(8,5,'scorpion'); put(2,4,'sword'); }
+  },
+  joined: {
+    label:'Two Rooms Joined', note:'the same 18 cells pushed together — P drops to 18',
+    build(){ blank(); rect(3,4,6,3);
+      start={x:4,y:6,dir:0}; put(7,5,'scorpion'); put(3,4,'sword'); }
+  },
+  keep: {
+    label:'The Deep Keep', note:'a full warren with a warden at the gate',
+    build(){ blank();
+      rect(1,1,9,1); rect(1,1,1,9); rect(9,1,1,9); rect(1,9,9,1);
+      rect(3,3,1,5); rect(5,3,1,3); rect(7,4,1,5); rect(3,3,5,1); rect(4,7,4,1);
+      rect(5,5,1,1);
+      start={x:1,y:9,dir:0};
+      put(5,5,'minotaur'); put(5,4,'warden');
+      put(1,1,'fire'); put(9,1,'sword'); put(9,9,'armor');
+      put(3,5,'snake'); put(7,7,'dragon'); put(5,1,'bat'); put(1,5,'rat');
+      put(7,3,'jewel'); put(4,9,'potion'); put(6,9,'book'); }
+  }
+};
+
+/* ============================================================
+   PUZZLE EDITOR
+   ============================================================ */
+let pzSel = null;
+
+function newPid(){ let n=1; while(puzzles['p'+n]) n++; return 'p'+n; }
+function placementsOf(pid){
+  return Object.keys(places).filter(k => places[k].pid === pid).length;
+}
+function pruneOrphans(){
+  let n = 0;
+  for(const k in places) if(!puzzles[places[k].pid]){ delete places[k]; n++; }
+  return n;
+}
+
+function drawPuzzles(){
+  const list = document.getElementById('pzList');
+  list.innerHTML = '';
+  const ids = Object.keys(puzzles);
+  if(!ids.length){
+    const e = document.createElement('div');
+    e.style.cssText = 'font-size:11.5px;color:var(--ink-3)';
+    e.textContent = 'None yet. Write one below, then place it from the Brush panel.';
+    list.appendChild(e);
+  }
+  ids.forEach(pid=>{
+    const z = puzzles[pid], n = placementsOf(pid);
+    const row = document.createElement('div');
+    row.className = 'pzrow';
+    if(pzSel === pid) row.dataset.sel = '1';
+    const t = document.createElement('span');
+    t.className = 'pzt'; t.textContent = z.title || '(untitled)';
+    const c = document.createElement('span');
+    c.className = 'pzc'; c.textContent = n ? n+'×' : 'unplaced';
+    const ed = document.createElement('button');
+    ed.textContent = 'edit';
+    ed.addEventListener('click', ()=> loadPuzzle(pid));
+    const rm = document.createElement('button');
+    rm.textContent = 'delete';
+    rm.addEventListener('click', ()=>{
+      const k = placementsOf(pid);
+      if(k && !confirm('"'+(z.title||pid)+'" is placed '+k+
+        ' time'+(k>1?'s':'')+' on the board. Delete it and remove those placements?')) return;
+      delete puzzles[pid];
+      pruneOrphans();
+      if(pzSel === pid){ pzSel = null; clearForm(); }
+      if(brush === 'pz:'+pid) brush = 'carve';
+      refreshPuzzleUI();
+    });
+    row.append(t,c,ed,rm);
+    list.appendChild(row);
+  });
+
+  /* placement brushes are generated from the records, never maintained apart */
+  const host = document.getElementById('toolsPz');
+  host.innerHTML = '';
+  if(!ids.length){
+    const e = document.createElement('div');
+    e.style.cssText = 'font-size:11px;color:var(--ink-3)';
+    e.textContent = 'Write a puzzle first.';
+    host.appendChild(e);
+  }
+  ids.forEach(pid => paletteButton(host, 'pz:'+pid, puzzles[pid].title || pid, IV.E));
+
+  /* the integrity report — the thing references cost you */
+  const rep = document.getElementById('pzReport');
+  if(!ids.length){ rep.innerHTML = 'No puzzles yet.'; return; }
+  const unplaced = ids.filter(pid => !placementsOf(pid));
+  const noAnswer = ids.filter(pid => !String(puzzles[pid].answer ?? '').trim());
+  const bits = [];
+  bits.push('<b>'+ids.length+'</b> puzzle'+(ids.length>1?'s':'')+', '+
+            Object.keys(places).length+' placement'+(Object.keys(places).length===1?'':'s')+'.');
+  if(unplaced.length) bits.push('<b>Unplaced:</b> '+
+    unplaced.map(p=>puzzles[p].title||p).join(', ')+' — they can never be met.');
+  if(noAnswer.length) bits.push('<b>No answer set:</b> '+
+    noAnswer.map(p=>puzzles[p].title||p).join(', ')+' — these can never be solved.');
+  if(!unplaced.length && !noAnswer.length) bits.push('All placed, all answerable.');
+  rep.innerHTML = bits.join(' ');
+}
+
+function clearForm(){
+  ['pzTitle','pzPrompt','pzAnswer','pzHint'].forEach(id=>
+    document.getElementById(id).value = '');
+}
+function loadPuzzle(pid){
+  const z = puzzles[pid]; if(!z) return;
+  pzSel = pid;
+  document.getElementById('pzTitle').value  = z.title  || '';
+  document.getElementById('pzPrompt').value = z.prompt || '';
+  document.getElementById('pzAnswer').value = z.answer || '';
+  document.getElementById('pzHint').value   = z.hint   || '';
+  drawPuzzles();
+}
+function refreshPuzzleUI(){ drawPuzzles(); drawPlan(); renderMetrics(); save(); }
+
+document.getElementById('pzNew').addEventListener('click', ()=>{
+  pzSel = null; clearForm(); drawPuzzles();
+  document.getElementById('pzTitle').focus();
+});
+document.getElementById('pzSave').addEventListener('click', ()=>{
+  const title  = document.getElementById('pzTitle').value.trim();
+  const prompt = document.getElementById('pzPrompt').value.trim();
+  const answer = document.getElementById('pzAnswer').value.trim();
+  const hint   = document.getElementById('pzHint').value.trim();
+  if(!prompt){ alert('A puzzle needs something to ask.'); return; }
+  const pid = pzSel || newPid();
+  puzzles[pid] = {title: title || 'Puzzle '+pid.slice(1), prompt, answer, hint};
+  pzSel = pid;
+  brush = 'pz:'+pid;
+  refreshPuzzleUI();
+  document.querySelectorAll('[data-brush]').forEach(x=>
+    x.setAttribute('aria-pressed', String(x.dataset.brush === brush)));
+});
+
+/* ============================================================
+   BUNDLE — the level leaves the browser as JSON
+   ============================================================ */
+function bundleOut(){
+  return {
+    format:'dragonkeep.level', version:1,
+    grid:Array.from(grid), items, mobs, places, puzzles,
+    start, height, fog, wake, helpers
+  };
+}
+const bMsg = document.getElementById('bMsg');
+document.getElementById('bExport').addEventListener('click', ()=>{
+  document.getElementById('bundle').value = JSON.stringify(bundleOut(), null, 1);
+  bMsg.innerHTML = 'Exported. Select all, copy, and keep it anywhere you like.';
+});
+document.getElementById('bCopy').addEventListener('click', ()=>{
+  const t = document.getElementById('bundle');
+  t.focus(); t.select();
+  try{ navigator.clipboard?.writeText(t.value); bMsg.textContent = 'Copied to the clipboard.'; }
+  catch(e){ bMsg.textContent = 'Selected — press Ctrl+C.'; }
+});
+document.getElementById('bImport').addEventListener('click', ()=>{
+  const raw = document.getElementById('bundle').value.trim();
+  if(!raw){ bMsg.innerHTML = '<b>Nothing to import.</b> Paste a bundle first.'; return; }
+  let d;
+  try{ d = JSON.parse(raw); }
+  catch(e){ bMsg.innerHTML = '<b>Not valid JSON.</b> '+e.message; return; }
+  /* validate before touching live state — a half-applied level is worse than none */
+  if(!d || !Array.isArray(d.grid) || d.grid.length !== GW*GH){
+    bMsg.innerHTML = '<b>Refused.</b> Expected a grid of '+(GW*GH)+' cells, got '+
+      (Array.isArray(d && d.grid) ? d.grid.length : 'none')+'. Nothing changed.';
+    return;
+  }
+  grid    = Uint8Array.from(d.grid, v => v ? FLOOR : ROCK);
+  items   = (d.items   && typeof d.items   === 'object') ? d.items   : {};
+  mobs    = (d.mobs    && typeof d.mobs    === 'object') ? d.mobs    : {};
+  places  = (d.places  && typeof d.places  === 'object') ? d.places  : {};
+  puzzles = (d.puzzles && typeof d.puzzles === 'object') ? d.puzzles : {};
+  start   = d.start || start;
+  height  = +d.height  || 2;
+  fog     = (typeof d.fog === 'number') ? d.fog : 1;
+  wake    = +d.wake    || 2;
+  helpers = (typeof d.helpers === 'number') ? d.helpers : 2;
+  const orph = pruneOrphans();
+  document.getElementById('hSlider').value = height;
+  document.getElementById('hOut').textContent = height;
+  document.getElementById('fogSlider').value = fog;
+  document.getElementById('fogOut').textContent = FOG_NAME[fog];
+  document.getElementById('wakeSlider').value = wake;
+  document.getElementById('wakeOut').textContent = wake;
+  document.getElementById('helpSlider').value = helpers;
+  document.getElementById('helpOut').textContent = helpers;
+  pzSel = null; clearForm();
+  refreshPuzzleUI();
+  bMsg.innerHTML = 'Imported.' + (orph ? ' Dropped '+orph+' placement(s) with no puzzle behind them.' : '');
+});
+
+const presetsEl = document.getElementById('presets');
+Object.entries(PRESETS).forEach(([k,p])=>{
+  const b = document.createElement('button');
+  b.innerHTML = p.label + '<span>' + p.note + '</span>';
+  b.addEventListener('click', ()=>{ p.build(); drawPlan(); renderMetrics(); save(); });
+  presetsEl.appendChild(b);
+});
+
+/* ============================================================
+   BRUSH PALETTE
+   ============================================================ */
+function paletteButton(host, key, label, color){
+  const b = document.createElement('button');
+  b.setAttribute('aria-pressed', String(brush === key));
+  b.dataset.brush = key;
+  b.innerHTML = '<span class="sw" style="background:'+color+'"></span>'+label;
+  b.addEventListener('click', ()=>{
+    brush = key;
+    document.querySelectorAll('[data-brush]').forEach(x=>
+      x.setAttribute('aria-pressed', String(x.dataset.brush === key)));
+  });
+  host.appendChild(b);
+}
+[{k:'carve',label:'Carve', c:'linear-gradient(135deg,'+IV.K+' 0 48%,'+IV.N+' 48% 100%)'},
+ {k:'floor',label:'Floor',  c:IV.N},
+ {k:'rock', label:'Rock',   c:IV.K},
+ {k:'start',label:'Start',  c:IV.C},
+ {k:'erase',label:'Clear',  c:IV.A}]
+  .forEach(s => paletteButton(document.getElementById('toolsStruct'), s.k, s.label, s.c));
+
+const ITEM_COLOR = {sword:IV.A, armor:IV.C, book:IV.C, fire:IV.O, jewel:IV.P, potion:IV.L};
+['sword','armor','book','fire','jewel','potion'].forEach(k =>
+  paletteButton(document.getElementById('toolsItem'), k, ARMS[k].name, ITEM_COLOR[k]));
+
+const MOB_COLOR = {rat:IV.A, bat:IV.A, snake:IV.G, scorpion:IV.O,
+                   dragon:IV.R, minotaur:IV.U, warden:IV.Y};
+Object.keys(MOBS).forEach(k =>
+  paletteButton(document.getElementById('toolsMob'), k, MOBS[k].name, MOB_COLOR[k]));
+
+/* ============================================================
+   PERSISTENCE — a per-viewer convenience, never load-bearing
+   ============================================================ */
+const KEY = 'dragonkeep-applet-plan-v1';
+function save(){
+  try{
+    localStorage.setItem(KEY, JSON.stringify({
+      g:Array.from(grid), items, mobs, start, height, fog, binds, wake, helpers,
+      places, puzzles
+    }));
+  }catch(e){ /* private window or blocked storage — the page works regardless */ }
+}
+function load(){
+  try{
+    const raw = localStorage.getItem(KEY);
+    if(!raw) return false;
+    const d = JSON.parse(raw);
+    if(!d || !Array.isArray(d.g) || d.g.length !== GW*GH) return false;
+    grid  = Uint8Array.from(d.g);
+    items = d.items || {}; mobs = d.mobs || {};
+    start = d.start || start;
+    height = d.height || 2;
+    fog = (typeof d.fog === 'number') ? d.fog : 1;
+    if(d.binds && d.binds.fwd) binds = d.binds;
+    if(typeof d.wake === 'number') wake = d.wake;
+    if(typeof d.helpers === 'number') helpers = d.helpers;
+    places  = (d.places  && typeof d.places  === 'object') ? d.places  : {};
+    puzzles = (d.puzzles && typeof d.puzzles === 'object') ? d.puzzles : {};
+    pruneOrphans();
+    return true;
+  }catch(e){ return false; }
+}
+
+/* ============================================================
+   MODES
+   ============================================================ */
+const createView = document.getElementById('createView');
+const playView   = document.getElementById('playView');
+const mCreate = document.getElementById('mCreate');
+const mPlay   = document.getElementById('mPlay');
+
+function startPlay(){
+  if(!isFloor(start.x,start.y)){
+    const first = grid.indexOf(FLOOR);
+    if(first < 0){ alert('This plan is solid rock. Draw some floor first.'); return false; }
+    start.x = first % GW; start.y = (first/GW)|0;
+  }
+  P = freshPlayer();
+  gateCell = null;
+  wardenEl.hidden = true;
+  document.getElementById('log').innerHTML = '';
+  const m = metrics();
+  say('You enter <b>'+m.V+' cubic units</b> of darkness, walled by <b>'+m.wall+' square units</b> of stone.');
+  say('Maze index '+m.index.toFixed(2)+'. Mist: '+FOG_NAME[fog]+'.');
+  if(dragonCells().length){
+    const sc = sealCost();
+    say('You carry <b>'+P.bricks+' bricks</b> and '+P.crew+' helpers. Wall the dragon in &mdash; '+
+        'do not fight it, and never come within <b>'+wake+'</b> steps.');
+    if(sc && isFinite(sc.need)) say('The tightest reachable wall needs '+sc.need+' bricks.');
+  }
+  renderHud(); drawView();
+  return true;
+}
+/* Play always runs lean; Creator runs lean only if asked. */
+let leanWanted = false;
+function applyLean(){
+  const el = document.querySelector('.wrap');
+  const on = leanWanted || mode === 'play';
+  el.classList.toggle('lean', on);
+  const b = document.getElementById('leanBtn');
+  b.setAttribute('aria-pressed', String(on));
+  b.textContent = on ? 'Show title' : 'Hide title';
+  b.disabled = (mode === 'play');
+  b.title = mode === 'play'
+    ? 'The title stays hidden while playing'
+    : (leanWanted ? 'Show the title and tagline' : 'Hide the title and tagline');
+}
+
+function setMode(next, opts){
+  if(next === 'play' && !startPlay()) return;
+  mode = next;
+  const playing = next === 'play';
+  createView.hidden = playing;
+  playView.hidden = !playing;
+  mCreate.setAttribute('aria-pressed', String(!playing));
+  mPlay.setAttribute('aria-pressed', String(playing));
+  applyLean();
+  if(!playing){
+    if(isImmersive()) setImmersive(false);
+    P = null; wardenEl.hidden = true; drawPlan(); renderMetrics();
+  } else {
+    renderHud(); drawView();
+    /* Pressing Play means "play", so go straight to the full screen. The
+       opts guard stops setImmersive's own call to setMode looping back. */
+    if(!(opts && opts.noImmersive)) setImmersive(true);
+  }
+}
+mCreate.addEventListener('click', ()=> setMode('create'));
+mPlay.addEventListener('click',   ()=> setMode('play'));
+
+document.getElementById('hSlider').addEventListener('input', e=>{
+  height = +e.target.value;
+  document.getElementById('hOut').textContent = height;
+  renderMetrics(); save();
+});
+document.getElementById('fogSlider').addEventListener('input', e=>{
+  fog = +e.target.value;
+  document.getElementById('fogOut').textContent = FOG_NAME[fog];
+  save();
+});
+document.getElementById('leanBtn').addEventListener('click', ()=>{
+  leanWanted = !leanWanted;
+  applyLean();
+  try{ localStorage.setItem('dragonkeep-applet-lean', leanWanted ? '1' : '0'); }catch(e){}
+});
+document.getElementById('wakeSlider').addEventListener('input', e=>{
+  wake = +e.target.value;
+  document.getElementById('wakeOut').textContent = wake;
+  renderMetrics(); save();
+});
+document.getElementById('helpSlider').addEventListener('input', e=>{
+  helpers = +e.target.value;
+  document.getElementById('helpOut').textContent = helpers;
+  renderMetrics(); save();
+});
+document.getElementById('clearBtn').addEventListener('click', ()=>{
+  blank(); drawPlan(); renderMetrics(); save();
+});
+
+/* ============================================================
+   COLLAPSIBLE PANELS
+   Built from whatever panels exist rather than wired per panel,
+   so adding one later needs no change here.
+   ============================================================ */
+const PANEL_KEY = 'dragonkeep-applet-panels-v1';
+const SHUT_BY_DEFAULT = ['puzzles-riddles','save-share','worked-examples','controls'];
+let panelState = {};
+try{ panelState = JSON.parse(localStorage.getItem(PANEL_KEY) || '{}') || {}; }catch(e){}
+
+const panelSlugs = [];
+function savePanels(){
+  try{ localStorage.setItem(PANEL_KEY, JSON.stringify(panelState)); }catch(e){}
+}
+function setPanel(slug, open){
+  panelState[slug] = open ? 1 : 0;
+  const el = document.querySelector('[data-panel="'+slug+'"]');
+  if(!el) return;
+  el.classList.toggle('collapsed', !open);
+  const btn = el.querySelector('.phead');
+  if(btn) btn.setAttribute('aria-expanded', String(!!open));
+}
+function initPanels(){
+  document.querySelectorAll('.panel > h2').forEach(h=>{
+    const panel = h.parentElement;
+    const label = h.textContent.trim();
+    const slug = label.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'');
+    panel.dataset.panel = slug;
+    panelSlugs.push(slug);
+
+    h.textContent = '';
+    const btn = document.createElement('button');
+    btn.type = 'button'; btn.className = 'phead';
+    const name = document.createElement('span'); name.textContent = label;
+    const chev = document.createElement('span'); chev.className = 'chev'; chev.textContent = '\u25BE';
+    btn.append(name, chev);
+    h.appendChild(btn);
+
+    const open = (slug in panelState)
+      ? !!panelState[slug]
+      : !SHUT_BY_DEFAULT.includes(slug);
+    setPanel(slug, open);
+    btn.addEventListener('click', ()=>{
+      setPanel(slug, panel.classList.contains('collapsed'));
+      savePanels();
+    });
+  });
+  document.getElementById('allOpen').addEventListener('click', ()=>{
+    panelSlugs.forEach(sl => setPanel(sl, true)); savePanels();
+  });
+  document.getElementById('allShut').addEventListener('click', ()=>{
+    panelSlugs.forEach(sl => setPanel(sl, false)); savePanels();
+  });
+}
+
+/* ============================================================
+   ABOUT — the suite's standard panel, opened from the logo
+   ============================================================ */
+const aboutOverlay = document.getElementById('aboutOverlay');
+
+function showAboutTab(which){
+  document.querySelectorAll('#aboutTabs .set-tab').forEach(t =>
+    t.classList.toggle('on', t.dataset.about === which));
+  document.querySelectorAll('.about-pane').forEach(pane =>
+    pane.classList.toggle('on', pane.id === 'about-' + which));
+}
+function openAbout(which){
+  /* Counted from the live data rather than typed, so it cannot go stale.
+     A number that is quietly wrong is worse than no number at all. */
+  const np = Object.keys(puzzles).length;
+  document.getElementById('aboutBuild').textContent = [
+    Object.keys(IV).length + ' colours',
+    GW + '×' + GH + ' grid',
+    Object.keys(SPRITES).length + ' sprites',
+    Object.keys(PRESETS).length + ' worked examples',
+    np + ' puzzle' + (np === 1 ? '' : 's')
+  ].join('  ·  ');
+  showAboutTab(typeof which === 'string' ? which : 'app');
+  aboutOverlay.classList.add('open');
+  document.getElementById('aboutClose').focus();
+}
+function closeAbout(){ aboutOverlay.classList.remove('open'); }
+
+document.getElementById('aboutBtn').addEventListener('click', ()=> openAbout('app'));
+document.getElementById('aboutClose').addEventListener('click', closeAbout);
+aboutOverlay.addEventListener('click', e=>{ if(e.target === aboutOverlay) closeAbout(); });
+document.addEventListener('click', e=>{
+  const t = e.target.closest && e.target.closest('#aboutTabs .set-tab');
+  if(t) showAboutTab(t.dataset.about);
+});
+document.getElementById('aboutExport').addEventListener('click', e=>{
+  e.preventDefault();
+  closeAbout();
+  if(mode !== 'create') setMode('create');
+  setPanel('save-share', true); savePanels();
+  document.getElementById('bExport').click();
+  document.getElementById('bundle').scrollIntoView({block:'center'});
+});
+/* capture phase, so Escape closes the dialog before anything else claims it */
+addEventListener('keydown', e=>{
+  if(e.key === 'Escape' && aboutOverlay.classList.contains('open')){
+    e.preventDefault(); e.stopPropagation(); closeAbout();
+  }
+}, true);
+
+/* ============================================================
+   BOOT — open in a real working state, never an empty shell
+   ============================================================ */
+(function boot(){
+  if(!load()) PRESETS.keep.build();
+  document.getElementById('hSlider').value = height;
+  document.getElementById('hOut').textContent = height;
+  document.getElementById('fogSlider').value = fog;
+  document.getElementById('fogOut').textContent = FOG_NAME[fog];
+  document.getElementById('wakeSlider').value = wake;
+  document.getElementById('wakeOut').textContent = wake;
+  document.getElementById('helpSlider').value = helpers;
+  document.getElementById('helpOut').textContent = helpers;
+  try{ leanWanted = localStorage.getItem('dragonkeep-applet-lean') === '1'; }catch(e){}
+  applyLean();
+  initPanels();
+  drawKeypad();
+  drawBinds();
+  drawPuzzles();
+  drawPlan();
+  renderMetrics();
+})();
+</script>

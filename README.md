@@ -43,6 +43,9 @@ Watch the principal-vs-interest split on a monthly mortgage payment over the ful
 ### 📐 [Pell Explorer](../../Ohio-Journal-Summer-2026/Apps/pell-explorer/index.html)
 Explore the mathematics of Pell’s equation and its solutions, inspired by the work of Indian mathematicians. Visualize integer solutions and patterns interactively.
 
+### 🐉 [Dragonkeep](https://ohiomathteacher.github.io/applet-library/dragonkeep/)
+Draw a dungeon floor plan and it becomes a prism you can walk through. The editor measures area, perimeter, volume and surface area live; the dragon is won by walling it in rather than killing it, which makes "is this level winnable?" a minimum cut.
+
 ---
 
 ## About

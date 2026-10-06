@@ -1616,7 +1616,7 @@ function monsterTurn(){
 
 function attack(){
   if(P.intro){ P.intro = false; say('You step into the dark.');
-    wakeAudio(); sfx('descend'); drawView(); return; }
+    wakeAudio(); sfx('descend'); renderHud(); drawView(); return; }
   const c = cellAhead(1), i = idx(c.x,c.y), m = mobs[i];
   if(!m){ say('You swing at empty air.'); return; }
   if(MOBS[m.key].gate){ gateCell = i; askWarden(); return; }
@@ -2240,6 +2240,12 @@ function startPlay(){
     if(sc && isFinite(sc.need)) say('The tightest reachable wall needs '+sc.need+' bricks.');
   }
   renderHud(); drawView();
+  /* Pressing Play is the gesture browsers want, so the clock can start here. */
+  wakeAudio();
+  sfx('title');
+  /* It is already down there. Nothing else touches the breath until the first
+     move, so this level holds for as long as the title card is up. */
+  if(dragonCells().length) setBreath(3);
   return true;
 }
 /* Play always runs lean; Creator runs lean only if asked. */
@@ -2584,6 +2590,18 @@ const SFX = {
                  [262, 330, 392, 523, 659].forEach((f, i) =>
                    tone(f, 180, 12, c.currentTime + i * 0.13)); },
   death:   ()=>{ slide(300, 55, 900, 13); burst(700, 9, 0.3); },
+  title:   ()=>{ const c = audio(); if(!c) return;
+                 const t0 = c.currentTime + 0.06;
+                 /* D minor, up and back down — square channel one */
+                 let t = t0;
+                 [[147,190],[175,190],[220,190],[294,280],
+                  [220,170],[175,170],[147,460]].forEach(([f,ms])=>{
+                   tone(f, ms, 12, t); t += (ms/1000) * 0.93;
+                 });
+                 /* a drone underneath on channel two, the way a 1981 title
+                    screen held one low note behind the melody */
+                 tone(73, 1750, 7, t0);
+                 tone(110, 1750, 5, t0 + 0.02); },
   roar:    ()=>{ burst(1100, 15, 0.14); slide(120, 48, 1100, 13); }
 };
 function sfx(name){

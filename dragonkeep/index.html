@@ -566,6 +566,7 @@
       </div>
       <div style="display:flex;gap:6px;margin-top:11px;flex-wrap:wrap">
         <button class="ghostbtn" id="imBtn">Fullscreen</button>
+        <button class="ghostbtn" id="sndBtn" aria-pressed="true">Sound on</button>
         <span style="font-size:11.5px;color:var(--ink-3);align-self:center">
           or press <b>F</b> &middot; Esc to leave
         </span>
@@ -657,6 +658,7 @@
     <span><u>bricks</u><b id="imBrick">0</b></span>
     <span><u>helpers</u><b id="imCrew">0</b></span>
     <span><u>dragon</u><b class="d" id="imNear">&mdash;</b></span>
+    <span><u>sound</u><b id="imSnd">on</b></span>
     <span style="color:#7E7986">Esc leaves</span>
     <button id="imExit">Leave fullscreen</button>
   </div>
@@ -1396,14 +1398,17 @@ function renderHud(){
   const nearEl = document.getElementById('hNear'), noteEl = document.getElementById('hNearNote');
   const tile = document.getElementById('dangerTile');
   if(!ds.length){
+    setBreath(-1);
     nearEl.textContent = '—'; noteEl.textContent = 'no dragon here';
     tile.style.borderColor = ''; nearEl.style.color = '';
   } else {
     const d = dragonDistance()[idx(P.x,P.y)];
     if(d < 0){
+      setBreath(-1);
       nearEl.textContent = 'walled'; noteEl.textContent = 'no open path to it';
       tile.style.borderColor = '#00A720'; nearEl.style.color = '#00780F';
     } else {
+      setBreath(d);
       nearEl.textContent = d + (d === 1 ? ' step' : ' steps');
       const margin = d - wake;
       noteEl.textContent = margin <= 1 ? 'it stirs — back away' : 'wakes within '+wake;
@@ -1479,6 +1484,7 @@ function askPuzzle(pid, cell){
   row.append(inp, ok, away);
   wardenEl.append(who, q, row);
   wardenEl.hidden = false;
+  sfx('gate');
   inp.focus();
 
   const close = () => { wardenEl.hidden = true; renderHud(); drawView(); };
@@ -1491,12 +1497,14 @@ function askPuzzle(pid, cell){
                                   : given.toLowerCase() === want.toLowerCase());
     if(right){
       P.solved[pid] = 1;
+      sfx('right');
       delete places[cell];
       P.gold += 20;
       say('<b>'+(z.title||'The sigil')+' yields.</b> The way is open. +20 treasure.');
       close();
     } else {
       P.spi -= 3;
+      sfx('wrong');
       say('Wrong. &minus;3 spiritual.' + (z.hint ? ' ('+z.hint+')' : ''));
       if(P.spi <= 0){ P.done = true; say('<b>Your spirit fails at the sigil.</b>'); close(); return; }
       inp.value = ''; inp.focus();
@@ -1543,6 +1551,7 @@ function askWarden(){
     row.appendChild(b);
   });
   wardenEl.hidden = false;
+  sfx('gate');
   row.firstChild?.focus();
 }
 
@@ -1598,6 +1607,7 @@ function monsterTurn(){
   if(def.hitWar) hits.push(def.hitWar+' war');
   if(def.hitSpi) hits.push(def.hitSpi+' spiritual');
   say(def.name+' strikes for '+hits.join(' and ')+'.');
+  sfx('hurt');
   if(P.war<=0 || P.spi<=0){
     P.done = true;
     say('<b>'+(P.war<=0 ? 'Your body fails.' : 'Your spirit fails.')+'</b>');
@@ -1605,7 +1615,8 @@ function monsterTurn(){
 }
 
 function attack(){
-  if(P.intro){ P.intro = false; say('You step into the dark.'); drawView(); return; }
+  if(P.intro){ P.intro = false; say('You step into the dark.');
+    wakeAudio(); sfx('descend'); drawView(); return; }
   const c = cellAhead(1), i = idx(c.x,c.y), m = mobs[i];
   if(!m){ say('You swing at empty air.'); return; }
   if(MOBS[m.key].gate){ gateCell = i; askWarden(); return; }
@@ -1619,6 +1630,7 @@ function attack(){
   else if(w.kind === 'spirit') m.spi -= w.dmg;
   else { say(w.name+' is not a weapon.'); return; }
   say('You strike '+def.name+' with '+w.name+' for '+w.dmg+' '+w.kind+'.');
+  sfx('hit');
   if(m.war <= 0 || (def.spi > 0 && m.spi <= 0)){
     P.gold += def.gold;
     delete mobs[i];
@@ -1634,7 +1646,7 @@ function attack(){
 function step(sign){
   const [dx,dy] = DIRS[P.dir];
   const nx = P.x+dx*sign, ny = P.y+dy*sign;
-  if(!isFloor(nx,ny)){ say('Solid rock.'); return; }
+  if(!isFloor(nx,ny)){ say('Solid rock.'); sfx('bump'); return; }
   const pl = places[idx(nx,ny)];
   if(pl && puzzles[pl.pid] && !P.solved[pl.pid]){ askPuzzle(pl.pid, idx(nx,ny)); return; }
   const blocker = mobs[idx(nx,ny)];
@@ -1643,7 +1655,7 @@ function step(sign){
     say(MOBS[blocker.key].name+' blocks the way.');
     return;
   }
-  P.x = nx; P.y = ny;
+  P.x = nx; P.y = ny; sfx('step');
   const i = idx(nx,ny);
   if(items[i]){
     const k = items[i], a = ARMS[k];
@@ -1658,6 +1670,7 @@ function step(sign){
       if(a.dmg > ARMS[P.weapon].dmg) P.weapon = k;
     }
     delete items[i];
+    sfx(a.kind === 'loot' || a.kind === 'heal' ? 'pickup' : 'arm');
   }
   checkDragon();
   if(!P.done){
@@ -1667,7 +1680,7 @@ function step(sign){
   renderHud(); drawView();
 }
 
-function turn(d){ P.dir = (P.dir+d+4)%4; checkDragon(); drawView(); }
+function turn(d){ P.dir = (P.dir+d+4)%4; sfx('turn'); checkDragon(); drawView(); }
 
 /* lay a brick in the cell you are facing */
 function layBrick(){
@@ -1678,6 +1691,7 @@ function layBrick(){
   grid[i] = ROCK;
   P.bricks--;
   say('You wall up the passage ahead. '+P.bricks+' bricks left.');
+  sfx('brick');
   checkSealed();
   if(!P.done) checkDragon();
   renderHud(); drawView();
@@ -1695,6 +1709,8 @@ function checkSealed(){
       'turns over in its sleep and does not wake.');
   say('You walk out alive, and so does it. '+(brickBudget()-P.bricks)+' bricks spent.');
   P.gold += 50 + 10*P.bricks;
+  setBreath(-1);
+  sfx('seal');
 }
 
 /* approach it through open air and it wakes */
@@ -1706,6 +1722,7 @@ function checkDragon(){
   if(d >= 0 && d <= wake){
     P.done = true;
     say('<b>Too close.</b> An eye the size of a shield opens in the dark.');
+    sfx('roar');
   }
 }
 
@@ -1745,7 +1762,8 @@ function act(a){
 const ACTIONS = {
   fwd:'Forward', back:'Back', left:'Turn left', right:'Turn right',
   attack:'Attack', war:'War arm', spirit:'Spirit arm',
-  brick:'Lay brick', immerse:'Fullscreen', restart:'Begin again'
+  brick:'Lay brick', immerse:'Fullscreen', sound:'Sound on/off',
+  restart:'Begin again'
 };
 
 /* spatial: forward sits on the top-middle key of a real numpad */
@@ -1754,7 +1772,8 @@ const PRESET_SPATIAL = {
   left:['Numpad4','ArrowLeft'],  right:['Numpad6','ArrowRight'],
   attack:['Numpad5','Space'],    war:['Numpad7','Digit1'],
   spirit:['Numpad9','Digit3'],   brick:['NumpadDecimal','KeyB'],
-  immerse:['KeyF','NumpadMultiply'], restart:['Numpad0','Digit0']
+  immerse:['KeyF','NumpadMultiply'], sound:['KeyM'],
+  restart:['Numpad0','Digit0']
 };
 /* original labels: the digits mean what they meant on the cartridge overlay */
 const PRESET_INTV = {
@@ -1762,7 +1781,8 @@ const PRESET_INTV = {
   left:['Numpad4','ArrowLeft'],  right:['Numpad6','ArrowRight'],
   attack:['Numpad5','Space'],    war:['Numpad1','Digit1'],
   spirit:['Numpad3','Digit3'],   brick:['NumpadDecimal','KeyB'],
-  immerse:['KeyF','NumpadMultiply'], restart:['Numpad0','Digit0']
+  immerse:['KeyF','NumpadMultiply'], sound:['KeyM'],
+  restart:['Numpad0','Digit0']
 };
 
 let binds = JSON.parse(JSON.stringify(PRESET_SPATIAL));
@@ -1854,6 +1874,7 @@ addEventListener('keydown', e=>{
   const a = actionForCode(e.code);
   if(!a) return;
   if(a === 'immerse'){ e.preventDefault(); setImmersive(!isImmersive()); return; }
+  if(a === 'sound'){ e.preventDefault(); setMuted(!muted); return; }
   if(mode !== 'play') return;
   e.preventDefault();
   act(a);
@@ -2246,6 +2267,7 @@ function setMode(next, opts){
   mPlay.setAttribute('aria-pressed', String(playing));
   applyLean();
   if(!playing){
+    setBreath(-1);
     if(isImmersive()) setImmersive(false);
     P = null; wardenEl.hidden = true; drawPlan(); renderMetrics();
   } else {
@@ -2268,6 +2290,7 @@ document.getElementById('fogSlider').addEventListener('input', e=>{
   document.getElementById('fogOut').textContent = FOG_NAME[fog];
   save();
 });
+document.getElementById('sndBtn').addEventListener('click', ()=>{ wakeAudio(); setMuted(!muted); });
 document.getElementById('leanBtn').addEventListener('click', ()=>{
   leanWanted = !leanWanted;
   applyLean();
@@ -2393,6 +2416,212 @@ addEventListener('keydown', e=>{
 }, true);
 
 /* ============================================================
+   SOUND — an AY-3-8914, near enough
+   The Intellivision's sound chip was three square-wave channels
+   and one noise generator. No samples, no filters, no envelopes
+   beyond a 4-bit volume you wrote yourself. Everything below is
+   built from exactly those parts, which is why it sounds right.
+   ============================================================ */
+
+/* The chip ran at half the 3.579545 MHz colour-burst crystal, and tone
+   frequency was that divided by 16 and by a 12-bit divider. So the
+   available pitches are quantised — you could not play an arbitrary
+   frequency, and that quantisation is audible. */
+const AY_CLOCK = 3579545 / 2;
+function ayFreq(hz){
+  const div = Math.max(1, Math.min(4095, Math.round(AY_CLOCK / (16 * hz))));
+  return AY_CLOCK / (16 * div);
+}
+/* Volume was 4 bits, roughly 1.5 dB a step, and 0 meant silence. */
+function ayVol(level){
+  const n = Math.max(0, Math.min(15, Math.round(level)));
+  return n === 0 ? 0 : Math.pow(10, (n - 15) * 1.5 / 20);
+}
+
+let AC = null, master = null, breath = null, breathAmp = null, muted = false;
+
+/* The noise generator was a 17-bit shift register tapped at bits 0 and 3.
+   White noise would pass, but the real register has a coarser grain and it
+   is three lines to do properly. */
+function ayNoiseBuffer(ctx, seconds){
+  const n = Math.floor(ctx.sampleRate * seconds);
+  const buf = ctx.createBuffer(1, n, ctx.sampleRate);
+  const d = buf.getChannelData(0);
+  let lfsr = 1, v = 1;
+  for(let i = 0; i < n; i++){
+    if((i & 3) === 0){
+      const bit = (lfsr ^ (lfsr >> 3)) & 1;
+      lfsr = (lfsr >> 1) | (bit << 16);
+      v = (lfsr & 1) ? 1 : -1;
+    }
+    d[i] = v;
+  }
+  return buf;
+}
+
+function audio(){
+  if(AC) return AC;
+  const Ctx = window.AudioContext || window.webkitAudioContext;
+  if(!Ctx) return null;
+  AC = new Ctx();
+
+  master = AC.createGain();
+  master.gain.value = muted ? 0 : 0.5;
+  /* The chip fed a television speaker, which rolled off hard. Without this
+     the squares are harsh in a way no 1981 living room ever was. */
+  const tv = AC.createBiquadFilter();
+  tv.type = 'lowpass';
+  tv.frequency.value = 7000;
+  master.connect(tv).connect(AC.destination);
+
+  /* The dragon: the noise generator, breathing. Volume follows how near it
+     is through open air, so you hear it before the mist lets you see it. */
+  const src = AC.createBufferSource();
+  src.buffer = ayNoiseBuffer(AC, 1.0);
+  src.loop = true;
+  src.playbackRate.value = 0.22;        // low and rumbling
+  breath = AC.createGain();             // the slow swell
+  breath.gain.value = 0;
+  breathAmp = AC.createGain();          // how close it is
+  breathAmp.gain.value = 0;
+  src.connect(breath).connect(breathAmp).connect(master);
+
+  const lfo = AC.createOscillator();
+  lfo.type = 'sine';
+  lfo.frequency.value = 0.21;           // about one breath every five seconds
+  const depth = AC.createGain();
+  depth.gain.value = 0.5;
+  lfo.connect(depth).connect(breath.gain);
+  breath.gain.value = 0.5;              // so the LFO swings 0 .. 1
+  lfo.start();
+  src.start();
+  return AC;
+}
+
+/* Browsers hold the clock suspended until the page is interacted with.
+   Nothing can be done about that; it just wakes on the first key or click. */
+function wakeAudio(){
+  const ctx = audio();
+  if(ctx && ctx.state === 'suspended') ctx.resume().catch(()=>{});
+}
+addEventListener('keydown', wakeAudio, {once:true});
+addEventListener('pointerdown', wakeAudio, {once:true});
+
+/* One tone, one envelope. vol is a 4-bit chip level, not a gain. */
+function tone(hz, ms, vol, when){
+  const ctx = audio();
+  if(!ctx || muted) return;
+  const t = (when || ctx.currentTime);
+  const o = ctx.createOscillator();
+  const g = ctx.createGain();
+  o.type = 'square';
+  o.frequency.setValueAtTime(ayFreq(hz), t);
+  const peak = ayVol(vol) * 0.22;
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(Math.max(0.0002, peak), t + 0.004);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + ms / 1000);
+  o.connect(g).connect(master);
+  o.start(t);
+  o.stop(t + ms / 1000 + 0.02);
+  return o;
+}
+function slide(fromHz, toHz, ms, vol){
+  const ctx = audio();
+  if(!ctx || muted) return;
+  const t = ctx.currentTime;
+  const o = ctx.createOscillator();
+  const g = ctx.createGain();
+  o.type = 'square';
+  o.frequency.setValueAtTime(ayFreq(fromHz), t);
+  o.frequency.linearRampToValueAtTime(ayFreq(toHz), t + ms / 1000);
+  const peak = ayVol(vol) * 0.22;
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(Math.max(0.0002, peak), t + 0.006);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + ms / 1000);
+  o.connect(g).connect(master);
+  o.start(t);
+  o.stop(t + ms / 1000 + 0.02);
+}
+function burst(ms, vol, rate){
+  const ctx = audio();
+  if(!ctx || muted) return;
+  const t = ctx.currentTime;
+  const s = ctx.createBufferSource();
+  s.buffer = ayNoiseBuffer(ctx, 0.35);
+  s.playbackRate.value = rate || 1;
+  const g = ctx.createGain();
+  const peak = ayVol(vol) * 0.18;
+  g.gain.setValueAtTime(Math.max(0.0002, peak), t);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + ms / 1000);
+  s.connect(g).connect(master);
+  s.start(t);
+  s.stop(t + ms / 1000 + 0.02);
+}
+
+const SFX = {
+  step:    ()=> tone(150, 45, 7),
+  turn:    ()=> tone(260, 32, 5),
+  bump:    ()=> burst(90, 9, 0.35),
+  pickup:  ()=>{ const c = audio(); if(!c) return;
+                 tone(523, 70, 11, c.currentTime);
+                 tone(784, 90, 11, c.currentTime + 0.07); },
+  arm:     ()=> tone(392, 60, 9),
+  hit:     ()=>{ burst(110, 12, 1.4); tone(196, 90, 10); },
+  hurt:    ()=>{ slide(330, 110, 240, 12); burst(140, 10, 0.6); },
+  brick:   ()=>{ slide(220, 70, 180, 11); burst(90, 8, 0.4); },
+  gate:    ()=>{ const c = audio(); if(!c) return;
+                 tone(440, 100, 10, c.currentTime);
+                 tone(587, 100, 10, c.currentTime + 0.1);
+                 tone(440, 140, 9,  c.currentTime + 0.2); },
+  right:   ()=>{ const c = audio(); if(!c) return;
+                 [523, 659, 784].forEach((f, i) =>
+                   tone(f, 110, 11, c.currentTime + i * 0.08)); },
+  wrong:   ()=> slide(200, 90, 300, 11),
+  descend: ()=>{ const c = audio(); if(!c) return;
+                 [262, 196, 165, 131].forEach((f, i) =>
+                   tone(f, 150, 10, c.currentTime + i * 0.12)); },
+  seal:    ()=>{ const c = audio(); if(!c) return;
+                 [262, 330, 392, 523, 659].forEach((f, i) =>
+                   tone(f, 180, 12, c.currentTime + i * 0.13)); },
+  death:   ()=>{ slide(300, 55, 900, 13); burst(700, 9, 0.3); },
+  roar:    ()=>{ burst(1100, 15, 0.14); slide(120, 48, 1100, 13); }
+};
+function sfx(name){
+  if(muted) return;
+  const f = SFX[name];
+  if(f) try{ f(); }catch(e){ /* audio must never break the game */ }
+}
+
+/* The dragon's loudness IS the distance readout. Walled off, it goes silent —
+   which is how you know the seal closed before the message says so. */
+function setBreath(steps){
+  if(!AC || !breathAmp) return;
+  let target = 0;
+  if(typeof steps === 'number' && steps >= 0){
+    /* audible from about eight steps, loud when it is about to wake */
+    target = Math.max(0, Math.min(1, (9 - steps) / 8));
+    target = target * target * 0.55;
+  }
+  const t = AC.currentTime;
+  breathAmp.gain.cancelScheduledValues(t);
+  breathAmp.gain.setTargetAtTime(muted ? 0 : target, t, 0.35);
+}
+
+function setMuted(on){
+  muted = !!on;
+  if(master && AC) master.gain.setTargetAtTime(muted ? 0 : 0.5, AC.currentTime, 0.02);
+  if(muted) setBreath(-1);
+  const b = document.getElementById('sndBtn');
+  if(b){
+    b.setAttribute('aria-pressed', String(!muted));
+    b.textContent = muted ? 'Sound off' : 'Sound on';
+  }
+  const s = document.getElementById('imSnd');
+  if(s) s.textContent = muted ? 'off' : 'on';
+  try{ localStorage.setItem('dddh-muted', muted ? '1' : '0'); }catch(e){}
+}
+
+/* ============================================================
    BOOT — open in a real working state, never an empty shell
    ============================================================ */
 (function boot(){
@@ -2405,6 +2634,7 @@ addEventListener('keydown', e=>{
   document.getElementById('wakeOut').textContent = wake;
   document.getElementById('helpSlider').value = helpers;
   document.getElementById('helpOut').textContent = helpers;
+  try{ setMuted(localStorage.getItem('dddh-muted') === '1'); }catch(e){ setMuted(false); }
   try{ leanWanted = localStorage.getItem('dragonkeep-applet-lean') === '1'; }catch(e){}
   applyLean();
   initPanels();

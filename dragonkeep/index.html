@@ -389,6 +389,45 @@
     .about-body{columns:1}
   }
   :root.immersive .ai-modal-overlay{display:none!important}
+
+  /* ---------- the key card, reachable from inside the full screen ---------- */
+  #helpOverlay{
+    position:fixed;inset:0;z-index:9300;
+    display:flex;align-items:center;justify-content:center;padding:16px;
+    background:rgba(8,5,11,.88);
+  }
+  .helpcard{
+    background:var(--panel-bg);color:var(--panel-ink);
+    border:1.5px solid var(--panel-line);border-radius:6px;
+    padding:20px 22px;width:min(620px,100%);
+    max-height:calc(100dvh - 32px);overflow-y:auto;position:relative;
+  }
+  .helpcard h2{
+    margin:0 0 14px;font-family:"Press Start 2P",monospace;
+    font-size:12px;font-weight:400;color:var(--panel-ink);
+  }
+  .helpgrid{display:flex;gap:22px;flex-wrap:wrap;align-items:flex-start}
+  .helppad{display:grid;grid-template-columns:repeat(3,58px);gap:4px;flex:0 0 auto}
+  .helppad div{
+    border:1.5px solid var(--panel-line);border-radius:3px;
+    padding:6px 2px 5px;text-align:center;background:rgba(255,255,255,.04);
+  }
+  .helppad div.w2{grid-column:span 2}
+  .helppad .k{font-family:"Press Start 2P",monospace;font-size:10px;color:var(--panel-accent)}
+  .helppad .f{font-size:9px;font-weight:600;line-height:1.2;margin-top:3px;color:var(--panel-ink)}
+  .helppad div.off{opacity:.3}
+  .helplist{flex:1 1 220px;min-width:0}
+  .helprow{
+    display:flex;justify-content:space-between;gap:12px;
+    padding:4px 0;border-bottom:1px dotted var(--panel-line);font-size:12.5px;
+  }
+  .helprow:last-child{border-bottom:0}
+  .helprow b{font-family:"IBM Plex Mono",monospace;font-weight:600;color:var(--panel-accent)}
+  .helpfoot{
+    margin:15px 0 0;padding-top:12px;border-top:1px solid var(--panel-line);
+    font-size:12.5px;line-height:1.55;color:var(--panel-lbl);
+  }
+  .helpfoot b{color:#FFFCFF}
   @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 </style>
 
@@ -652,6 +691,24 @@
     </div>
   </div>
 
+  <div id="helpOverlay" hidden role="dialog" aria-modal="true" aria-label="Keys">
+    <div class="helpcard">
+      <button class="modal-x" id="helpClose" aria-label="Close" title="Close">&#10005;</button>
+      <h2>KEYS</h2>
+      <div class="helpgrid">
+        <div class="helppad" id="helpPad"></div>
+        <div class="helplist" id="helpList"></div>
+      </div>
+      <p class="helpfoot">
+        Rebind any of these in <b>Controls</b>, in the Play panel on the right &mdash;
+        click a binding and press a key. Your choices are remembered.
+        The dragon cannot be fought: strike it, or walk too near, and it wakes.
+        Wall it in and leave while it still breathes. <b>Listen for it</b> &mdash; the
+        breathing grows louder the closer you are, and stops when the seal closes.
+      </p>
+    </div>
+  </div>
+
   <div id="imHud" aria-hidden="true">
     <span><u>war</u><b class="w" id="imWar">0</b></span>
     <span><u>spirit</u><b class="s" id="imSpi">0</b></span>
@@ -659,6 +716,7 @@
     <span><u>helpers</u><b id="imCrew">0</b></span>
     <span><u>dragon</u><b class="d" id="imNear">&mdash;</b></span>
     <span><u>sound</u><b id="imSnd">on</b></span>
+    <span style="color:#7E7986">? for keys</span>
     <span style="color:#7E7986">Esc leaves</span>
     <button id="imExit">Leave fullscreen</button>
   </div>
@@ -1292,9 +1350,15 @@ function titleCard(){
   viewCx.font = '400 10px "Press Start 2P", monospace';
   viewCx.fillText('MAZE INDEX ' + m.index.toFixed(2) + '   MIST ' + FOG_NAME[fog].toUpperCase(),
                   VW/2, 352);
+  /* Named from the live binding rather than typed: under the Spatial preset
+     the top-row 5 is not bound at all, and this card used to say otherwise. */
+  const atk = (binds.attack && binds.attack[0]) ? KEY_LABEL(binds.attack[0]).toUpperCase() : 'SPACE';
   viewCx.fillStyle = IV.W;
   viewCx.font = '400 11px "Press Start 2P", monospace';
-  viewCx.fillText('PRESS 5 TO DESCEND', VW/2, 392);
+  viewCx.fillText('PRESS ' + atk + ' TO DESCEND', VW/2, 386);
+  viewCx.fillStyle = IV.A;
+  viewCx.font = '400 9px "Press Start 2P", monospace';
+  viewCx.fillText('? FOR KEYS', VW/2, 412);
 
   viewCx.fillStyle = 'rgba(0,0,0,.17)';
   for(let y=0;y<VH;y+=3) viewCx.fillRect(0,y,VW,1);
@@ -1763,7 +1827,7 @@ const ACTIONS = {
   fwd:'Forward', back:'Back', left:'Turn left', right:'Turn right',
   attack:'Attack', war:'War arm', spirit:'Spirit arm',
   brick:'Lay brick', immerse:'Fullscreen', sound:'Sound on/off',
-  restart:'Begin again'
+  help:'Show these keys', restart:'Begin again'
 };
 
 /* spatial: forward sits on the top-middle key of a real numpad */
@@ -1772,7 +1836,7 @@ const PRESET_SPATIAL = {
   left:['Numpad4','ArrowLeft'],  right:['Numpad6','ArrowRight'],
   attack:['Numpad5','Space'],    war:['Numpad7','Digit1'],
   spirit:['Numpad9','Digit3'],   brick:['NumpadDecimal','KeyB'],
-  immerse:['KeyF','NumpadMultiply'], sound:['KeyM'],
+  immerse:['KeyF','NumpadMultiply'], sound:['KeyM'], help:['Slash','KeyH'],
   restart:['Numpad0','Digit0']
 };
 /* original labels: the digits mean what they meant on the cartridge overlay */
@@ -1781,7 +1845,7 @@ const PRESET_INTV = {
   left:['Numpad4','ArrowLeft'],  right:['Numpad6','ArrowRight'],
   attack:['Numpad5','Space'],    war:['Numpad1','Digit1'],
   spirit:['Numpad3','Digit3'],   brick:['NumpadDecimal','KeyB'],
-  immerse:['KeyF','NumpadMultiply'], sound:['KeyM'],
+  immerse:['KeyF','NumpadMultiply'], sound:['KeyM'], help:['Slash','KeyH'],
   restart:['Numpad0','Digit0']
 };
 
@@ -1868,6 +1932,7 @@ addEventListener('keydown', e=>{
     return;
   }
   if(e.code === 'Escape'){
+    if(isHelpOpen()){ e.preventDefault(); setHelp(false); return; }
     if(isImmersive()){ e.preventDefault(); setImmersive(false); return; }
     if(mode === 'play'){ e.preventDefault(); setMode('create'); return; }
   }
@@ -1875,6 +1940,8 @@ addEventListener('keydown', e=>{
   if(!a) return;
   if(a === 'immerse'){ e.preventDefault(); setImmersive(!isImmersive()); return; }
   if(a === 'sound'){ e.preventDefault(); setMuted(!muted); return; }
+  if(a === 'help'){ e.preventDefault(); setHelp(!isHelpOpen()); return; }
+  if(isHelpOpen()) return;              // the card swallows the rest
   if(mode !== 'play') return;
   e.preventDefault();
   act(a);
@@ -1886,6 +1953,40 @@ addEventListener('keydown', e=>{
    frames may refuse it, so the CSS class does the real work and
    the API is a bonus when it is granted.
    ============================================================ */
+/* The key card. Built from `binds` every time it opens, so it can never tell
+   you about a key you have since rebound. */
+const helpOverlay = document.getElementById('helpOverlay');
+const isHelpOpen = () => !helpOverlay.hidden;
+
+function drawHelp(){
+  const pad = document.getElementById('helpPad');
+  pad.innerHTML = '';
+  PAD.forEach(code=>{
+    const a = actionForCode(code);
+    const cell = document.createElement('div');
+    cell.className = (code === 'Numpad0' ? 'w2' : '') + (a ? '' : ' off');
+    cell.innerHTML = '<div class="k">' + code.replace('Numpad','').replace('Decimal','.') +
+                     '</div><div class="f">' + (a ? ACTIONS[a] : '—') + '</div>';
+    pad.appendChild(cell);
+  });
+  const list = document.getElementById('helpList');
+  list.innerHTML = '';
+  Object.entries(ACTIONS).forEach(([a,label])=>{
+    const row = document.createElement('div');
+    row.className = 'helprow';
+    row.innerHTML = '<span>' + label + '</span><b>' +
+                    binds[a].map(KEY_LABEL).join(' / ') + '</b>';
+    list.appendChild(row);
+  });
+}
+function setHelp(on){
+  if(on) drawHelp();
+  helpOverlay.hidden = !on;
+  if(on) document.getElementById('helpClose').focus();
+}
+document.getElementById('helpClose').addEventListener('click', ()=> setHelp(false));
+helpOverlay.addEventListener('click', e=>{ if(e.target === helpOverlay) setHelp(false); });
+
 const isImmersive = () => document.documentElement.classList.contains('immersive');
 
 function fitStage(){

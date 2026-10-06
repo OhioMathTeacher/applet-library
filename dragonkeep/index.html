@@ -2445,6 +2445,7 @@ function ayVol(level){
 }
 
 let AC = null, master = null, breath = null, breathAmp = null, muted = false;
+let breathFilt = null, growl = null, growlOsc = null, breathTimer = null;
 
 /* The noise generator was a 17-bit shift register tapped at bits 0 and 3.
    White noise would pass, but the real register has a coarser grain and it
@@ -2480,26 +2481,36 @@ function audio(){
   tv.frequency.value = 7000;
   master.connect(tv).connect(AC.destination);
 
-  /* The dragon: the noise generator, breathing. Volume follows how near it
-     is through open air, so you hear it before the mist lets you see it. */
+  /* The dragon. An earlier version swelled a noise source with a sine LFO and
+     sounded exactly like surf, for three reasons worth keeping written down:
+     a sine is symmetric and breathing is not, there was no gap between
+     breaths, and unfiltered noise is broadband hiss — which is what waves are.
+     So: an asymmetric envelope with real silence after it, the noise pushed
+     down into a rumble, and a low square underneath to give it a body. */
   const src = AC.createBufferSource();
   src.buffer = ayNoiseBuffer(AC, 1.0);
   src.loop = true;
-  src.playbackRate.value = 0.22;        // low and rumbling
-  breath = AC.createGain();             // the slow swell
-  breath.gain.value = 0;
-  breathAmp = AC.createGain();          // how close it is
+  src.playbackRate.value = 0.085;       // far lower: rumble, not hiss
+  breathFilt = AC.createBiquadFilter();
+  breathFilt.type = 'lowpass';
+  breathFilt.frequency.value = 150;
+  breathFilt.Q.value = 3.5;             // a throat, not an open pipe
+  breath = AC.createGain();
+  breath.gain.value = 0.0001;
+  breathAmp = AC.createGain();          // how near it is
   breathAmp.gain.value = 0;
-  src.connect(breath).connect(breathAmp).connect(master);
+  src.connect(breathFilt).connect(breath).connect(breathAmp).connect(master);
 
-  const lfo = AC.createOscillator();
-  lfo.type = 'sine';
-  lfo.frequency.value = 0.21;           // about one breath every five seconds
-  const depth = AC.createGain();
-  depth.gain.value = 0.5;
-  lfo.connect(depth).connect(breath.gain);
-  breath.gain.value = 0.5;              // so the LFO swings 0 .. 1
-  lfo.start();
+  /* The AY mixer could run tone and noise on one channel at once. This is
+     that: a square down at the bottom of hearing, under the exhale only. */
+  growlOsc = AC.createOscillator();
+  growlOsc.type = 'square';
+  growlOsc.frequency.value = ayFreq(38);
+  growl = AC.createGain();
+  growl.gain.value = 0.0001;
+  growlOsc.connect(growl).connect(breathAmp);
+  growlOsc.start();
+
   src.start();
   return AC;
 }
@@ -2612,17 +2623,61 @@ function sfx(name){
 
 /* The dragon's loudness IS the distance readout. Walled off, it goes silent —
    which is how you know the seal closed before the message says so. */
+/* One breath, scheduled explicitly. Draw in quickly, turn, push out slower and
+   heavier, then stop — the silence afterwards is what stops it being waves. */
+function oneBreath(){
+  if(!AC || muted) return;
+  const t = AC.currentTime;
+
+  const g = breath.gain;
+  g.cancelScheduledValues(t);
+  g.setValueAtTime(0.0001, t);
+  g.linearRampToValueAtTime(0.42, t + 0.40);          // in
+  g.linearRampToValueAtTime(0.34, t + 0.62);          // the turn
+  g.linearRampToValueAtTime(1.0,  t + 1.00);          // out, harder
+  g.exponentialRampToValueAtTime(0.0001, t + 2.30);
+
+  /* The throat opens on the exhale. This sweep is most of what makes it read
+     as an animal rather than as weather. */
+  const f = breathFilt.frequency;
+  f.cancelScheduledValues(t);
+  f.setValueAtTime(110, t);
+  f.linearRampToValueAtTime(190, t + 0.40);
+  f.linearRampToValueAtTime(640, t + 1.05);
+  f.exponentialRampToValueAtTime(95, t + 2.30);
+
+  /* The body, under the exhale only. */
+  const q = growl.gain;
+  q.cancelScheduledValues(t);
+  q.setValueAtTime(0.0001, t);
+  q.setValueAtTime(0.0001, t + 0.70);
+  q.linearRampToValueAtTime(0.22, t + 1.05);
+  q.exponentialRampToValueAtTime(0.0001, t + 2.10);
+
+  /* A ragged gap, so it never falls into a rhythm you stop hearing. */
+  const gap = 2.3 + 1.1 + Math.random() * 1.0;
+  breathTimer = setTimeout(oneBreath, gap * 1000);
+}
+
 function setBreath(steps){
   if(!AC || !breathAmp) return;
   let target = 0;
   if(typeof steps === 'number' && steps >= 0){
     /* audible from about eight steps, loud when it is about to wake */
     target = Math.max(0, Math.min(1, (9 - steps) / 8));
-    target = target * target * 0.55;
+    target = target * target * 0.75;
   }
   const t = AC.currentTime;
   breathAmp.gain.cancelScheduledValues(t);
   breathAmp.gain.setTargetAtTime(muted ? 0 : target, t, 0.35);
+
+  /* Only breathe when there is something to hear. */
+  if(target > 0.001 && !muted){
+    if(breathTimer === null) oneBreath();
+  } else if(breathTimer !== null){
+    clearTimeout(breathTimer);
+    breathTimer = null;
+  }
 }
 
 function setMuted(on){

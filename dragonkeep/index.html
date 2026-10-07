@@ -9,6 +9,9 @@
   │  dragons-keep repo and re-run the script.                                │
   └──────────────────────────────────────────────────────────────────────────┘
 -->
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Dragonkeep</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Press+Start+2P&display=swap">
 <style>
@@ -302,6 +305,9 @@
   @keyframes swingflash{from{filter:brightness(1.85)}to{filter:brightness(1)}}
 
   .binds{display:flex;flex-direction:column;gap:3px}
+  .padnote{margin:0 0 7px;font-size:11.5px;color:var(--ink-2);font-weight:600}
+  .padnote::before{content:"";display:inline-block;width:6px;height:6px;border-radius:50%;
+    background:var(--accent);margin-right:6px;vertical-align:1px}
   .bindrow{display:flex;align-items:center;gap:8px;font-size:11.5px}
   .bindrow.fired button{background:var(--accent);border-color:var(--accent);color:var(--ground)}
   .modepick{display:flex;gap:4px}
@@ -819,6 +825,7 @@
           <p style="margin:6px 0 11px;color:var(--ink-3);font-size:11.5px">
             <b>Compass</b>: up is always north, like the map. <b>Classic</b>: up is the way you face, as in 1983.
           </p>
+          <p class="padnote" id="padNote" hidden>Gamepad connected</p>
           <div class="binds" id="binds"></div>
           <div style="display:flex;gap:5px;margin-top:11px;flex-wrap:wrap">
             <button class="ghostbtn" id="presetSpatial">Spatial</button>
@@ -1045,7 +1052,7 @@
 <div id="version"></div>
 <script>
 /* Shown quietly in the corner; bump with each release. */
-const VERSION = 'v0.20 · 2026-10-07';
+const VERSION = 'v0.21 · 2026-10-07';
 document.getElementById('version').textContent = VERSION;
 
 /* ============================================================
@@ -2153,7 +2160,6 @@ function checkSealed(){
   const seen = reachable(P.x, P.y);
   if(ds.some(d => seen[d])) return;
   P.sealed = true; P.done = true;
-  const m = metrics();
   say('<b>The last brick goes in.</b> On the other side of the wall, something enormous '+
       'turns over in its sleep and does not wake.');
   say('You walk out alive, and so does it. '+(brickBudget()-P.bricks)+' bricks spent.');
@@ -2334,7 +2340,12 @@ function drawKeypad(){
 }
 
 const bindsEl = document.getElementById('binds');
+const padNote = document.getElementById('padNote');
 let listeningFor = null;
+/* Declared here, above drawBinds(), rather than down in the gamepad block:
+   setSteer() can call drawBinds() during init, and reading a `let` before
+   its declaration has run is a ReferenceError, not undefined. */
+let padSeen = false;
 function drawBinds(){
   bindsEl.innerHTML = '';
   Object.keys(ACTIONS).forEach(a=>{ const label = actionLabel(a);
@@ -2359,6 +2370,9 @@ function drawBinds(){
     row.append(name, btn);
     bindsEl.appendChild(row);
   });
+  /* A pad cannot be detected before it is plugged in, so the note ships
+     hidden and gamepadconnected redraws these rows to reveal it. */
+  padNote.hidden = !padSeen;
 }
 
 function applyPreset(pr){
@@ -2453,7 +2467,6 @@ addEventListener('keydown', e=>{
    ============================================================ */
 const PAD_DEAD = 0.5;                 // axis must pass this to count as pressed
 let padPrev = Object.create(null);
-let padSeen = false;
 
 function padSnapshot(){
   const now = Object.create(null);

@@ -112,6 +112,32 @@
 
   .stage{background:var(--screen);border:1.5px solid var(--ink);border-radius:var(--radius);overflow:hidden;position:relative}
   canvas{display:block;width:100%;height:auto;image-rendering:pixelated}
+
+  /* Narration over the view, not beside it. The right-hand column is hidden
+     in immersive mode, which is exactly when a player is least oriented, so
+     the only place narration can be relied on is the picture itself. */
+  #subs{
+    position:absolute;left:0;right:0;bottom:0;pointer-events:none;
+    padding:14px 16px 13px;
+    background:linear-gradient(to top, rgba(8,2,6,.92) 55%, rgba(8,2,6,0));
+    color:#F3ECE0;font-size:15px;line-height:1.38;text-wrap:balance;
+    opacity:0;transition:opacity .22s ease;
+  }
+  #subs.on{opacity:1}
+  #subs b{color:var(--accent)}
+  #subs .prev{display:block;opacity:.5;font-size:13px;margin-bottom:2px}
+
+  /* The standing facts, which the event stream never restates. */
+  #status{
+    position:absolute;left:0;right:0;top:0;pointer-events:none;
+    padding:9px 14px 16px;
+    background:linear-gradient(to bottom, rgba(8,2,6,.86) 48%, rgba(8,2,6,0));
+    color:#D9CFC2;font-size:12.5px;letter-spacing:.2px;
+    display:flex;gap:16px;flex-wrap:wrap;
+  }
+  #status b{color:var(--accent);font-weight:600}
+  #status .warn{color:#FF8A6B}
+  #subs[hidden],#status[hidden]{display:none}
   #plan{cursor:crosshair;background:var(--screen)}
 
   .tools{display:grid;grid-template-columns:repeat(auto-fill,minmax(84px,1fr));gap:5px}
@@ -635,10 +661,13 @@
     <div>
       <div class="stage">
         <canvas id="view" width="640" height="440" aria-label="First-person dungeon view"></canvas>
+        <div id="status" hidden></div>
+        <div id="subs" aria-live="polite" hidden></div>
         <div id="warden" hidden></div>
       </div>
       <div style="display:flex;gap:6px;margin-top:11px;flex-wrap:wrap">
         <button class="ghostbtn" id="imBtn">Fullscreen</button>
+        <button class="ghostbtn" id="subBtn" aria-pressed="true">Subtitles</button>
         <button class="ghostbtn" id="sndBtn" aria-pressed="true">Sound on</button>
         <span style="font-size:11.5px;color:var(--ink-3);align-self:center">
           or press <b>F</b> &middot; Esc to leave
@@ -1481,12 +1510,71 @@ function drawView(){
   }
 }
 
+/* One narration, shown twice. The subtitle is the log line itself rather
+   than a second description written alongside it -- two accounts of the same
+   event would drift, and the drift would show up as the game saying one thing
+   and the screen another. */
+let subsOn = true;
+let subPrev = '';
+let subTimer = null;
+
+function showSub(html){
+  const el = document.getElementById('subs');
+  if(!el) return;
+  if(!subsOn || mode !== 'play'){ el.hidden = true; el.classList.remove('on'); return; }
+  el.hidden = false;
+  el.innerHTML = (subPrev ? '<span class="prev">'+subPrev+'</span>' : '') + html;
+  /* restart the fade even when the same line repeats */
+  el.classList.remove('on'); void el.offsetWidth; el.classList.add('on');
+  subPrev = html;
+  clearTimeout(subTimer);
+  subTimer = setTimeout(()=>{
+    el.classList.remove('on');
+    subPrev = '';
+  }, 5200);
+}
+
 function say(html){
   const ul = document.getElementById('log');
   const li = document.createElement('li');
   li.innerHTML = html;
   ul.prepend(li);
   while(ul.children.length > 40) ul.lastChild.remove();
+  showSub(html);
+}
+
+/* The facts that stay true between events: what you carry, what the wall
+   costs, and how close the thing you must not touch is. The breathing already
+   encodes that distance; this makes it legible before you have learned to
+   hear it. */
+let statusQueued = false;
+function renderStatusSoon(){
+  if(statusQueued) return;
+  statusQueued = true;
+  requestAnimationFrame(()=>{ statusQueued = false; renderStatus(); });
+}
+
+function renderStatus(){
+  const el = document.getElementById('status');
+  if(!el) return;
+  if(!subsOn || mode !== 'play' || !P){ el.hidden = true; return; }
+  const bits = [];
+  bits.push('Bricks <b>'+P.bricks+'</b>');
+  const ds = dragonCells();
+  if(ds.length){
+    const sc = sealCost();
+    if(sc && isFinite(sc.need)) bits.push('Seal needs <b>'+sc.need+'</b>');
+    const d = dragonDistance()[idx(P.x,P.y)];
+    if(d >= 0){
+      const close = d <= wake + 1;
+      bits.push('Dragon <b'+(close ? ' class="warn"' : '')+'>'+d+'</b> steps'+
+                (close ? ' &mdash; too close' : ''));
+    } else {
+      bits.push('Dragon <b>sealed off</b>');
+    }
+  }
+  el.innerHTML = bits.map(b => '<span>'+b+'</span>').join('');
+  el.hidden = false;
 }
 
 function renderHud(){
@@ -1520,6 +1608,7 @@ function renderHud(){
       nearEl.textContent = d + (d === 1 ? ' step' : ' steps');
       const margin = d - wake;
       noteEl.textContent = margin <= 1 ? 'it stirs — back away' : 'wakes within '+wake;
+      renderStatusSoon();
       const hot = margin <= 1;
       tile.style.borderColor = hot ? 'var(--war)' : '';
       nearEl.style.color = hot ? 'var(--war)' : '';
@@ -2563,6 +2652,17 @@ function setBattle(on){
 document.getElementById('mBattle').addEventListener('click',    ()=> setBattle(true));
 document.getElementById('mAdventure').addEventListener('click', ()=> setBattle(false));
 
+function setSubs(on){
+  subsOn = !!on;
+  document.getElementById('subBtn').setAttribute('aria-pressed', String(subsOn));
+  const sb = document.getElementById('subs');
+  if(sb && !subsOn){ sb.hidden = true; sb.classList.remove('on'); }
+  subPrev = '';
+  renderStatus();
+  try{ localStorage.setItem('dddh-subs', subsOn ? '1' : '0'); }catch(e){}
+}
+document.getElementById('subBtn').addEventListener('click', ()=> setSubs(!subsOn));
+
 const dungeonsEl = document.getElementById('dungeons');
 Object.entries(DUNGEONS).forEach(([k,d])=>{
   const b = document.createElement('button');
@@ -2676,6 +2776,12 @@ function startPlay(){
   say('Maze index '+m.index.toFixed(2)+'. Mist: '+FOG_NAME[fog]+'.');
   if(!battle) say('<b>Adventure mode.</b> Nothing down here will fight you. Walk, and look.');
   if(dragonCells().length){
+    say('<b>Your goal:</b> wall the dragon off from the way you came in, then leave. '+
+        'Do not fight it, and do not get close.');
+  } else {
+    say('<b>Your goal:</b> walk the room you drew, and take what is in it.');
+  }
+  if(dragonCells().length){
     const sc = sealCost();
     say('You carry <b>'+P.bricks+' bricks</b> and '+P.crew+' helpers. Wall the dragon in &mdash; '+
         'do not fight it, and never come within <b>'+wake+'</b> steps.');
@@ -2718,8 +2824,12 @@ function setMode(next, opts){
     setBreath(-1);
     if(isImmersive()) setImmersive(false);
     P = null; wardenEl.hidden = true; drawPlan(); renderMetrics();
+    const sb = document.getElementById('subs'), st = document.getElementById('status');
+    if(sb){ sb.hidden = true; sb.classList.remove('on'); }
+    if(st) st.hidden = true;
+    subPrev = '';
   } else {
-    renderHud(); drawView();
+    renderHud(); drawView(); renderStatus();
     /* Pressing Play means "play", so go straight to the full screen. The
        opts guard stops setImmersive's own call to setMode looping back. */
     if(!(opts && opts.noImmersive)) setImmersive(true);
@@ -3152,6 +3262,7 @@ function setMuted(on){
   /* set directly rather than through setBattle(), which would save during boot */
   document.getElementById('mBattle').setAttribute('aria-pressed', String(battle));
   document.getElementById('mAdventure').setAttribute('aria-pressed', String(!battle));
+  try{ setSubs(localStorage.getItem('dddh-subs') !== '0'); }catch(e){ setSubs(true); }
   try{ setMuted(localStorage.getItem('dddh-muted') === '1'); }catch(e){ setMuted(false); }
   try{ leanWanted = localStorage.getItem('dragonkeep-applet-lean') === '1'; }catch(e){}
   applyLean();

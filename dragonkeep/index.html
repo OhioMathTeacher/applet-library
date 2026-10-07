@@ -1052,7 +1052,7 @@
 <div id="version"></div>
 <script>
 /* Shown quietly in the corner; bump with each release. */
-const VERSION = 'v0.21 · 2026-10-07';
+const VERSION = 'v0.22 · 2026-10-07';
 document.getElementById('version').textContent = VERSION;
 
 /* ============================================================
@@ -1097,6 +1097,10 @@ let brush  = 'carve';
    so adding Myst-style distributed puzzles later is not a rewrite. */
 let puzzles = {};    // pid -> {title, prompt, answer, hint}
 let places  = {};    // cell index -> {pid, role}
+/* The way out. A parallel map keyed by cell, like places{}, because a ladder
+   is a property of a floor cell rather than a replacement for it -- the same
+   shape doors and gates will want. */
+let exits   = {};    // cell index -> {kind:'ladder'}
 let mode   = 'create';
 
 const idx = (x,y) => y*GW + x;
@@ -1120,7 +1124,11 @@ const SPRITES = {
   jewel:    ['..PPPP..','.PWWWWP.','PWPPPPWP','PWPPPPWP','.PWPPWP.','..PPPP..','...PP...','........'],
   armor:    ['.A....A.','.AAAAAA.','.ACCCCA.','.ACAACA.','.ACCCCA.','.AAAAAA.','.A.AA.A.','........'],
   potion:   ['...LL...','...LL...','..LLLL..','.LUUUUL.','LUUUUUUL','LUUUUUUL','.LUUUUL.','..LLLL..'],
-  puzzle:   ['...EE...','..EWWE..','.EW..WE.','EW.EE.WE','EW.EE.WE','.EW..WE.','..EWWE..','...EE...']
+  puzzle:   ['...EE...','..EWWE..','.EW..WE.','EW.EE.WE','EW.EE.WE','.EW..WE.','..EWWE..','...EE...'],
+  /* The way out. Shut gets one red rung: the same ladder, plainly impassable,
+     rather than a second object the player has to learn. */
+  ladder:   ['.T....T.','.T....T.','.TTTTTT.','.T....T.','.TTTTTT.','.T....T.','.TTTTTT.','.T....T.'],
+  ladderShut:['.T....T.','.T....T.','.TTTTTT.','.T....T.','RRRRRRRR','.T....T.','.TTTTTT.','.T....T.']
 };
 
 const ARMS = {
@@ -1411,6 +1419,12 @@ function drawPlan(){
     drawSprite(planCx, 'puzzle', x*cell+cell/2, y*cell+cell/2, cell*0.74);
   }
 
+  for(const k in exits){
+    const i=+k, x=i%GW, y=(i/GW)|0;
+    if(!isFloor(x,y)) continue;
+    drawSprite(planCx, 'ladder', x*cell+cell/2, y*cell+cell/2, cell*0.74);
+  }
+
   if(isFloor(start.x,start.y)){
     const cx = start.x*cell+cell/2, cy = start.y*cell+cell/2;
     planCx.strokeStyle = IV.C; planCx.lineWidth = Math.max(2, cell*0.07);
@@ -1441,12 +1455,13 @@ function applyBrush(x,y){
   if(brush === 'carve'){
     const want = strokeAction || (isFloor(x,y) ? 'close' : 'open');
     if(want === 'open') grid[i] = FLOOR;
-    else { grid[i] = ROCK; delete items[i]; delete mobs[i]; delete places[i]; }
+    else { grid[i] = ROCK; delete items[i]; delete mobs[i]; delete places[i]; delete exits[i]; }
   }
   else if(brush === 'floor') grid[i] = FLOOR;
-  else if(brush === 'rock'){ grid[i]=ROCK; delete items[i]; delete mobs[i]; delete places[i]; }
+  else if(brush === 'rock'){ grid[i]=ROCK; delete items[i]; delete mobs[i]; delete places[i]; delete exits[i]; }
   else if(brush === 'start'){ if(grid[i]===FLOOR){ start.x=x; start.y=y; } }
-  else if(brush === 'erase'){ delete items[i]; delete mobs[i]; delete places[i]; }
+  else if(brush === 'exit'){ grid[i]=FLOOR; delete mobs[i]; delete places[i]; exits[i] = {kind:'ladder'}; }
+  else if(brush === 'erase'){ delete items[i]; delete mobs[i]; delete places[i]; delete exits[i]; }
   else if(brush.startsWith('pz:')){
     const pid = brush.slice(3);
     if(puzzles[pid]){
@@ -1577,6 +1592,13 @@ function drawMap(){
     g.fillStyle = isFloor(x,y) ? IV.Y : IV.D;
     g.fillRect(x*cell, y*cell, cell, cell);
   }
+  /* the way out, where already seen */
+  for(const k in exits){
+    const i = +k;
+    if(!P.seen[i] || !isFloor(i%GW, (i/GW)|0)) continue;
+    g.fillStyle = wayOutOpen() ? IV.C : IV.A;
+    g.fillRect((i%GW)*cell, ((i/GW)|0)*cell, cell, cell);
+  }
   /* adversaries, only where already seen, as black silhouettes */
   const inset = cell > 4 ? 1 : 0;
   for(const k in mobs){
@@ -1696,6 +1718,8 @@ function drawView(){
     if(vm) drawSprite(viewCx, vm.key, cx, cy, size*1.12);
     else if(places[i] && puzzles[places[i].pid])
       drawSprite(viewCx, 'puzzle', cx, cy, size*0.92);
+    else if(exits[i])
+      drawSprite(viewCx, wayOutOpen() ? 'ladder' : 'ladderShut', cx, cy, size*0.92);
     else if(items[i]) drawSprite(viewCx, ARMS[items[i]].sprite, cx, cy, size*0.74);
   }
 
@@ -2128,6 +2152,19 @@ function step(sign){
     delete items[i];
     sfx(a.kind === 'loot' || a.kind === 'heal' ? 'pickup' : 'arm');
   }
+  if(exits[i] && !P.done){
+    if(wayOutOpen()){
+      P.done = true; P.escaped = true;
+      say('<b>You climb, and the dark falls away beneath you.</b>');
+      say(P.sealed
+        ? 'You walk out alive, and so does it. '+(brickBudget()-P.bricks)+' bricks spent.'
+        : 'You walk out alive, '+P.gold+' in treasure.');
+      sfx('seal');
+      renderHud(); drawView(); drawMap();
+      return;
+    }
+    say('A ladder out &mdash; and no climbing it while the dragon breathes.');
+  }
   checkDragon();
   if(!P.done){
     const ah = cellAhead(1), am = liveMob(idx(ah.x,ah.y));
@@ -2153,19 +2190,33 @@ function layBrick(){
   renderHud(); drawView();
 }
 
+/* The way out is barred while a dragon is loose: an exit you can walk to
+   before sealing turns every level into a stroll. With no dragon in the
+   level there is nothing to bar it, so it is open from the first step --
+   which is what makes a measurement lesson finishable. */
+function hasExits(){ for(const k in exits) return true; return false; }
+function wayOutOpen(){ return !dragonCells().length || !!(P && P.sealed); }
+
 /* the ending he wanted: you walk out and it is still breathing */
 function checkSealed(){
   const ds = dragonCells();
   if(!ds.length) return;
   const seen = reachable(P.x, P.y);
   if(ds.some(d => seen[d])) return;
-  P.sealed = true; P.done = true;
+  P.sealed = true;
   say('<b>The last brick goes in.</b> On the other side of the wall, something enormous '+
       'turns over in its sleep and does not wake.');
-  say('You walk out alive, and so does it. '+(brickBudget()-P.bricks)+' bricks spent.');
   P.gold += 50 + 10*P.bricks;
   setBreath(-1);
   sfx('seal');
+  /* With a ladder on the board the seal opens it and you still have to walk
+     there -- which is where "you walked out alive" finally happens. Without
+     one there is nowhere to walk to, so sealing ends the run as it always did. */
+  if(hasExits()) say('<b>The way out is open.</b> Climb while it sleeps.');
+  else {
+    P.done = true;
+    say('You walk out alive, and so does it. '+(brickBudget()-P.bricks)+' bricks spent.');
+  }
 }
 
 /* approach it through open air and it wakes */
@@ -2595,7 +2646,7 @@ document.getElementById('imExit').addEventListener('click', ()=> setImmersive(fa
 /* ============================================================
    PRESETS — each one is a lesson
    ============================================================ */
-function blank(){ grid = new Uint8Array(GW*GH); items = {}; mobs = {}; places = {}; }
+function blank(){ grid = new Uint8Array(GW*GH); items = {}; mobs = {}; places = {}; exits = {}; }
 
 /* Resize the board. Everything downstream is derived arithmetic, so this is
    the only place that needs to know. */
@@ -2612,7 +2663,8 @@ function setSize(n){
    source: what you see in the string is what you walk through.
      # rock   . floor   @ entrance
      D dragon  M minotaur  W warden  s snake  r rat  b bat  c scorpion
-     S sword   A armor     B book    F fire   J jewel  P potion          */
+     S sword   A armor     B book    F fire   J jewel  P potion
+     = ladder (the way out)                                            */
 const ART_MOB  = {D:'dragon', M:'minotaur', W:'warden', s:'snake', r:'rat',
                   b:'bat', c:'scorpion'};
 const ART_ITEM = {S:'sword', A:'armor', B:'book', F:'fire', J:'jewel', P:'potion'};
@@ -2634,6 +2686,7 @@ function fromArt(art){
                                       war:MOBS[ART_MOB[ch]].war,
                                       spi:MOBS[ART_MOB[ch]].spi};
       else if(ART_ITEM[ch]) items[i] = ART_ITEM[ch];
+      else if(ch === '=') exits[i] = {kind:'ladder'};
       else if(ch !== '.') throw new Error('unknown glyph '+JSON.stringify(ch)+' at '+x+','+y);
     }
   });
@@ -2645,7 +2698,8 @@ function rect(x0,y0,w,h){
 }
 function put(x,y,k){
   const i = idx(x,y); grid[i] = FLOOR;
-  if(ARMS[k]) items[i] = k;
+  if(k === 'ladder') exits[i] = {kind:'ladder'};
+  else if(ARMS[k]) items[i] = k;
   else mobs[i] = {key:k, war:MOBS[k].war, spi:MOBS[k].spi};
 }
 
@@ -2653,7 +2707,7 @@ const PRESETS = {
   hall: {
     label:'Open Hall', note:'16 cells, A=16, P=16 — index exactly 1.00',
     build(){ blank(); rect(4,4,4,4); start={x:5,y:7,dir:0};
-      put(6,4,'dragon'); put(4,4,'jewel'); }
+      put(6,4,'dragon'); put(4,4,'jewel'); put(7,7,'ladder'); }
   },
   snake: {
     /* Exactly Open Hall's 16 cells, strung out one wide: 6 + 1 + 6 + 1 + 2.
@@ -2664,17 +2718,17 @@ const PRESETS = {
     build(){ blank();
       rect(2,2,6,1); rect(7,3,1,1); rect(2,4,6,1); rect(2,5,1,1); rect(2,6,2,1);
       start={x:2,y:2,dir:1};
-      put(7,4,'snake'); put(4,4,'rat'); put(3,6,'fire'); }
+      put(7,4,'snake'); put(4,4,'rat'); put(3,6,'fire'); put(2,6,'ladder'); }
   },
   apart: {
     label:'Two Rooms Apart', note:'two 3×3 chambers, A=18 but P=24',
     build(){ blank(); rect(1,4,3,3); rect(7,4,3,3);
-      start={x:2,y:6,dir:0}; put(8,5,'scorpion'); put(2,4,'sword'); }
+      start={x:2,y:6,dir:0}; put(8,5,'scorpion'); put(2,4,'sword'); put(1,4,'ladder'); }
   },
   joined: {
     label:'Two Rooms Joined', note:'the same 18 cells pushed together — P drops to 18',
     build(){ blank(); rect(3,4,6,3);
-      start={x:4,y:6,dir:0}; put(7,5,'scorpion'); put(3,4,'sword'); }
+      start={x:4,y:6,dir:0}; put(7,5,'scorpion'); put(3,4,'sword'); put(8,4,'ladder'); }
   },
   keep: {
     label:'The Deep Keep', note:'a full warren with a warden at the gate',
@@ -2853,7 +2907,7 @@ function bundleOut(){
   return {
     format:'dragonkeep.level', version:1,
     w:GW, h:GH,
-    grid:Array.from(grid), items, mobs, places, puzzles,
+    grid:Array.from(grid), items, mobs, places, puzzles, exits,
     start, height, fog, wake, helpers
   };
 }
@@ -2888,6 +2942,7 @@ document.getElementById('bImport').addEventListener('click', ()=>{
   mobs    = (d.mobs    && typeof d.mobs    === 'object') ? d.mobs    : {};
   places  = (d.places  && typeof d.places  === 'object') ? d.places  : {};
   puzzles = (d.puzzles && typeof d.puzzles === 'object') ? d.puzzles : {};
+  exits   = (d.exits   && typeof d.exits   === 'object') ? d.exits   : {};
   start   = d.start || start;
   height  = +d.height  || 2;
   fog     = (typeof d.fog === 'number') ? d.fog : 1;
@@ -3069,6 +3124,7 @@ function paletteButton(host, key, label, color){
  {k:'floor',label:'Floor',  c:IV.N},
  {k:'rock', label:'Rock',   c:IV.K},
  {k:'start',label:'Start',  c:IV.C},
+ {k:'exit', label:'Way out',c:IV.T},
  {k:'erase',label:'Clear',  c:IV.A}]
   .forEach(s => paletteButton(document.getElementById('toolsStruct'), s.k, s.label, s.c));
 
@@ -3089,7 +3145,7 @@ function save(){
   try{
     localStorage.setItem(KEY, JSON.stringify({
       w:GW, g:Array.from(grid), items, mobs, start, height, fog, binds, wake, helpers, battle,
-      places, puzzles
+      places, puzzles, exits
     }));
   }catch(e){ /* private window or blocked storage — the page works regardless */ }
 }
@@ -3119,6 +3175,7 @@ function load(){
     if(typeof d.helpers === 'number') helpers = d.helpers;
     places  = (d.places  && typeof d.places  === 'object') ? d.places  : {};
     puzzles = (d.puzzles && typeof d.puzzles === 'object') ? d.puzzles : {};
+    exits   = (d.exits   && typeof d.exits   === 'object') ? d.exits   : {};
     pruneOrphans();
     return true;
   }catch(e){ return false; }
@@ -3146,11 +3203,20 @@ function startPlay(){
   say('You enter <b>'+m.V+' cubic units</b> of darkness, walled by <b>'+m.wall+' square units</b> of stone.');
   say('Maze index '+m.index.toFixed(2)+'. Mist: '+FOG_NAME[fog]+'.');
   if(!battle) say('<b>Adventure mode.</b> Nothing down here will fight you. Walk, and look.');
+  /* Say what winning is, every time. A player who cannot name the goal is
+     not exploring, they are lost -- and until this line existed, three of the
+     four lessons had no goal to name. */
+  const out = hasExits();
   if(dragonCells().length){
-    say('<b>Your goal:</b> wall the dragon off from the way you came in, then leave. '+
-        'Do not fight it, and do not get close.');
+    say('<b>Your goal:</b> wall the dragon off from the way you came in, then '+
+        (out ? 'climb out by the ladder. The ladder is barred until it is sealed.' : 'leave.')+
+        ' Do not fight it, and do not get close.');
+  } else if(out){
+    say('<b>Your goal:</b> walk the room you drew, take what is in it, and '+
+        'climb out by the ladder when you have seen enough.');
   } else {
-    say('<b>Your goal:</b> walk the room you drew, and take what is in it.');
+    say('<b>Your goal:</b> walk the room you drew, and take what is in it. '+
+        'There is no way out of this one &mdash; place a ladder in the Creator to give it an ending.');
   }
   if(dragonCells().length){
     const sc = sealCost();

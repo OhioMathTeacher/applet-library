@@ -1052,7 +1052,7 @@
 <div id="version"></div>
 <script>
 /* Shown quietly in the corner; bump with each release. */
-const VERSION = 'v0.22 · 2026-10-07';
+const VERSION = 'v0.23 · 2026-10-07';
 document.getElementById('version').textContent = VERSION;
 
 /* ============================================================
@@ -1551,7 +1551,10 @@ function drawMap(){
   const cv = document.getElementById('map');
   const stage = cv && cv.parentNode;
   if(!cv) return;
-  if(!mapOn || mode !== 'play' || !P){
+  /* P.intro is the title card, which owns the whole picture. drawView()
+     returns early for it, but the layout pass calls drawMap() directly, so
+     the guard has to live here too or the map lands on the splash. */
+  if(!mapOn || mode !== 'play' || !P || P.intro){
     cv.hidden = true;
     if(stage) stage.classList.remove('hasmap');
     return;
@@ -2090,7 +2093,7 @@ function monsterTurn(){
 function attack(){
   swingFlash();                   // fires whether or not anything is there to hit
   if(P.intro){ P.intro = false; say('You step into the dark.');
-    wakeAudio(); sfx('descend'); renderHud(); drawView(); return; }
+    wakeAudio(); sfx('descend'); renderHud(); drawView(); drawMap(); return; }
   const c = cellAhead(1), i = idx(c.x,c.y), m = liveMob(i);
   if(!m){ say('You swing at empty air.'); return; }
   if(MOBS[m.key].gate){ gateCell = i; askWarden(); return; }

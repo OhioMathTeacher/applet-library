@@ -67,7 +67,9 @@
   }
   h1 .dr{color:var(--accent)}
   h1 .amp{font-size:.72em;color:var(--ink-3)}
-  .tagline{color:var(--ink-2);max-width:50ch;margin:7px 0 0;font-size:13.5px}
+  /* the description runs the full width between the icon and the mode buttons */
+  .titleblock{flex:1 1 30ch;min-width:0}
+  .tagline{color:var(--ink-2);margin:7px 0 0;font-size:13.5px}
 
   /* Lean: the masthead costs ~150px that Play has better uses for. The logo
      and the mode switch stay; the title and tagline go. */
@@ -320,6 +322,9 @@
   #log b{color:var(--accent)}
 
   /* ---------- the warden's gate ---------- */
+  #version{position:fixed;right:10px;bottom:8px;font:11px "IBM Plex Mono",monospace;
+    color:var(--ink-3);opacity:.75;pointer-events:none;font-variant-numeric:tabular-nums;z-index:1}
+  :root.immersive #version{display:none}
   #warden{
     position:absolute;inset:0;z-index:5;background:rgba(12,0,5,.93);   /* over the map (z 3) */
     display:flex;flex-direction:column;justify-content:center;gap:13px;
@@ -552,7 +557,7 @@
         </g>
       </svg>
     </button>
-    <div>
+    <div class="titleblock">
       <h1><span class="dr">Dragon</span>keep</h1>
       <p class="tagline">Draw a floor plan and it becomes a prism you can walk through. The geometry you design is the geometry you see &mdash; and the geometry the warden asks about.</p>
     </div>
@@ -1018,7 +1023,12 @@
 </div>
 
 
+<div id="version"></div>
 <script>
+/* Shown quietly in the corner; bump with each release. */
+const VERSION = 'v0.18 · 2026-10-07';
+document.getElementById('version').textContent = VERSION;
+
 /* ============================================================
    Dragonkeep
    A floor plan is a right prism over an irregular polygon.
@@ -3165,9 +3175,15 @@ document.getElementById('clearBtn').addEventListener('click', ()=>{
    so adding one later needs no change here.
    ============================================================ */
 const PANEL_KEY = 'dragonkeep-applet-panels-v1';
-const SHUT_BY_DEFAULT = ['puzzles-riddles','save-share','controls'];
+/* Creator opens with the plan's own controls (Extrusion & visibility) and the
+   Levels list; every other right-hand tool starts shut (Todd, 2026-10-07). */
+const SHUT_BY_DEFAULT = ['measurements','the-expedition','brush','puzzles-riddles','save-share','controls'];
+/* Bump when the defaults above change, so a browser that saved the old layout
+   gets the new one once, then keeps whatever its player chooses after that. */
+const PANEL_DEFAULTS_V = 2;
 let panelState = {};
 try{ panelState = JSON.parse(localStorage.getItem(PANEL_KEY) || '{}') || {}; }catch(e){}
+if(panelState._v !== PANEL_DEFAULTS_V) panelState = {_v: PANEL_DEFAULTS_V};
 
 const panelSlugs = [];
 function savePanels(){

@@ -152,6 +152,39 @@
   .trail a { color: inherit; text-decoration: none; }
   .trail a:hover { text-decoration: underline; color: var(--ink); }
   .trail > :not([hidden]) ~ :not([hidden])::before { content: "›"; margin: 0 8px; color: #b5b5b5; }
+
+  /* AI Setup: the same provider choice as Clique, Journaler and Allegory */
+  .mast-top { display: flex; align-items: baseline; gap: 12px; margin-bottom: 10px; min-height: 18px; }
+  .mast-top .trail { margin-bottom: 0; }
+  .ai-btn { margin-left: auto; display: inline-flex; align-items: center; gap: 6px; background: none; border: 1px solid var(--rule); border-radius: 999px; padding: 3px 11px; font-size: 12px; font-weight: 600; color: var(--muted); cursor: pointer; white-space: nowrap; }
+  .ai-btn:hover { border-color: var(--ink); color: var(--ink); }
+  .ai-dot { width: 7px; height: 7px; border-radius: 50%; background: #c4c4c4; }
+  .ai-btn.on .ai-dot { background: #2e9e6b; }
+  .ai-overlay { display: none; position: fixed; inset: 0; background: rgba(18, 18, 18, .45); z-index: 50; align-items: center; justify-content: center; padding: 16px; }
+  .ai-overlay.open { display: flex; }
+  .ai-modal { background: var(--page); border-radius: 8px; padding: 22px; width: 560px; max-width: 100%; max-height: calc(100vh - 32px); overflow-y: auto; box-shadow: 0 12px 40px rgba(0, 0, 0, .25); }
+  .ai-modal h2 { font-size: 20px; margin: 0 0 4px; }
+  .ai-modal .sub { font-size: 13px; color: var(--muted); margin: 0 0 14px; line-height: 1.5; }
+  .ai-cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .ai-card { text-align: left; background: #fafafa; border: 1.5px solid var(--rule); border-radius: 6px; padding: 10px 12px; cursor: pointer; min-width: 0; }
+  .ai-card:hover { border-color: #9a9a9a; }
+  .ai-card.selected { border-color: var(--ink); background: #fff; box-shadow: inset 0 0 0 1px var(--ink); }
+  .ai-card.add { border-style: dashed; background: #fff; }
+  .ai-card b { display: block; font-size: 14px; margin-bottom: 3px; overflow-wrap: anywhere; }
+  .ai-card span { display: block; font-size: 12px; color: var(--muted); line-height: 1.4; }
+  .ai-badge { display: inline-block !important; margin-top: 7px; padding: 1px 8px; border-radius: 999px; font-size: 10px !important; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+  .ai-badge.free { background: #dff1e8; color: #1f6b4a !important; }
+  .ai-badge.paid { background: #fdf0cf; color: #7a5200 !important; }
+  .ai-badge.local { background: #e6e1f6; color: #4b3a8f !important; }
+  .ai-badge.off { background: #f0f0f0; color: var(--muted); }
+  .ai-entry { margin-top: 14px; }
+  .ai-entry input { display: block; width: 100%; border: 1px solid #bdbdbd; border-radius: 4px; padding: 8px 10px; font-size: 14px; background: #fff; }
+  .ai-entry input[type=password] { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 13px; }
+  .ai-entry .note a { color: var(--ok); }
+  .ai-actions { display: flex; justify-content: flex-end; margin-top: 18px; }
+  .gen-using { font-size: 14px; margin: 0 0 14px; }
+  .gen-using .linkish { margin-left: 4px; font-size: 14px; }
+  @media (max-width: 520px) { .ai-cards { grid-template-columns: 1fr; } }
   .list { border-top: 1px solid var(--rule); padding-bottom: 48px; }
   .list h2 { font-size: 22px; font-weight: 800; margin: 28px 0 12px; }
   .pzgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 24px 20px; }
@@ -170,7 +203,7 @@
   .version { position: fixed; right: 10px; bottom: 8px; font-size: 11px; color: #a0a0a0; font-variant-numeric: tabular-nums; pointer-events: none; }
 
   @media print {
-    .version, .pickbar, #ai-redo, .trail,
+    .version, .pickbar, #ai-redo, .trail, .ai-btn, .ai-overlay,
     .toolbar, .cluebar, .modal, #kbd { display: none !important; }
     .cell.sel, .cell.inword { background: #fff; }
     .cluelist { max-height: none !important; overflow: visible; }
@@ -182,10 +215,13 @@
 <body>
 <div class="wrap">
   <header class="masthead">
-    <nav class="trail" id="trail" aria-label="Breadcrumb" hidden>
-      <a href="#" id="trail-xw">Standards Crossword</a>
-      <span id="trail-here" hidden></span>
-    </nav>
+    <div class="mast-top">
+      <nav class="trail" id="trail" aria-label="Breadcrumb" hidden>
+        <a href="#" id="trail-xw">Standards Crossword</a>
+        <span id="trail-here" hidden></span>
+      </nav>
+      <button type="button" class="ai-btn" id="ai-open" title="Choose the AI model that writes puzzles for standards without one"><span class="ai-dot"></span>AI Setup</button>
+    </div>
     <h1 id="title">Crossword</h1>
     <p id="sub"></p>
     <details class="stds" id="stds" hidden>
@@ -193,7 +229,7 @@
       <ul id="stds-list"></ul>
     </details>
     <p class="ai-note" id="ai-note" hidden>
-      <b>genAI-generated.</b> Claude chose these words and wrote these clues; a teacher hasn't reviewed them.
+      <b>genAI-generated.</b> <span id="ai-who">An AI model</span> chose these words and wrote these clues; a teacher hasn't reviewed them.
       <button class="linkish" id="ai-redo" hidden>Make a new one</button>
     </p>
   </header>
@@ -210,6 +246,7 @@
 
   <div class="gen" id="gen" hidden>
     <h2>No teacher-made puzzle for this standard yet</h2>
+    <p class="gen-using" id="gen-using"></p>
     <button class="btn primary" id="gen-go">Generate a puzzle with genAI</button>
     <p class="note" id="gen-note"></p>
     <p class="warn" id="gen-err" hidden></p>
@@ -281,15 +318,8 @@
       <p class="warn" id="b-draft-err" hidden></p>
       <fieldset class="stdpick">
         <legend>genAI</legend>
-        <label class="field">Claude API key <span class="hint">(saved only in this browser)</span>
-          <input id="b-key" type="password" autocomplete="off" spellcheck="false" placeholder="sk-ant-…">
-        </label>
-        <div class="actions">
-          <button class="btn" id="b-key-save">Save key</button>
-          <button class="btn" id="b-key-forget">Forget key</button>
-          <span class="note" id="b-key-status"></span>
-        </div>
-        <p class="note">With a key saved, students on this browser can generate puzzles for standards that have none. The key goes straight from this browser to Anthropic, and anyone using this browser can use it or read it from browser storage. Use a key with a low spending limit, and don't save it on shared computers you don't control.</p>
+        <p class="gen-using" id="b-ai-using"></p>
+        <p class="note">Whatever you choose here is what students on this browser use too, for standards that have no puzzle. A cloud key goes straight from this browser to its company, and anyone using this browser can use it or read it from browser storage: use a free key or one with a low spending limit, and don't save a key on shared computers you don't control. A local model needs no key.</p>
       </fieldset>
     </div>
     <div class="b-preview" id="b-preview">
@@ -305,6 +335,23 @@
       <input id="b-link" readonly aria-label="Student link">
       <p class="note">"Copy library entry" gives you one line to paste into library.js; students then find the puzzle under "Puzzle ready". The whole puzzle lives in the link too, answers included. It's fine for class, but a determined student could decode it.</p>
     </div>
+  </div>
+</div>
+
+<div class="ai-overlay" id="ai-overlay">
+  <div class="ai-modal" role="dialog" aria-modal="true" aria-labelledby="ai-title">
+    <h2 id="ai-title">AI Setup</h2>
+    <p class="sub">Pick the model that writes puzzles for standards with no teacher-made one. Your choice and any key stay in this browser.</p>
+    <div class="ai-cards" id="ai-cards"></div>
+    <div class="ai-entry" id="ai-key-entry" hidden>
+      <input type="password" id="ai-key" autocomplete="off" spellcheck="false" aria-label="API key">
+      <p class="note" id="ai-key-hint"></p>
+    </div>
+    <div class="ai-entry" id="ai-url-entry" hidden>
+      <input type="url" id="ai-url" placeholder="http://127.0.0.1:11434  (a server address, not an API key)" autocomplete="off" aria-label="Local server address">
+      <p class="note">An OpenAI-compatible server on this computer or your network, such as Ollama or LM Studio. Press Enter to add it; its models appear above.</p>
+    </div>
+    <div class="ai-actions"><button type="button" class="btn primary" id="ai-done">Done</button></div>
   </div>
 </div>
 
@@ -326,7 +373,7 @@
 const LIBRARY = window.PUZZLE_LIBRARY || [];
 
 // Bump on every change so it's obvious which build is on screen.
-const VERSION = 'v0.9 · 2026-09-29';
+const VERSION = 'v0.10 · 2026-10-07';
 
 // --- UTILITIES ---
 const $ = s => document.querySelector(s);
@@ -499,7 +546,7 @@ function buildPuzzle(data) {
   }
   const byNum = (x, y) => x.num - y.num;
   return {
-    title: data.t || 'Crossword', sub: data.s || '', std: data.std || null, ai: !!data.ai, rows, cols, grid,
+    title: data.t || 'Crossword', sub: data.s || '', std: data.std || null, ai: !!data.ai, aiBy: typeof data.ai === 'string' ? data.ai.slice(0, 60) : '', rows, cols, grid,
     cells: grid.flat().filter(Boolean),
     words: [...words.filter(w => w.dir === 'a').sort(byNum), ...words.filter(w => w.dir === 'd').sort(byNum)],
   };
@@ -587,7 +634,8 @@ function startSolver(data, key) {
   }
   setHeader(P.title, P.sub, P.std);
   $('#ai-note').hidden = !P.ai;
-  $('#ai-redo').hidden = !(P.ai && aiKey() && P.std && P.std.d && P.std.i.length === 1);
+  $('#ai-who').textContent = P.aiBy || 'An AI model';   // older links carry ai: 1, not a name
+  $('#ai-redo').hidden = !(P.ai && activeAI() && P.std && P.std.d && P.std.i.length === 1);
   $('#timer').textContent = fmt(S.elapsed);
   drawGrid($('#grid'), P, true);
   renderClues();
@@ -882,10 +930,130 @@ function stdPayload(id, codes) {
   return { d: id, f: m.f, a: m.a, g: m.grade, i: items.filter(it => codes.has(it[0])).map(([c, t]) => [c, t]) };
 }
 
-// --- genAI: Claude writes words and clues from a standard's official text ---
-// Runs straight from this browser with a key the teacher saved in the builder.
-const AI_KEY = 'xw:apikey';
-const aiKey = () => store.get(AI_KEY) || '';
+// --- genAI: AI Setup, the same provider choice as Clique, Journaler and Allegory ---
+// A local model (Ollama, LM Studio, any OpenAI-compatible server), a free cloud key
+// (Groq, Gemini) or a Claude key. The choice and any key live only in this browser.
+const AI = {
+  provider: 'xw:ai.provider',
+  key: id => `xw:ai.key.${id}`,
+  endpoints: 'xw:ai.endpoints',
+};
+const AI_CLOUD = [
+  { id: 'groq', label: 'Groq (Llama 3.3)', desc: 'Free tier. Any email works, no Google account needed.',
+    badge: ['Free', 'free'], placeholder: 'gsk_…',
+    hint: 'Get a free key at <a href="https://console.groq.com/keys" target="_blank" rel="noopener">console.groq.com/keys</a>. Stored only in this browser.' },
+  { id: 'gemini', label: 'Gemini 2.0 Flash', desc: 'Free tier from Google. Use a personal Gmail account.',
+    badge: ['Free', 'free'], placeholder: 'AIza…',
+    hint: 'Get a free key at <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com</a>, <b>with a personal Gmail, not a school account</b>. Stored only in this browser.' },
+  { id: 'anthropic', label: 'Claude (Anthropic)', desc: 'Your own key. Claude Opus 5, the most careful clues.',
+    badge: ['Own key', 'paid'], placeholder: 'sk-ant-…',
+    hint: 'Get a key at <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">console.anthropic.com</a> and give it a low spending limit. Stored only in this browser.' },
+];
+// Probed when AI Setup opens, so a running server is one click away. Never auto-chosen.
+const AI_WELL_KNOWN = [
+  { url: 'http://127.0.0.1:11434', hint: 'Ollama' },
+  { url: 'http://127.0.0.1:1234', hint: 'LM Studio' },
+];
+
+// Before AI Setup, the builder saved one Claude key under 'xw:apikey'. Carry it over once.
+(function migrateOldKey() {
+  const old = store.get('xw:apikey');
+  if (!old) return;
+  if (!store.get(AI.key('anthropic'))) store.set(AI.key('anthropic'), old);
+  if (!store.get(AI.provider)) store.set(AI.provider, 'anthropic');
+  try { localStorage.removeItem('xw:apikey'); } catch {}
+})();
+
+let aiSessionOff = false;   // a saved local server that didn't answer at load: off for this visit only
+const aiChoice = () => aiSessionOff ? 'none' : (store.get(AI.provider) || 'none');
+const aiEndpoints = () => (store.get(AI.endpoints) || []).filter(u => /^https?:\/\//i.test(String(u)));
+const prettyUrl = u => String(u).replace(/^https?:\/\//, '').replace(/\/+$/, '');
+function parseLocal(id) {
+  // "local:<endpoint>:<model>". The model may contain colons itself (qwen2.5:3b).
+  const m = /^local:(https?:\/\/[^:/]+(?::\d+)?)(?::(.+))?$/.exec(id || '');
+  return m && m[2] ? { endpoint: m[1], model: m[2] } : null;
+}
+function prettyModel(id) {
+  const m = /^([a-z][a-z0-9.\-]*?)[:\-]([0-9]+(?:\.[0-9]+)?[bm])$/i.exec(String(id));
+  if (!m) return String(id);
+  const fam = m[1].replace(/(\d)/, ' $1').replace(/[-_]+/g, ' ').replace(/\s+/g, ' ').trim().replace(/\b\w/g, c => c.toUpperCase());
+  return `${fam} · ${m[2].toUpperCase()}`;
+}
+const isEmbedding = id => /(^|[\/:_-])embed(ding)?($|[\/:_-])|nomic-embed|mxbai-embed|bge-/i.test(String(id));
+
+// The chosen model as { label, generate(prompt) -> text }, or null when AI is off.
+function activeAI() {
+  const id = aiChoice();
+  const local = parseLocal(id);
+  if (local) return {
+    label: prettyModel(local.model),
+    generate: prompt => callOpenAICompatible(`${local.endpoint}/v1/chat/completions`, 'local', local.model, prompt),
+  };
+  const cloud = AI_CLOUD.find(p => p.id === id);
+  const key = cloud && store.get(AI.key(cloud.id));
+  if (!key) return null;
+  return {
+    label: cloud.label,
+    generate: prompt =>
+      cloud.id === 'anthropic' ? callClaude(key, prompt) :
+      cloud.id === 'gemini' ? callGemini(key, prompt) :
+      callOpenAICompatible('https://api.groq.com/openai/v1/chat/completions', key, 'llama-3.3-70b-versatile', prompt),
+  };
+}
+
+// Why a local server didn't answer, in terms a teacher can act on.
+function localFailureHint(endpoint) {
+  const h = location.hostname;
+  if (location.protocol === 'https:' && /^http:/i.test(endpoint))
+    return `This page is HTTPS and ${prettyUrl(endpoint)} is not. Safari blocks that; Chrome allows it, but Ollama must also allow this site: set OLLAMA_ORIGINS=${location.origin} and restart Ollama. Or choose a cloud model.`;
+  if (h && !['localhost', '127.0.0.1', ''].includes(h))
+    return `The local server must allow ${location.origin}: set OLLAMA_ORIGINS=${location.origin} (that exact address, never "*") and restart it.`;
+  return `Is the model server running at ${prettyUrl(endpoint)}? Start Ollama with "ollama serve".`;
+}
+
+const JSON_ONLY = '\n\nReply with JSON only, exactly this shape: {"words":[{"term":"...","clue":"..."}]}';
+
+async function callOpenAICompatible(url, key, model, prompt) {
+  const isLocal = /^http:/i.test(url);
+  let res;
+  try {
+    res = await fetch(url, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', authorization: `Bearer ${key}` },
+      body: JSON.stringify({
+        model, temperature: 0.7, response_format: { type: 'json_object' },
+        messages: [
+          { role: 'system', content: 'You write accurate, school-appropriate crossword clues. Return only JSON.' },
+          { role: 'user', content: prompt + JSON_ONLY },
+        ],
+      }),
+    });
+  } catch (e) {
+    throw new Error(isLocal ? localFailureHint(url) : 'Couldn\'t reach the AI service. Check your connection.');
+  }
+  if (!res.ok) {
+    const detail = `${res.status}: ${(await res.text()).slice(0, 160)}`;
+    throw new Error(isLocal ? `${localFailureHint(url)} (${detail})` : detail);
+  }
+  const data = await res.json();
+  return (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) || '';
+}
+
+async function callGemini(key, prompt) {
+  const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=' + encodeURIComponent(key);
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      contents: [{ role: 'user', parts: [{ text: prompt + JSON_ONLY }] }],
+      generationConfig: { temperature: 0.7, responseMimeType: 'application/json' },
+    }),
+  });
+  if (!res.ok) throw new Error(`${res.status}: ${(await res.text()).slice(0, 160)}`);
+  const data = await res.json();
+  const parts = (data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts) || [];
+  return parts.map(p => p.text || '').join('');
+}
 
 const WORDS_SCHEMA = {
   type: 'object', additionalProperties: false, required: ['words'],
@@ -895,18 +1063,7 @@ const WORDS_SCHEMA = {
   } } },
 };
 
-async function generateWords(std) {
-  const key = aiKey();
-  if (!key) throw new Error('genAI isn\'t set up on this device.');
-  const prompt = [
-    `Write a vocabulary review crossword for students working on this ${std.a || ''} standard (${std.f || ''}, ${std.g || ''}):`,
-    ...std.i.map(([code, text]) => `- ${code}: ${text}`),
-    '',
-    'Choose 12 terms a student must know to meet the standard, and write one clue for each.',
-    '- Each term is a single word or short phrase of 3 to 12 letters once spaces and punctuation are removed.',
-    '- Clues are accurate, suited to the grade level, and never contain the answer or a form of it.',
-    '- Prefer terms that share letters, so they can cross in a grid.',
-  ].join('\n');
+async function callClaude(key, prompt) {
   const res = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: {
@@ -928,13 +1085,173 @@ async function generateWords(std) {
   if (!res.ok) throw new Error((msg.error && msg.error.message) || `Request failed (${res.status}).`);
   if (msg.stop_reason === 'refusal') throw new Error('genAI declined this request.');
   if (msg.stop_reason === 'max_tokens') throw new Error('genAI ran out of room. Try again.');
-  const text = (msg.content || []).filter(b => b.type === 'text').map(b => b.text).join('');
-  const words = (JSON.parse(text).words || [])
-    .map(w => [String(w.term || ''), String(w.clue || '').trim()])
+  return (msg.content || []).filter(b => b.type === 'text').map(b => b.text).join('');
+}
+
+// Small models wrap JSON in prose or code fences; take the outermost object.
+function parseWordsJson(text) {
+  const s = String(text || '');
+  const a = s.indexOf('{'), b = s.lastIndexOf('}');
+  if (a < 0 || b <= a) throw new Error('genAI didn\'t return a word list. Try again.');
+  try { return JSON.parse(s.slice(a, b + 1)); }
+  catch { throw new Error('genAI returned a word list that couldn\'t be read. Try again.'); }
+}
+
+async function generateWords(std) {
+  const ai = activeAI();
+  if (!ai) throw new Error('No AI model is chosen on this device. Open AI Setup to pick one.');
+  const prompt = [
+    `Write a vocabulary review crossword for students working on this ${std.a || ''} standard (${std.f || ''}, ${std.g || ''}):`,
+    ...std.i.map(([code, text]) => `- ${code}: ${text}`),
+    '',
+    'Choose 12 terms a student must know to meet the standard, and write one clue for each.',
+    '- Each term is a single word or short phrase of 3 to 12 letters once spaces and punctuation are removed.',
+    '- Clues are accurate, suited to the grade level, and never contain the answer or a form of it.',
+    '- Prefer terms that share letters, so they can cross in a grid.',
+  ].join('\n');
+  const parsed = parseWordsJson(await ai.generate(prompt));
+  const words = (Array.isArray(parsed.words) ? parsed.words : [])
+    .map(w => [String((w && w.term) || ''), String((w && w.clue) || '').trim()])
     .filter(([t, c]) => t.replace(/[^a-z]/gi, '').length >= 2 && c);
   if (words.length < 4) throw new Error('genAI returned too few usable words. Try again.');
   return words;
 }
+
+// --- AI Setup dialog ---
+const aiFound = {};          // endpoint -> [{ id, label }]
+let aiSuggested = [];        // well-known servers that answered: [{ url, hint, models }]
+
+async function aiModelsAt(url) {
+  try {
+    const res = await fetch(url.replace(/\/+$/, '') + '/v1/models', { signal: AbortSignal.timeout(2500) });
+    if (!res.ok) throw new Error(String(res.status));
+    const data = await res.json();
+    return (data.data || []).filter(m => m && m.id && !isEmbedding(m.id)).map(m => ({ id: String(m.id), label: prettyModel(m.id) }));
+  } catch { return []; }
+}
+
+function aiChoose(id) {
+  aiSessionOff = false;
+  store.set(AI.provider, id);
+  $('#ai-key-entry').hidden = true;
+  $('#ai-url-entry').hidden = true;
+  const cloud = AI_CLOUD.find(p => p.id === id);
+  if (cloud) {
+    const has = !!store.get(AI.key(cloud.id));
+    $('#ai-key').value = '';
+    $('#ai-key').placeholder = has ? `Key saved. Type to replace (${cloud.placeholder})` : `Paste your key (${cloud.placeholder})`;
+    $('#ai-key-hint').innerHTML = cloud.hint;
+    $('#ai-key-entry').hidden = false;
+    setTimeout(() => $('#ai-key').focus(), 0);
+  }
+  renderAiCards();
+}
+
+function renderAiCards() {
+  const wrap = $('#ai-cards');
+  const cur = aiChoice();
+  wrap.innerHTML = '';
+  const card = (title, desc, badge, selected, onClick, extra = '') => {
+    const b = Object.assign(document.createElement('button'), { type: 'button', className: 'ai-card' + (selected ? ' selected' : '') + extra });
+    b.append(Object.assign(document.createElement('b'), { textContent: title }),
+             Object.assign(document.createElement('span'), { textContent: desc }));
+    if (badge) b.append(Object.assign(document.createElement('span'), { className: 'ai-badge ' + badge[1], textContent: badge[0] }));
+    b.setAttribute('aria-pressed', String(!!selected));
+    b.addEventListener('click', onClick);
+    wrap.appendChild(b);
+  };
+  card('No AI', 'Teacher-made puzzles only.', ['Off', 'off'], cur === 'none', () => aiChoose('none'));
+  AI_CLOUD.forEach(p => card(p.label, p.desc, p.badge, cur === p.id, () => aiChoose(p.id)));
+  aiEndpoints().forEach(url => {
+    const models = aiFound[url] || [];
+    if (!models.length) card(prettyUrl(url), 'No models found. Is this server running? Click to try again.', ['Local', 'local'], false,
+      () => aiModelsAt(url).then(m => { aiFound[url] = m; renderAiCards(); }));
+    models.forEach(m => card(m.label, `Runs on ${prettyUrl(url)}. No key needed.`, ['Local', 'local'], cur === `local:${url}:${m.id}`, () => aiChoose(`local:${url}:${m.id}`)));
+  });
+  aiSuggested.forEach(s => card(`Found: ${s.hint}`, `${s.models[0].label}${s.models.length > 1 ? ` (+${s.models.length - 1} more)` : ''} on ${prettyUrl(s.url)}. Click to use it.`,
+    ['Local', 'local'], false, () => {
+      store.set(AI.endpoints, [...aiEndpoints(), s.url]);
+      aiFound[s.url] = s.models;
+      aiSuggested = aiSuggested.filter(x => x !== s);
+      aiChoose(`local:${s.url}:${s.models[0].id}`);
+    }, ' add'));
+  card('+ Add local server', 'An OpenAI-compatible model on this computer or your network.', null, false, () => {
+    $('#ai-key-entry').hidden = true;
+    $('#ai-url-entry').hidden = false;
+    setTimeout(() => $('#ai-url').focus(), 0);
+  }, ' add');
+}
+
+function openAiSetup() {
+  aiSuggested = [];
+  $('#ai-key-entry').hidden = true;
+  $('#ai-url-entry').hidden = true;
+  $('#ai-overlay').classList.add('open');
+  renderAiCards();
+  const saved = aiEndpoints();
+  Promise.all(saved.map(u => aiModelsAt(u).then(m => { aiFound[u] = m; }))).then(renderAiCards);
+  Promise.all(AI_WELL_KNOWN.filter(c => !saved.includes(c.url)).map(c => aiModelsAt(c.url).then(models => models.length ? { ...c, models } : null)))
+    .then(found => { aiSuggested = found.filter(Boolean); renderAiCards(); });
+}
+
+function commitAiKey() {
+  const cloud = AI_CLOUD.find(p => p.id === aiChoice());
+  const v = $('#ai-key').value.trim();
+  if (cloud && v) store.set(AI.key(cloud.id), v);
+  $('#ai-key').value = '';
+}
+
+function closeAiSetup() {
+  commitAiKey();
+  $('#ai-overlay').classList.remove('open');
+  aiChanged();
+}
+
+// Everything that shows or depends on the current choice.
+function aiChanged() {
+  const ai = activeAI();
+  $('#ai-open').classList.toggle('on', !!ai);
+  $('#ai-open').title = ai ? `AI: ${ai.label}. Click to change.` : 'AI is off. Click to choose a model.';
+  const using = el => {
+    el.innerHTML = '';
+    el.append(ai ? 'Using ' : 'No AI model chosen on this device. ');
+    if (ai) el.append(Object.assign(document.createElement('b'), { textContent: ai.label }), ' ·');
+    const b = Object.assign(document.createElement('button'), { type: 'button', className: 'linkish', textContent: ai ? 'change' : 'Choose one in AI Setup' });
+    b.addEventListener('click', openAiSetup);
+    el.append(b);
+  };
+  using($('#gen-using'));
+  using($('#b-ai-using'));
+  $('#gen-go').disabled = !ai;
+  $('#gen-note').textContent = ai
+    ? 'genAI will choose the words and write the clues from the standard above. A teacher hasn\'t checked them, so double-check anything that looks wrong.'
+    : 'Or choose a standard marked "Puzzle ready" in the Standard menu.';
+  if (P) $('#ai-redo').hidden = !(P.ai && ai && P.std && P.std.d && P.std.i.length === 1);
+  if (currentRoute === 'build') rebuild();
+}
+
+$('#ai-open').addEventListener('click', openAiSetup);
+$('#ai-done').addEventListener('click', closeAiSetup);
+$('#ai-overlay').addEventListener('click', e => { if (e.target === $('#ai-overlay')) closeAiSetup(); });
+$('#ai-overlay').addEventListener('keydown', e => { if (e.key === 'Escape') { $('#ai-key').value = ''; closeAiSetup(); } });
+$('#ai-key').addEventListener('keydown', e => { if (e.key === 'Enter') closeAiSetup(); });
+$('#ai-url').addEventListener('keydown', e => {
+  if (e.key !== 'Enter') return;
+  const raw = $('#ai-url').value.trim().replace(/\/+$/, '');
+  if (!/^https?:\/\//i.test(raw)) return;
+  if (!aiEndpoints().includes(raw)) store.set(AI.endpoints, [...aiEndpoints(), raw]);
+  $('#ai-url').value = '';
+  $('#ai-url-entry').hidden = true;
+  aiModelsAt(raw).then(m => { aiFound[raw] = m; renderAiCards(); });
+});
+
+// A saved local server that isn't running now would make every Generate fail; say "off"
+// for this visit instead, without forgetting the choice.
+(function checkSavedLocal() {
+  const local = parseLocal(store.get(AI.provider));
+  if (!local) return;
+  aiModelsAt(local.endpoint).then(m => { if (!m.some(x => x.id === local.model)) { aiSessionOff = true; aiChanged(); } });
+})();
 
 // --- LIBRARY + STUDENT PICKERS ---
 const libFor = (docId, code) => LIBRARY.find(p => p.doc === docId && p.codes.includes(code));
@@ -1026,8 +1343,12 @@ function pickStandard(docId, code) {
   if (lib) return goPuzzle(libraryData(lib));
   const cached = store.get(genKey(docId, code));
   if (cached) return goPuzzle(cached);
-  showGenPanel(docId, code);
+  // Its own address, not just a panel: until 2026-10-07 this panel left the address on
+  // the list, so the "Standards Crossword" link (href="#") changed nothing and Back left
+  // the app altogether. Now the link and Back both return to the list.
+  location.hash = stdHash(docId, code);
 }
+const stdHash = (docId, code) => '#s=' + encodeURIComponent(docId) + ':' + encodeURIComponent(code);
 
 let GEN = null;   // the standard the "no puzzle yet" panel is offering to generate for
 function showGenPanel(docId, code) {
@@ -1040,13 +1361,9 @@ function showGenPanel(docId, code) {
   $('#gen').hidden = false;
   setHeader(`Review: ${code}`, '', std);
   $('#stds').open = true;
-  const hasKey = !!aiKey();
-  $('#gen-go').disabled = !hasKey;
   $('#gen-go').textContent = 'Generate a puzzle with genAI';
-  $('#gen-note').textContent = hasKey
-    ? 'genAI (Claude) will choose the words and write the clues from the standard above. A teacher hasn\'t checked them, so double-check anything that looks wrong.'
-    : 'genAI isn\'t set up on this device yet. Ask your teacher, or choose a standard marked "Puzzle ready".';
   $('#gen-err').hidden = true;
+  aiChanged();
 }
 
 async function runGenerate(docId, code, std, btn) {
@@ -1058,9 +1375,9 @@ async function runGenerate(docId, code, std, btn) {
     const words = await generateWords(std);
     const layout = layoutWords(words);
     if (layout.w.length < 4) throw new Error('Those words didn\'t fit together. Try again.');
-    const data = { t: `Review: ${code}`, std, w: layout.w, ai: 1 };
+    const data = { t: `Review: ${code}`, std, w: layout.w, ai: (activeAI() || {}).label || 1 };
     store.set(genKey(docId, code), data);
-    goPuzzle(data);
+    location.replace('#p=' + encode(data));
   } catch (err) {
     $('#gen-err').textContent = err.message;
     $('#gen-err').hidden = false;
@@ -1221,7 +1538,7 @@ function rebuild() {
   $('#b-copy').disabled = !ok;
   $('#b-shuffle').disabled = !ok;
   $('#b-lib').disabled = !ok || !std;
-  $('#b-draft').disabled = !B.std.codes.size || !aiKey();
+  $('#b-draft').disabled = !B.std.codes.size || !activeAI();
   store.set('xw:draft', {
     t: $('#b-title').value, s: $('#b-sub').value, w: text, seed: B.seed,
     std: { doc: B.std.doc, codes: [...B.std.codes] },
@@ -1230,7 +1547,7 @@ function rebuild() {
 
 function openBuilder() {
   setHeader('Puzzle builder', 'Pick standards, write or draft words and clues, then add the puzzle to the library or copy a link.');
-  keyStatus();
+  aiChanged();
   if (!B.ready) {
     B.ready = true;
     const draft = store.get('xw:draft');
@@ -1264,12 +1581,6 @@ function copyText(text, btn, doneLabel) {
       t.remove();
       done();
     });
-}
-
-function keyStatus() {
-  const has = !!aiKey();
-  $('#b-key-status').textContent = has ? 'A key is saved in this browser.' : 'No key saved. genAI is off on this device.';
-  $('#b-key-forget').disabled = !has;
 }
 
 LIBRARY.forEach((p, i) => {
@@ -1320,20 +1631,6 @@ $('#b-draft').addEventListener('click', async () => {
     btn.textContent = 'Draft words with genAI';
     rebuild();
   }
-});
-
-$('#b-key-save').addEventListener('click', () => {
-  const k = $('#b-key').value.trim();
-  if (!k) return;
-  store.set(AI_KEY, k);
-  $('#b-key').value = '';
-  keyStatus();
-  rebuild();
-});
-$('#b-key-forget').addEventListener('click', () => {
-  try { localStorage.removeItem(AI_KEY); } catch {}
-  keyStatus();
-  rebuild();
 });
 
 // A small picture of the empty grid, so a card reads as a crossword at a glance.
@@ -1452,10 +1749,46 @@ function onRoute() {
     syncPickers(data.std);
     return;
   }
+  if (h.startsWith('s=')) {
+    P = null;
+    $('#solver').hidden = true;
+    const i = h.indexOf(':');
+    let docId = '', code = '';
+    try { docId = decodeURIComponent(h.slice(2, i)); code = decodeURIComponent(h.slice(i + 1)); } catch {}
+    openStandard(docId, code, h);
+    return;
+  }
   showList();
 }
 
+// #s=<doc>:<code> -- one standard. Opened from the menu, a refresh or a shared link, so
+// its document may not be loaded yet. If a puzzle has appeared for it since (one was
+// generated, or the link is old), go straight to it in place of this history entry.
+async function openStandard(docId, code, h) {
+  try { await loadDoc(docId); } catch {}
+  if (location.hash.slice(1) !== h) return;          // moved on while it loaded
+  const std = stdPayload(docId, new Set([code]));
+  if (!std || !std.i.length) {
+    setHeader('Standard not found', 'This link names a standard this app doesn\'t have. Pick one with the menus above.');
+    return;
+  }
+  const lib = libFor(docId, code);
+  const ready = lib ? libraryData(lib) : store.get(genKey(docId, code));
+  if (ready) { location.replace('#p=' + encode(ready)); return; }
+  syncPickers(std);
+  showGenPanel(docId, code);
+}
+
+// The trail's "Standards Crossword" always reaches the list, even when the address
+// already is the list and setting it again would change nothing.
+$('#trail-xw').addEventListener('click', e => {
+  e.preventDefault();
+  if (location.hash.length > 1) location.hash = '';
+  else onRoute();
+});
+
 $('#version').textContent = VERSION;
+aiChanged();
 addEventListener('hashchange', onRoute);
 addEventListener('resize', debounce(() => { if (currentRoute === 'solve') sizeGrid(); else if (currentRoute === 'build') rebuild(); }, 150));
 onRoute();

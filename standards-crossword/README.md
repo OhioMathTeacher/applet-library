@@ -10,10 +10,40 @@ framework, content area, grade and standard, and solve.
 1. **The library** (`library.js`): teacher-made puzzles, each tied to one
    standards document and the standards it covers. These are listed first,
    under "Puzzle ready", and work offline.
-2. **genAI, when there's no library puzzle**: Claude picks the words and
-   writes the clues from the standard's official text. The puzzle is
-   labeled as genAI-generated and not reviewed by a teacher. This needs
-   internet and a Claude API key saved in the builder on that browser.
+2. **genAI, when there's no library puzzle**: an AI model picks the words and
+   writes the clues from the standard's official text. The puzzle is labeled
+   genAI-generated, names the model that wrote it, and is not reviewed by a
+   teacher. It needs a model chosen in **AI Setup** (below).
+
+Choosing a standard with no puzzle opens it at its own address (`#s=…`), so
+the **Standards Crossword** link at the top and the browser's Back button both
+return to the puzzle list, and the address can be shared.
+
+## AI Setup
+
+The **AI Setup** button at the top right offers the same choice as Clique,
+Journaler and Allegory. The choice, and any key, stay in that browser.
+
+- **Local model (recommended)**: [Ollama](https://ollama.com/) or any
+  OpenAI-compatible server. AI Setup finds Ollama at `127.0.0.1:11434` and
+  LM Studio at `127.0.0.1:1234`; **+ Add local server** takes any other
+  address. No key, no cost, nothing leaves the computer. A small model such as
+  `qwen2.5:3b` runs on most laptops; a large one such as `qwen3.8:27b` writes
+  noticeably better clues, in under 20 seconds on a workstation GPU.
+- **Groq** or **Gemini**: free keys. Use a personal Gmail for Gemini, not a
+  school account.
+- **Claude**: your own Anthropic key (Claude Opus 5). Give it a low spending
+  limit.
+- **No AI**: teacher-made puzzles only.
+
+On the hosted (HTTPS) page, Safari blocks calls to a local `http://` server;
+Chrome allows them, but Ollama must also allow the site's origin:
+`OLLAMA_ORIGINS=https://ohiomathteacher.github.io`, then restart Ollama.
+Running a local copy (`python3 -m http.server` in this folder) avoids both.
+
+A key saved here can be used, or read from browser storage, by anyone using
+that browser. Don't save one on shared computers you don't control. Browsers
+that used the old builder key box carry their Claude key over automatically.
 
 ## The builder
 
@@ -24,9 +54,7 @@ write or draft words and clues, check the layout, then either:
 - **Copy student link**. The whole puzzle lives in the link, answers
   included.
 
-The genAI key is stored only in that browser's storage. Anyone using that
-browser can use it, and could read it, so use a key with a spending limit
-and don't save it on shared machines you don't control.
+**Draft words with genAI** uses the model chosen in AI Setup.
 
 ## Standards data
 

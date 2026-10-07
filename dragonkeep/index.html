@@ -1389,13 +1389,24 @@ const viewCx = viewCv.getContext('2d');
 const MAXD = 6;
 const DIRS = [[0,-1],[1,0],[0,1],[-1,0]];
 
+/* The eye sits back from the near cell rather than inside it. Without this
+   the d=0 frame is 94% of the screen and you are pressed against the wall
+   with no corridor to read. The base scale is raised to compensate, so the
+   setback pulls the NEAR frame back while leaving the far ones where they
+   were -- depth appears without the whole picture shrinking. */
+const CAM_BACK = 0.55;
 function frameAt(d){
   const VW = viewCv.width, VH = viewCv.height;
-  const s = 1/(1 + d*0.92);
-  const hw = VW*0.47*s, hh = VH*0.47*s;
+  const s = 1/(1 + (d + CAM_BACK)*0.92);
+  const hw = VW*0.60*s, hh = VH*0.60*s;
   return {x0:VW/2-hw, x1:VW/2+hw, y0:VH/2-hh, y1:VH/2+hh};
 }
-const SHADE = [IV.T, IV.N, IV.K];
+
+/* Walls are green and floor is yellow, the same way round as the map. These
+   were previously inverted -- pale yellow walls over a green floor -- so the
+   two pictures taught opposite legends and the map made the view read wrong.
+   Black is now only ever overhead or far away: never a surface you walk on. */
+const SHADE = [IV.D, IV.N, IV.K];
 const shadeFor = d => SHADE[Math.min(SHADE.length-1, Math.floor(d/2))];
 
 let mapOn = true;
@@ -1550,7 +1561,7 @@ function drawView(){
   for(let d = stop-1; d >= 0; d--){
     const a = frameAt(d), b = frameAt(d+1), sh = shadeFor(d);
     poly([[a.x0,a.y0],[b.x0,b.y0],[b.x1,b.y0],[a.x1,a.y0]], d%2 ? IV.K : '#140a14');
-    poly([[a.x0,a.y1],[b.x0,b.y1],[b.x1,b.y1],[a.x1,a.y1]], d%2 ? IV.N : '#2d3f06');
+    poly([[a.x0,a.y1],[b.x0,b.y1],[b.x1,b.y1],[a.x1,a.y1]], d%2 ? IV.T : '#6E7537');
     const L = sideCell(d,-1), R = sideCell(d,1);
     if(!isFloor(L.x,L.y)) poly([[a.x0,a.y0],[b.x0,b.y0],[b.x0,b.y1],[a.x0,a.y1]], sh);
     if(!isFloor(R.x,R.y)) poly([[a.x1,a.y0],[b.x1,b.y0],[b.x1,b.y1],[a.x1,a.y1]], sh);

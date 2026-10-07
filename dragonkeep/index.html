@@ -228,9 +228,24 @@
   .keypad .kf{font-size:9.5px;font-weight:600;text-align:center;line-height:1.15}
   .keypad button.wide{grid-column:span 3}
   .keypad button.w2{grid-column:span 2}
+  /* An input that fired lights its own key. With a gamepad there is nothing
+     under your thumb to look at, so the screen has to say which control you
+     just used -- otherwise the only way to learn the mapping is to guess. */
+  .keypad button.fired{background:var(--accent);border-color:var(--accent);color:var(--ground)}
+  .keypad button.fired .kn{color:var(--ground)}
+  #view.swing{animation:swingflash .17s ease-out}
+  @keyframes swingflash{from{filter:brightness(1.85)}to{filter:brightness(1)}}
 
   .binds{display:flex;flex-direction:column;gap:3px}
   .bindrow{display:flex;align-items:center;gap:8px;font-size:11.5px}
+  .bindrow.fired button{background:var(--accent);border-color:var(--accent);color:var(--ground)}
+  .modepick{display:flex;gap:4px}
+  .modepick button{
+    font:inherit;font-size:11.5px;font-weight:600;cursor:pointer;padding:5px 11px;
+    background:var(--surface-2);border:1.5px solid var(--line);
+    border-radius:var(--radius);color:var(--ink);
+  }
+  .modepick button[aria-pressed="true"]{background:var(--ink);color:var(--ground);border-color:var(--ink)}
   .bindrow .ba{flex:1;color:var(--ink-2)}
   .bindrow button{
     font-family:"IBM Plex Mono",monospace;font-size:11px;font-weight:600;
@@ -480,6 +495,13 @@
             <label for="helpSlider">Helpers</label>
             <input id="helpSlider" type="range" min="0" max="4" step="1" value="2">
             <output id="helpOut">2</output>
+          </div>
+          <div class="ctl">
+            <label>Monsters</label>
+            <div class="modepick">
+              <button id="mBattle" aria-pressed="true">Battle</button>
+              <button id="mAdventure" aria-pressed="false">Adventure</button>
+            </div>
           </div>
           <p style="margin:11px 0 0;color:var(--ink-2);font-size:12.5px">
             Height multiplies volume and wall area by the same factor, and leaves floor and ceiling
@@ -918,6 +940,12 @@ const ROCK = 0, FLOOR = 1;
 let grid   = new Uint8Array(GW*GH);
 let items  = {};
 let mobs   = {};
+/* Battle mode is the default; Adventure mode empties the dungeon of anything
+   that fights. The dragon and the warden stay in both: neither is a fight.
+   The dragon is the puzzle -- seal it in and you still win -- and the warden
+   asks a question. Taking those out would not remove the danger, it would
+   remove the game. */
+let battle = true;
 let start  = {x:5, y:9, dir:0};          // dir 0=N 1=E 2=S 3=W
 let height = 2;
 let fog    = 1;
@@ -1419,7 +1447,8 @@ function drawView(){
     const i = idx(c.x,c.y), f = frameAt(d);
     const size = (f.y1-f.y0)*0.56;
     const cx = (f.x0+f.x1)/2, cy = f.y1 - size*0.58;
-    if(mobs[i]) drawSprite(viewCx, mobs[i].key, cx, cy, size*1.12);
+    const vm = liveMob(i);
+    if(vm) drawSprite(viewCx, vm.key, cx, cy, size*1.12);
     else if(places[i] && puzzles[places[i].pid])
       drawSprite(viewCx, 'puzzle', cx, cy, size*0.92);
     else if(items[i]) drawSprite(viewCx, ARMS[items[i]].sprite, cx, cy, size*0.74);
@@ -1671,9 +1700,28 @@ function answerWarden(right, pick, truth){
 /* ============================================================
    TURNS
    ============================================================ */
+/* A monster that fights. Not the dragon, which cannot be fought, and not a
+   gate-keeper, which asks instead of striking. Asked of the key rather than
+   listed by name, so a monster added later is covered without being added here
+   as well. */
+function fighter(key){
+  const def = MOBS[key];
+  return !!def && key !== 'dragon' && !def.gate;
+}
+
+/* What the expedition actually meets. Creator still holds everything that was
+   authored -- this is the play-time view of it, so switching modes never edits
+   the dungeon you drew. */
+function liveMob(i){
+  const m = mobs[i];
+  if(!m) return undefined;
+  if(!battle && fighter(m.key)) return undefined;
+  return m;
+}
+
 function monsterTurn(){
   const c = cellAhead(1);
-  const m = mobs[idx(c.x,c.y)];
+  const m = liveMob(idx(c.x,c.y));
   if(!m || MOBS[m.key].gate) return;
   const def = MOBS[m.key];
   if(P.crew > 0){
@@ -1694,9 +1742,10 @@ function monsterTurn(){
 }
 
 function attack(){
+  swingFlash();                   // fires whether or not anything is there to hit
   if(P.intro){ P.intro = false; say('You step into the dark.');
     wakeAudio(); sfx('descend'); renderHud(); drawView(); return; }
-  const c = cellAhead(1), i = idx(c.x,c.y), m = mobs[i];
+  const c = cellAhead(1), i = idx(c.x,c.y), m = liveMob(i);
   if(!m){ say('You swing at empty air.'); return; }
   if(MOBS[m.key].gate){ gateCell = i; askWarden(); return; }
   if(m.key === 'dragon'){
@@ -1728,7 +1777,7 @@ function step(sign){
   if(!isFloor(nx,ny)){ say('Solid rock.'); sfx('bump'); return; }
   const pl = places[idx(nx,ny)];
   if(pl && puzzles[pl.pid] && !P.solved[pl.pid]){ askPuzzle(pl.pid, idx(nx,ny)); return; }
-  const blocker = mobs[idx(nx,ny)];
+  const blocker = liveMob(idx(nx,ny));
   if(blocker){
     if(MOBS[blocker.key].gate){ gateCell = idx(nx,ny); askWarden(); return; }
     say(MOBS[blocker.key].name+' blocks the way.');
@@ -1753,7 +1802,7 @@ function step(sign){
   }
   checkDragon();
   if(!P.done){
-    const ah = cellAhead(1), am = mobs[idx(ah.x,ah.y)];
+    const ah = cellAhead(1), am = liveMob(idx(ah.x,ah.y));
     if(am) say('<b>'+MOBS[am.key].name+'</b> ahead.');
   }
   renderHud(); drawView();
@@ -1765,7 +1814,7 @@ function turn(d){ P.dir = (P.dir+d+4)%4; sfx('turn'); checkDragon(); drawView();
 function layBrick(){
   const c = cellAhead(1), i = idx(c.x,c.y);
   if(!isFloor(c.x,c.y)){ say('Already solid.'); return; }
-  if(mobs[i]){ say('Something is standing there.'); return; }
+  if(liveMob(i)){ say('Something is standing there.'); return; }
   if(P.bricks <= 0){ say('Out of bricks.'); return; }
   grid[i] = ROCK;
   P.bricks--;
@@ -1864,11 +1913,39 @@ const PRESET_INTV = {
   restart:['Numpad0','Digit0']
 };
 
-let binds = JSON.parse(JSON.stringify(PRESET_SPATIAL));
+/* The W3C standard gamepad mapping fixes what each index means: 12-15 are
+   the d-pad, 0-3 the face buttons, 4/5 the shoulders, 8/9 select and start.
+   A browser reporting mapping:"standard" has already normalised whatever the
+   firmware sends, so these are defined positions rather than a guess at one
+   pad's wiring. A pad that does NOT claim the standard mapping may land
+   elsewhere -- which is why every control stays rebindable by pressing it. */
+const PAD_STANDARD = {
+  fwd:'Pad12', back:'Pad13', left:'Pad14', right:'Pad15',
+  attack:'Pad0', brick:'Pad1', war:'Pad2', spirit:'Pad3',
+  sound:'Pad4', immerse:'Pad5', help:'Pad8', restart:'Pad9'
+};
 
-const KEY_LABEL = code =>
-  code.replace(/^Numpad/,'num ').replace(/^Digit/,'').replace(/^Arrow/,'')
-      .replace('Space','space');
+/* Added to a preset rather than written into both of them, so the pad layout
+   has one definition and cannot drift between the two keyboard presets. */
+function withPad(preset){
+  const out = JSON.parse(JSON.stringify(preset));
+  for(const a in PAD_STANDARD){
+    if(out[a] && !out[a].includes(PAD_STANDARD[a])) out[a].push(PAD_STANDARD[a]);
+  }
+  return out;
+}
+
+let binds = withPad(PRESET_SPATIAL);
+
+const KEY_LABEL = code => {
+  /* pad codes are their own vocabulary; keyboard codes keep the old rules */
+  const ax = /^PadAx(\d+)([+-])$/.exec(code);
+  if(ax) return 'pad ax' + ax[1] + ax[2];
+  const pb = /^Pad(\d+)$/.exec(code);
+  if(pb) return 'pad ' + pb[1];
+  return code.replace(/^Numpad/,'num ').replace(/^Digit/,'').replace(/^Arrow/,'')
+             .replace('Space','space');
+};
 
 /* physical numpad order — top row first, exactly as the hardware is */
 const PAD = ['Numpad7','Numpad8','Numpad9',
@@ -1890,6 +1967,7 @@ function drawKeypad(){
     if(code === 'Numpad0') b.className = 'w2';
     b.innerHTML = '<span class="kn">'+code.replace('Numpad','').replace('Decimal','.')+'</span>'+
                   '<span class="kf">'+(a ? ACTIONS[a] : '—')+'</span>';
+    if(a) b.dataset.action = a;
     if(!a) b.disabled = true;
     else b.addEventListener('click', ()=> act(a));
     keypadEl.appendChild(b);
@@ -1903,33 +1981,83 @@ function drawBinds(){
   Object.entries(ACTIONS).forEach(([a,label])=>{
     const row = document.createElement('div');
     row.className = 'bindrow';
+    row.dataset.action = a;
     const name = document.createElement('span');
     name.className = 'ba'; name.textContent = label;
     const btn = document.createElement('button');
     btn.textContent = binds[a].map(KEY_LABEL).join(' / ');
-    btn.title = 'Click, then press a key';
+    btn.title = 'Click, then press a key or a button on a gamepad';
     btn.addEventListener('click', ()=>{
       listeningFor = a;
       drawBinds();
       bindsEl.querySelectorAll('button').forEach(x=>{
         if(x.previousSibling && x.previousSibling.textContent === label){
-          x.dataset.listening = '1'; x.textContent = 'press a key…';
+          x.dataset.listening = '1'; x.textContent = 'press a key or pad…';
         }
       });
     });
-    if(listeningFor === a){ btn.dataset.listening = '1'; btn.textContent = 'press a key…'; }
+    if(listeningFor === a){ btn.dataset.listening = '1'; btn.textContent = 'press a key or pad…'; }
     row.append(name, btn);
     bindsEl.appendChild(row);
   });
 }
 
 function applyPreset(pr){
-  binds = JSON.parse(JSON.stringify(pr));
+  binds = withPad(pr);
   listeningFor = null;
   drawKeypad(); drawBinds(); save();
 }
 document.getElementById('presetSpatial').addEventListener('click', ()=> applyPreset(PRESET_SPATIAL));
 document.getElementById('presetIntv').addEventListener('click',    ()=> applyPreset(PRESET_INTV));
+
+/* ============================================================
+   ONE ROUTE FOR EVERY INPUT
+   A keystroke and a pad press differ only in the code string they
+   carry. Both are captured by captureBind() while rebinding and
+   dispatched by routeCode() otherwise, so the rules about what works
+   outside play mode live in exactly one place.
+   ============================================================ */
+function captureBind(code){
+  for(const a in binds) binds[a] = binds[a].filter(c => c !== code);
+  binds[listeningFor] = [code];
+  listeningFor = null;
+  drawKeypad(); drawBinds(); save();
+}
+
+/* Flash every on-screen stand-in for an action: the keypad key and the
+   Controls row both. An action bound only to a pad button has no numpad key
+   to light, so the Controls row is what answers "which button was that". */
+function pulseAction(a){
+  document.querySelectorAll('[data-action="'+a+'"]').forEach(el=>{
+    el.classList.remove('fired');
+    void el.offsetWidth;            // restart the flash on a repeated press
+    el.classList.add('fired');
+    setTimeout(()=> el.classList.remove('fired'), 190);
+  });
+}
+
+function swingFlash(){
+  const v = document.getElementById('view');
+  if(!v) return;
+  v.classList.remove('swing');
+  void v.offsetWidth;
+  v.classList.add('swing');
+  setTimeout(()=> v.classList.remove('swing'), 180);
+}
+
+function routeCode(code, e){
+  const a = actionForCode(code);
+  if(!a) return;
+  const stop = () => { if(e) e.preventDefault(); };
+  if(a === 'immerse'){ stop(); pulseAction(a); setImmersive(!isImmersive()); return; }
+  if(a === 'sound'){   stop(); pulseAction(a); setMuted(!muted);             return; }
+  if(a === 'help'){    stop(); pulseAction(a); setHelp(!isHelpOpen());       return; }
+  if(isHelpOpen()) return;              // the card swallows the rest
+  if(mode !== 'play') return;
+  stop();
+  pulseAction(a);
+  act(a);
+}
 
 addEventListener('keydown', e=>{
   /* a focused field owns its keystrokes; otherwise typing "f" in the puzzle
@@ -1940,10 +2068,7 @@ addEventListener('keydown', e=>{
   if(listeningFor){
     e.preventDefault();
     if(e.code === 'Escape'){ listeningFor = null; drawBinds(); return; }
-    for(const a in binds) binds[a] = binds[a].filter(c => c !== e.code);
-    binds[listeningFor] = [e.code];
-    listeningFor = null;
-    drawKeypad(); drawBinds(); save();
+    captureBind(e.code);
     return;
   }
   if(e.code === 'Escape'){
@@ -1951,16 +2076,58 @@ addEventListener('keydown', e=>{
     if(isImmersive()){ e.preventDefault(); setImmersive(false); return; }
     if(mode === 'play'){ e.preventDefault(); setMode('create'); return; }
   }
-  const a = actionForCode(e.code);
-  if(!a) return;
-  if(a === 'immerse'){ e.preventDefault(); setImmersive(!isImmersive()); return; }
-  if(a === 'sound'){ e.preventDefault(); setMuted(!muted); return; }
-  if(a === 'help'){ e.preventDefault(); setHelp(!isHelpOpen()); return; }
-  if(isHelpOpen()) return;              // the card swallows the rest
-  if(mode !== 'play') return;
-  e.preventDefault();
-  act(a);
+  routeCode(e.code, e);
 });
+
+/* ============================================================
+   GAMEPAD
+   The Gamepad API has no events for presses, only a snapshot, so
+   this polls and reports rising edges. Button and axis NUMBERS are
+   never assumed: a cheap pad reports whatever its firmware likes and
+   may not claim the standard mapping at all. Instead every control
+   is bindable by pressing it, exactly as a key is, so the mapping
+   comes from the player's hardware rather than from a guess about it.
+
+   Edge-only, deliberately: a held direction steps once. The keyboard
+   repeats because the OS repeats it, but a pad held a half-second
+   longer should not send you four cells down a corridor.
+   ============================================================ */
+const PAD_DEAD = 0.5;                 // axis must pass this to count as pressed
+let padPrev = Object.create(null);
+let padSeen = false;
+
+function padSnapshot(){
+  const now = Object.create(null);
+  const pads = navigator.getGamepads ? navigator.getGamepads() : [];
+  for(const gp of pads){
+    if(!gp) continue;
+    gp.buttons.forEach((b,i)=>{
+      const on = (typeof b === 'object') ? (b.pressed || b.value > PAD_DEAD) : (b > PAD_DEAD);
+      if(on) now['Pad'+i] = true;
+    });
+    gp.axes.forEach((v,i)=>{
+      if(v <= -PAD_DEAD) now['PadAx'+i+'-'] = true;
+      if(v >=  PAD_DEAD) now['PadAx'+i+'+'] = true;
+    });
+  }
+  return now;
+}
+
+function padPress(code){
+  if(listeningFor){ captureBind(code); return; }
+  /* a focused field owns typing, but it has no claim on a gamepad */
+  routeCode(code, null);
+}
+
+function padTick(){
+  const now = padSnapshot();
+  for(const code in now) if(!padPrev[code]) padPress(code);
+  padPrev = now;
+  requestAnimationFrame(padTick);
+}
+requestAnimationFrame(padTick);
+
+addEventListener('gamepadconnected', ()=>{ padSeen = true; drawBinds(); });
 
 /* ============================================================
    IMMERSIVE MODE
@@ -2386,6 +2553,16 @@ function loadDungeon(key){
   drawPlan(); renderMetrics(); save();
 }
 
+function setBattle(on){
+  battle = !!on;
+  document.getElementById('mBattle').setAttribute('aria-pressed', String(battle));
+  document.getElementById('mAdventure').setAttribute('aria-pressed', String(!battle));
+  if(mode === 'play'){ renderHud(); drawView(); }
+  save();
+}
+document.getElementById('mBattle').addEventListener('click',    ()=> setBattle(true));
+document.getElementById('mAdventure').addEventListener('click', ()=> setBattle(false));
+
 const dungeonsEl = document.getElementById('dungeons');
 Object.entries(DUNGEONS).forEach(([k,d])=>{
   const b = document.createElement('button');
@@ -2440,7 +2617,7 @@ const KEY = 'dragonkeep-applet-plan-v1';
 function save(){
   try{
     localStorage.setItem(KEY, JSON.stringify({
-      w:GW, g:Array.from(grid), items, mobs, start, height, fog, binds, wake, helpers,
+      w:GW, g:Array.from(grid), items, mobs, start, height, fog, binds, wake, helpers, battle,
       places, puzzles
     }));
   }catch(e){ /* private window or blocked storage — the page works regardless */ }
@@ -2459,7 +2636,14 @@ function load(){
     start = d.start || start;
     height = d.height || 2;
     fog = (typeof d.fog === 'number') ? d.fog : 1;
-    if(d.binds && d.binds.fwd) binds = d.binds;
+    if(d.binds && d.binds.fwd){
+      /* a save written before pad support has no Pad codes at all; give it the
+         defaults once, but never overwrite a pad button the player has chosen */
+      const hasPad = Object.keys(d.binds).some(
+        k => Array.isArray(d.binds[k]) && d.binds[k].some(c => /^Pad/.test(c)));
+      binds = hasPad ? d.binds : withPad(d.binds);
+    }
+    if(typeof d.battle === 'boolean') battle = d.battle;
     if(typeof d.wake === 'number') wake = d.wake;
     if(typeof d.helpers === 'number') helpers = d.helpers;
     places  = (d.places  && typeof d.places  === 'object') ? d.places  : {};
@@ -2490,6 +2674,7 @@ function startPlay(){
   const m = metrics();
   say('You enter <b>'+m.V+' cubic units</b> of darkness, walled by <b>'+m.wall+' square units</b> of stone.');
   say('Maze index '+m.index.toFixed(2)+'. Mist: '+FOG_NAME[fog]+'.');
+  if(!battle) say('<b>Adventure mode.</b> Nothing down here will fight you. Walk, and look.');
   if(dragonCells().length){
     const sc = sealCost();
     say('You carry <b>'+P.bricks+' bricks</b> and '+P.crew+' helpers. Wall the dragon in &mdash; '+
@@ -2964,6 +3149,9 @@ function setMuted(on){
   document.getElementById('wakeOut').textContent = wake;
   document.getElementById('helpSlider').value = helpers;
   document.getElementById('helpOut').textContent = helpers;
+  /* set directly rather than through setBattle(), which would save during boot */
+  document.getElementById('mBattle').setAttribute('aria-pressed', String(battle));
+  document.getElementById('mAdventure').setAttribute('aria-pressed', String(!battle));
   try{ setMuted(localStorage.getItem('dddh-muted') === '1'); }catch(e){ setMuted(false); }
   try{ leanWanted = localStorage.getItem('dragonkeep-applet-lean') === '1'; }catch(e){}
   applyLean();

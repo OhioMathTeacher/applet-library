@@ -60,7 +60,16 @@
   }
   .wrap{max-width:1180px;margin:0 auto;padding:0 16px;padding-block:20px 48px}
 
-  header.top{display:flex;flex-wrap:wrap;align-items:flex-end;gap:16px 24px;margin-bottom:18px}
+  /* The same two columns as .cols below, so the tagline ends exactly at the
+     dungeon map's right edge and the mode buttons sit over the panels. */
+  header.top{display:grid;grid-template-columns:auto minmax(0,1fr) 304px;align-items:end;gap:16px 22px;margin-bottom:18px}
+  .toprail{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px}
+  .toprail .modes{margin-left:0}
+  .toprail .leanbtn{margin-left:0}
+  @media (max-width:860px){
+    header.top{grid-template-columns:auto minmax(0,1fr)}
+    .toprail{grid-column:1 / -1}
+  }
   h1{
     font-family:"Press Start 2P",Archivo,monospace;
     font-size:clamp(12px,2.5vw,17px);line-height:1.5;margin:0;text-wrap:balance;
@@ -68,7 +77,7 @@
   h1 .dr{color:var(--accent)}
   h1 .amp{font-size:.72em;color:var(--ink-3)}
   /* the description runs the full width between the icon and the mode buttons */
-  .titleblock{flex:1 1 30ch;min-width:0}
+  .titleblock{min-width:0}
   .tagline{color:var(--ink-2);margin:7px 0 0;font-size:13.5px}
 
   /* Lean: the masthead costs ~150px that Play has better uses for. The logo
@@ -561,12 +570,14 @@
       <h1><span class="dr">Dragon</span>keep</h1>
       <p class="tagline">Draw a floor plan and it becomes a prism you can walk through. The geometry you design is the geometry you see &mdash; and the geometry the warden asks about.</p>
     </div>
+    <div class="toprail">
     <div class="modes" role="group" aria-label="Mode">
       <button id="mCreate" aria-pressed="true">Creator</button>
       <button id="mPlay" aria-pressed="false">Play</button>
     </div>
     <button class="ghostbtn leanbtn" id="leanBtn" aria-pressed="false"
             title="Hide the title and tagline">Hide title</button>
+    </div>
   </header>
 
   <!-- ============ CREATOR ============ -->
@@ -800,6 +811,14 @@
       <div class="panel">
         <h2>Controls</h2>
         <div class="body">
+          <div class="group-label" style="margin-top:0">Movement</div>
+          <div class="modes steer" role="group" aria-label="Movement">
+            <button id="steerCompass" aria-pressed="true">Compass</button>
+            <button id="steerClassic" aria-pressed="false">Classic</button>
+          </div>
+          <p style="margin:6px 0 11px;color:var(--ink-3);font-size:11.5px">
+            <b>Compass</b>: up is always north, like the map. <b>Classic</b>: up is the way you face, as in 1983.
+          </p>
           <div class="binds" id="binds"></div>
           <div style="display:flex;gap:5px;margin-top:11px;flex-wrap:wrap">
             <button class="ghostbtn" id="presetSpatial">Spatial</button>
@@ -1026,7 +1045,7 @@
 <div id="version"></div>
 <script>
 /* Shown quietly in the corner; bump with each release. */
-const VERSION = 'v0.18 · 2026-10-07';
+const VERSION = 'v0.20 · 2026-10-07';
 document.getElementById('version').textContent = VERSION;
 
 /* ============================================================
@@ -1527,7 +1546,8 @@ function drawMap(){
     if(!P.seen[idx(x,y)]) continue;
     if(x < x0) x0 = x; if(x > x1) x1 = x; if(y < y0) y0 = y; if(y > y1) y1 = y;
   }
-  const w = (x1-x0+1)*cell, h = (y1-y0+1)*cell;
+  const nb = Math.max(11, Math.round(cell * 1.15));       // a band on top for the N
+  const w = Math.max((x1-x0+1)*cell, nb), h = (y1-y0+1)*cell + nb;
   if(cv.width !== w)  cv.width = w;
   if(cv.height !== h) cv.height = h;
   cv.style.width = w+'px'; cv.style.height = h+'px';
@@ -1536,8 +1556,13 @@ function drawMap(){
 
   const g = cv.getContext('2d');
   g.clearRect(0,0,w,h);
+  /* N for north: the map is north-up, and in Compass movement so are the keys */
+  g.fillStyle = IV.W;
+  g.font = '400 ' + Math.round(nb * .62) + 'px "Press Start 2P", monospace';
+  g.textAlign = 'center'; g.textBaseline = 'top';
+  g.fillText('N', w/2, 1);
   g.save();
-  g.translate(-x0*cell, -y0*cell);
+  g.translate(-x0*cell + (w - (x1-x0+1)*cell)/2, -y0*cell + nb);
   /* unseen cells stay empty on purpose: the map must not answer "where is the
      dragon" before you have been there to find out */
   for(let y=0; y<GH; y++) for(let x=0; x<GW; x++){
@@ -2163,16 +2188,47 @@ function cycleWeapon(kind){
   renderHud();
 }
 
+/* Movement mode, a player preference (Todd, 2026-10-07). COMPASS: 8 is always
+   north, 2 south, 4 west, 6 east, the same as the north-up map; a press turns
+   you to face that way and takes one step, or just turns you if rock is there.
+   CLASSIC: the 1983 scheme, 8 forward, 2 back, 4/6 turn. Compass is the
+   default because the map and the keys then agree; Classic stays for the
+   original feel, and for teaching perspective-taking on purpose. */
+let steer = 'compass';
+try{ if(localStorage.getItem('dddh-steer') === 'classic') steer = 'classic'; }catch(e){}
+const COMPASS = {fwd:0, right:1, back:2, left:3};   // action -> DIRS index (N, E, S, W)
+
+function go(d){
+  if(P.dir !== d){
+    P.dir = d; sfx('turn'); checkDragon(); drawView();
+    const [dx,dy] = DIRS[d];
+    if(!isFloor(P.x+dx, P.y+dy)) return;              // only looking that way
+  }
+  step(+1);
+}
+
+function setSteer(v){
+  steer = v === 'classic' ? 'classic' : 'compass';
+  try{ localStorage.setItem('dddh-steer', steer); }catch(e){}
+  document.getElementById('steerCompass')?.setAttribute('aria-pressed', String(steer === 'compass'));
+  document.getElementById('steerClassic')?.setAttribute('aria-pressed', String(steer === 'classic'));
+  if(typeof drawBinds === 'function') drawBinds();
+  if(typeof drawKeypad === 'function') drawKeypad();
+  if(typeof drawHelp === 'function') drawHelp();
+  if(P) drawMap();
+}
+
 function act(a){
   if(mode !== 'play') return;
   if(!wardenEl.hidden) return;
   if(P.intro && a !== 'attack'){ return; }
   if(P.done && a !== 'restart') return;
   switch(a){
-    case 'fwd':     step(+1); break;
-    case 'back':    step(-1); break;
-    case 'left':    turn(-1); break;
-    case 'right':   turn(+1); break;
+    case 'fwd': case 'back': case 'left': case 'right':
+      if(steer === 'compass'){ go(COMPASS[a]); break; }
+      if(a === 'fwd') step(+1); else if(a === 'back') step(-1);
+      else turn(a === 'left' ? -1 : +1);
+      break;
     case 'attack':  attack(); break;
     case 'war':     cycleWeapon('war'); break;
     case 'spirit':  cycleWeapon('spirit'); break;
@@ -2194,6 +2250,8 @@ const ACTIONS = {
   brick:'Lay brick', immerse:'Fullscreen', sound:'Sound on/off',
   help:'Show these keys', restart:'Begin again'
 };
+const COMPASS_LABELS = {fwd:'North', back:'South', left:'West', right:'East'};
+const actionLabel = a => (steer === 'compass' && COMPASS_LABELS[a]) || ACTIONS[a];
 
 /* spatial: forward sits on the top-middle key of a real numpad */
 const PRESET_SPATIAL = {
@@ -2267,7 +2325,7 @@ function drawKeypad(){
     const b = document.createElement('button');
     if(code === 'Numpad0') b.className = 'w2';
     b.innerHTML = '<span class="kn">'+code.replace('Numpad','').replace('Decimal','.')+'</span>'+
-                  '<span class="kf">'+(a ? ACTIONS[a] : '—')+'</span>';
+                  '<span class="kf">'+(a ? actionLabel(a) : '—')+'</span>';
     if(a) b.dataset.action = a;
     if(!a) b.disabled = true;
     else b.addEventListener('click', ()=> act(a));
@@ -2279,7 +2337,7 @@ const bindsEl = document.getElementById('binds');
 let listeningFor = null;
 function drawBinds(){
   bindsEl.innerHTML = '';
-  Object.entries(ACTIONS).forEach(([a,label])=>{
+  Object.keys(ACTIONS).forEach(a=>{ const label = actionLabel(a);
     const row = document.createElement('div');
     row.className = 'bindrow';
     row.dataset.action = a;
@@ -2449,12 +2507,12 @@ function drawHelp(){
     const cell = document.createElement('div');
     cell.className = (code === 'Numpad0' ? 'w2' : '') + (a ? '' : ' off');
     cell.innerHTML = '<div class="k">' + code.replace('Numpad','').replace('Decimal','.') +
-                     '</div><div class="f">' + (a ? ACTIONS[a] : '—') + '</div>';
+                     '</div><div class="f">' + (a ? actionLabel(a) : '—') + '</div>';
     pad.appendChild(cell);
   });
   const list = document.getElementById('helpList');
   list.innerHTML = '';
-  Object.entries(ACTIONS).forEach(([a,label])=>{
+  Object.keys(ACTIONS).forEach(a=>{ const label = actionLabel(a);
     const row = document.createElement('div');
     row.className = 'helprow';
     row.innerHTML = '<span>' + label + '</span><b>' +
@@ -3573,6 +3631,9 @@ function setMuted(on){
   try{ setSubs(localStorage.getItem('dddh-subs') !== '0'); }catch(e){ setSubs(true); }
   try{ setMap(localStorage.getItem('dddh-map') !== '0'); }catch(e){ setMap(true); }
   try{ setMuted(localStorage.getItem('dddh-muted') === '1'); }catch(e){ setMuted(false); }
+  document.getElementById('steerCompass').addEventListener('click', ()=> setSteer('compass'));
+  document.getElementById('steerClassic').addEventListener('click', ()=> setSteer('classic'));
+  setSteer(steer);
   try{ leanWanted = localStorage.getItem('dragonkeep-applet-lean') === '1'; }catch(e){}
   applyLean();
   initPanels();

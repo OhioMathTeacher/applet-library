@@ -1527,11 +1527,10 @@ function showSub(html){
   /* restart the fade even when the same line repeats */
   el.classList.remove('on'); void el.offsetWidth; el.classList.add('on');
   subPrev = html;
+  /* No fade on a timer. A line that vanishes while it is still being read is
+     a clock, and nothing here should be read against one. The next line
+     replaces this one; leaving play clears it. */
   clearTimeout(subTimer);
-  subTimer = setTimeout(()=>{
-    el.classList.remove('on');
-    subPrev = '';
-  }, 5200);
 }
 
 function say(html){
@@ -1700,10 +1699,11 @@ function askPuzzle(pid, cell){
       say('<b>'+(z.title||'The sigil')+' yields.</b> The way is open. +20 treasure.');
       close();
     } else {
-      P.spi -= 3;
+      if(battle) P.spi -= 3;
       sfx('wrong');
-      say('Wrong. &minus;3 spiritual.' + (z.hint ? ' ('+z.hint+')' : ''));
-      if(P.spi <= 0){ P.done = true; say('<b>Your spirit fails at the sigil.</b>'); close(); return; }
+      say(battle ? ('Wrong. &minus;3 spiritual.' + (z.hint ? ' ('+z.hint+')' : ''))
+                 : ('Not that one.' + (z.hint ? ' ('+z.hint+')' : '') + ' Try again.'));
+      if(battle && P.spi <= 0){ P.done = true; say('<b>Your spirit fails at the sigil.</b>'); close(); return; }
       inp.value = ''; inp.focus();
       renderHud();
       const w = wardenEl.querySelector('.why') || document.createElement('div');
@@ -1765,10 +1765,13 @@ function answerWarden(right, pick, truth){
     P.gold += 12;
   } else {
     wardenEl.querySelector('.who').textContent = 'THE WARDEN HOLDS';
-    why.innerHTML = 'Not that. ' + pick.why + '<br><br>It costs you 4 spiritual health. Try again.';
-    P.spi -= 4;
-    say('The warden refuses. &minus;4 spiritual.');
-    if(P.spi <= 0){ P.done = true; say('<b>Your spirit fails at the gate.</b>'); }
+    why.innerHTML = 'Not that. ' + pick.why +
+      (battle ? '<br><br>It costs you 4 spiritual health. Try again.'
+              : '<br><br>Nothing is lost. Try again.');
+    if(battle) P.spi -= 4;
+    say(battle ? 'The warden refuses. &minus;4 spiritual.'
+               : 'The warden refuses, and waits. Try again.');
+    if(battle && P.spi <= 0){ P.done = true; say('<b>Your spirit fails at the gate.</b>'); }
   }
 
   const go = document.createElement('button');
@@ -1838,8 +1841,13 @@ function attack(){
   if(!m){ say('You swing at empty air.'); return; }
   if(MOBS[m.key].gate){ gateCell = i; askWarden(); return; }
   if(m.key === 'dragon'){
-    P.done = true;
-    say('<b>You strike a sleeping dragon.</b> That was the one thing to avoid.');
+    if(battle){
+      P.done = true;
+      say('<b>You strike a sleeping dragon.</b> That was the one thing to avoid.');
+    } else {
+      say('<b>You strike a sleeping dragon</b> &mdash; and in Battle mode that '+
+          'would have ended here. It sleeps on.');
+    }
     renderHud(); drawView(); return;
   }
   const w = ARMS[P.weapon], def = MOBS[m.key];
@@ -1933,6 +1941,11 @@ function checkSealed(){
 /* approach it through open air and it wakes */
 function checkDragon(){
   if(P.done) return;
+  /* Adventure mode is unloseable on purpose: the point is to walk the geometry
+     for as long as you like. The dragon still breathes, and sealing it still
+     wins -- it just cannot end the expedition. The status strip keeps saying
+     "too close", so the warning survives without the punishment. */
+  if(!battle) return;
   const ds = dragonCells();
   if(!ds.length) return;
   const d = dragonDistance()[idx(P.x,P.y)];

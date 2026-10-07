@@ -739,6 +739,8 @@
           <div class="presets" id="presets"></div>
           <p class="lvl-h">Adventures <span>full dungeons to play, easiest first</span></p>
           <div class="presets" id="dungeons"></div>
+          <p class="lvl-h">Worlds <span>dungeons connected by their ladders &mdash; climb through</span></p>
+          <div class="presets" id="worlds"></div>
           <p style="margin:9px 0 0;color:var(--ink-3);font-size:11px">
             Every adventure was checked against this page's own
             <b>sealCost()</b>: connected, reachable, and
@@ -1052,7 +1054,7 @@
 <div id="version"></div>
 <script>
 /* Shown quietly in the corner; bump with each release. */
-const VERSION = 'v0.23 · 2026-10-07';
+const VERSION = 'v0.24 · 2026-10-07';
 document.getElementById('version').textContent = VERSION;
 
 /* ============================================================
@@ -1152,12 +1154,20 @@ const MOBS = {
 };
 
 let P = null;
-function freshPlayer(){
+function freshPlayer(carry){
+  const c = carry || null;
+  /* Todd's rule, recorded 2026-10-07: the party travels together and keeps
+     treasure, arms and armour; health refreshes every dungeon; a helper lost
+     stays lost, and since bricks come from helpers, the loss follows you
+     down. No title card on arrival -- the climb is meant to be seamless. */
   return {
     x:start.x, y:start.y, dir:start.dir,
-    war:24, warMax:24, spi:24, spiMax:24,
-    arms:{bow:true, book:true},
-    weapon:'bow', gold:0, done:false, intro:true,
+    war:  c ? c.warMax : 24, warMax: c ? c.warMax : 24,
+    spi:  c ? c.spiMax : 24, spiMax: c ? c.spiMax : 24,
+    arms: c ? Object.assign({}, c.arms) : {bow:true, book:true},
+    weapon: c ? c.weapon : 'bow',
+    gold: c ? c.gold : 0,
+    done:false, intro: c ? false : true,
     bricks:brickBudget(), crew:helpers, sealed:false, solved:{}, seen:{}
   };
 }
@@ -2157,6 +2167,7 @@ function step(sign){
   }
   if(exits[i] && !P.done){
     if(wayOutOpen()){
+      if(W && climbInWorld(exitList().indexOf(i))) return;
       P.done = true; P.escaped = true;
       say('<b>You climb, and the dark falls away beneath you.</b>');
       say(P.sealed
@@ -2198,7 +2209,21 @@ function layBrick(){
    level there is nothing to bar it, so it is open from the first step --
    which is what makes a measurement lesson finishable. */
 function hasExits(){ for(const k in exits) return true; return false; }
-function wayOutOpen(){ return !dragonCells().length || !!(P && P.sealed); }
+/* A dungeon's exits are numbered by cell index, ascending. That numbering is
+   the dungeon's side of the contract: it declares ports, and a world wires
+   them. The dungeon itself never learns what is on the other side, which is
+   what lets the same dungeon sit at position 2 of one world and 5 of another. */
+function exitList(){ return Object.keys(exits).map(Number).sort((a,b)=>a-b); }
+function wayOutOpen(){
+  /* In a world the ladders are the corridors between dungeons, so they stay
+     open: an intermediate dragon is a hazard to cross, not a gate (Todd's
+     rule -- the dragon only ends the last dungeon). The final leg's ladder is
+     open too, because retreating up it is a real option; climbing it once the
+     dragon is sealed is what wins the world, and climbInWorld() decides which
+     of the two happened. Standalone play keeps the gate. */
+  if(W) return true;
+  return !dragonCells().length || !!(P && P.sealed);
+}
 
 /* the ending he wanted: you walk out and it is still breathing */
 function checkSealed(){
@@ -2979,7 +3004,7 @@ const DUNGEONS = {
     opts:{wake:2, helpers:2, fog:1},
     art:[
       "###########",
-      "#.F.....#.#",
+      "#.F.....#=#",
       "##.##.#.#S#",
       "#...#...#.#",
       "#...#.###.#",
@@ -2995,7 +3020,7 @@ const DUNGEONS = {
     opts:{wake:2, helpers:2, fog:2},
     art:[
       "#############",
-      "#.#...#..S..#",
+      "#=#...#..S.=#",
       "#...DP#.#.#.#",
       "#.......#.#.#",
       "##.r.b#.#.#.#",
@@ -3013,7 +3038,7 @@ const DUNGEONS = {
     opts:{wake:2, helpers:3, fog:2},
     art:[
       "###############",
-      "#.#.....c.....#",
+      "#.#.....c....=#",
       "#S###.###..FD.#",
       "#...#...#..s.b#",
       "###.#####A....#",
@@ -3084,19 +3109,107 @@ document.getElementById('mapBtn').addEventListener('click', ()=> setMap(!mapOn))
 /* Adventures, easiest first by maze index. The Deep Keep is a built preset, not
    ASCII art, but it is a full dungeon (and seals with 2 of 6 bricks), so it
    plays here with the same settings as the others. */
-const ADVENTURES = [
-  {label: DUNGEONS.approach.label, note: DUNGEONS.approach.note, load: ()=> loadDungeon('approach')},
-  {label: DUNGEONS.warrens.label,  note: DUNGEONS.warrens.note,  load: ()=> loadDungeon('warrens')},
-  {label: PRESETS.keep.label, note: '11×11 · index 3.50 · seal 2 of 6 · a warden at the gate',
-   load: ()=>{ PRESETS.keep.build(); applyLevelOpts({wake:2, helpers:2, fog:1}); drawPlan(); renderMetrics(); save(); }},
-  {label: DUNGEONS.cistern.label,  note: DUNGEONS.cistern.note,  load: ()=> loadDungeon('cistern')},
-];
+const LEVELS = {
+  approach:{label: DUNGEONS.approach.label, note: DUNGEONS.approach.note, load: ()=> loadDungeon('approach')},
+  warrens: {label: DUNGEONS.warrens.label,  note: DUNGEONS.warrens.note,  load: ()=> loadDungeon('warrens')},
+  keep:    {label: PRESETS.keep.label, note: '11×11 · index 3.50 · seal 2 of 6 · a warden at the gate',
+            load: ()=>{ PRESETS.keep.build(); applyLevelOpts({wake:2, helpers:2, fog:1}); drawPlan(); renderMetrics(); save(); }},
+  cistern: {label: DUNGEONS.cistern.label,  note: DUNGEONS.cistern.note,  load: ()=> loadDungeon('cistern')}
+};
+const ADVENTURES = ['approach','warrens','keep','cistern'].map(k => LEVELS[k]);
+
+/* ============================================================
+   WORLDS
+   A world is an ordered set of dungeons and the wiring between
+   them. The dungeons do not know they are in one: each leg says
+   which of that dungeon's numbered exits you arrive at (`in`) and
+   which one carries you onward (`out`), so the same dungeon can sit
+   anywhere in any world. A connection is two-way -- climb the
+   ladder you arrived by and you are back where you came from.
+   ============================================================ */
+const WORLDS = {
+  descent: {
+    label:'The Descent', note:'three dungeons, deepest last · the dragon waits in the Cistern',
+    legs:[ {key:'approach', out:0},
+           {key:'warrens', in:0, out:1},
+           {key:'cistern', in:0} ]
+  }
+};
+let W = null;                      // {key, leg} while a world is being played
+
+/* Arrive beside a ladder facing away from it, never on it: standing on the
+   thing you must step onto to go back leaves no way to go back. */
+function arriveAt(cellIdx){
+  const ex = (cellIdx % GW), ey = (cellIdx / GW) | 0;
+  for(let d=0; d<4; d++){
+    const [dx,dy] = DIRS[d];
+    if(isFloor(ex+dx, ey+dy)){
+      start = {x: ex+dx, y: ey+dy, dir: d};   // d points away from the ladder
+      return true;
+    }
+  }
+  return false;                                // walled-in ladder: fall back to @
+}
+
+function worldLeg(){ return W ? WORLDS[W.key].legs[W.leg] : null; }
+
+function enterLeg(n, carry){
+  const w = WORLDS[W.key], leg = w.legs[n];
+  W.leg = n;
+  LEVELS[leg.key].load();
+  if(carry){
+    applyLevelOpts({helpers: carry.crew});     // losses follow the party down
+    const ex = exitList();
+    if(typeof carry.arriveAt === 'number' && ex[carry.arriveAt] != null)
+      arriveAt(ex[carry.arriveAt]);
+  }
+  startPlay(carry);
+  if(carry) say('<b>'+LEVELS[leg.key].label+'.</b> Dungeon '+(n+1)+' of '+w.legs.length+'.');
+  renderHud(); drawView(); drawMap(); renderStatus();
+}
+
+function startWorld(key){
+  if(!WORLDS[key]) return;
+  W = {key, leg:0};
+  LEVELS[WORLDS[key].legs[0].key].load();
+  setMode('play');
+}
+
+/* Climbing a ladder inside a world. Which ladder decides which way you go. */
+function climbInWorld(exitIndex){
+  const w = WORLDS[W.key], leg = w.legs[W.leg];
+  const carry = {warMax:P.warMax, spiMax:P.spiMax, arms:P.arms,
+                 weapon:P.weapon, gold:P.gold, crew:P.crew};
+  if(leg.out != null && exitIndex === leg.out && W.leg < w.legs.length-1){
+    carry.arriveAt = w.legs[W.leg+1].in;
+    sfx('descend'); enterLeg(W.leg+1, carry); return true;
+  }
+  if(leg.in != null && exitIndex === leg.in && W.leg > 0){
+    /* The last dungeon is the dragon's. Once it is sealed the way you came in
+       stops being a retreat and becomes the way home -- which is the ending
+       the README has always described: you walk out while it still breathes. */
+    if(W.leg === w.legs.length-1 && P.sealed) return false;
+    carry.arriveAt = w.legs[W.leg-1].out;
+    sfx('descend'); enterLeg(W.leg-1, carry); return true;
+  }
+  return false;
+}
 const dungeonsEl = document.getElementById('dungeons');
 ADVENTURES.forEach(a=>{
   const b = document.createElement('button');
   b.innerHTML = a.label + '<span>' + a.note + '</span>';
-  b.addEventListener('click', a.load);
+  /* Loading a single dungeon leaves whatever world was running: you asked
+     for this dungeon, not for leg 3 of something else. */
+  b.addEventListener('click', ()=>{ W = null; a.load(); });
   dungeonsEl.appendChild(b);
+});
+
+const worldsEl = document.getElementById('worlds');
+Object.keys(WORLDS).forEach(k=>{
+  const w = WORLDS[k], b = document.createElement('button');
+  b.innerHTML = w.label + '<span>' + w.note + '</span>';
+  b.addEventListener('click', ()=> startWorld(k));
+  worldsEl.appendChild(b);
 });
 
 const LESSON_KEYS = Object.keys(PRESETS).filter(k => k !== 'keep');   // the keep is an adventure
@@ -3104,7 +3217,7 @@ const presetsEl = document.getElementById('presets');
 LESSON_KEYS.map(k => [k, PRESETS[k]]).forEach(([k,p])=>{
   const b = document.createElement('button');
   b.innerHTML = p.label + '<span>' + p.note + '</span>';
-  b.addEventListener('click', ()=>{ p.build(); drawPlan(); renderMetrics(); save(); });
+  b.addEventListener('click', ()=>{ W = null; p.build(); drawPlan(); renderMetrics(); save(); });
   presetsEl.appendChild(b);
 });
 
@@ -3192,13 +3305,13 @@ const playView   = document.getElementById('playView');
 const mCreate = document.getElementById('mCreate');
 const mPlay   = document.getElementById('mPlay');
 
-function startPlay(){
+function startPlay(carry){
   if(!isFloor(start.x,start.y)){
     const first = grid.indexOf(FLOOR);
     if(first < 0){ alert('This plan is solid rock. Draw some floor first.'); return false; }
     start.x = first % GW; start.y = (first/GW)|0;
   }
-  P = freshPlayer();
+  P = freshPlayer(carry);
   gateCell = null;
   wardenEl.hidden = true;
   document.getElementById('log').innerHTML = '';

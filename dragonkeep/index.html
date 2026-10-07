@@ -135,11 +135,14 @@
 
   /* The standing facts, which the event stream never restates. */
   #status{
-    position:absolute;left:0;right:0;top:0;pointer-events:none;
-    padding:9px 14px 16px;
+    position:absolute;top:0;pointer-events:none;
     background:linear-gradient(to bottom, rgba(8,2,6,.86) 48%, rgba(8,2,6,0));
-    color:#D9CFC2;font-size:12.5px;letter-spacing:.2px;
-    display:flex;gap:16px;flex-wrap:wrap;
+    color:#D9CFC2;letter-spacing:.2px;
+    /* as large as the subtitles (Todd, 2026-10-07): sized to the picture */
+    left:var(--vl,0px);width:var(--vw,100%);box-sizing:border-box;
+    font-size:clamp(18px, calc(var(--vw, 640px) * .034), 56px);line-height:1.2;
+    padding:.35em .6em .7em;
+    display:flex;gap:.2em 1em;flex-wrap:wrap;
   }
   #status b{color:var(--accent);font-weight:600}
   #status .warn{color:#FF8A6B}
@@ -147,16 +150,18 @@
 
   /* Bottom-right, over the view. The global canvas rule stretches canvases to
      full width, which would blow this up to the size of the dungeon view. */
+  /* Top centre, over the ceiling: the one band of the picture that carries no
+     information. No box -- only what you have explored is drawn, so it is
+     the shape you have walked and nothing else. (It was a dark box in the
+     bottom-right corner, mostly empty, fighting the subtitles.) */
   #map{
-    position:absolute;right:calc(var(--vl,0px) + 12px);bottom:calc(var(--vb,0px) + 12px);z-index:3;
+    position:absolute;z-index:3;
+    left:calc(var(--vl,0px) + var(--vw,640px) / 2);top:var(--mapt, 8px);transform:translateX(-50%);
     width:auto;height:auto;display:block;
-    border:2px solid #0C0005;border-radius:3px;
-    background:rgba(8,2,6,.55);
+    filter:drop-shadow(0 0 3px rgba(0,0,0,.9));
     image-rendering:pixelated;pointer-events:none;
   }
   #map[hidden]{display:none}
-  /* keep subtitles clear of the map rather than running underneath it */
-  .stage.hasmap #subs{padding-right:calc(var(--mapw, 160px) + 28px)}
   #plan{cursor:crosshair;background:var(--screen)}
 
   .tools{display:grid;grid-template-columns:repeat(auto-fill,minmax(84px,1fr));gap:5px}
@@ -1500,13 +1505,19 @@ function drawMap(){
     if(stage) stage.classList.remove('hasmap');
     return;
   }
-  /* About a quarter of the picture's width (160-400px), so it can be read at
-     a glance in fullscreen; it used to stop at ~156px whatever the screen. */
-  const vw = viewCv.getBoundingClientRect().width || 640;
-  const target = Math.max(160, Math.min(400, vw * .25));
-  const cell = Math.max(3, Math.floor(target / GW));
-  const w = GW*cell, h = GH*cell;
-  if(stage) stage.style.setProperty('--mapw', w + 'px');
+  /* Square size is fixed by the whole dungeon fitting the ceiling band (about
+     a fifth of the picture's height, a third of its width), so squares never
+     change size as you explore; the canvas is then cropped to what has been
+     seen, and grows outward from the centre. */
+  const pr = viewCv.getBoundingClientRect();
+  const vw = pr.width || 640, vh = pr.height || 440;
+  const cell = Math.max(3, Math.floor(Math.min(vw * .32 / GW, vh * .21 / GH)));
+  let x0 = P.x, x1 = P.x, y0 = P.y, y1 = P.y;
+  for(let y=0; y<GH; y++) for(let x=0; x<GW; x++){
+    if(!P.seen[idx(x,y)]) continue;
+    if(x < x0) x0 = x; if(x > x1) x1 = x; if(y < y0) y0 = y; if(y > y1) y1 = y;
+  }
+  const w = (x1-x0+1)*cell, h = (y1-y0+1)*cell;
   if(cv.width !== w)  cv.width = w;
   if(cv.height !== h) cv.height = h;
   cv.style.width = w+'px'; cv.style.height = h+'px';
@@ -1515,6 +1526,8 @@ function drawMap(){
 
   const g = cv.getContext('2d');
   g.clearRect(0,0,w,h);
+  g.save();
+  g.translate(-x0*cell, -y0*cell);
   /* unseen cells stay empty on purpose: the map must not answer "where is the
      dragon" before you have been there to find out */
   for(let y=0; y<GH; y++) for(let x=0; x<GW; x++){
@@ -1530,13 +1543,18 @@ function drawMap(){
     g.fillStyle = IV.K;
     g.fillRect((i%GW)*cell+inset, ((i/GW)|0)*cell+inset, cell-inset*2, cell-inset*2);
   }
-  /* the party in red, with a notch for which way it faces */
+  /* the party in red, with a white arrow for which way it faces */
   g.fillStyle = IV.R;
   g.fillRect(P.x*cell, P.y*cell, cell, cell);
   const [fx, fy] = DIRS[P.dir];
+  const cx = P.x*cell + cell/2, cy = P.y*cell + cell/2, r = cell*.38;
   g.fillStyle = IV.W;
-  g.fillRect(P.x*cell + cell/2 - 0.5 + fx*(cell/2 - 0.5),
-             P.y*cell + cell/2 - 0.5 + fy*(cell/2 - 0.5), 1.5, 1.5);
+  g.beginPath();
+  g.moveTo(cx + fx*r, cy + fy*r);                        // the point, ahead
+  g.lineTo(cx - fx*r*.7 - fy*r*.8, cy - fy*r*.7 + fx*r*.8);
+  g.lineTo(cx - fx*r*.7 + fy*r*.8, cy - fy*r*.7 - fx*r*.8);
+  g.closePath(); g.fill();
+  g.restore();
 }
 
 function cellAhead(n){
@@ -1730,7 +1748,9 @@ function renderStatus(){
     }
   }
   el.innerHTML = bits.map(b => '<span>'+b+'</span>').join('');
+  const wasHidden = el.hidden;
   el.hidden = false;
+  if(wasHidden) requestAnimationFrame(placeOverlays);   // the map hangs below this line
 }
 
 function renderHud(){
@@ -2451,6 +2471,11 @@ function placeOverlays(){
   st.style.setProperty('--vw', a.width + 'px');
   st.style.setProperty('--vl', (a.left - b.left) + 'px');
   st.style.setProperty('--vb', (b.bottom - a.bottom) + 'px');
+  /* the map hangs from the picture's top edge, below the status line */
+  const sEl = document.getElementById('status');
+  const last = sEl && !sEl.hidden && sEl.lastElementChild;
+  const sBot = last ? last.getBoundingClientRect().bottom - b.top + 8 : 0;
+  st.style.setProperty('--mapt', Math.max(a.top - b.top + 8, sBot) + 'px');
   if(typeof drawMap === 'function') drawMap();
 }
 

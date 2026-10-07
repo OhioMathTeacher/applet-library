@@ -587,6 +587,18 @@
       </div>
 
       <div class="panel">
+        <h2>Dungeons</h2>
+        <div class="body">
+          <div class="presets" id="dungeons"></div>
+          <p style="margin:9px 0 0;color:var(--ink-3);font-size:11px">
+            Each was generated and then checked against this page's own
+            <b>sealCost()</b> before it shipped: connected, reachable, and
+            winnable with the bricks the party carries.
+          </p>
+        </div>
+      </div>
+
+      <div class="panel">
         <h2>Worked examples</h2>
         <div class="body">
           <div class="presets" id="presets"></div>
@@ -897,7 +909,10 @@ const IV = {
   P:'#FF3276', L:'#BD95FF', E:'#6CCD30', U:'#C81A7D'
 };
 
-const GW = 11, GH = 11;
+/* The original's maze footprint, and the default. Not a constant any more:
+   the campaign grows the grid as it descends, ending somewhere much larger.
+   Grids are kept square, which is what lets the plan canvas stay square. */
+let GW = 11, GH = 11;
 const ROCK = 0, FLOOR = 1;
 
 let grid   = new Uint8Array(GW*GH);
@@ -2024,6 +2039,50 @@ document.getElementById('imExit').addEventListener('click', ()=> setImmersive(fa
    PRESETS — each one is a lesson
    ============================================================ */
 function blank(){ grid = new Uint8Array(GW*GH); items = {}; mobs = {}; places = {}; }
+
+/* Resize the board. Everything downstream is derived arithmetic, so this is
+   the only place that needs to know. */
+function setSize(n){
+  n = Math.max(7, Math.min(31, n|0));
+  if(n === GW) return;
+  GW = GH = n;
+  blank();
+  start = {x:1, y:n-2, dir:0};
+}
+
+/* ---- ASCII dungeons ------------------------------------------------------
+   Authoring mazes as rect() calls is unreadable and unreviewable. Art is the
+   source: what you see in the string is what you walk through.
+     # rock   . floor   @ entrance
+     D dragon  M minotaur  W warden  s snake  r rat  b bat  c scorpion
+     S sword   A armor     B book    F fire   J jewel  P potion          */
+const ART_MOB  = {D:'dragon', M:'minotaur', W:'warden', s:'snake', r:'rat',
+                  b:'bat', c:'scorpion'};
+const ART_ITEM = {S:'sword', A:'armor', B:'book', F:'fire', J:'jewel', P:'potion'};
+
+function fromArt(art){
+  const n = art.length;
+  const bad = art.findIndex(r => r.length !== n);
+  if(bad >= 0) throw new Error('row '+bad+' is '+art[bad].length+' wide, need '+n);
+  setSize(n);
+  blank();
+  let entrance = null;
+  art.forEach((row, y)=>{
+    for(let x=0; x<n; x++){
+      const ch = row[x], i = idx(x,y);
+      if(ch === '#'){ grid[i] = ROCK; continue; }
+      grid[i] = FLOOR;
+      if(ch === '@') entrance = {x, y, dir:0};
+      else if(ART_MOB[ch]) mobs[i] = {key:ART_MOB[ch],
+                                      war:MOBS[ART_MOB[ch]].war,
+                                      spi:MOBS[ART_MOB[ch]].spi};
+      else if(ART_ITEM[ch]) items[i] = ART_ITEM[ch];
+      else if(ch !== '.') throw new Error('unknown glyph '+JSON.stringify(ch)+' at '+x+','+y);
+    }
+  });
+  if(!entrance) throw new Error('no @ entrance');
+  start = entrance;
+}
 function rect(x0,y0,w,h){
   for(let y=y0;y<y0+h;y++) for(let x=x0;x<x0+w;x++) if(inside(x,y)) grid[idx(x,y)] = FLOOR;
 }
@@ -2190,6 +2249,7 @@ document.getElementById('pzSave').addEventListener('click', ()=>{
 function bundleOut(){
   return {
     format:'dragonkeep.level', version:1,
+    w:GW, h:GH,
     grid:Array.from(grid), items, mobs, places, puzzles,
     start, height, fog, wake, helpers
   };
@@ -2212,11 +2272,14 @@ document.getElementById('bImport').addEventListener('click', ()=>{
   try{ d = JSON.parse(raw); }
   catch(e){ bMsg.innerHTML = '<b>Not valid JSON.</b> '+e.message; return; }
   /* validate before touching live state — a half-applied level is worse than none */
-  if(!d || !Array.isArray(d.grid) || d.grid.length !== GW*GH){
-    bMsg.innerHTML = '<b>Refused.</b> Expected a grid of '+(GW*GH)+' cells, got '+
-      (Array.isArray(d && d.grid) ? d.grid.length : 'none')+'. Nothing changed.';
+  const n = (typeof d.w === 'number' && d.w > 0) ? d.w
+          : Math.round(Math.sqrt((d.grid || []).length));
+  if(!d || !Array.isArray(d.grid) || !n || n*n !== d.grid.length){
+    bMsg.innerHTML = '<b>Refused.</b> The grid is not a square board &mdash; got '+
+      (Array.isArray(d && d.grid) ? d.grid.length : 'no')+' cells. Nothing changed.';
     return;
   }
+  setSize(n);
   grid    = Uint8Array.from(d.grid, v => v ? FLOOR : ROCK);
   items   = (d.items   && typeof d.items   === 'object') ? d.items   : {};
   mobs    = (d.mobs    && typeof d.mobs    === 'object') ? d.mobs    : {};
@@ -2239,6 +2302,96 @@ document.getElementById('bImport').addEventListener('click', ()=>{
   pzSel = null; clearForm();
   refreshPuzzleUI();
   bMsg.innerHTML = 'Imported.' + (orph ? ' Dropped '+orph+' placement(s) with no puzzle behind them.' : '');
+});
+
+/* ============================================================
+   DUNGEONS
+   Generated, then verified against this file's own metrics() and
+   sealCost() before being pasted in: every one is connected, has a
+   dragon that can be reached but not reached too soon, and a cut
+   the party can actually afford. The numbers in each note came out
+   of that check, not out of a guess.
+   ============================================================ */
+const DUNGEONS = {
+  approach: {
+    label:'The Approach', note:'11×11 · index 2.60 · seal 2 of 6 bricks',
+    opts:{wake:2, helpers:2, fog:1},
+    art:[
+      "###########",
+      "#.F.....#.#",
+      "##.##.#.#S#",
+      "#...#...#.#",
+      "#...#.###.#",
+      "#b#..D.r..#",
+      "#.#.....#.#",
+      "#.#.......#",
+      "#.#.....#.#",
+      "#@......#.#",
+      "###########"]
+  },
+  warrens: {
+    label:'The Warrens', note:'13×13 · index 3.11 · seal 2 of 6',
+    opts:{wake:2, helpers:2, fog:2},
+    art:[
+      "#############",
+      "#.#...#..S..#",
+      "#...DP#.#.#.#",
+      "#.......#.#.#",
+      "##.r.b#.#.#.#",
+      "#.....#...#.#",
+      "#.###.#.#.#.#",
+      "#..s#.#.....#",
+      "#.#.#.#....F#",
+      "#.#.........#",
+      "#.#####.....#",
+      "#@........#.#",
+      "#############"]
+  },
+  cistern: {
+    label:'The Cistern', note:'15×15 · index 3.77 · seal 2 of 8',
+    opts:{wake:2, helpers:3, fog:2},
+    art:[
+      "###############",
+      "#.#.....c.....#",
+      "#S###.###..FD.#",
+      "#...#...#..s.b#",
+      "###.#####A....#",
+      "#.#..J#......r#",
+      "#.###.#.......#",
+      "#...#.#.#.....#",
+      "#.#.#.#...#.###",
+      "#.#...#.......#",
+      "#.#####...###.#",
+      "#...........#.#",
+      "#.#####..##.#.#",
+      "#@......#.....#",
+      "###############"]
+  }
+};
+
+function loadDungeon(key){
+  const d = DUNGEONS[key];
+  if(!d) return;
+  fromArt(d.art);
+  const o = d.opts || {};
+  if(typeof o.wake === 'number')    wake = o.wake;
+  if(typeof o.helpers === 'number') helpers = o.helpers;
+  if(typeof o.fog === 'number')     fog = o.fog;
+  document.getElementById('wakeSlider').value = wake;
+  document.getElementById('wakeOut').textContent = wake;
+  document.getElementById('helpSlider').value = helpers;
+  document.getElementById('helpOut').textContent = helpers;
+  document.getElementById('fogSlider').value = fog;
+  document.getElementById('fogOut').textContent = FOG_NAME[fog];
+  drawPlan(); renderMetrics(); save();
+}
+
+const dungeonsEl = document.getElementById('dungeons');
+Object.entries(DUNGEONS).forEach(([k,d])=>{
+  const b = document.createElement('button');
+  b.innerHTML = d.label + '<span>' + d.note + '</span>';
+  b.addEventListener('click', ()=> loadDungeon(k));
+  dungeonsEl.appendChild(b);
 });
 
 const presetsEl = document.getElementById('presets');
@@ -2287,7 +2440,7 @@ const KEY = 'dragonkeep-applet-plan-v1';
 function save(){
   try{
     localStorage.setItem(KEY, JSON.stringify({
-      g:Array.from(grid), items, mobs, start, height, fog, binds, wake, helpers,
+      w:GW, g:Array.from(grid), items, mobs, start, height, fog, binds, wake, helpers,
       places, puzzles
     }));
   }catch(e){ /* private window or blocked storage — the page works regardless */ }
@@ -2297,7 +2450,10 @@ function load(){
     const raw = localStorage.getItem(KEY);
     if(!raw) return false;
     const d = JSON.parse(raw);
-    if(!d || !Array.isArray(d.g) || d.g.length !== GW*GH) return false;
+    const n = (typeof d.w === 'number' && d.w > 0) ? d.w
+            : Math.round(Math.sqrt((d.g || []).length));
+    if(!d || !Array.isArray(d.g) || !n || n*n !== d.g.length) return false;
+    setSize(n);
     grid  = Uint8Array.from(d.g);
     items = d.items || {}; mobs = d.mobs || {};
     start = d.start || start;

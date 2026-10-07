@@ -16,7 +16,7 @@ framework, content area, grade and standard, and solve.
    teacher. It needs a model chosen in **AI Setup** (below).
 
 Choosing a standard with no puzzle opens it at its own address (`#s=…`), so
-the **Standards Crossword** link at the top and the browser's Back button both
+the **← All puzzles** link at the top and the browser's Back button both
 return to the puzzle list, and the address can be shared.
 
 ## AI Setup

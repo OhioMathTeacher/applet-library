@@ -163,6 +163,13 @@
   .ai-btn:hover { border-color: var(--ink); color: var(--ink); }
   .ai-dot { width: 7px; height: 7px; border-radius: 50%; background: #c4c4c4; }
   .ai-btn.on .ai-dot { background: #2e9e6b; }
+  .lang-btn + .ai-btn { margin-left: 0; }
+  .cluelist .why { display: none; }
+  #solver.solved .cluelist .why { display: block; font-size: 13px; color: var(--muted); margin-top: 2px; line-height: 1.35; }
+  .pz .es { display: inline-block; margin-left: 6px; padding: 0 6px; border-radius: 999px; background: #fdf0cf; color: #7a5200; font-size: 10px; letter-spacing: .06em; }
+  #ws .card li .ws-why { display: block; color: #555; font-size: 8.5pt; line-height: 1.3; }
+  #ws .key .ws-grid { max-height: 3.5in; }
+  #ws .key .card { break-inside: auto; }
   .ai-overlay { display: none; position: fixed; inset: 0; background: rgba(18, 18, 18, .45); z-index: 50; align-items: center; justify-content: center; padding: 16px; }
   .ai-overlay.open { display: flex; }
   .ai-modal { background: var(--page); border-radius: 8px; padding: 22px; width: 560px; max-width: 100%; max-height: calc(100vh - 32px); overflow-y: auto; box-shadow: 0 12px 40px rgba(0, 0, 0, .25); }
@@ -249,10 +256,11 @@
   <header class="masthead">
     <div class="mast-top">
       <nav class="trail" id="trail" aria-label="Breadcrumb" hidden>
-        <a href="#" id="trail-xw" class="back">← All puzzles</a>
+        <a href="#" id="trail-xw" class="back" data-t="back">← All puzzles</a>
         <span id="trail-here" hidden></span>
       </nav>
-      <button type="button" class="ai-btn" id="ai-open" title="Choose the AI model that writes puzzles for standards without one"><span class="ai-dot"></span>AI Setup</button>
+      <button type="button" class="ai-btn lang-btn" id="lang">Español</button>
+      <button type="button" class="ai-btn" id="ai-open" data-t-title="aiSetupTitle" title="Choose the AI model that writes puzzles for standards without one"><span class="ai-dot"></span><span data-t="aiSetup">AI Setup</span></button>
     </div>
     <h1 id="title">Crossword</h1>
     <p id="sub"></p>
@@ -261,24 +269,24 @@
       <ul id="stds-list"></ul>
     </details>
     <p class="ai-note" id="ai-note" hidden>
-      <b>genAI-generated.</b> <span id="ai-who">An AI model</span> chose these words and wrote these clues; a teacher hasn't reviewed them.
-      <button class="linkish" id="ai-redo" hidden>Make a new one</button>
-      <button class="linkish" id="ai-keep" hidden title="Open it in the puzzle builder to review the words and clues, then copy a library entry so every student gets it">Edit in builder</button>
+      <b data-t="aiLabel">genAI-generated.</b> <span id="ai-who">An AI model</span><span data-t="aiRest"> chose these words and wrote these clues; a teacher hasn't reviewed them.</span>
+      <button class="linkish" id="ai-redo" data-t="redo" hidden>Make a new one</button>
+      <button class="linkish" id="ai-keep" hidden data-t="keep" title="Open it in the puzzle builder to review the words and clues, then copy a library entry so every student gets it">Edit in builder</button>
     </p>
   </header>
 
   <!-- Student pickers: one standards document, then one standard -->
   <div class="pickbar" id="pickbar" hidden>
-    <label>Framework <select id="s-fw"></select></label>
-    <label>Content area <select id="s-area"></select></label>
-    <label>Grade <select id="s-grade"></select></label>
-    <label class="std-pick">Standard <select id="s-std"></select></label>
+    <label><span data-t="fw">Framework</span> <select id="s-fw"></select></label>
+    <label><span data-t="area">Content area</span> <select id="s-area"></select></label>
+    <label><span data-t="grade">Grade</span> <select id="s-grade"></select></label>
+    <label class="std-pick"><span data-t="std">Standard</span> <select id="s-std"></select></label>
   </div>
 
   <div class="list" id="list" hidden></div>
 
   <div class="gen" id="gen" hidden>
-    <h2>No teacher-made puzzle for this standard yet</h2>
+    <h2 data-t="genH">No teacher-made puzzle for this standard yet</h2>
     <p class="gen-using" id="gen-using"></p>
     <button class="btn primary" id="gen-go">Generate a puzzle with genAI</button>
     <p class="note" id="gen-note"></p>
@@ -290,23 +298,23 @@
     <div class="toolbar">
       <span class="tb-left"><span class="timer" id="timer">0:00</span><span class="tb-msg" id="tb-msg" aria-live="polite"></span></span>
       <div class="menus">
-        <details class="menu"><summary>Check</summary><div class="items">
+        <details class="menu"><summary data-t="check">Check</summary><div class="items">
           <button data-act="check" data-scope="cell">Square</button>
           <button data-act="check" data-scope="word">Word</button>
           <button data-act="check" data-scope="puzzle">Puzzle</button>
         </div></details>
-        <details class="menu"><summary>Reveal</summary><div class="items">
+        <details class="menu"><summary data-t="reveal">Reveal</summary><div class="items">
           <button data-act="reveal" data-scope="cell">Square</button>
           <button data-act="reveal" data-scope="word">Word</button>
           <button data-act="reveal" data-scope="puzzle">Puzzle</button>
         </div></details>
-        <details class="menu"><summary>Clear</summary><div class="items">
+        <details class="menu"><summary data-t="clear">Clear</summary><div class="items">
           <button data-act="clear" data-scope="word">Word</button>
           <button data-act="clear" data-scope="puzzle">Puzzle</button>
         </div></details>
-        <details class="menu"><summary>Print</summary><div class="items">
-          <button data-print="0">Worksheet</button>
-          <button data-print="1">Worksheet + answer key</button>
+        <details class="menu"><summary data-t="print">Print</summary><div class="items">
+          <button data-print="0" data-t="sheet">Worksheet</button>
+          <button data-print="1" data-t="sheetKey">Worksheet + answer key</button>
         </div></details>
       </div>
     </div>
@@ -319,8 +327,8 @@
         </div>
       </div>
       <div class="clues">
-        <section><h2>Across</h2><ol class="cluelist" id="across"></ol></section>
-        <section><h2>Down</h2><ol class="cluelist" id="down"></ol></section>
+        <section><h2 data-t="across">Across</h2><ol class="cluelist" id="across"></ol></section>
+        <section><h2 data-t="down">Down</h2><ol class="cluelist" id="down"></ol></section>
       </div>
     </div>
   </div>
@@ -345,7 +353,7 @@
         <p class="note" id="b-std-note"></p>
       </fieldset>
       <p class="note" id="b-std-missing" hidden>Standards catalog not found. Keep the standards/ folder next to this file.</p>
-      <label class="field">Words and clues <span class="hint">one per line, as WORD: clue</span>
+      <label class="field">Words and clues <span class="hint">one per line, as WORD: clue, or WORD: clue | why it matters (optional, shown once solved)</span>
         <textarea id="b-words" rows="16"></textarea>
       </label>
       <div class="actions">
@@ -377,8 +385,8 @@
 
 <div class="ai-overlay" id="ai-overlay">
   <div class="ai-modal" role="dialog" aria-modal="true" aria-labelledby="ai-title">
-    <h2 id="ai-title">AI Setup</h2>
-    <p class="sub">Pick the model that writes puzzles for standards with no teacher-made one. Your choice and any key stay in this browser.</p>
+    <h2 id="ai-title" data-t="aiSetup">AI Setup</h2>
+    <p class="sub" data-t="aiSub">Pick the model that writes puzzles for standards with no teacher-made one. Your choice and any key stay in this browser.</p>
     <div class="ai-cards" id="ai-cards"></div>
     <div class="ai-entry" id="ai-key-entry" hidden>
       <input type="password" id="ai-key" autocomplete="off" spellcheck="false" aria-label="API key">
@@ -386,9 +394,9 @@
     </div>
     <div class="ai-entry" id="ai-url-entry" hidden>
       <input type="url" id="ai-url" placeholder="http://127.0.0.1:11434  (a server address, not an API key)" autocomplete="off" aria-label="Local server address">
-      <p class="note">An OpenAI-compatible server on this computer or your network, such as Ollama or LM Studio. Press Enter to add it; its models appear above.</p>
+      <p class="note" data-t="aiUrlHint">An OpenAI-compatible server on this computer or your network, such as Ollama or LM Studio. Press Enter to add it; its models appear above.</p>
     </div>
-    <div class="ai-actions"><button type="button" class="btn primary" id="ai-done">Done</button></div>
+    <div class="ai-actions"><button type="button" class="btn primary" id="ai-done" data-t="aiDone">Done</button></div>
   </div>
 </div>
 
@@ -411,7 +419,7 @@
 const LIBRARY = window.PUZZLE_LIBRARY || [];
 
 // Bump on every change so it's obvious which build is on screen.
-const VERSION = 'v0.12 · 2026-10-07';
+const VERSION = 'v0.13 · 2026-10-07';
 
 // --- UTILITIES ---
 const $ = s => document.querySelector(s);
@@ -423,6 +431,139 @@ const store = {
 const step = d => d === 'a' ? [0, 1] : [1, 0];
 const fmt = s => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 const debounce = (fn, ms) => { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; };
+
+// --- LANGUAGE: English or Spanish for the student-facing app; each puzzle also carries its own ---
+// The teacher-only builder stays in English. Standards text is as published (English).
+const I18N = {
+  en: {
+    appName: 'Standards Crossword', appSub: 'Pick a puzzle, or choose any standard with the menus.',
+    back: '← All puzzles', langBtn: 'Español', langTitle: 'Ver en español',
+    aiSetup: 'AI Setup', aiSetupTitle: 'Choose the AI model that writes puzzles for standards without one',
+    fw: 'Framework', area: 'Content area', grade: 'Grade', std: 'Standard',
+    genH: 'No teacher-made puzzle for this standard yet', genGo: 'Generate a puzzle with genAI',
+    generating: 'Generating… (up to a minute)',
+    using: 'Using ', change: 'change', noAI: 'No AI model chosen on this device. ', chooseAI: 'Choose one in AI Setup',
+    genNoteOn: 'genAI will choose the words and write the clues from the standard above. A teacher hasn\'t checked them, so double-check anything that looks wrong.',
+    genNoteOff: 'Or choose a standard marked "Puzzle ready" in the Standard menu.',
+    aiLabel: 'genAI-generated.', aiWho: 'An AI model', aiRest: ' chose these words and wrote these clues; a teacher hasn\'t reviewed them.',
+    redo: 'Make a new one', keep: 'Edit in builder',
+    check: 'Check', reveal: 'Reveal', clear: 'Clear', print: 'Print', square: 'Square', word: 'Word', puzzle: 'Puzzle',
+    sheet: 'Worksheet', sheetKey: 'Worksheet + answer key', across: 'Across', down: 'Down',
+    review: 'Review: ', crossword: n => `Crossword · ${n} words`, andMore: n => ` (and ${n} more)`,
+    noLib: 'No puzzles in the library yet.', loading: 'Loading…', loadFail: 'Couldn\'t load standards',
+    choose: 'Choose a standard…', ready: 'Puzzle ready', stdsGroup: 'Standards',
+    notFound: 'Puzzle not found', notFoundSub: 'This link looks incomplete. Pick a standard above, or ask for a fresh link.',
+    stdNotFound: 'Standard not found', stdNotFoundSub: 'This link names a standard this app doesn\'t have. Pick one with the menus above.',
+    confirmClear: 'Clear the whole puzzle and reset the timer?', confirmReveal: 'Reveal the whole puzzle?',
+    thisSquare: 'This square', thePuzzle: 'The puzzle', nothing: 'Nothing filled in yet.',
+    isEmpty: w => `${w} is empty. Click the word you want to check.`,
+    sqWrong: 'This square is wrong.', sqRight: 'This square is correct ✓',
+    allRight: (w, e) => `${w}: all correct so far ✓${e ? ` (${e} empty)` : ''}`,
+    someWrong: (w, x, r, e) => `${w}: ${x} wrong, ${r} right${e ? `, ${e} empty` : ''}`,
+    solved: 'Solved!', yourTime: (t, h) => `Your time: ${t}${h ? ', with some reveals' : ''}.`, close: 'Close',
+    almost: 'Almost there', almostMsg: 'The grid is full, but at least one square is wrong. Try Check › Word.', keepGoing: 'Keep going',
+    why: 'Why it matters: ',
+    wsKey: 'Answer key · ', wsWords: n => `${n} words`, wsName: 'Name', wsDate: 'Date',
+    wsAI: who => `genAI-generated by ${who}; not reviewed by a teacher.`, wsTeacher: 'Teacher-made puzzle.',
+    spanish: 'Español',
+    errNoAI: 'No AI model is chosen on this device. Open AI Setup to pick one.',
+    errNoList: 'genAI didn\'t return a word list. Try again.', errBadList: 'genAI returned a word list that couldn\'t be read. Try again.',
+    errFew: 'genAI returned too few usable words. Try again.', errFit: 'Those words didn\'t fit together. Try again.',
+    errRefusal: 'genAI declined this request.', errRoom: 'genAI ran out of room. Try again.',
+    errReach: 'Couldn\'t reach the AI service. Check your connection.',
+    aiSub: 'Pick the model that writes puzzles for standards with no teacher-made one. Your choice and any key stay in this browser.',
+    aiDone: 'Done', aiUrlHint: 'An OpenAI-compatible server on this computer or your network, such as Ollama or LM Studio. Press Enter to add it; its models appear above.',
+    aiNone: 'No AI', aiNoneDesc: 'Teacher-made puzzles only.', off: 'Off', free: 'Free', ownKey: 'Own key', local: 'Local',
+    groqDesc: 'Free tier. Any email works, no Google account needed.',
+    geminiDesc: 'Free tier from Google. Use a personal Gmail account.',
+    claudeDesc: 'Your own key. Claude Opus 5, the most careful clues.',
+    groqHint: 'Get a free key at <a href="https://console.groq.com/keys" target="_blank" rel="noopener">console.groq.com/keys</a>. Stored only in this browser.',
+    geminiHint: 'Get a free key at <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com</a>, <b>with a personal Gmail, not a school account</b>. Stored only in this browser.',
+    claudeHint: 'Get a key at <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">console.anthropic.com</a> and give it a low spending limit. Stored only in this browser.',
+    keySaved: p => `Key saved. Type to replace (${p})`, keyPaste: p => `Paste your key (${p})`,
+    runsOn: u => `Runs on ${u}. No key needed.`, noModels: 'No models found. Is this server running? Click to try again.',
+    found: h => `Found: ${h}`, foundDesc: (m, n, u) => `${m}${n ? ` (+${n} more)` : ''} on ${u}. Click to use it.`,
+    addServer: '+ Add local server', addServerDesc: 'An OpenAI-compatible model on this computer or your network.',
+    aiOnTitle: l => `AI: ${l}. Click to change.`, aiOffTitle: 'AI is off. Click to choose a model.',
+  },
+  es: {
+    appName: 'Crucigrama de estándares', appSub: 'Elige un crucigrama, o cualquier estándar con los menús.',
+    back: '← Todos los crucigramas', langBtn: 'English', langTitle: 'View in English',
+    aiSetup: 'Configurar IA', aiSetupTitle: 'Elige el modelo de IA que crea crucigramas para estándares que no tienen uno',
+    fw: 'Marco curricular', area: 'Área', grade: 'Grado', std: 'Estándar',
+    genH: 'Todavía no hay un crucigrama hecho por un docente para este estándar', genGo: 'Generar un crucigrama con IA',
+    generating: 'Generando… (hasta un minuto)',
+    using: 'Usando ', change: 'cambiar', noAI: 'No hay un modelo de IA elegido en este dispositivo. ', chooseAI: 'Elige uno en Configurar IA',
+    genNoteOn: 'La IA elegirá las palabras y escribirá las pistas a partir del estándar de arriba, en español. Ningún docente las ha revisado, así que verifica lo que parezca incorrecto.',
+    genNoteOff: 'O elige un estándar marcado "Crucigrama listo" en el menú Estándar.',
+    aiLabel: 'Generado con IA.', aiWho: 'Un modelo de IA', aiRest: ' eligió estas palabras y escribió estas pistas; ningún docente las ha revisado.',
+    redo: 'Hacer otro', keep: 'Editar en el creador',
+    check: 'Comprobar', reveal: 'Revelar', clear: 'Borrar', print: 'Imprimir', square: 'Casilla', word: 'Palabra', puzzle: 'Crucigrama',
+    sheet: 'Hoja de trabajo', sheetKey: 'Hoja de trabajo + respuestas', across: 'Horizontales', down: 'Verticales',
+    review: 'Repaso: ', crossword: n => `Crucigrama · ${n} palabras`, andMore: n => ` (y ${n} más)`,
+    noLib: 'Todavía no hay crucigramas en la biblioteca.', loading: 'Cargando…', loadFail: 'No se pudieron cargar los estándares',
+    choose: 'Elige un estándar…', ready: 'Crucigrama listo', stdsGroup: 'Estándares',
+    notFound: 'No se encontró el crucigrama', notFoundSub: 'Este enlace parece incompleto. Elige un estándar arriba o pide un enlace nuevo.',
+    stdNotFound: 'No se encontró el estándar', stdNotFoundSub: 'Este enlace nombra un estándar que esta aplicación no tiene. Elige uno con los menús de arriba.',
+    confirmClear: '¿Borrar todo el crucigrama y reiniciar el tiempo?', confirmReveal: '¿Revelar todo el crucigrama?',
+    thisSquare: 'Esta casilla', thePuzzle: 'El crucigrama', nothing: 'Todavía no has escrito nada.',
+    isEmpty: w => `${w} está vacía. Haz clic en la palabra que quieres comprobar.`,
+    sqWrong: 'Esta casilla está mal.', sqRight: 'Esta casilla está bien ✓',
+    allRight: (w, e) => `${w}: todo bien hasta ahora ✓${e ? ` (${e} vacías)` : ''}`,
+    someWrong: (w, x, r, e) => `${w}: ${x} mal, ${r} bien${e ? `, ${e} vacías` : ''}`,
+    solved: '¡Resuelto!', yourTime: (t, h) => `Tu tiempo: ${t}${h ? ', con algunas pistas reveladas' : ''}.`, close: 'Cerrar',
+    almost: 'Casi', almostMsg: 'La cuadrícula está llena, pero al menos una casilla está mal. Prueba Comprobar › Palabra.', keepGoing: 'Seguir',
+    why: 'Por qué importa: ',
+    wsKey: 'Respuestas · ', wsWords: n => `${n} palabras`, wsName: 'Nombre', wsDate: 'Fecha',
+    wsAI: who => `Generado con IA por ${who}; ningún docente lo ha revisado.`, wsTeacher: 'Crucigrama hecho por un docente.',
+    spanish: 'Español',
+    errNoAI: 'No hay un modelo de IA elegido en este dispositivo. Abre Configurar IA para elegir uno.',
+    errNoList: 'La IA no devolvió una lista de palabras. Inténtalo de nuevo.', errBadList: 'La IA devolvió una lista que no se pudo leer. Inténtalo de nuevo.',
+    errFew: 'La IA devolvió muy pocas palabras útiles. Inténtalo de nuevo.', errFit: 'Esas palabras no encajaron. Inténtalo de nuevo.',
+    errRefusal: 'La IA rechazó esta solicitud.', errRoom: 'A la IA se le acabó el espacio. Inténtalo de nuevo.',
+    errReach: 'No se pudo conectar con el servicio de IA. Revisa tu conexión.',
+    aiSub: 'Elige el modelo que crea crucigramas para estándares sin uno hecho por un docente. Tu elección y cualquier clave se quedan en este navegador.',
+    aiDone: 'Listo', aiUrlHint: 'Un servidor compatible con OpenAI en esta computadora o tu red, como Ollama o LM Studio. Pulsa Enter para agregarlo; sus modelos aparecen arriba.',
+    aiNone: 'Sin IA', aiNoneDesc: 'Solo crucigramas hechos por docentes.', off: 'Apagada', free: 'Gratis', ownKey: 'Clave propia', local: 'Local',
+    groqDesc: 'Nivel gratuito. Sirve cualquier correo, sin cuenta de Google.',
+    geminiDesc: 'Nivel gratuito de Google. Usa una cuenta personal de Gmail.',
+    claudeDesc: 'Tu propia clave. Claude Opus 5, las pistas más cuidadosas.',
+    groqHint: 'Consigue una clave gratis en <a href="https://console.groq.com/keys" target="_blank" rel="noopener">console.groq.com/keys</a>. Se guarda solo en este navegador.',
+    geminiHint: 'Consigue una clave gratis en <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com</a>, <b>con un Gmail personal, no una cuenta escolar</b>. Se guarda solo en este navegador.',
+    claudeHint: 'Consigue una clave en <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">console.anthropic.com</a> y ponle un límite de gasto bajo. Se guarda solo en este navegador.',
+    keySaved: p => `Clave guardada. Escribe para reemplazarla (${p})`, keyPaste: p => `Pega tu clave (${p})`,
+    runsOn: u => `Funciona en ${u}. No necesita clave.`, noModels: 'No se encontraron modelos. ¿Está funcionando este servidor? Haz clic para reintentar.',
+    found: h => `Encontrado: ${h}`, foundDesc: (m, n, u) => `${m}${n ? ` (+${n} más)` : ''} en ${u}. Haz clic para usarlo.`,
+    addServer: '+ Agregar servidor local', addServerDesc: 'Un modelo compatible con OpenAI en esta computadora o tu red.',
+    aiOnTitle: l => `IA: ${l}. Haz clic para cambiar.`, aiOffTitle: 'La IA está apagada. Haz clic para elegir un modelo.',
+  },
+};
+let LANG = (() => {
+  const saved = store.get('xw:lang');
+  if (saved === 'en' || saved === 'es') return saved;
+  return /^es\b/i.test(navigator.language || '') ? 'es' : 'en';
+})();
+const T = (k, ...a) => { const v = (I18N[LANG] || I18N.en)[k]; return typeof v === 'function' ? v(...a) : v; };
+const TL = (lang, k, ...a) => { const v = (I18N[lang] || I18N.en)[k]; return typeof v === 'function' ? v(...a) : v; };
+
+function applyStatic() {
+  document.documentElement.lang = LANG;
+  $$('[data-t]').forEach(e => { e.textContent = T(e.dataset.t); });
+  $$('[data-t-title]').forEach(e => { e.title = T(e.dataset.tTitle); });
+  $('#lang').textContent = T('langBtn');
+  $('#lang').title = T('langTitle');
+  $('#lang').lang = LANG === 'en' ? 'es' : 'en';
+}
+
+// 3A / 5D in English; 3H / 5V (horizontal, vertical) in Spanish.
+const dirMark = d => LANG === 'es' ? (d === 'a' ? 'H' : 'V') : (d === 'a' ? 'A' : 'D');
+
+// Grid letters: A-Z and Ñ. Accents are dropped in the grid (as in Spanish crosswords) but kept in clues.
+function fold(s) {
+  return String(s || '').toUpperCase().replace(/Ñ/g, '\u0001').normalize('NFD').replace(/\p{M}/gu, '')
+    .replace(/\u0001/g, 'Ñ').replace(/[^A-ZÑ]/g, '');
+}
+
 
 function mulberry32(a) {
   return () => {
@@ -451,7 +592,7 @@ function hashStr(s) {
 function layoutWords(list, seed = 1) {
   const seen = new Set();
   const words = list
-    .map(([t, c]) => [t.toUpperCase().replace(/[^A-Z]/g, ''), c.trim()])
+    .map(([t, c, y]) => [fold(t), c.trim(), typeof y === 'string' ? y.trim() : ''])
     .filter(([t, c]) => t.length >= 2 && c && !seen.has(t) && seen.add(t));
   if (!words.length) return { w: [], missing: [], rows: 0, cols: 0 };
 
@@ -495,7 +636,7 @@ function attemptLayout(order, rand) {
     return x;
   }
 
-  function put([t, clue], r, c, d) {
+  function put([t, clue, why], r, c, d) {
     const [dr, dc] = step(d);
     for (let i = 0; i < t.length; i++) {
       const k = K(r + dr * i, c + dc * i);
@@ -507,7 +648,7 @@ function attemptLayout(order, rand) {
       r0: Math.min(box.r0, r), c0: Math.min(box.c0, c),
       r1: Math.max(box.r1, r + dr * (t.length - 1)), c1: Math.max(box.c1, c + dc * (t.length - 1)),
     };
-    placed.push([t, clue, r, c, d]);
+    placed.push(why ? [t, clue, r, c, d, why] : [t, clue, r, c, d]);
   }
 
   const [first, ...rest] = order;
@@ -545,7 +686,7 @@ function attemptLayout(order, rand) {
 
   const rows = box.r1 - box.r0 + 1, cols = box.c1 - box.c0 + 1;
   return {
-    w: placed.map(([t, cl, r, c, d]) => [t, cl, r - box.r0, c - box.c0, d]),
+    w: placed.map(([t, cl, r, c, d, why]) => why ? [t, cl, r - box.r0, c - box.c0, d, why] : [t, cl, r - box.r0, c - box.c0, d]),
     missing: pending.map(p => p[0]),
     rows, cols, area: rows * cols, x: crossings,
   };
@@ -553,7 +694,7 @@ function attemptLayout(order, rand) {
 
 // --- PUZZLE MODEL: from placed words to numbered cells ---
 function buildPuzzle(data) {
-  const words = data.w.map(([term, clue, r, c, dir]) => ({ term, clue, r, c, dir, cells: [] }));
+  const words = data.w.map(([term, clue, r, c, dir, why]) => ({ term, clue, r, c, dir, why: typeof why === 'string' ? why.slice(0, 400) : '', cells: [] }));
   let rows = 0, cols = 0;
   words.forEach(w => {
     const [dr, dc] = step(w.dir);
@@ -584,7 +725,7 @@ function buildPuzzle(data) {
   }
   const byNum = (x, y) => x.num - y.num;
   return {
-    title: data.t || 'Crossword', sub: data.s || '', std: data.std || null, ai: !!data.ai, aiBy: typeof data.ai === 'string' ? data.ai.slice(0, 60) : '', rows, cols, grid,
+    title: data.t || 'Crossword', sub: data.s || '', std: data.std || null, ai: !!data.ai, aiBy: typeof data.ai === 'string' ? data.ai.slice(0, 60) : '', l: data.l === 'es' ? 'es' : 'en', rows, cols, grid,
     cells: grid.flat().filter(Boolean),
     words: [...words.filter(w => w.dir === 'a').sort(byNum), ...words.filter(w => w.dir === 'd').sort(byNum)],
   };
@@ -592,7 +733,7 @@ function buildPuzzle(data) {
 
 function validate(data) {
   const ok = data && Array.isArray(data.w) && data.w.length >= 2 && data.w.every(e =>
-    Array.isArray(e) && /^[A-Z]{2,}$/.test(e[0]) && typeof e[1] === 'string' &&
+    Array.isArray(e) && /^[A-ZÑ]{2,}$/.test(e[0]) && typeof e[1] === 'string' && (e[5] === undefined || typeof e[5] === 'string') &&
     Number.isInteger(e[2]) && Number.isInteger(e[3]) && e[2] >= 0 && e[3] >= 0 && e[2] < 80 && e[3] < 80 &&
     (e[4] === 'a' || e[4] === 'd'));
   if (!ok) throw new Error('Bad puzzle');
@@ -634,7 +775,7 @@ const fitCell = (cols, rows, maxW, maxH, max = 40) =>
 
 function setHeader(t, s, std) {
   $('#trail-here').textContent = t;
-  $('#trail').hidden = t === 'Standards Crossword';
+  $('#trail').hidden = t === T('appName');
   $('#ai-note').hidden = true;
   $('#title').textContent = t;
   $('#sub').textContent = s || '';
@@ -672,7 +813,7 @@ function startSolver(data, key) {
   }
   setHeader(P.title, P.sub, P.std);
   $('#ai-note').hidden = !P.ai;
-  $('#ai-who').textContent = P.aiBy || 'An AI model';   // older links carry ai: 1, not a name
+  $('#ai-who').textContent = P.aiBy || T('aiWho');   // older links carry ai: 1, not a name
   $('#ai-keep').hidden = !P.ai;
   $('#ai-redo').hidden = !(P.ai && activeAI() && P.std && P.std.d && P.std.i.length === 1);
   $('#timer').textContent = fmt(S.elapsed);
@@ -708,6 +849,7 @@ function renderClues() {
       li.innerHTML = '<b></b><span></span>';
       li.firstChild.textContent = w.num;
       li.lastChild.textContent = w.clue;
+      if (w.why) li.lastChild.append(Object.assign(document.createElement('small'), { className: 'why', textContent: T('why') + w.why }));
       li.addEventListener('click', () => { S.dir = w.dir; S.sel = firstEmpty(w); paint(); focusKbd(); });
       w.li = li;
       ol.appendChild(li);
@@ -716,6 +858,7 @@ function renderClues() {
 }
 
 function paint() {
+  $('#solver').classList.toggle('solved', !!S.solved);
   const w = S.sel[S.dir], cross = S.sel[S.dir === 'a' ? 'd' : 'a'];
   for (const c of P.cells) {
     c.el.className = 'cell' + (c === S.sel ? ' sel' : w.cells.includes(c) ? ' inword' : '') + (c.mark ? ' ' + c.mark : '');
@@ -724,7 +867,7 @@ function paint() {
   for (const x of P.words) {
     x.li.className = (x === w ? 'active' : x === cross ? 'cross' : '') + (x.cells.every(c => c.fill) ? ' filled' : '');
   }
-  $('#cb-num').textContent = w.num + (w.dir === 'a' ? 'A' : 'D');
+  $('#cb-num').textContent = w.num + dirMark(w.dir);
   $('#cb-text').textContent = w.clue;
   scrollClue(w.li);
   if (cross) scrollClue(cross.li);
@@ -820,7 +963,7 @@ function jumpWord(d) {
 
 function act(kind, scope) {
   if (scope === 'puzzle' && kind !== 'check' &&
-      !confirm(kind === 'clear' ? 'Clear the whole puzzle and reset the timer?' : 'Reveal the whole puzzle?')) return;
+      !confirm(kind === 'clear' ? T('confirmClear') : T('confirmReveal'))) return;
   const cells = scope === 'cell' ? [S.sel] : scope === 'word' ? S.sel[S.dir].cells : P.cells;
   if (kind === 'check') {
     cells.forEach(c => { if (c.fill && !locked(c)) c.mark = c.fill === c.ans ? 'ok' : 'wrong'; });
@@ -849,17 +992,17 @@ function toolbarMsg(text, bad) {
 }
 function reportCheck(scope, cells) {
   const w = S.sel[S.dir];
-  const where = scope === 'cell' ? 'This square' : scope === 'word' ? `${w.num}${w.dir === 'a' ? 'A' : 'D'}` : 'The puzzle';
+  const where = scope === 'cell' ? T('thisSquare') : scope === 'word' ? w.num + dirMark(w.dir) : T('thePuzzle');
   const filled = cells.filter(c => c.fill);
   if (!filled.length) {
-    toolbarMsg(scope === 'puzzle' ? 'Nothing filled in yet.' : `${where} is empty. Click the word you want to check.`);
+    toolbarMsg(scope === 'puzzle' ? T('nothing') : T('isEmpty', where));
     return;
   }
   const wrong = filled.filter(c => c.fill !== c.ans).length, right = filled.length - wrong;
   const empty = cells.length - filled.length;
-  if (scope === 'cell') { toolbarMsg(wrong ? 'This square is wrong.' : 'This square is correct ✓', !!wrong); return; }
-  if (!wrong) toolbarMsg(`${where}: all correct so far ✓${empty ? ` (${empty} empty)` : ''}`);
-  else toolbarMsg(`${where}: ${wrong} wrong, ${right} right${empty ? `, ${empty} empty` : ''}`, true);
+  if (scope === 'cell') { toolbarMsg(wrong ? T('sqWrong') : T('sqRight'), !!wrong); return; }
+  if (!wrong) toolbarMsg(T('allRight', where, empty));
+  else toolbarMsg(T('someWrong', where, wrong, right, empty), true);
 }
 
 function checkDone() {
@@ -869,10 +1012,11 @@ function checkDone() {
     S.solved = true;
     save();
     const helped = P.cells.some(c => c.mark === 'revealed');
-    showDone('Solved!', `Your time: ${fmt(S.elapsed)}${helped ? ', with some reveals' : ''}.`, 'Close');
+    showDone(T('solved'), T('yourTime', fmt(S.elapsed), helped), T('close'));
+    paint();   // shows each clue's "why", now that it's solved
   } else if (!S.wasFull) {
     S.wasFull = true;
-    showDone('Almost there', 'The grid is full, but at least one square is wrong. Try Check › Word.', 'Keep going');
+    showDone(T('almost'), T('almostMsg'), T('keepGoing'));
   }
 }
 function showDone(title, msg, btn) {
@@ -900,7 +1044,7 @@ document.addEventListener('keydown', e => {
   if (e.target.closest && e.target.closest('input:not(#kbd), textarea, select')) return;
   if (e.metaKey || e.ctrlKey || e.altKey) return;
   const k = e.key;
-  if (/^[a-z]$/i.test(k)) typeLetter(k.toUpperCase());
+  if (k.length === 1 && fold(k).length === 1) typeLetter(fold(k));
   else if (k === 'Backspace' || k === 'Delete') backspace(k === 'Delete');
   else if (k.startsWith('Arrow')) arrow(k);
   else if (k === 'Tab' || k === 'Enter') jumpWord(e.shiftKey ? -1 : 1);
@@ -912,9 +1056,9 @@ document.addEventListener('keydown', e => {
 
 // Mobile keyboards often skip keydown; read what landed in the hidden input instead.
 kbd.addEventListener('input', () => {
-  const v = kbd.value, letters = v.replace(/[^a-z]/gi, '');
+  const v = kbd.value, letters = fold(v);
   if (performance.now() - S.lastKey > 60) {
-    if (letters) typeLetter(letters.slice(-1).toUpperCase());
+    if (letters) typeLetter(letters.slice(-1));
     else if (!v.length) backspace();
   }
   kbd.value = ' ';
@@ -949,37 +1093,39 @@ function sheetGrid(key) {
 }
 
 function sheetPage(key) {
-  const page = el('section', 'ws-page');
+  const page = el('section', 'ws-page' + (key ? ' key' : ''));
   const head = page.appendChild(el('div', 'ws-head'));
   const h1 = head.appendChild(el('h1'));
   const sq = h1.appendChild(el('span', 'sq'));
   ['var(--sel)', 'var(--word)', '#fff'].forEach(c => { const i = sq.appendChild(el('i')); i.style.background = c; });
-  h1.append(key ? `Answer key · ${P.title}` : P.title);
+  h1.append(key ? TL(P.l, 'wsKey') + P.title : P.title);
   const meta = head.appendChild(el('div', 'meta'));
-  meta.append(el('div', '', 'Standards Crossword'), el('div', '', `${P.words.length} words`));
+  meta.append(el('div', '', TL(P.l, 'appName')), el('div', '', TL(P.l, 'wsWords', P.words.length)));
 
-  if (P.std) {
+  if (P.std && !key) {           // the key page leaves it off: it's on page 1, and the room goes to the answers
     const box = page.appendChild(el('div', 'std'));
     box.append(el('p', 'lbl', [P.std.f, P.std.a, P.std.g].filter(Boolean).join(' · ')));
     P.std.i.forEach(([code, text]) => { const p = box.appendChild(el('p')); p.append(el('b', '', code), text); });
   }
   if (!key) {
     const who = page.appendChild(el('div', 'who'));
-    who.append(el('span', '', 'Name'), el('span', '', 'Date'));
+    who.append(el('span', '', TL(P.l, 'wsName')), el('span', '', TL(P.l, 'wsDate')));
   }
   page.append(sheetGrid(key));
   const cards = page.appendChild(el('div', 'cards'));
-  for (const [d, label] of [['a', 'Across'], ['d', 'Down']]) {
+  for (const [d, label] of [['a', TL(P.l, 'across')], ['d', TL(P.l, 'down')]]) {
     const card = cards.appendChild(el('div', 'card' + (d === 'd' ? ' down' : '')));
     card.append(el('p', 'lbl', label));
     const ol = card.appendChild(el('ol'));
     P.words.filter(w => w.dir === d).forEach(w => {
       const li = ol.appendChild(el('li'));
-      li.append(el('b', '', w.num), el('span', '', key ? w.term : w.clue));
+      const body = el('span', '', key ? w.term : w.clue);
+      if (key && w.why) body.append(el('span', 'ws-why', w.why));
+      li.append(el('b', '', w.num), body);
     });
   }
   const foot = page.appendChild(el('div', 'foot'));
-  foot.append(el('span', '', P.ai ? `genAI-generated by ${P.aiBy || 'an AI model'}; not reviewed by a teacher.` : 'Teacher-made puzzle.'),
+  foot.append(el('span', '', P.ai ? TL(P.l, 'wsAI', P.aiBy || TL(P.l, 'aiWho')) : TL(P.l, 'wsTeacher')),
               el('span', '', 'ohiomathteacher.github.io/applet-library/standards-crossword'));
   return page;
 }
@@ -1007,9 +1153,10 @@ $$('[data-print]').forEach(b => b.addEventListener('click', () => {
 $('#ai-keep').addEventListener('click', () => {
   if (!P) return;
   B.ready = true;                       // loaded here, so the builder doesn't restore an old draft over it
-  $('#b-title').value = P.title.replace(/^Review: /, '');
+  $('#b-title').value = P.title.replace(/^(Review|Repaso): /, '');
+  B.lang = P.l;
   $('#b-sub').value = P.sub || '';
-  $('#b-words').value = P.words.map(w => `${w.term}: ${w.clue}`).join('\n');
+  $('#b-words').value = P.words.map(w => `${w.term}: ${w.clue}${w.why ? ' | ' + w.why : ''}`).join('\n');
   B.seed = 1;
   if (P.std && P.std.d) initDoc(P.std.d, P.std.i.map(([code]) => code)); else initDoc('', []);
   location.hash = '#puzzle-builder';
@@ -1061,15 +1208,9 @@ const AI = {
   endpoints: 'xw:ai.endpoints',
 };
 const AI_CLOUD = [
-  { id: 'groq', label: 'Groq (Llama 3.3)', desc: 'Free tier. Any email works, no Google account needed.',
-    badge: ['Free', 'free'], placeholder: 'gsk_…',
-    hint: 'Get a free key at <a href="https://console.groq.com/keys" target="_blank" rel="noopener">console.groq.com/keys</a>. Stored only in this browser.' },
-  { id: 'gemini', label: 'Gemini 2.0 Flash', desc: 'Free tier from Google. Use a personal Gmail account.',
-    badge: ['Free', 'free'], placeholder: 'AIza…',
-    hint: 'Get a free key at <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com</a>, <b>with a personal Gmail, not a school account</b>. Stored only in this browser.' },
-  { id: 'anthropic', label: 'Claude (Anthropic)', desc: 'Your own key. Claude Opus 5, the most careful clues.',
-    badge: ['Own key', 'paid'], placeholder: 'sk-ant-…',
-    hint: 'Get a key at <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">console.anthropic.com</a> and give it a low spending limit. Stored only in this browser.' },
+  { id: 'groq', label: 'Groq (Llama 3.3)', desc: 'groqDesc', badge: ['free', 'free'], placeholder: 'gsk_…', hint: 'groqHint' },
+  { id: 'gemini', label: 'Gemini 2.0 Flash', desc: 'geminiDesc', badge: ['free', 'free'], placeholder: 'AIza…', hint: 'geminiHint' },
+  { id: 'anthropic', label: 'Claude (Anthropic)', desc: 'claudeDesc', badge: ['ownKey', 'paid'], placeholder: 'sk-ant-…', hint: 'claudeHint' },
 ];
 // Probed when AI Setup opens, so a running server is one click away. Never auto-chosen.
 const AI_WELL_KNOWN = [
@@ -1133,7 +1274,7 @@ function localFailureHint(endpoint) {
   return `Is the model server running at ${prettyUrl(endpoint)}? Start Ollama with "ollama serve".`;
 }
 
-const JSON_ONLY = '\n\nReply with JSON only, exactly this shape: {"words":[{"term":"...","clue":"..."}]}';
+const JSON_ONLY = '\n\nReply with JSON only, exactly this shape: {"words":[{"term":"...","clue":"...","why":"..."}]}';
 
 async function callOpenAICompatible(url, key, model, prompt) {
   const isLocal = /^http:/i.test(url);
@@ -1151,7 +1292,7 @@ async function callOpenAICompatible(url, key, model, prompt) {
       }),
     });
   } catch (e) {
-    throw new Error(isLocal ? localFailureHint(url) : 'Couldn\'t reach the AI service. Check your connection.');
+    throw new Error(isLocal ? localFailureHint(url) : T('errReach'));
   }
   if (!res.ok) {
     const detail = `${res.status}: ${(await res.text()).slice(0, 160)}`;
@@ -1180,8 +1321,8 @@ async function callGemini(key, prompt) {
 const WORDS_SCHEMA = {
   type: 'object', additionalProperties: false, required: ['words'],
   properties: { words: { type: 'array', items: {
-    type: 'object', additionalProperties: false, required: ['term', 'clue'],
-    properties: { term: { type: 'string' }, clue: { type: 'string' } },
+    type: 'object', additionalProperties: false, required: ['term', 'clue', 'why'],
+    properties: { term: { type: 'string' }, clue: { type: 'string' }, why: { type: 'string' } },
   } } },
 };
 
@@ -1205,8 +1346,8 @@ async function callClaude(key, prompt) {
   });
   const msg = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error((msg.error && msg.error.message) || `Request failed (${res.status}).`);
-  if (msg.stop_reason === 'refusal') throw new Error('genAI declined this request.');
-  if (msg.stop_reason === 'max_tokens') throw new Error('genAI ran out of room. Try again.');
+  if (msg.stop_reason === 'refusal') throw new Error(T('errRefusal'));
+  if (msg.stop_reason === 'max_tokens') throw new Error(T('errRoom'));
   return (msg.content || []).filter(b => b.type === 'text').map(b => b.text).join('');
 }
 
@@ -1214,14 +1355,14 @@ async function callClaude(key, prompt) {
 function parseWordsJson(text) {
   const s = String(text || '');
   const a = s.indexOf('{'), b = s.lastIndexOf('}');
-  if (a < 0 || b <= a) throw new Error('genAI didn\'t return a word list. Try again.');
+  if (a < 0 || b <= a) throw new Error(T('errNoList'));
   try { return JSON.parse(s.slice(a, b + 1)); }
-  catch { throw new Error('genAI returned a word list that couldn\'t be read. Try again.'); }
+  catch { throw new Error(T('errBadList')); }
 }
 
-async function generateWords(std) {
+async function generateWords(std, lang = 'en') {
   const ai = activeAI();
-  if (!ai) throw new Error('No AI model is chosen on this device. Open AI Setup to pick one.');
+  if (!ai) throw new Error(T('errNoAI'));
   const prompt = [
     `Write a vocabulary review crossword for students working on this ${std.a || ''} standard (${std.f || ''}, ${std.g || ''}):`,
     ...std.i.map(([code, text]) => `- ${code}: ${text}`),
@@ -1230,12 +1371,18 @@ async function generateWords(std) {
     '- Each term is a single word or short phrase of 3 to 12 letters once spaces and punctuation are removed.',
     '- Clues are accurate, suited to the grade level, and never contain the answer or a form of it.',
     '- Prefer terms that share letters, so they can cross in a grid.',
+    '- For each term, also write "why": one sentence, for a student at this grade, on how the term matters for this standard.',
+    ...(lang === 'es' ? [
+      '',
+      'Write every term, clue and "why" in Spanish (español), for students in a Spanish-speaking or dual-language classroom.',
+      'Use the standard academic Spanish words a teacher would use in class. The terms must be Spanish words, not English ones.',
+    ] : []),
   ].join('\n');
   const parsed = parseWordsJson(await ai.generate(prompt));
   const words = (Array.isArray(parsed.words) ? parsed.words : [])
-    .map(w => [String((w && w.term) || ''), String((w && w.clue) || '').trim()])
-    .filter(([t, c]) => t.replace(/[^a-z]/gi, '').length >= 2 && c);
-  if (words.length < 4) throw new Error('genAI returned too few usable words. Try again.');
+    .map(w => [String((w && w.term) || ''), String((w && w.clue) || '').trim(), String((w && w.why) || '').trim()])
+    .filter(([t, c]) => fold(t).length >= 2 && c);
+  if (words.length < 4) throw new Error(T('errFew'));
   return words;
 }
 
@@ -1261,8 +1408,8 @@ function aiChoose(id) {
   if (cloud) {
     const has = !!store.get(AI.key(cloud.id));
     $('#ai-key').value = '';
-    $('#ai-key').placeholder = has ? `Key saved. Type to replace (${cloud.placeholder})` : `Paste your key (${cloud.placeholder})`;
-    $('#ai-key-hint').innerHTML = cloud.hint;
+    $('#ai-key').placeholder = has ? T('keySaved', cloud.placeholder) : T('keyPaste', cloud.placeholder);
+    $('#ai-key-hint').innerHTML = T(cloud.hint);
     $('#ai-key-entry').hidden = false;
     setTimeout(() => $('#ai-key').focus(), 0);
   }
@@ -1277,27 +1424,27 @@ function renderAiCards() {
     const b = Object.assign(document.createElement('button'), { type: 'button', className: 'ai-card' + (selected ? ' selected' : '') + extra });
     b.append(Object.assign(document.createElement('b'), { textContent: title }),
              Object.assign(document.createElement('span'), { textContent: desc }));
-    if (badge) b.append(Object.assign(document.createElement('span'), { className: 'ai-badge ' + badge[1], textContent: badge[0] }));
+    if (badge) b.append(Object.assign(document.createElement('span'), { className: 'ai-badge ' + badge[1], textContent: T(badge[0]) }));
     b.setAttribute('aria-pressed', String(!!selected));
     b.addEventListener('click', onClick);
     wrap.appendChild(b);
   };
-  card('No AI', 'Teacher-made puzzles only.', ['Off', 'off'], cur === 'none', () => aiChoose('none'));
-  AI_CLOUD.forEach(p => card(p.label, p.desc, p.badge, cur === p.id, () => aiChoose(p.id)));
+  card(T('aiNone'), T('aiNoneDesc'), ['off', 'off'], cur === 'none', () => aiChoose('none'));
+  AI_CLOUD.forEach(p => card(p.label, T(p.desc), p.badge, cur === p.id, () => aiChoose(p.id)));
   aiEndpoints().forEach(url => {
     const models = aiFound[url] || [];
-    if (!models.length) card(prettyUrl(url), 'No models found. Is this server running? Click to try again.', ['Local', 'local'], false,
+    if (!models.length) card(prettyUrl(url), T('noModels'), ['local', 'local'], false,
       () => aiModelsAt(url).then(m => { aiFound[url] = m; renderAiCards(); }));
-    models.forEach(m => card(m.label, `Runs on ${prettyUrl(url)}. No key needed.`, ['Local', 'local'], cur === `local:${url}:${m.id}`, () => aiChoose(`local:${url}:${m.id}`)));
+    models.forEach(m => card(m.label, T('runsOn', prettyUrl(url)), ['local', 'local'], cur === `local:${url}:${m.id}`, () => aiChoose(`local:${url}:${m.id}`)));
   });
-  aiSuggested.forEach(s => card(`Found: ${s.hint}`, `${s.models[0].label}${s.models.length > 1 ? ` (+${s.models.length - 1} more)` : ''} on ${prettyUrl(s.url)}. Click to use it.`,
-    ['Local', 'local'], false, () => {
+  aiSuggested.forEach(s => card(T('found', s.hint), T('foundDesc', s.models[0].label, s.models.length - 1, prettyUrl(s.url)),
+    ['local', 'local'], false, () => {
       store.set(AI.endpoints, [...aiEndpoints(), s.url]);
       aiFound[s.url] = s.models;
       aiSuggested = aiSuggested.filter(x => x !== s);
       aiChoose(`local:${s.url}:${s.models[0].id}`);
     }, ' add'));
-  card('+ Add local server', 'An OpenAI-compatible model on this computer or your network.', null, false, () => {
+  card(T('addServer'), T('addServerDesc'), null, false, () => {
     $('#ai-key-entry').hidden = true;
     $('#ai-url-entry').hidden = false;
     setTimeout(() => $('#ai-url').focus(), 0);
@@ -1333,21 +1480,19 @@ function closeAiSetup() {
 function aiChanged() {
   const ai = activeAI();
   $('#ai-open').classList.toggle('on', !!ai);
-  $('#ai-open').title = ai ? `AI: ${ai.label}. Click to change.` : 'AI is off. Click to choose a model.';
+  $('#ai-open').title = ai ? T('aiOnTitle', ai.label) : T('aiOffTitle');
   const using = el => {
     el.innerHTML = '';
-    el.append(ai ? 'Using ' : 'No AI model chosen on this device. ');
+    el.append(ai ? T('using') : T('noAI'));
     if (ai) el.append(Object.assign(document.createElement('b'), { textContent: ai.label }), ' ·');
-    const b = Object.assign(document.createElement('button'), { type: 'button', className: 'linkish', textContent: ai ? 'change' : 'Choose one in AI Setup' });
+    const b = Object.assign(document.createElement('button'), { type: 'button', className: 'linkish', textContent: ai ? T('change') : T('chooseAI') });
     b.addEventListener('click', openAiSetup);
     el.append(b);
   };
   using($('#gen-using'));
   using($('#b-ai-using'));
   $('#gen-go').disabled = !ai;
-  $('#gen-note').textContent = ai
-    ? 'genAI will choose the words and write the clues from the standard above. A teacher hasn\'t checked them, so double-check anything that looks wrong.'
-    : 'Or choose a standard marked "Puzzle ready" in the Standard menu.';
+  $('#gen-note').textContent = ai ? T('genNoteOn') : T('genNoteOff');
   if (P) $('#ai-redo').hidden = !(P.ai && ai && P.std && P.std.d && P.std.i.length === 1);
   if (currentRoute === 'build') rebuild();
 }
@@ -1376,11 +1521,12 @@ $('#ai-url').addEventListener('keydown', e => {
 })();
 
 // --- LIBRARY + STUDENT PICKERS ---
-const libFor = (docId, code) => LIBRARY.find(p => p.doc === docId && p.codes.includes(code));
-const genKey = (docId, code) => `xw:gen:${docId}|${code}`;
+const libFor = (docId, code, lang = LANG) => LIBRARY.find(p => p.doc === docId && p.codes.includes(code) && (p.l || 'en') === lang);
+const genKey = (docId, code, lang = LANG) => `xw:gen:${docId}|${code}` + (lang === 'en' ? '' : '|' + lang);
 
 function libraryData(p) {
   const data = { t: p.t, w: layoutWords(p.w, p.seed || 1).w };
+  if (p.l === 'es') data.l = 'es';
   const std = stdPayload(p.doc, new Set(p.codes));
   if (std) data.std = std;
   return data;
@@ -1429,16 +1575,16 @@ const short = (s, n) => s.length > n ? s.slice(0, n - 1).trimEnd() + '…' : s;
 async function fillStandards(docId, selectCode = '') {
   const sel = $('#s-std');
   sel.innerHTML = '';
-  sel.add(new Option('Loading…', ''));
+  sel.add(new Option(T('loading'), ''));
   let items;
-  try { items = await loadDoc(docId); } catch { sel.options[0].text = 'Couldn\'t load standards'; return; }
+  try { items = await loadDoc(docId); } catch { sel.options[0].text = T('loadFail'); return; }
   if (sPick.doc !== docId) return;
   sel.innerHTML = '';
-  sel.add(new Option('Choose a standard…', ''));
+  sel.add(new Option(T('choose'), ''));
   const ready = items.filter(([code]) => libFor(docId, code));
   if (ready.length) {
     const og = document.createElement('optgroup');
-    og.label = 'Puzzle ready';
+    og.label = T('ready');
     ready.forEach(([code, text]) => og.appendChild(new Option(`${code} — ${short(text, 70)}`, code)));
     sel.appendChild(og);
   }
@@ -1447,7 +1593,7 @@ async function fillStandards(docId, selectCode = '') {
     if (!og || grp !== group) {
       group = grp;
       og = document.createElement('optgroup');
-      og.label = grp || 'Standards';
+      og.label = grp || T('stdsGroup');
       sel.appendChild(og);
     }
     og.appendChild(new Option(`${code} — ${short(text, 70)}`, code));
@@ -1481,24 +1627,25 @@ function showGenPanel(docId, code) {
   $('#list').hidden = true;
   $('#solver').hidden = true;
   $('#gen').hidden = false;
-  setHeader(`Review: ${code}`, '', std);
+  setHeader(T('review') + code, '', std);
   $('#stds').open = true;
-  $('#gen-go').textContent = 'Generate a puzzle with genAI';
+  $('#gen-go').textContent = T('genGo');
   $('#gen-err').hidden = true;
   aiChanged();
 }
 
-async function runGenerate(docId, code, std, btn) {
+async function runGenerate(docId, code, std, btn, lang = LANG) {
   const label = btn.textContent;
   btn.disabled = true;
-  btn.textContent = 'Generating… (up to a minute)';
+  btn.textContent = T('generating');
   $('#gen-err').hidden = true;
   try {
-    const words = await generateWords(std);
+    const words = await generateWords(std, lang);
     const layout = layoutWords(words);
-    if (layout.w.length < 4) throw new Error('Those words didn\'t fit together. Try again.');
-    const data = { t: `Review: ${code}`, std, w: layout.w, ai: (activeAI() || {}).label || 1 };
-    store.set(genKey(docId, code), data);
+    if (layout.w.length < 4) throw new Error(T('errFit'));
+    const data = { t: TL(lang, 'review') + code, std, w: layout.w, ai: (activeAI() || {}).label || 1 };
+    if (lang === 'es') data.l = 'es';
+    store.set(genKey(docId, code, lang), data);
     location.replace('#p=' + encode(data));
   } catch (err) {
     $('#gen-err').textContent = err.message;
@@ -1516,7 +1663,7 @@ $('#gen-go').addEventListener('click', () => { if (GEN) runGenerate(GEN.docId, G
 $('#ai-redo').addEventListener('click', () => {
   const std = P && P.std;
   if (!std || !std.d || std.i.length !== 1) return;
-  runGenerate(std.d, std.i[0][0], std, $('#ai-redo'));
+  runGenerate(std.d, std.i[0][0], std, $('#ai-redo'), P.l);
 });
 
 const sPick = docPicker($('#s-fw'), $('#s-area'), $('#s-grade'), id => fillStandards(id));
@@ -1608,7 +1755,9 @@ function parseWords(text) {
     line = line.trim();
     if (!line) return;
     const m = line.match(/^([^:\t]+?)\s*[:\t]\s*(.+)$/);
-    if (m) list.push([m[1], m[2]]); else bad.push(i + 1);
+    if (!m) { bad.push(i + 1); return; }
+    const y = m[2].match(/^(.+?)\s+\|\s+(.+)$/);      // WORD: clue | why it matters
+    list.push(y ? [m[1], y[1], y[2]] : [m[1], m[2]]);
   });
   return { list, bad };
 }
@@ -1617,8 +1766,9 @@ function loadLibrary(i) {
   const p = LIBRARY[i];
   $('#b-title').value = p.t;
   $('#b-sub').value = '';
-  $('#b-words').value = p.w.map(([t, c]) => `${t}: ${c}`).join('\n');
+  $('#b-words').value = p.w.map(([t, c, y]) => `${t}: ${c}${y ? ' | ' + y : ''}`).join('\n');
   B.seed = p.seed || 1;
+  B.lang = p.l || 'en';
   rebuild();
   initDoc(p.doc, p.codes);
 }
@@ -1728,8 +1878,9 @@ $('#b-copy').addEventListener('click', () => copyText(B.link, $('#b-copy'), 'Cop
 $('#b-lib').addEventListener('click', () => {
   const entry = {
     seed: B.seed, t: $('#b-title').value.trim() || 'Crossword', doc: B.std.doc, codes: [...B.std.codes],
-    w: parseWords($('#b-words').value).list.map(([t, c]) => [t.trim().toUpperCase(), c.trim()]),
+    w: parseWords($('#b-words').value).list.map(([t, c, y]) => y ? [t.trim().toUpperCase(), c.trim(), y.trim()] : [t.trim().toUpperCase(), c.trim()]),
   };
+  if (B.lang === 'es') entry.l = 'es';
   copyText('  ' + JSON.stringify(entry) + ',\n', $('#b-lib'), 'Copied. Paste it into library.js');
 });
 
@@ -1742,8 +1893,8 @@ $('#b-draft').addEventListener('click', async () => {
   btn.textContent = 'Drafting… (up to a minute)';
   $('#b-draft-err').hidden = true;
   try {
-    const words = await generateWords(std);
-    $('#b-words').value = words.map(([t, c]) => `${t.toUpperCase()}: ${c}`).join('\n');
+    const words = await generateWords(std, B.lang || 'en');
+    $('#b-words').value = words.map(([t, c, y]) => `${t.toUpperCase()}: ${c}${y ? ' | ' + y : ''}`).join('\n');
     B.seed = 1;
     rebuild();
   } catch (err) {
@@ -1791,7 +1942,7 @@ function showList() {
   $('#solver').hidden = true;
   $('#gen').hidden = true;
   $('#list').hidden = false;
-  setHeader('Standards Crossword', 'Pick a puzzle, or choose any standard with the menus.');
+  setHeader(T('appName'), T('appSub'));
   if (INDEX.length && !$('#s-std').options.length) fillStandards(sPick.doc);
   else $('#s-std').value = '';
 
@@ -1805,7 +1956,7 @@ function showList() {
     (AREA_ORDER.indexOf(x) + 1 || 99) - (AREA_ORDER.indexOf(y) + 1 || 99));
   const list = $('#list');
   list.innerHTML = '';
-  if (!areas.length) list.appendChild(Object.assign(document.createElement('p'), { className: 'note', textContent: 'No puzzles in the library yet.' }));
+  if (!areas.length) list.appendChild(Object.assign(document.createElement('p'), { className: 'note', textContent: T('noLib') }));
   areas.forEach(area => {
     list.appendChild(Object.assign(document.createElement('h2'), { textContent: area }));
     const grid = list.appendChild(Object.assign(document.createElement('div'), { className: 'pzgrid' }));
@@ -1818,15 +1969,16 @@ function showList() {
         const desc = Object.assign(document.createElement('span'), { className: 'desc' });
         body.append(
           Object.assign(document.createElement('b'), { textContent: p.t }),
-          Object.assign(document.createElement('span'), { className: 'kind', textContent: `Crossword · ${layout.w.length} words` }),
+          Object.assign(document.createElement('span'), { className: 'kind', textContent: T('crossword', layout.w.length) }),
           desc,
           Object.assign(document.createElement('span'), { className: 'codes', textContent: [m ? `${m.f} · ${m.grade}` : '', p.codes.join(', ')].filter(Boolean).join(' · ') }),
         );
+        if (p.l === 'es') body.querySelector('.kind').append(Object.assign(document.createElement('span'), { className: 'es', textContent: T('spanish') }));
         a.append(thumbnail(layout), body);
         // The standard's own wording, once its document has loaded
         loadDoc(p.doc).then(items => {
           const hit = items.find(([code]) => code === p.codes[0]);
-          if (hit) desc.textContent = hit[1] + (p.codes.length > 1 ? ` (and ${p.codes.length - 1} more)` : '');
+          if (hit) desc.textContent = hit[1] + (p.codes.length > 1 ? T('andMore', p.codes.length - 1) : '');
         }, () => {});
         a.addEventListener('click', e => {
           e.preventDefault();
@@ -1863,7 +2015,7 @@ function onRoute() {
     } catch {
       P = null;
       $('#solver').hidden = true;
-      setHeader('Puzzle not found', 'This link looks incomplete. Pick a standard above, or ask for a fresh link.');
+      setHeader(T('notFound'), T('notFoundSub'));
       return;
     }
     $('#solver').hidden = false;
@@ -1891,7 +2043,7 @@ async function openStandard(docId, code, h) {
   if (location.hash.slice(1) !== h) return;          // moved on while it loaded
   const std = stdPayload(docId, new Set([code]));
   if (!std || !std.i.length) {
-    setHeader('Standard not found', 'This link names a standard this app doesn\'t have. Pick one with the menus above.');
+    setHeader(T('stdNotFound'), T('stdNotFoundSub'));
     return;
   }
   const lib = libFor(docId, code);
@@ -1910,7 +2062,16 @@ $('#trail-xw').addEventListener('click', e => {
 });
 
 $('#version').textContent = VERSION;
+applyStatic();
 aiChanged();
+$('#lang').addEventListener('click', () => {
+  LANG = LANG === 'es' ? 'en' : 'es';
+  store.set('xw:lang', LANG);
+  applyStatic();
+  aiChanged();
+  if (INDEX.length) fillStandards(sPick.doc, $('#s-std').value);   // "Puzzle ready" follows the language
+  onRoute();
+});
 addEventListener('hashchange', onRoute);
 addEventListener('resize', debounce(() => { if (currentRoute === 'solve') sizeGrid(); else if (currentRoute === 'build') rebuild(); }, 150));
 onRoute();

@@ -19,6 +19,25 @@ Choosing a standard with no puzzle opens it at its own address (`#s=…`), so
 the **← All puzzles** link at the top and the browser's Back button both
 return to the puzzle list, and the address can be shared.
 
+## Español
+
+The **Español / English** button at the top right switches the student-facing
+app (menus, buttons, messages, worksheet labels) and is remembered in that
+browser; a browser set to Spanish starts in Spanish. In Spanish, genAI writes
+the words, clues and "why" sentences in Spanish, and Spanish puzzles are kept
+apart from English ones: a standard with only an English library puzzle offers
+to generate a Spanish one. The grid takes **Ñ**; accents are dropped in the
+grid, as in Spanish crosswords, and kept in the clues. Standards text stays as
+published, in English. The builder stays in English; a library entry with
+`"l": "es"` is a Spanish puzzle.
+
+## Why this word?
+
+Each word can carry one sentence on why it matters for the standard. genAI
+writes one for every word; in the builder, add one after a bar:
+`WORD: clue | why it matters`. They stay hidden while solving, appear under
+each clue once the puzzle is solved, and print on the answer key.
+
 ## Printing
 
 Every puzzle has a **Print** menu: **Worksheet** prints one page with the

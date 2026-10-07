@@ -205,6 +205,35 @@
 
   .version { position: fixed; right: 10px; bottom: 8px; font-size: 11px; color: #a0a0a0; font-variant-numeric: tabular-nums; pointer-events: none; }
 
+  /* Printable worksheet (Print menu): built on demand, the only thing on paper when asked for */
+  #ws { display: none; }
+  @media print {
+    @page { size: letter; margin: .55in; }
+    body.ws-print > :not(#ws) { display: none !important; }
+    body.ws-print #ws { display: block; }
+  }
+  #ws { font-size: 10pt; line-height: 1.4; color: #121212; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  #ws .ws-page + .ws-page { break-before: page; }
+  #ws .ws-head { display: flex; align-items: flex-end; gap: 16px; border-bottom: 2px solid #121212; padding-bottom: 6px; margin-bottom: 10px; break-after: avoid; }
+  #ws h1 { font-size: 17pt; font-weight: 800; margin: 0; line-height: 1.15; display: flex; align-items: center; gap: 8px; }
+  #ws .sq { display: inline-flex; gap: 3px; }
+  #ws .sq i { width: 9px; height: 9px; display: block; border: 1px solid #121212; }
+  #ws .meta { margin-left: auto; text-align: right; font-size: 8pt; color: #6b6b6b; white-space: nowrap; }
+  #ws .lbl { font-size: 7.5pt; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: #6b6b6b; margin: 0 0 4px; break-after: avoid; }
+  #ws .std { background: #eef4ff; border-left: 3px solid #2860d8; padding: 6px 10px; margin: 0 0 10px; break-inside: avoid; }
+  #ws .std p { margin: 2px 0 0; }
+  #ws .std b { margin-right: 6px; }
+  #ws .who { display: flex; gap: 24px; margin: 0 0 10px; font-size: 9.5pt; }
+  #ws .who span { flex: 1; border-bottom: 1px solid #8f8f8f; padding-bottom: 2px; }
+  #ws .ws-grid { display: block; margin: 0 auto 12px; max-height: 4.6in; }
+  #ws .cards { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; align-items: start; }
+  #ws .card { border: 1px solid #dcdcdc; border-top: 3px solid var(--sel); padding: 7px 10px 8px; break-inside: avoid; }
+  #ws .card.down { border-top-color: #2860d8; }
+  #ws .card ol { list-style: none; margin: 0; padding: 0; }
+  #ws .card li { display: flex; gap: 6px; margin: 0 0 3px; break-inside: avoid; }
+  #ws .card li b { min-width: 1.6em; text-align: right; }
+  #ws .foot { margin-top: 12px; padding-top: 4px; border-top: 1px solid #dcdcdc; font-size: 7.5pt; color: #6b6b6b; display: flex; justify-content: space-between; gap: 12px; }
+
   @media print {
     .version, .pickbar, #ai-redo, .trail, .ai-btn, .ai-overlay,
     .toolbar, .cluebar, .modal, #kbd { display: none !important; }
@@ -234,6 +263,7 @@
     <p class="ai-note" id="ai-note" hidden>
       <b>genAI-generated.</b> <span id="ai-who">An AI model</span> chose these words and wrote these clues; a teacher hasn't reviewed them.
       <button class="linkish" id="ai-redo" hidden>Make a new one</button>
+      <button class="linkish" id="ai-keep" hidden title="Open it in the puzzle builder to review the words and clues, then copy a library entry so every student gets it">Edit in builder</button>
     </p>
   </header>
 
@@ -273,6 +303,10 @@
         <details class="menu"><summary>Clear</summary><div class="items">
           <button data-act="clear" data-scope="word">Word</button>
           <button data-act="clear" data-scope="puzzle">Puzzle</button>
+        </div></details>
+        <details class="menu"><summary>Print</summary><div class="items">
+          <button data-print="0">Worksheet</button>
+          <button data-print="1">Worksheet + answer key</button>
         </div></details>
       </div>
     </div>
@@ -358,6 +392,7 @@
   </div>
 </div>
 
+<div id="ws" aria-hidden="true"></div>
 <div class="version" id="version"></div>
 
 <div class="modal" id="done" hidden>
@@ -376,7 +411,7 @@
 const LIBRARY = window.PUZZLE_LIBRARY || [];
 
 // Bump on every change so it's obvious which build is on screen.
-const VERSION = 'v0.11 · 2026-10-07';
+const VERSION = 'v0.12 · 2026-10-07';
 
 // --- UTILITIES ---
 const $ = s => document.querySelector(s);
@@ -638,6 +673,7 @@ function startSolver(data, key) {
   setHeader(P.title, P.sub, P.std);
   $('#ai-note').hidden = !P.ai;
   $('#ai-who').textContent = P.aiBy || 'An AI model';   // older links carry ai: 1, not a name
+  $('#ai-keep').hidden = !P.ai;
   $('#ai-redo').hidden = !(P.ai && activeAI() && P.std && P.std.d && P.std.i.length === 1);
   $('#timer').textContent = fmt(S.elapsed);
   drawGrid($('#grid'), P, true);
@@ -895,6 +931,89 @@ $$('[data-act]').forEach(b => b.addEventListener('click', () => {
   b.closest('.menu').open = false;
   act(b.dataset.act, b.dataset.scope);
 }));
+
+// --- PRINTABLE WORKSHEET: grid, standard and clues on paper; the answer key on its own page ---
+const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
+
+function sheetGrid(key) {
+  // Square cells sized for paper (about a third of an inch), capped by the CSS max-height.
+  const parts = [];
+  for (const c of P.cells) {
+    parts.push(`<rect x="${c.c}" y="${c.r}" width="1" height="1" fill="#fff" stroke="#121212" stroke-width=".035"/>`);
+    if (c.num) parts.push(`<text x="${c.c + .07}" y="${c.r + .3}" font-size=".27" font-family="Libre Franklin, sans-serif">${c.num}</text>`);
+    if (key) parts.push(`<text x="${c.c + .5}" y="${c.r + .78}" font-size=".6" font-weight="700" text-anchor="middle" font-family="Libre Franklin, sans-serif">${c.ans}</text>`);
+  }
+  const wrap = el('div');
+  wrap.innerHTML = `<svg class="ws-grid" viewBox="-.05 -.05 ${P.cols + .1} ${P.rows + .1}" style="width:min(100%, ${(P.cols * .33).toFixed(2)}in)">${parts.join('')}</svg>`;
+  return wrap.firstChild;
+}
+
+function sheetPage(key) {
+  const page = el('section', 'ws-page');
+  const head = page.appendChild(el('div', 'ws-head'));
+  const h1 = head.appendChild(el('h1'));
+  const sq = h1.appendChild(el('span', 'sq'));
+  ['var(--sel)', 'var(--word)', '#fff'].forEach(c => { const i = sq.appendChild(el('i')); i.style.background = c; });
+  h1.append(key ? `Answer key · ${P.title}` : P.title);
+  const meta = head.appendChild(el('div', 'meta'));
+  meta.append(el('div', '', 'Standards Crossword'), el('div', '', `${P.words.length} words`));
+
+  if (P.std) {
+    const box = page.appendChild(el('div', 'std'));
+    box.append(el('p', 'lbl', [P.std.f, P.std.a, P.std.g].filter(Boolean).join(' · ')));
+    P.std.i.forEach(([code, text]) => { const p = box.appendChild(el('p')); p.append(el('b', '', code), text); });
+  }
+  if (!key) {
+    const who = page.appendChild(el('div', 'who'));
+    who.append(el('span', '', 'Name'), el('span', '', 'Date'));
+  }
+  page.append(sheetGrid(key));
+  const cards = page.appendChild(el('div', 'cards'));
+  for (const [d, label] of [['a', 'Across'], ['d', 'Down']]) {
+    const card = cards.appendChild(el('div', 'card' + (d === 'd' ? ' down' : '')));
+    card.append(el('p', 'lbl', label));
+    const ol = card.appendChild(el('ol'));
+    P.words.filter(w => w.dir === d).forEach(w => {
+      const li = ol.appendChild(el('li'));
+      li.append(el('b', '', w.num), el('span', '', key ? w.term : w.clue));
+    });
+  }
+  const foot = page.appendChild(el('div', 'foot'));
+  foot.append(el('span', '', P.ai ? `genAI-generated by ${P.aiBy || 'an AI model'}; not reviewed by a teacher.` : 'Teacher-made puzzle.'),
+              el('span', '', 'ohiomathteacher.github.io/applet-library/standards-crossword'));
+  return page;
+}
+
+function buildSheet(withKey) {
+  const ws = $('#ws');
+  ws.innerHTML = '';
+  ws.append(sheetPage(false));
+  if (withKey) ws.append(sheetPage(true));
+}
+
+function printSheet(withKey) {
+  if (!P) return;
+  buildSheet(withKey);
+  document.body.classList.add('ws-print');
+  window.print();
+}
+addEventListener('afterprint', () => document.body.classList.remove('ws-print'));
+$$('[data-print]').forEach(b => b.addEventListener('click', () => {
+  b.closest('.menu').open = false;
+  printSheet(b.dataset.print === '1');
+}));
+
+// --- KEEP A genAI PUZZLE: hand it to the builder to review, then copy a library entry ---
+$('#ai-keep').addEventListener('click', () => {
+  if (!P) return;
+  B.ready = true;                       // loaded here, so the builder doesn't restore an old draft over it
+  $('#b-title').value = P.title.replace(/^Review: /, '');
+  $('#b-sub').value = P.sub || '';
+  $('#b-words').value = P.words.map(w => `${w.term}: ${w.clue}`).join('\n');
+  B.seed = 1;
+  if (P.std && P.std.d) initDoc(P.std.d, P.std.i.map(([code]) => code)); else initDoc('', []);
+  location.hash = '#puzzle-builder';
+});
 
 // --- STANDARDS CATALOG: the index is embedded; each document loads on demand from standards/<id>.js ---
 const INDEX = window.STANDARDS_INDEX || [];

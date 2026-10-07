@@ -19,6 +19,21 @@ Choosing a standard with no puzzle opens it at its own address (`#s=…`), so
 the **← All puzzles** link at the top and the browser's Back button both
 return to the puzzle list, and the address can be shared.
 
+## Printing
+
+Every puzzle has a **Print** menu: **Worksheet** prints one page with the
+standard, a Name and Date line, the empty grid and the clues;
+**Worksheet + answer key** adds a second page with the filled grid and the
+answers. A genAI puzzle's footer names the model that wrote it.
+
+## Keeping a genAI puzzle
+
+A genAI puzzle that's worth keeping has **Edit in builder** beside its label.
+It opens the puzzle in the builder with its words, clues and standard filled
+in. Fix anything that needs it, then **Copy library entry** and paste the line
+into `library.js`: from then on every student sees it under "Puzzle ready",
+with no AI needed.
+
 ## AI Setup
 
 The **AI Setup** button at the top right offers the same choice as Clique,

@@ -1,9 +1,9 @@
 # Dragonkeep
 
 Draw a dungeon floor plan and it becomes a prism you can walk through. A
-first-person crawler in the spirit of the 1983 Intellivision title *Treasure of
-Tarmin*, built around one idea: **a floor plan extruded to a ceiling height is a
-right prism over an irregular polygon.**
+first-person crawler in the spirit of the early-1980s cartridge era, built around
+one idea: **a floor plan extruded to a ceiling height is a right prism over an
+irregular polygon.**
 
 **Live**: https://ohiomathteacher.github.io/applet-library/dragonkeep/
 

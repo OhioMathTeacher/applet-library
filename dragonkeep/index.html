@@ -953,10 +953,10 @@
           </section>
           <section class="ab-sec">
             <h3>What it is</h3>
-            <p>An original game in the spirit of the 1983 Intellivision title <i>Advanced
-            Dungeons &amp; Dragons: Treasure of Tarmin</i>: two parallel health tracks, two
-            matching weapon classes, blocky corridors. All art here is original and the
-            rendering palette is restricted to the sixteen Intellivision colours.</p>
+            <p>An original game in the spirit of the early-1980s first-person dungeon
+            crawlers: two parallel health tracks, two matching weapon classes, blocky
+            corridors. All art here is original and the rendering palette is restricted
+            to sixteen colours.</p>
           </section>
         </div>
       </div>
@@ -1084,7 +1084,7 @@ document.getElementById('version').textContent = VERSION;
    asks about it.
    ============================================================ */
 
-/* the sixteen Intellivision colors — everything drawn comes from here */
+/* the sixteen-colour palette — everything drawn comes from here */
 const IV = {
   K:'#0C0005', B:'#002DFF', R:'#FF3E00', T:'#C9D464',
   D:'#00780F', G:'#00A720', Y:'#FAEA27', W:'#FFFCFF',
@@ -1555,7 +1555,7 @@ const shadeFor = d => SHADE[Math.min(SHADE.length-1, Math.floor(d/2))];
 
 let mapOn = true;
 
-/* Cloudy Mountain's rule: rooms and passageways light up as you move into
+/* The explored-map rule: rooms and passageways light up as you move into
    them and stay lit behind you. Not a complete map -- what you have walked.
    The reveal radius is the renderer's own sight distance rather than a second
    number, so thickening the mist shrinks the map and the view together. */
@@ -3723,7 +3723,7 @@ addEventListener('keydown', e=>{
 
 /* ============================================================
    SOUND — an AY-3-8914, near enough
-   The Intellivision's sound chip was three square-wave channels
+   The chip modelled here was three square-wave channels
    and one noise generator. No samples, no filters, no envelopes
    beyond a 4-bit volume you wrote yourself. Everything below is
    built from exactly those parts, which is why it sounds right.

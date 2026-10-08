@@ -434,6 +434,24 @@
   }
   #imHud button:hover{border-color:#FFFCFF}
 
+  /* The two rosters live in the black bands either side of the picture, so
+     they only exist in immersive mode, and only when a band is wide enough. */
+  .roster{display:none}
+  :root.immersive .roster{
+    display:flex;position:absolute;top:0;bottom:46px;width:var(--vl);z-index:2;
+    flex-direction:column;justify-content:center;align-items:center;gap:10px;
+    pointer-events:none;overflow:hidden;
+    font:400 12px "Press Start 2P",monospace;color:#FFFCFF;
+  }
+  :root.immersive #rosterL{left:0}
+  :root.immersive #rosterR{right:0}
+  :root.immersive .roster.off{display:none}
+  .roster h3{margin:0 0 4px;font:inherit;font-size:10px;color:#A1A1A1;letter-spacing:.08em}
+  .roster .ent{display:flex;align-items:center;gap:8px}
+  .roster .ent b{font-weight:400;font-size:16px;min-width:3.2em}
+  .roster .ent.done b{color:#A1A1A1}
+  .roster canvas{image-rendering:pixelated;display:block}
+
   /* ---------- About, to the suite's standard: .brand opens #aboutOverlay,
      and the panel stays dark on a light app the way the others do ---------- */
   :root{
@@ -760,6 +778,8 @@
         <div id="status" hidden></div>
         <div id="subs" aria-live="polite" hidden></div>
         <canvas id="map" aria-label="Explored map" hidden></canvas>
+        <div id="rosterL" class="roster" aria-label="Prizes in this dungeon"></div>
+        <div id="rosterR" class="roster" aria-label="Adversaries in this dungeon"></div>
         <div id="warden" hidden></div>
       </div>
       <div style="display:flex;gap:6px;margin-top:11px;flex-wrap:wrap">
@@ -1054,7 +1074,7 @@
 <div id="version"></div>
 <script>
 /* Shown quietly in the corner; bump with each release. */
-const VERSION = 'v0.24 · 2026-10-07';
+const VERSION = 'v0.25 · 2026-10-07';
 document.getElementById('version').textContent = VERSION;
 
 /* ============================================================
@@ -1154,6 +1174,10 @@ const MOBS = {
 };
 
 let P = null;
+/* The title card is the software's front door, shown once per launch and
+   never again: not on restart, not at the start of a world, not on a second
+   press of Play (Todd, 2026-10-07). */
+let titleShown = false;
 function freshPlayer(carry){
   const c = carry || null;
   /* Todd's rule, recorded 2026-10-07: the party travels together and keeps
@@ -1167,7 +1191,7 @@ function freshPlayer(carry){
     arms: c ? Object.assign({}, c.arms) : {bow:true, book:true},
     weapon: c ? c.weapon : 'bow',
     gold: c ? c.gold : 0,
-    done:false, intro: c ? false : true,
+    done:false, intro: !titleShown,
     bricks:brickBudget(), crew:helpers, sealed:false, solved:{}, seen:{}
   };
 }
@@ -1759,7 +1783,10 @@ function drawView(){
     viewCx.fillText(P.sealed ? 'IT SLEEPS' : (won ? 'TREASURE' : 'YOU DIED'), VW/2, VH/2 - 6);
     viewCx.fillStyle = IV.A;
     viewCx.font = '400 10px "Press Start 2P", monospace';
-    viewCx.fillText('PRESS 0 TO BEGIN AGAIN', VW/2, VH/2 + 26);
+    /* the same key that descends from the title card begins again here */
+    const ak = binds.attack || [];
+    const atk = ak.includes('Space') ? 'SPACE' : (ak[0] ? KEY_LABEL(ak[0]).toUpperCase() : 'SPACE');
+    viewCx.fillText('PRESS ' + atk + ' TO BEGIN AGAIN', VW/2, VH/2 + 26);
   }
   drawMap();
 }
@@ -1833,6 +1860,8 @@ function renderStatus(){
 }
 
 function renderHud(){
+  checkClears();
+  renderRoster();
   const pct = (v,m)=> Math.max(0,Math.min(100, v/m*100)).toFixed(0)+'%';
   document.getElementById('hWar').textContent = Math.max(0,P.war);
   document.getElementById('hSpi').textContent = Math.max(0,P.spi);
@@ -2072,13 +2101,22 @@ function fighter(key){
    authored -- this is the play-time view of it, so switching modes never edits
    the dungeon you drew. */
 function liveMob(i){
-  const m = mobs[i];
-  if(!m) return undefined;
-  if(!battle && fighter(m.key)) return undefined;
-  return m;
+  return mobs[i];
+}
+
+/* Adventure mode: nothing fights, but the creatures are still down there, and
+   they are collected the way prizes are -- walk into one, or reach for it
+   with the attack key (Todd, 2026-10-07). */
+function collectMob(i){
+  const def = MOBS[mobs[i].key];
+  P.gold += def.gold;
+  delete mobs[i];
+  say('You collect the <b>'+def.name.toLowerCase()+'</b>. +'+def.gold+' treasure.');
+  sfx('pickup');
 }
 
 function monsterTurn(){
+  if(!battle) return;
   const c = cellAhead(1);
   const m = liveMob(idx(c.x,c.y));
   if(!m || MOBS[m.key].gate) return;
@@ -2117,6 +2155,7 @@ function attack(){
     }
     renderHud(); drawView(); return;
   }
+  if(!battle){ collectMob(i); renderHud(); drawView(); drawMap(); return; }
   const w = ARMS[P.weapon], def = MOBS[m.key];
   if(w.kind === 'war') m.war -= w.dmg;
   else if(w.kind === 'spirit') m.spi -= w.dmg;
@@ -2144,8 +2183,8 @@ function step(sign){
   const blocker = liveMob(idx(nx,ny));
   if(blocker){
     if(MOBS[blocker.key].gate){ gateCell = idx(nx,ny); askWarden(); return; }
-    say(MOBS[blocker.key].name+' blocks the way.');
-    return;
+    if(!battle && fighter(blocker.key)) collectMob(idx(nx,ny));
+    else { say(MOBS[blocker.key].name+' blocks the way.'); return; }
   }
   P.x = nx; P.y = ny; sfx('step');
   revealAround();
@@ -2307,6 +2346,9 @@ function act(a){
   if(mode !== 'play') return;
   if(!wardenEl.hidden) return;
   if(P.intro && a !== 'attack'){ return; }
+  /* Once it is over, attack (Space, Num 5, the pad's A) begins again: there
+     is nothing left to swing at, and it is the key the title card taught. */
+  if(P.done && a === 'attack') a = 'restart';
   if(P.done && a !== 'restart') return;
   switch(a){
     case 'fwd': case 'back': case 'left': case 'right':
@@ -2318,7 +2360,7 @@ function act(a){
     case 'war':     cycleWeapon('war'); break;
     case 'spirit':  cycleWeapon('spirit'); break;
     case 'brick':   layBrick(); break;
-    case 'restart': startPlay(); break;
+    case 'restart': restartLeg(); break;
   }
 }
 
@@ -2637,6 +2679,7 @@ function placeOverlays(){
   const sBot = last ? last.getBoundingClientRect().bottom - b.top + 8 : 0;
   st.style.setProperty('--mapt', Math.max(a.top - b.top + 8, sBot) + 'px');
   if(typeof drawMap === 'function') drawMap();
+  if(typeof renderRoster === 'function' && P) renderRoster();
 }
 
 function fitStage(){
@@ -3172,7 +3215,8 @@ function startWorld(key){
   if(!WORLDS[key]) return;
   W = {key, leg:0};
   LEVELS[WORLDS[key].legs[0].key].load();
-  setMode('play');
+  if(mode === 'play'){ if(startPlay()){ drawMap(); renderStatus(); } }
+  else setMode('play');
 }
 
 /* Climbing a ladder inside a world. Which ladder decides which way you go. */
@@ -3305,20 +3349,161 @@ const playView   = document.getElementById('playView');
 const mCreate = document.getElementById('mCreate');
 const mPlay   = document.getElementById('mPlay');
 
-function startPlay(carry){
+/* The dungeon as it stood when the party walked in. Play changes the level
+   itself -- laid bricks are rock in the grid, taken treasure is deleted, a
+   slain monster is gone -- so beginning again has to put all of that back,
+   and in a world it also hands back what the party arrived carrying. */
+let entry = null;
+function restartLeg(){
+  if(!entry) return startPlay();
+  grid  = entry.grid.slice();
+  items = JSON.parse(JSON.stringify(entry.items));
+  mobs  = JSON.parse(JSON.stringify(entry.mobs));
+  start = Object.assign({}, entry.start);
+  startPlay(entry.carry ? JSON.parse(JSON.stringify(entry.carry)) : undefined, true);
+  drawMap(); renderStatus();
+}
+
+/* ============================================================
+   ROSTERS -- what this dungeon holds, either side of the picture
+   Prizes on the left, outlined until every one of that kind is found;
+   adversaries on the right, greyed once every one of that kind is dealt
+   with. In Adventure mode the adversaries are collected, so they fill in
+   like prizes. The dragon is never killed: it is sealed, and shows bricks.
+   Everything is counted against the entry snapshot, so a restart resets it.
+   ============================================================ */
+const PRIZE_ORDER = ['jewel','potion','sword','armor','book','fire'];
+const FOE_ORDER   = ['rat','bat','snake','scorpion','minotaur','warden','dragon'];
+const CLEAR_BONUS = 25;     // each: every prize found, every adversary dealt with
+
+function tally(obj, keyOf){
+  const n = {};
+  for(const k in obj){ const key = keyOf(obj[k]); n[key] = (n[key] || 0) + 1; }
+  return n;
+}
+function roster(){
+  if(!entry || !P) return null;
+  const p0 = tally(entry.items, v => v), p1 = tally(items, v => v);
+  const f0 = tally(entry.mobs, m => m.key), f1 = tally(mobs, m => m.key);
+  if(P.sealed && f1.dragon) f1.dragon = 0;           // sealed is dealt with
+  const list = (order, all, now) => order.filter(k => all[k])
+    .map(k => ({key:k, total:all[k], left:Math.min(all[k], now[k] || 0)}));
+  const prizes = list(PRIZE_ORDER, p0, p1), foes = list(FOE_ORDER, f0, f1);
+  const left = l => l.reduce((a,e) => a + e.left, 0);
+  return {prizes, foes, prizesLeft:left(prizes), foesLeft:left(foes)};
+}
+
+/* the bonuses, each paid once per dungeon */
+function checkClears(){
+  const r = roster();
+  if(!r || P.intro) return;
+  if(!P.clearedPrizes && r.prizes.length && !r.prizesLeft){
+    P.clearedPrizes = true; P.gold += CLEAR_BONUS;
+    say('<b>Every prize found.</b> +'+CLEAR_BONUS+' treasure.');
+    sfx('right');
+  }
+  if(!P.clearedFoes && r.foes.length && !r.foesLeft){
+    P.clearedFoes = true; P.gold += CLEAR_BONUS;
+    say('<b>'+(battle ? 'Every adversary dealt with.' : 'Every creature collected.')+'</b> +'+
+        CLEAR_BONUS+' treasure.');
+    sfx('right');
+  }
+}
+
+/* One icon. Drawn at a fixed scale and sized by CSS with pixelated rendering,
+   one sprite pixel of margin all round so the outline has somewhere to go. */
+function rosterIcon(key, state){
+  const rows = SPRITES[key], n = rows.length, s = 6, cv = document.createElement('canvas');
+  cv.width = cv.height = (n+2)*s;
+  const g = cv.getContext('2d');
+  const on = (r,c) => r >= 0 && r < n && c >= 0 && c < rows[r].length && rows[r][c] !== '.';
+  if(state === 'outline'){
+    /* the cells just outside the shape: a silhouette drawn in its edge */
+    g.fillStyle = IV.A;
+    for(let r=-1;r<=n;r++) for(let c=-1;c<=n;c++){
+      if(on(r,c)) continue;
+      if(on(r-1,c) || on(r+1,c) || on(r,c-1) || on(r,c+1)) g.fillRect((c+1)*s, (r+1)*s, s, s);
+    }
+    return cv;
+  }
+  /* grey is a dark grey, not the light one: rats, bats and the sword are
+     drawn in light grey to begin with, and a defeated rat has to look it */
+  g.globalAlpha = state === 'sealed' ? .9 : 1;
+  for(let r=0;r<n;r++) for(let c=0;c<rows[r].length;c++){
+    if(!on(r,c)) continue;
+    g.fillStyle = state === 'grey' ? '#3E3A3C' : (IV[rows[r][c]] || IV.W);
+    g.fillRect((c+1)*s, (r+1)*s, s, s);
+  }
+  if(state === 'sealed'){
+    /* walled in: courses of brick laid over it, staggered */
+    g.globalAlpha = .55;
+    const W = cv.width, bh = W/5, bw = W/3;
+    for(let y=0, row=0; y<W; y+=bh, row++){
+      for(let x=(row%2 ? -bw/2 : 0); x<W; x+=bw){
+        g.fillStyle = IV.R; g.fillRect(x+1, y+1, bw-2, bh-2);
+      }
+    }
+  }
+  return cv;
+}
+
+let rosterSig = '';
+function renderRoster(){
+  const L = document.getElementById('rosterL'), R = document.getElementById('rosterR');
+  const r = (mode === 'play' && P && !P.intro && isImmersive()) ? roster() : null;
+  const band = viewCv.getBoundingClientRect().left;
+  const room = !!r && band >= 84;
+  L.classList.toggle('off', !room || !r.prizes.length);
+  R.classList.toggle('off', !room || !r.foes.length);
+  if(!room){ rosterSig = ''; return; }
+  /* size the icons so the longer column fits the band, both ways */
+  const rows = Math.max(r.prizes.length, r.foes.length) + 1;
+  const avail = innerHeight - 46 - 40;
+  const sz = Math.max(24, Math.min(72, Math.floor(band * .4), Math.floor(avail / rows) - 10));
+  const sig = JSON.stringify([r, sz, battle]);
+  if(sig === rosterSig) return;
+  rosterSig = sig;
+  const fill = (el, head, list, stateOf) => {
+    el.innerHTML = '<h3>'+head+'</h3>';
+    list.forEach(e => {
+      const d = document.createElement('div'), done = !e.left;
+      d.className = 'ent' + (done ? ' done' : '');
+      const cv = rosterIcon(e.key, stateOf(e, done));
+      cv.style.width = cv.style.height = sz + 'px';
+      const b = document.createElement('b');
+      b.textContent = e.total > 1 && e.left ? '\u00d7' + e.left : '';
+      d.append(cv, b);
+      d.title = (ARMS[e.key] || MOBS[e.key]).name + ': ' + (e.total - e.left) + ' of ' + e.total;
+      el.appendChild(d);
+    });
+  };
+  fill(L, 'PRIZES', r.prizes, (e, done) => done ? 'full' : 'outline');
+  fill(R, 'FOES', r.foes, (e, done) =>
+    e.key === 'dragon' ? (done ? 'sealed' : 'full')
+    : !battle ? (done ? 'full' : 'outline')             // adventure: collected, like prizes
+    : (done ? 'grey' : 'full'));
+}
+
+function startPlay(carry, again){
   if(!isFloor(start.x,start.y)){
     const first = grid.indexOf(FLOOR);
     if(first < 0){ alert('This plan is solid rock. Draw some floor first.'); return false; }
     start.x = first % GW; start.y = (first/GW)|0;
   }
+  if(!again) entry = {grid: grid.slice(),
+                      items: JSON.parse(JSON.stringify(items)),
+                      mobs:  JSON.parse(JSON.stringify(mobs)),
+                      start: Object.assign({}, start),
+                      carry: carry ? JSON.parse(JSON.stringify(carry)) : null};
   P = freshPlayer(carry);
+  titleShown = true;
   gateCell = null;
   wardenEl.hidden = true;
   document.getElementById('log').innerHTML = '';
   const m = metrics();
   say('You enter <b>'+m.V+' cubic units</b> of darkness, walled by <b>'+m.wall+' square units</b> of stone.');
   say('Maze index '+m.index.toFixed(2)+'. Mist: '+FOG_NAME[fog]+'.');
-  if(!battle) say('<b>Adventure mode.</b> Nothing down here will fight you. Walk, and look.');
+  if(!battle) say('<b>Adventure mode.</b> Nothing down here will fight you. Walk into a creature to collect it.');
   /* Say what winning is, every time. A player who cannot name the goal is
      not exploring, they are lost -- and until this line existed, three of the
      four lessons had no goal to name. */
@@ -3344,7 +3529,7 @@ function startPlay(carry){
   renderHud(); drawView();
   /* Pressing Play is the gesture browsers want, so the clock can start here. */
   wakeAudio();
-  sfx('title');
+  sfx(P.intro ? 'title' : 'descend');
   /* It is already down there. Nothing else touches the breath until the first
      move, so this level holds for as long as the title card is up. */
   if(dragonCells().length) setBreath(3);
@@ -3366,6 +3551,8 @@ function applyLean(){
 }
 
 function setMode(next, opts){
+  /* Play while already playing is not "start over" -- that is what 0 is for. */
+  if(next === 'play' && mode === 'play') return;
   if(next === 'play' && !startPlay()) return;
   mode = next;
   const playing = next === 'play';

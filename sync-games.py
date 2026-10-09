@@ -4,7 +4,8 @@
     python3 sync-games.py            # copy every game in GAMES
     python3 sync-games.py --check    # say whether any copy is stale; change nothing
 
-Each game's index.html in ../<repo> IS THE SOURCE. Nobody edits the copies here
+Each game's committed index.html in ../<repo> IS THE SOURCE (HEAD, not the
+working copy). Nobody edits the copies here
 by hand -- this script rewrites them, so a hand edit is lost on the next run.
 One source, no drift.
 
@@ -20,6 +21,7 @@ to Pages, so nothing else on this origin shares them.
 import sys
 import pathlib
 import difflib
+import subprocess
 
 HERE = pathlib.Path(__file__).resolve().parent
 LIVE = "https://ohiomathteacher.github.io/applet-library/"
@@ -41,18 +43,23 @@ BANNER = """<!--
 """
 
 
+def committed(src, name):
+    """A file as last committed, never the working copy: a game being edited
+    must not go public half-finished just because another game was synced."""
+    try:
+        return subprocess.run(["git", "-C", str(src), "show", "HEAD:" + name],
+                              check=True, capture_output=True, text=True).stdout
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        raise SystemExit("sync-games: no committed %s in %s" % (name, src))
+
+
 def build(repo, folder):
     """Return {path: text} for one game's published files."""
     src = HERE.parent / repo
-    page = src / "index.html"
-    readme = src / "README.md"
-    for f in (page, readme):
-        if not f.is_file():
-            raise SystemExit("sync-games: no source at %s" % f)
-
-    player_part = readme.read_text().split("\n## How to run", 1)[0].rstrip()
+    page, readme = committed(src, "index.html"), committed(src, "README.md")
+    player_part = readme.split("\n## How to run", 1)[0].rstrip()
     return {
-        HERE / folder / "index.html": BANNER.format(repo=repo) + page.read_text(),
+        HERE / folder / "index.html": BANNER.format(repo=repo) + page,
         HERE / folder / "README.md": player_part
             + "\n\n## Play\n\n**Live**: %s%s/\n\nOne file, no install, no network.\n" % (LIVE, folder),
     }

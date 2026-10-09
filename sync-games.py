@@ -6,14 +6,14 @@
 
 Each game's index.html in ../<repo> IS THE SOURCE. Nobody edits the copies here
 by hand -- this script rewrites them, so a hand edit is lost on the next run.
-Same reasoning as sync-dragonkeep.py: one source, no drift.
+One source, no drift.
 
 The game repos are private; only what this script copies becomes public. That is
 index.html and the README's player-facing part (everything above "## How to run",
 which talks about the repo rather than the game). NEXT-STEPS.md, tools/ and the
 rest of the repo are never copied.
 
-Unlike Dragonkeep, no storage keys are rewritten: each game already namespaces
+No storage keys are rewritten: each game already namespaces
 its one localStorage key (the high score), and the game repos are not published
 to Pages, so nothing else on this origin shares them.
 """

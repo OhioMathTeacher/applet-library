@@ -47,7 +47,7 @@ Explore the mathematics of Pell’s equation and its solutions, inspired by the 
 
 ## Retro Educational Games
 
-### 🐉 [Dragonkeep](https://ohiomathteacher.github.io/applet-library/dragonkeep/)
+### 🐉 [Dragonkeep](https://dragonkeep.mathaiproject.org/)
 Draw a dungeon floor plan and it becomes a prism you can walk through. The editor measures area, perimeter, volume and surface area live; the dragon is won by walling it in rather than killing it, which makes "is this level winnable?" a minimum cut.
 
 ### 👻 [Haunt](https://ohiomathteacher.github.io/applet-library/haunt/)

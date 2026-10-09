@@ -26,16 +26,17 @@
 
 // ---------------------------------------------------------------- tuning
 // speeds are fractions of BASE_SPEED (tiles per second). The whole game hangs
-// on the ordering ACTIVE > PAC > AUTO: only the ghost you steer can close the
-// gap, so the other three are useful only as walls that Pac-Man is afraid of.
+// on the ordering ACTIVE > PAC > AUTO: only the ghost you steer can run him
+// down from behind. Any ghost that touches him catches him, so the slower
+// autopilot ghosts matter as the other jaw of a trap: a dead end, a pincer,
+// the last few dots they sit on.
 const BASE_SPEED          = 7.5;
 const ACTIVE_SPEED        = 1.00;
 const PAC_SPEED           = 0.90;
-const AUTO_SPEED          = 0.80;
-const PAC_SPEED_PER_LEVEL = 0.02;   // Pac-Man creeps toward your speed...
-const PAC_SPEED_MAX       = 0.98;
+const AUTO_SPEED          = 0.70;
+const PAC_SPEED_PER_LEVEL = 0.02;   // Pac-Man creeps toward your speed (his cap is per mode, below 1)...
 const AUTO_SPEED_PER_LEVEL= 0.02;   // ...while your herders get lazier
-const AUTO_SPEED_MIN      = 0.62;
+const AUTO_SPEED_MIN      = 0.50;
 const FRIGHT_ACTIVE_SPEED = 0.60;
 const FRIGHT_AUTO_SPEED   = 0.50;
 const PAC_FRIGHT_SPEED    = 0.95;
@@ -52,6 +53,14 @@ const CATCH_BASE          = 200;    // catch score = (base + per-dot * dots left
 const CATCH_PER_DOT       = 5;
 const GHOST_EATEN_PENALTY = 100;
 const CATCH_RADIUS        = 0.7;    // tiles between centres
+const TRAP_BONUS          = 1.5;    // a catch by an autopilot ghost (TRAPPED!) pays more
+// how many ghosts you play with: fewer is harder, and pays more per catch
+// pacMax is his top speed: always under ACTIVE_SPEED, so your ghost can run
+// him down in every mode; lower in HARD and SOLO, where you have less help
+const MODES = {4: {name: 'EASY',   mult: 1,   pacMax: 0.99},
+               3: {name: 'NORMAL', mult: 1.5, pacMax: 0.99},
+               2: {name: 'HARD',   mult: 2,   pacMax: 0.985},
+               1: {name: 'SOLO',   mult: 3,   pacMax: 0.975}};
 
 // Pac-Man's brain. He scores each way he could go and takes the best.
 const PAC_LOOKAHEAD       = 18;     // tiles of breadth-first look-ahead
@@ -64,8 +73,16 @@ const PAC_W_FOOD          = 1.5;
 const PAC_W_PELLET        = 4.0;
 const PAC_PANIC_DIST      = 8;      // ghost this close (path tiles) sends him for a pellet
 const PAC_W_HUNT          = 3.0;
-const PAC_REVERSE_PENALTY = 0.25;   // damps dithering back and forth
+const PAC_REVERSE_PENALTY = 1.0;    // damps dithering back and forth, which gets him sandwiched
 const PAC_NOISE           = 0.08;
+// he gets cleverer level by level. At level 1 he only counts open corridor
+// near him; by PAC_SMART_LEVELS he floods outward only through tiles he can
+// reach before every ghost, so a corridor with ghosts closing on both ends
+// (a pincer) or a dead end with a ghost at the mouth scores as the trap it is.
+const PAC_SMART_LEVELS    = 4;
+const PAC_SAFE_MARGIN     = 0.35;   // seconds of lead he wants on a tile, when fully smart
+const PAC_W_TRAP          = 8.0;    // penalty for heading into a pocket with no way out
+const PAC_TRAP_ROOM       = 14;     // safe tiles below this count as a pocket
 
 // ---------------------------------------------------------------- maze
 // the left half is written out and mirrored, which keeps the maze symmetric
@@ -156,26 +173,42 @@ const homeField = bfs(HOME_TILE.x, HOME_TILE.y, true).dist;
 const params = new URLSearchParams(location.search);
 const DEMO = params.has('demo');
 const SIM_SPEED = Math.max(1, Math.min(20, +params.get('speed') || 1));
+// ?seed=N makes a demo run repeatable, for comparing tuning changes
+let seed = (+params.get('seed') || 0) >>> 0;
+const rng = seed ? () => { seed = (seed + 0x6D2B79F5) >>> 0; let t = seed;
+  t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+  return ((t ^ (t >>> 14)) >>> 0) / 4294967296; } : Math.random;
 
 const cv = document.getElementById('c');
 const ctx = cv.getContext('2d');
 
 let state = 'title';      // title ready play paused caught cleared gameover
 let stateT = 0;           // seconds spent in the current state
+let stateN = 0;           // bumps on every state change, so music can tell re-entries apart
 let score = 0, hiScore = 0, level = 1, lives = START_LIVES, catches = 0;
+let numGhosts = 4;        // 4 EASY, 3 NORMAL, 2 HARD, 1 SOLO
+let lastCatch = '';       // 'GOTCHA' (your ghost) or 'TRAPPED' (an autopilot ghost)
 let dots, dotsLeft, dotsTotal;
 let pac, ghosts, active = 0;
 let frightT = 0, hitstop = 0;
 let popups = [];
 let padNote = 0, padName = '';
 let demoSwitchT = 0;
-const stats = {catches: 0, clears: 0, ghostsEaten: 0, games: 0};
-try { hiScore = +localStorage.getItem('haunt-hi') || 0; } catch (e) {}
+const stats = {catches: 0, traps: 0, clears: 0, ghostsEaten: 0, games: 0};
+function store(k, v) { try { if (v === undefined) return localStorage.getItem(k); localStorage.setItem(k, v); } catch (e) {} return null; }
+// v0.1 kept one high score, from games that all had four ghosts
+if (store('haunt-hi') && !store('haunt-hi-4')) store('haunt-hi-4', store('haunt-hi'));
+function loadMode(n) {
+  numGhosts = MODES[n] ? n : 4;
+  hiScore = +store('haunt-hi-' + numGhosts) || 0;
+}
+loadMode(+params.get('ghosts') || +store('haunt-ghosts') || 4);
 
-function levelPacSpeed()  { return Math.min(PAC_SPEED_MAX, PAC_SPEED + PAC_SPEED_PER_LEVEL * (level - 1)); }
+function levelPacSpeed()  { return Math.min(MODES[numGhosts].pacMax, PAC_SPEED + PAC_SPEED_PER_LEVEL * (level - 1)); }
 function levelAutoSpeed() { return Math.max(AUTO_SPEED_MIN, AUTO_SPEED - AUTO_SPEED_PER_LEVEL * (level - 1)); }
 function levelFright()    { return Math.max(FRIGHT_TIME_MIN, FRIGHT_TIME - FRIGHT_TIME_PER_LEVEL * (level - 1)); }
-function catchValue()     { return (CATCH_BASE + CATCH_PER_DOT * dotsLeft) * level; }
+function catchValue()     { return Math.round((CATCH_BASE + CATCH_PER_DOT * dotsLeft) * level * MODES[numGhosts].mult); }
+function pacSmart()       { return Math.min(1, (level - 1) / PAC_SMART_LEVELS); }
 
 function freshDots() {
   dots = new Uint8Array(COLS * ROWS);
@@ -222,7 +255,7 @@ function advance(a, dist, decide, onTile) {
 
 function resetActors() {
   pac = makeActor(PAC_START.x, PAC_START.y, 1);
-  ghosts = GHOST_START.map((s, i) => {
+  ghosts = GHOST_START.slice(0, numGhosts).map((s, i) => {
     const g = makeActor(s.x, s.y, 1);
     g.id = i;
     g.state = i === 0 ? 'out' : 'house';
@@ -243,7 +276,7 @@ function startLevel() {
   resetActors();
   setState('ready');
 }
-function setState(s) { state = s; stateT = 0; }
+function setState(s) { state = s; stateT = 0; stateN++; }
 
 // ---------------------------------------------------------------- ghost brains
 function ghostSpeed(g) {
@@ -303,7 +336,7 @@ function ghostDecide(g) {
   }
   if (!opts.length) return g.dir >= 0 && openFor(g.tx + DX[opp(g.dir)], g.ty + DY[opp(g.dir)], false) ? opp(g.dir) : -1;
   if (opts.length === 1) return opts[0];
-  if (g.fright) return opts[(Math.random() * opts.length) | 0];
+  if (g.fright) return opts[(rng() * opts.length) | 0];
   const t = ghostTarget(g);
   let best = opts[0], bv = 1e9;
   for (const d of opts) {
@@ -352,15 +385,30 @@ function pacDecide(a) {
   for (let d = 0; d < 4; d++) if (openFor(cx + DX[d], cy + DY[d], false)) opts.push(d);
   if (!opts.length) return -1;
   const vp = pacSpeed() * BASE_SPEED;
+  const smart = pacSmart();
+  const margin = PAC_SAFE_MARGIN * smart;
   const threats = [], prey = new Set();
   for (const g of ghosts) {
     if (g.state !== 'out') continue;
     if (g.fright) { const t = tileOf(g); prey.add(idx(t.x, t.y)); }
     else {
-      const t = tileOf(g);
-      threats.push({dist: bfs(t.x, t.y, false).dist, v: ghostSpeed(g) * BASE_SPEED,
+      // autopilot ghosts never turn round, so he can count from the tile
+      // one is heading for with the way back closed; yours can reverse any time
+      let dist;
+      if (g.id !== active && g.dir >= 0 && smart > 0) {
+        const nx = wrapX(g.tx + DX[g.dir]), ny = g.ty + DY[g.dir];
+        dist = bfs(nx, ny, false, 999, g.tx, g.ty).dist;
+        const back = idx(g.tx, g.ty);
+        if (dist[back] < 0) dist[back] = 0;   // it is still (partly) here
+      } else { const t = tileOf(g); dist = bfs(t.x, t.y, false).dist; }
+      threats.push({dist, v: ghostSpeed(g) * BASE_SPEED,
                     w: g.id === active ? PAC_ACTIVE_FEAR : 1});
     }
+  }
+  // when the nearest ghost could get to each tile
+  const ghostT = new Float32Array(COLS * ROWS).fill(Infinity);
+  for (const t of threats) for (let k = 0; k < ghostT.length; k++) {
+    const gd = t.dist[k]; if (gd >= 0 && gd / t.v < ghostT[k]) ghostT[k] = gd / t.v;
   }
   let near = 99;
   for (const t of threats) { const d = t.dist[idx(cx, cy)]; if (d >= 0 && d < near) near = d; }
@@ -374,25 +422,49 @@ function pacDecide(a) {
     let room = 0, food = -1, pellet = -1, preyD = -1;
     for (const k of order) {
       const dp = dist[k];
-      let gt = Infinity;
-      for (const t of threats) { const gd = t.dist[k]; if (gd >= 0 && gd / t.v < gt) gt = gd / t.v; }
-      if ((dp + 1) / vp < gt) room++;
+      if ((dp + 1) / vp < ghostT[k]) room++;
       if (food < 0 && dots[k] === 1) food = dp;
       if (pellet < 0 && dots[k] === 2) pellet = dp;
       if (preyD < 0 && prey.has(k)) preyD = dp;
     }
-    let s = -PAC_W_DANGER * danger + PAC_W_ROOM * Math.min(1, room / PAC_ROOM_NORM);
+    // the clever part: flood out only through tiles he would reach first with
+    // some lead. Tiles beyond a ghost-held choke point don't count, so a
+    // corridor being closed from both ends comes out small.
+    let safe = room;
+    if (smart > 0) {
+      safe = 0;
+      const seen = new Uint8Array(COLS * ROWS);
+      seen[idx(cx, cy)] = 1;
+      const q = [];
+      if ((1) / vp + margin < ghostT[nk]) { q.push(nk, 1); seen[nk] = 1; }
+      for (let h = 0; h < q.length && safe < PAC_ROOM_NORM; h += 2) {
+        const k = q[h], dp = q[h + 1], x = k % COLS, y = (k / COLS) | 0;
+        safe++;
+        for (let i = 0; i < 4; i++) {
+          const mx = wrapX(x + DX[i]), my = y + DY[i];
+          if (!openFor(mx, my, false)) continue;
+          const m = idx(mx, my);
+          if (seen[m]) continue;
+          seen[m] = 1;
+          if ((dp + 1) / vp + margin < ghostT[m]) q.push(m, dp + 1);
+        }
+      }
+      safe = smart * safe + (1 - smart) * room;
+    }
+    let s = -PAC_W_DANGER * danger + PAC_W_ROOM * Math.min(1, safe / PAC_ROOM_NORM);
+    if (smart > 0 && safe < PAC_TRAP_ROOM && frightT <= 0) s -= PAC_W_TRAP * smart * (1 - safe / PAC_TRAP_ROOM);
     if (food >= 0) s += PAC_W_FOOD / (1 + food);
     else if (pellet >= 0) s += PAC_W_FOOD / (1 + pellet);
     if (near < PAC_PANIC_DIST && pellet >= 0 && frightT <= 0) s += PAC_W_PELLET / (1 + pellet);
     if (preyD >= 0 && frightT > preyD / vp + 0.5) s += PAC_W_HUNT / (1 + preyD);
     if (a.dir >= 0 && d === opp(a.dir)) s -= PAC_REVERSE_PENALTY;
-    s += Math.random() * PAC_NOISE;
+    s += rng() * PAC_NOISE * (1 - 0.5 * smart);
     if (s > bestS) { bestS = s; best = d; }
   }
   return best;
 }
 
+const LOW_DOTS = [40, 15];   // warning beeps as the dots run out
 function pacOnTile(a) {
   const k = idx(a.tx, a.ty), v = dots[k];
   if (!v) return;
@@ -404,10 +476,10 @@ function pacOnTile(a) {
       if (g.id !== active) reverse(g);   // the arcade's tell: everyone turns round
     }
     sfx.power();
-  } else if (dotsLeft % 2 === 0) sfx.dot();
+  } else sfx.dot();
+  if (dotsLeft === LOW_DOTS[0] || dotsLeft === LOW_DOTS[1]) sfx.lowDots();
   if (dotsLeft === 0) {
     stats.clears++; log('cleared', {level, score});
-    sfx.lose();
     setState('cleared');
   }
 }
@@ -424,7 +496,7 @@ function update(dt) {
   if (state === 'caught' && stateT > 2) { level++; startLevel(); }
   if (state === 'cleared' && stateT > 2.5) {
     lives--;
-    if (lives <= 0) { saveHi(); setState('gameover'); }
+    if (lives <= 0) { saveHi(); log('gameover', {level, score}); setState('gameover'); }
     else startLevel();
   }
   if (state === 'gameover' && DEMO && stateT > 2) newGame();
@@ -473,20 +545,25 @@ function collide() {
       stats.ghostsEaten++;
       hitstop = 0.35;
       sfx.eaten();
-    } else if (g.id === active) {
-      const v = catchValue();
+    } else {
+      // any ghost catches him. Yours running him down is a GOTCHA; one of
+      // the slow autopilot ghosts closing the trap is a TRAPPED, worth more
+      // because it means you herded him into it
+      const trap = g.id !== active;
+      const v = trap ? Math.round(catchValue() * TRAP_BONUS) : catchValue();
       score += v; catches++;
-      popup(gp, '+' + v, '#ffff00');
-      stats.catches++; log('catch', {level, dotsLeft, score});
-      sfx.caught();
+      lastCatch = trap ? 'TRAPPED' : 'GOTCHA';
+      popup(gp, '+' + v, trap ? '#40ff80' : '#ffff00');
+      stats.catches++; if (trap) stats.traps++;
+      log('catch', {level, dotsLeft, score, by: lastCatch});
+      sfx.caught(trap);
       if (catches >= CATCHES_PER_LEVEL) { saveHi(); setState('caught'); return; }
     }
-    // an autopilot ghost brushing past him does nothing: only you can catch him
   }
 }
 function popup(p, text, color) { popups.push({x: p.x, y: p.y, text, color, t: 1.2}); }
 function saveHi() {
-  if (score > hiScore) { hiScore = score; try { localStorage.setItem('haunt-hi', hiScore); } catch (e) {} }
+  if (score > hiScore) { hiScore = score; if (!DEMO) store('haunt-hi-' + numGhosts, hiScore); }
 }
 function log(ev, data) { if (DEMO) console.log('HAUNT ' + ev + ' ' + JSON.stringify(Object.assign({}, data, stats))); }
 
@@ -507,12 +584,12 @@ function watchdog(dt) {
 function setActive(i, quiet) {
   const prev = ghosts[active];
   if (prev && prev.dir >= 0) prev.wantDir = prev.dir;
-  active = ((i % 4) + 4) % 4;
+  active = ((i % numGhosts) + numGhosts) % numGhosts;
   const g = ghosts[active];
   // a direction already held carries over, so you can switch mid-swerve
   const h = heldDir();
   g.wantDir = h >= 0 ? h : (g.dir >= 0 ? g.dir : g.wantDir);
-  if (!quiet) sfx.switchTo(active);
+  if (!quiet && numGhosts > 1) sfx.switchTo(active);
 }
 function selectNearest(quiet) {
   const f = pacField();
@@ -535,18 +612,18 @@ const KEYMAP = {
   ArrowLeft: 'left', KeyA: 'left', ArrowRight: 'right', KeyD: 'right',
   KeyZ: 'a', KeyK: 'a', KeyX: 'b', KeyJ: 'b',
   ShiftLeft: 'select', ShiftRight: 'select',
-  Enter: 'start', NumpadEnter: 'start', KeyP: 'pause',
+  Enter: 'start', NumpadEnter: 'start', KeyP: 'pause', KeyM: 'mute',
 };
 const keyHeld = {}, keyTapped = {};
 let prevBtn = {}, curBtn = {};
-const extraPress = [];   // 1-4 and P, which have no NES button
+const extraPress = [];   // 1-4, P and M, which have no NES button
 
 addEventListener('keydown', e => {
   unlockAudio();
   const b = KEYMAP[e.code];
   if (b || /^Digit[1-4]$/.test(e.code)) e.preventDefault();
   if (e.repeat) return;
-  if (b === 'pause') { extraPress.push('pause'); return; }
+  if (b === 'pause' || b === 'mute') { extraPress.push(b); return; }
   if (b) { keyHeld[b] = true; keyTapped[b] = true; }
   const m = /^Digit([1-4])$/.exec(e.code);
   if (m) extraPress.push('ghost' + (m[1] - 1));
@@ -591,8 +668,16 @@ function pollInput() {
   for (const k in keyTapped) keyTapped[k] = false;
   if (BTN.some(b => presses[b])) unlockAudio();
 
-  if (presses.start || extraPress.includes('pause') && (state === 'play' || state === 'paused')) {
-    if (state === 'title' || state === 'gameover') { newGame(); sfx.start(); }
+  if (extraPress.includes('mute')) toggleMute();
+  if (state === 'title' && !DEMO) {
+    // choose how many ghosts: left/up for more (easier), right/down for fewer
+    let n = numGhosts;
+    if (presses.left || presses.up) n = Math.min(4, n + 1);
+    if (presses.right || presses.down) n = Math.max(1, n - 1);
+    if (n !== numGhosts) { loadMode(n); store('haunt-ghosts', n); sfx.tick(); }
+    if (presses.start || presses.a) { newGame(); sfx.start(); }
+  } else if (presses.start || extraPress.includes('pause') && (state === 'play' || state === 'paused')) {
+    if (state === 'gameover') { if (stateT > 1) setState('title'); }
     else if (state === 'play') { setState('paused'); sfx.pause(); }
     else if (state === 'paused') { setState('play'); sfx.pause(); }
   }
@@ -601,7 +686,7 @@ function pollInput() {
     if (presses.a) setActive(active + 1);
     if (presses.b) setActive(active - 1);
     if (presses.select) selectNearest();
-    for (const e of extraPress) { const m = /^ghost(\d)$/.exec(e); if (m) setActive(+m[1]); }
+    for (const e of extraPress) { const m = /^ghost(\d)$/.exec(e); if (m && +m[1] < numGhosts) setActive(+m[1]); }
     // a new press wins; otherwise a held direction keeps the buffer topped up
     let d = -1;
     for (let i = 0; i < 4; i++) if (presses[DIR_BTN[i]]) d = i;
@@ -617,34 +702,325 @@ function pollInput() {
 }
 
 // ---------------------------------------------------------------- sound
-// tiny square-wave blips. The context is created on the first key or click,
-// because browsers refuse to start audio before a user gesture.
-let actx = null;
+// Everything you hear is synthesized here, chip style (square, triangle,
+// noise), from note lists written for this game. Nothing is loaded.
+//
+// Music runs on a lookahead scheduler: every 25 ms it books the notes due in
+// the next 120 ms on the AudioContext's own clock, so timing doesn't wobble
+// with the frame rate. Tempo comes from how fast the ghosts are moving
+// (TEMPO_PER_SPEED beats per minute for each tile per second), rises as the
+// dots run out, and only changes on a beat, gliding a little each beat.
+//
+// The AudioContext is created on the first key, click or pad button, because
+// browsers refuse to start audio before a user gesture. Every call into Web
+// Audio is wrapped so a sound problem can never stop the game.
+const TEMPO_PER_SPEED = 18;     // bpm per tile/s of average ghost speed
+const TEMPO_PRESSURE  = 0.45;   // up to +45% as the last dots go
+const TEMPO_GLIDE     = 0.05;   // at most 5% tempo change per beat
+const LOOKAHEAD       = 0.12;   // seconds of music booked ahead
+const MASTER_VOL      = 0.8;
+
+const snd = {ctx: null, master: null, music: null, fx: null, noise: null,
+             muted: store('haunt-mute') === '1', live: new Set(), timer: 0};
+const mus = {name: null, key: null, step: 0, next: 0, bpm: 120};
+const midi = m => 440 * Math.pow(2, (m - 69) / 12);
+
 function unlockAudio() {
-  if (actx) { if (actx.state === 'suspended') actx.resume(); return; }
-  try { actx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {}
+  try {
+    if (!snd.ctx) {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return;
+      const c = new AC();
+      const comp = c.createDynamicsCompressor();
+      comp.connect(c.destination);
+      const master = c.createGain(); master.gain.value = snd.muted ? 0 : MASTER_VOL; master.connect(comp);
+      const music = c.createGain(); music.gain.value = 0.6; music.connect(master);
+      const fx = c.createGain(); fx.gain.value = 0.9; fx.connect(master);
+      const noise = c.createBuffer(1, c.sampleRate, c.sampleRate);
+      const d = noise.getChannelData(0);
+      for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+      Object.assign(snd, {ctx: c, master, music, fx, noise});
+      snd.timer = setInterval(musicTick, 25);
+    }
+    // a pad press may not count as a gesture in every browser; try anyway
+    if (snd.ctx.state === 'suspended' && !document.hidden) {
+      const p = snd.ctx.resume(); if (p && p.catch) p.catch(() => {});
+    }
+  } catch (e) {}
 }
-function tone(f0, f1, dur, type = 'square', vol = 0.06, delay = 0) {
-  if (!actx || actx.state !== 'running') return;
-  const t = actx.currentTime + delay;
-  const o = actx.createOscillator(), g = actx.createGain();
-  o.type = type;
-  o.frequency.setValueAtTime(f0, t);
-  o.frequency.exponentialRampToValueAtTime(f1, t + dur);
+document.addEventListener('visibilitychange', () => {
+  try {
+    if (!snd.ctx) return;
+    if (document.hidden) snd.ctx.suspend(); else snd.ctx.resume();
+  } catch (e) {}
+});
+function audioOK() { return snd.ctx && snd.ctx.state === 'running' && !snd.muted; }
+function toggleMute() {
+  snd.muted = !snd.muted;
+  store('haunt-mute', snd.muted ? '1' : '0');
+  try { if (snd.master) snd.master.gain.setTargetAtTime(snd.muted ? 0 : MASTER_VOL, snd.ctx.currentTime, 0.02); } catch (e) {}
+  if (snd.muted) setMusic(null, 'muted');
+}
+
+// one note. env 'hold' is an organ-ish gate for melody, 'pluck' decays away.
+// Music notes are tracked in snd.live so a track change can silence them.
+function voice(dest, type, f, t, dur, vol, o = {}) {
+  const c = snd.ctx;
+  const osc = c.createOscillator(), g = c.createGain();
+  osc.type = type;
+  osc.frequency.setValueAtTime(f, t);
+  if (o.to) osc.frequency.exponentialRampToValueAtTime(o.to, t + (o.slide || dur));
+  if (o.env === 'pluck') {
+    g.gain.setValueAtTime(vol, t);
+    g.gain.exponentialRampToValueAtTime(0.0005, t + dur);
+  } else {
+    const rel = Math.min(0.03, dur * 0.3);
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(vol, t + 0.004);
+    g.gain.setValueAtTime(vol, t + dur - rel);
+    g.gain.linearRampToValueAtTime(0, t + dur);
+  }
+  osc.connect(g); g.connect(dest);
+  osc.start(t); osc.stop(t + dur + 0.02);
+  if (dest === snd.music) track(osc, g);
+}
+function noiseHit(dest, t, dur, vol, filt = 'highpass', freq = 6000) {
+  const c = snd.ctx;
+  const src = c.createBufferSource(), f = c.createBiquadFilter(), g = c.createGain();
+  src.buffer = snd.noise;
+  f.type = filt; f.frequency.value = freq;
   g.gain.setValueAtTime(vol, t);
-  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-  o.connect(g); g.connect(actx.destination);
-  o.start(t); o.stop(t + dur + 0.02);
+  g.gain.exponentialRampToValueAtTime(0.0005, t + dur);
+  src.connect(f); f.connect(g); g.connect(dest);
+  src.start(t, Math.random() * 0.5); src.stop(t + dur + 0.02);
+  if (dest === snd.music) track(src, g);
 }
+function track(src, g) {
+  const n = {src, g};
+  snd.live.add(n);
+  src.onended = () => { snd.live.delete(n); try { g.disconnect(); } catch (e) {} };
+}
+function stopMusic() {
+  if (!snd.ctx) return;
+  const now = snd.ctx.currentTime;
+  for (const n of snd.live) {
+    try { n.src.stop(now); } catch (e) {}
+    try { n.g.disconnect(); } catch (e) {}
+  }
+  snd.live.clear();
+}
+
+// ------------------------------------------------ the tracks
+// each track books one sixteenth-note step at a time: play(step, time,
+// stepSeconds, pass). Note lists are [step, midi note, length in steps].
+function notes(list, step, t, sd, fn) { for (const n of list) if (n[0] === step) fn(midi(n[1]), t, n[2] * sd); }
+const lead = (vol, type = 'square') => (f, t, d) => voice(snd.music, type, f, t, d * 0.9, vol);
+const bassV = vol => (f, t, d) => voice(snd.music, 'triangle', f, t, d * 0.85, vol);
+function kick(t)  { voice(snd.music, 'sine', 150, t, 0.12, 0.35, {to: 40, env: 'pluck'}); }
+function snare(t) { noiseHit(snd.music, t, 0.09, 0.12, 'bandpass', 1800); }
+function hat(t)   { noiseHit(snd.music, t, 0.03, 0.05); }
+
+// eyes heading home: a fast falling chirp on every step while any are out
+function eyesLayer(t, sd) {
+  if (!ghosts || !ghosts.some(g => g.state === 'eyes')) return;
+  voice(snd.music, 'square', 1600, t, sd * 0.45, 0.025, {to: 700, env: 'pluck'});
+  voice(snd.music, 'square', 1600, t + sd / 2, sd * 0.45, 0.025, {to: 700, env: 'pluck'});
+}
+
+function ghostPace(fright) {
+  // the average speed of the ghosts in play, in tiles per second
+  let sum = 0;
+  for (let i = 0; i < numGhosts; i++) {
+    const act = i === active;
+    sum += fright ? (act ? FRIGHT_ACTIVE_SPEED : FRIGHT_AUTO_SPEED) : (act ? ACTIVE_SPEED : levelAutoSpeed());
+  }
+  return sum / numGhosts * BASE_SPEED;
+}
+function pressure() { return dotsTotal ? 1 - dotsLeft / dotsTotal : 0; }
+function huntBpm() {
+  const p = pressure();
+  return ghostPace(false) * TEMPO_PER_SPEED * (1 + TEMPO_PRESSURE * p * p + (dotsLeft < 20 ? 0.1 : 0));
+}
+function frightBpm() {
+  // slower ghosts, slower beat, but as the blue wears off it hurries
+  const left = Math.max(0, Math.min(1, frightT / 2));
+  return ghostPace(true) * TEMPO_PER_SPEED * (1 + 0.5 * (1 - left));
+}
+
+// HUNT: A minor, i-VI-VII-V, four bars. You are the hunters.
+const HUNT_ROOTS = [45, 41, 43, 40];
+const HUNT_BASS  = [[0, 12, 7, 12, 0, 12, 7, 12], [0, 12, 7, 12, 0, 12, 7, 12],
+                    [0, 12, 7, 12, 0, 12, 7, 12], [0, 7, 12, 7, 0, 7, 11, 7]];
+const HUNT_MEL = [
+  [0, 69, 3], [3, 72, 3], [6, 76, 2], [8, 74, 2], [10, 72, 2], [12, 71, 4],
+  [16, 69, 3], [19, 72, 3], [22, 77, 2], [24, 76, 4], [28, 72, 4],
+  [32, 71, 3], [35, 74, 3], [38, 79, 2], [40, 77, 2], [42, 76, 2], [44, 74, 4],
+  [48, 76, 4], [52, 68, 2], [54, 71, 2], [56, 74, 3], [59, 72, 1], [60, 71, 2], [62, 68, 2]];
+const HUNT_ARP = [[57, 60, 64, 69], [53, 57, 60, 65], [55, 59, 62, 67], [52, 56, 59, 64]];
+function huntStep(s, t, sd, pass) {
+  const bar = s >> 4, b = s & 15, p = pressure();
+  if (!(b & 1)) bassV(0.22)(midi(HUNT_ROOTS[bar] + HUNT_BASS[bar][b >> 1]), t, sd * 2);
+  notes(HUNT_MEL, s, t, sd, lead(0.07));
+  // second time round, or once the dots are getting low, a running arpeggio
+  if ((pass % 2 === 1 || p > 0.6)) voice(snd.music, 'square', midi(HUNT_ARP[bar][b & 3] + 12), t, sd * 0.6, 0.03, {env: 'pluck'});
+  if (b === 0 || b === 8) kick(t);
+  if (b === 4 || b === 12) snare(t);
+  if (b % 4 === 2) hat(t);
+  // the siren: one rise-and-fall per beat, higher as the dots run out
+  if (b % 4 === 0) {
+    const f0 = 330 + 330 * p, beat = sd * 4;
+    const c = snd.ctx, o = c.createOscillator(), g = c.createGain();
+    o.type = 'triangle';
+    o.frequency.setValueAtTime(f0, t);
+    o.frequency.linearRampToValueAtTime(f0 * 1.5, t + beat / 2);
+    o.frequency.linearRampToValueAtTime(f0, t + beat);
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(0.05, t + 0.02);
+    g.gain.setValueAtTime(0.05, t + beat - 0.03);
+    g.gain.linearRampToValueAtTime(0, t + beat);
+    o.connect(g); g.connect(snd.music); o.start(t); o.stop(t + beat + 0.02);
+    track(o, g);
+  }
+  eyesLayer(t, sd);
+}
+
+// FRIGHT: you're the prey now. Tritone bass, a chromatic worry in the lead,
+// and a quick falling warble twice a step. Gets an alarm as the blue ends.
+const FRIGHT_LEAD = [71, 70, 71, 72, 71, 70, 69, 70, 77, 76, 77, 78, 77, 76, 75, 76];
+function frightStep(s, t, sd) {
+  const bar = s >> 4, b = s & 15;
+  if (!(b & 1)) bassV(0.22)(midi((b >> 1) % 2 ? 46 : 40), t, sd * 2);
+  voice(snd.music, 'square', midi(FRIGHT_LEAD[b] - bar), t, sd * 0.8, 0.045);
+  for (const h of [0, 0.5]) voice(snd.music, 'triangle', 1000, t + sd * h, sd * 0.45, 0.04, {to: 450, env: 'pluck'});
+  if (b % 4 === 0) noiseHit(snd.music, t, 0.05, 0.06, 'bandpass', 3000);
+  if (frightT < 2 && b % 2 === 0) voice(snd.music, 'square', 1320, t, sd * 0.4, 0.035, {env: 'pluck'});
+  eyesLayer(t, sd);
+}
+
+// TITLE: D minor, slow and creeping
+const TITLE_ROOTS = [38, 34, 36, 33];
+const TITLE_MEL = [
+  [0, 62, 4], [4, 65, 4], [8, 69, 6], [14, 67, 2], [16, 65, 4], [20, 62, 4], [24, 70, 8],
+  [32, 72, 4], [36, 69, 4], [40, 67, 4], [44, 64, 4], [48, 61, 6], [54, 64, 2], [56, 69, 8]];
+const TITLE_ARP = [[50, 53, 57, 62], [46, 50, 53, 58], [48, 52, 55, 60], [45, 49, 52, 57]];
+function titleStep(s, t, sd) {
+  const bar = s >> 4, b = s & 15;
+  if (b % 4 === 0) bassV(0.22)(midi(TITLE_ROOTS[bar]), t, sd * 3);
+  if (b % 2 === 0) voice(snd.music, 'triangle', midi(TITLE_ARP[bar][(b >> 1) & 3] + 12), t, sd * 1.6, 0.08, {env: 'pluck'});
+  notes(TITLE_MEL, s, t, sd, lead(0.06));
+  if (b % 4 === 2) hat(t);
+}
+
+// one-shots: level-start jingle, catch fanfare, life lost, game over
+function oneShot(mel, bass, extra) {
+  return (s, t, sd) => { notes(mel, s, t, sd, lead(0.08)); notes(bass, s, t, sd, bassV(0.24)); if (extra) extra(s, t, sd); };
+}
+const readyStep = oneShot(
+  [[0, 57, 2], [2, 60, 2], [4, 64, 2], [6, 69, 2], [8, 68, 2], [10, 64, 2], [12, 69, 4]],
+  [[0, 45, 4], [4, 41, 4], [8, 40, 4], [12, 45, 4]],
+  (s, t) => { if (s % 4 === 0) kick(t); });
+const fanfareStep = oneShot(   // starts after a rest so the catch sting is heard first
+  [[6, 72, 2], [8, 76, 2], [10, 79, 2], [12, 84, 3], [15, 79, 1], [16, 84, 6]],
+  [[6, 48, 4], [10, 43, 2], [12, 48, 8]],
+  (s, t, sd) => { if (s === 16) for (const m of [72, 76, 79]) voice(snd.music, 'square', midi(m), t, sd * 6, 0.035); });
+const lostStep = oneShot(
+  [[0, 76, 2], [2, 75, 2], [4, 74, 2], [6, 73, 2], [8, 72, 3], [11, 68, 3], [14, 64, 6]],
+  [[0, 52, 8], [8, 44, 4], [12, 40, 8]]);
+const overStep = oneShot(
+  [[0, 69, 4], [4, 68, 4], [8, 67, 4], [12, 66, 4], [16, 65, 6], [22, 64, 2], [24, 57, 8]],
+  [[0, 45, 8], [8, 44, 8], [16, 43, 8], [24, 33, 8]],
+  (s, t) => { if (s === 24) noiseHit(snd.music, t, 0.6, 0.12, 'lowpass', 400); });
+
+const TRACKS = {
+  title:   {loop: true,  steps: 64, bpm: () => 100,  play: titleStep},
+  hunt:    {loop: true,  steps: 64, bpm: huntBpm,    play: huntStep},
+  fright:  {loop: true,  steps: 32, bpm: frightBpm,  play: frightStep},
+  ready:   {loop: false, steps: 16, bpm: () => 150,  play: readyStep},
+  fanfare: {loop: false, steps: 22, bpm: () => 180,  play: fanfareStep},
+  lost:    {loop: false, steps: 20, bpm: () => 120,  play: lostStep},
+  over:    {loop: false, steps: 32, bpm: () => 110,  play: overStep},
+};
+
+// key says which instance of a track this is; a new key always restarts,
+// so every state change cuts off whatever was playing
+function setMusic(name, key) {
+  if (key === mus.key) return;
+  try { stopMusic(); } catch (e) {}
+  mus.name = name; mus.key = key; mus.step = 0; mus.next = 0;
+  if (name) mus.bpm = TRACKS[name].bpm();
+}
+function directMusic() {
+  let name = null;
+  if (state === 'title') name = 'title';
+  else if (state === 'ready') name = 'ready';
+  else if (state === 'play') name = frightT > 0 ? 'fright' : 'hunt';
+  else if (state === 'caught') name = 'fanfare';
+  else if (state === 'cleared') name = 'lost';
+  else if (state === 'gameover') name = 'over';   // and then silence
+  if (snd.muted) name = null;
+  setMusic(name, name + ':' + (state === 'play' ? 'play' : stateN));
+}
+function musicTick() {
+  try {
+    const c = snd.ctx;
+    if (!c || !mus.name || c.state !== 'running' || snd.muted) return;
+    const tr = TRACKS[mus.name];
+    if (mus.next < c.currentTime) mus.next = c.currentTime + 0.03;   // just started, or fell behind
+    while (mus.next < c.currentTime + LOOKAHEAD) {
+      if (!tr.loop && mus.step >= tr.steps) { mus.name = null; return; }   // one-shot done: silence
+      if (mus.step % 4 === 0) {
+        const target = tr.bpm(), lim = mus.bpm * TEMPO_GLIDE;
+        mus.bpm += Math.max(-lim, Math.min(lim, target - mus.bpm));
+      }
+      const sd = 60 / mus.bpm / 4;
+      tr.play(mus.step % tr.steps, mus.next, sd, Math.floor(mus.step / tr.steps));
+      mus.next += sd; mus.step++;
+    }
+  } catch (e) {}
+}
+
+// ------------------------------------------------ effects
+function fx(fn) { if (!audioOK()) return; try { fn(snd.ctx.currentTime); } catch (e) {} }
+const GHOST_PITCH = [523, 659, 784, 440];   // red, pink, cyan, orange
+let chompFlip = false;
 const sfx = {
-  dot:      () => tone(220, 180, 0.03, 'triangle', 0.03),
-  switchTo: i  => tone([523, 659, 784, 392][i], [523, 659, 784, 392][i] * 1.5, 0.07, 'square', 0.05),
-  power:    () => { for (let i = 0; i < 4; i++) tone(200, 600, 0.08, 'sawtooth', 0.04, i * 0.08); },
-  eaten:    () => tone(900, 120, 0.35, 'square', 0.05),
-  caught:   () => [523, 659, 784, 1047].forEach((f, i) => tone(f, f, 0.12, 'square', 0.06, i * 0.1)),
-  lose:     () => [392, 330, 262, 196].forEach((f, i) => tone(f, f * 0.97, 0.18, 'triangle', 0.07, i * 0.18)),
-  start:    () => [262, 392, 523].forEach((f, i) => tone(f, f, 0.1, 'square', 0.05, i * 0.08)),
-  pause:    () => tone(440, 440, 0.06, 'square', 0.04),
+  // Pac-Man is the enemy now, so his chomp is low and grinding
+  dot: () => fx(t => {
+    chompFlip = !chompFlip;
+    const [a, b] = chompFlip ? [190, 110] : [110, 190];
+    voice(snd.fx, 'square', a, t, 0.075, 0.045, {to: b, env: 'pluck'});
+    voice(snd.fx, 'triangle', a / 2, t, 0.075, 0.06, {to: b / 2, env: 'pluck'});
+  }),
+  switchTo: i => fx(t => {
+    const f = GHOST_PITCH[i];
+    voice(snd.fx, 'square', f, t, 0.05, 0.06);
+    voice(snd.fx, 'square', f * 1.5, t + 0.05, 0.06, 0.06);
+  }),
+  power: () => fx(t => {
+    for (let i = 0; i < 6; i++) voice(snd.fx, 'square', i % 2 ? 660 : 990, t + i * 0.07, 0.065, 0.06);
+    noiseHit(snd.fx, t, 0.25, 0.08, 'bandpass', 1200);
+  }),
+  eaten: () => fx(t => {
+    voice(snd.fx, 'square', 900, t, 0.35, 0.07, {to: 90, env: 'pluck'});
+    noiseHit(snd.fx, t, 0.2, 0.1, 'lowpass', 900);
+  }),
+  // GOTCHA: a bright rising stab. TRAPPED: a low slam, then a tritone that
+  // resolves to a fifth, like a cage door shutting.
+  caught: trap => fx(t => {
+    if (trap) {
+      voice(snd.fx, 'sine', 120, t, 0.25, 0.4, {to: 35, env: 'pluck'});
+      noiseHit(snd.fx, t, 0.3, 0.18, 'lowpass', 1500);
+      voice(snd.fx, 'square', midi(57), t + 0.08, 0.16, 0.05); voice(snd.fx, 'square', midi(63), t + 0.08, 0.16, 0.05);
+      voice(snd.fx, 'square', midi(57), t + 0.26, 0.24, 0.06); voice(snd.fx, 'square', midi(64), t + 0.26, 0.24, 0.06);
+    } else {
+      [72, 76, 79, 84].forEach((m, i) => voice(snd.fx, 'square', midi(m), t + i * 0.055, 0.07, 0.07));
+      noiseHit(snd.fx, t, 0.08, 0.1);
+    }
+  }),
+  lowDots: () => fx(t => { for (let i = 0; i < 3; i++) voice(snd.fx, 'square', 1320, t + i * 0.1, 0.06, 0.05); }),
+  start: () => fx(t => [262, 392, 523].forEach((f, i) => voice(snd.fx, 'square', f, t + i * 0.07, 0.08, 0.06))),
+  pause: () => fx(t => voice(snd.fx, 'square', 440, t, 0.06, 0.05)),
+  tick:  () => fx(t => voice(snd.fx, 'square', 880, t, 0.03, 0.04)),
 };
 
 // ---------------------------------------------------------------- pixel font
@@ -850,7 +1226,7 @@ function draw() {
   };
   const order = ghosts.filter(g => g.id !== active).concat([ghosts[active]]);
   const showPac = state !== 'caught' || ((animT * 8) | 0) % 2;
-  for (const g of order.slice(0, 3)) drawWrapped(bob(g), sp => drawGhost(g, sp, false));
+  for (const g of order.slice(0, -1)) drawWrapped(bob(g), sp => drawGhost(g, sp, false));
   if (showPac) drawWrapped(posOf(pac), sp => drawPac(sp, pac.dir, state === 'play' ? Math.abs(Math.sin(pac.moved * Math.PI)) : 0.5));
   const ag = ghosts[active];
   drawWrapped(bob(ag), sp => drawGhost(ag, sp, true));
@@ -862,16 +1238,17 @@ function draw() {
   const cy = MAZE_Y + 13 * TILE + 3, cx = W / 2;
   if (state === 'ready') banner('READY!', '#ffff00', 'YOU ARE ' + GHOST_NAMES[active]);
   if (state === 'paused') banner('PAUSED', '#ffffff', 'PRESS START');
-  if (state === 'caught') banner('GOTCHA!', '#ffff00', 'LEVEL ' + (level + 1) + ' NEXT');
+  if (state === 'caught') banner(lastCatch + '!', lastCatch === 'TRAPPED' ? '#40ff80' : '#ffff00',
+    (lastCatch === 'TRAPPED' ? 'TEAM TRAP BONUS  ' : '') + 'LEVEL ' + (level + 1) + ' NEXT');
   if (state === 'cleared') banner('MAZE CLEARED', '#ff4040', lives > 1 ? 'YOU LOSE A LIFE' : 'LAST LIFE GONE');
   if (state === 'gameover') {
     ctx.fillStyle = 'rgba(0,0,0,0.75)'; ctx.fillRect(0, MAZE_Y + 8 * TILE, W, 12 * TILE);
     text('GAME OVER', cx, cy - 50, 6, '#ff2020', 'center');
     text('SCORE ' + score, cx, cy + 10, 3, '#fff', 'center');
     text('REACHED LEVEL ' + level, cx, cy + 40, 2, '#aaa', 'center');
-    if (((animT * 2) | 0) % 2) text('PRESS START', cx, cy + 70, 2, '#ffff00', 'center');
+    text(MODES[numGhosts].name + ' MODE', cx, cy + 58, 2, '#ffb8ff', 'center');
+    if (stateT > 1 && ((animT * 2) | 0) % 2) text('PRESS START', cx, cy + 80, 2, '#ffff00', 'center');
   }
-  if (DEMO) text('DEMO', W - 8, H - 10, 1, '#666', 'right');
 }
 function bob(g) {
   const p = posOf(g);
@@ -907,7 +1284,7 @@ function drawHud() {
 
   // ghost picker and lives
   const gy = by + 34;
-  for (let i = 0; i < 4; i++) {
+  for (let i = 0; i < numGhosts; i++) {
     const g = ghosts[i], x = 18 + i * 34;
     if (i === active) { ctx.fillStyle = '#fff'; ctx.fillRect(x - 13, gy - 13, 26, 26); ctx.fillStyle = '#000'; ctx.fillRect(x - 11, gy - 11, 22, 22); }
     if (g.state === 'eyes') drawEyes(x, gy, 3, 1);
@@ -916,39 +1293,65 @@ function drawHud() {
   }
   text('LIVES', 170, gy - 4, 2, '#aaa');
   for (let i = 0; i < lives; i++) drawMask(MASKS[0], 226 + i * 18, gy, 1, '#ff2020');
-  if (padNote > 0) text('CONTROLLER CONNECTED', W - 8, gy - 10, 1, '#40e040', 'right');
-  else if (padName) text('PAD', W - 36, gy - 10, 1, '#40e040', 'right');
-  text('V0.1', W - 8, gy - 10, 1, '#666', 'right');
+  if (padNote > 0) text('CONTROLLER CONNECTED', W - 8, gy - 12, 1, '#40e040', 'right');
+  else { text(DEMO ? 'DEMO V0.2' : 'V0.2', W - 8, gy - 12, 1, '#666', 'right'); if (padName) text('PAD', W - 52, gy - 12, 1, '#40e040', 'right'); }
+  text(MODES[numGhosts].name, W - 8, gy - 4, 2, '#ffb8ff', 'right');
+  text(snd.muted ? 'M: MUTED' : 'M: SOUND', W - 8, gy + 9, 1, snd.muted ? '#ff4040' : '#666', 'right');
 }
 
 function drawTitle() {
   const cx = W / 2;
-  text('HAUNT', cx, 50, 10, '#ff2020', 'center');
-  text('YOU ARE THE GHOSTS.', cx, 120, 2, '#fff', 'center');
-  // a little parade: Pac-Man fleeing, the four of you after him
+  text('HAUNT', cx, 34, 10, '#ff2020', 'center');
+  text('YOU ARE THE GHOSTS.', cx, 100, 2, '#fff', 'center');
+  // a little parade: Pac-Man fleeing, the ghosts you chose after him
   const t = (animT * 70) % (W + 260) - 130;
-  drawPac({x: t + 110, y: 170}, 3, Math.abs(Math.sin(animT * 12)));
-  for (let i = 0; i < 4; i++) drawGhost({id: i, state: 'out', dir: 3, fright: false}, {x: t - i * 32 + 60, y: 170}, i === ((animT / 1.5) | 0) % 4);
+  drawPac({x: t + 110, y: 140}, 3, Math.abs(Math.sin(animT * 12)));
+  for (let i = 0; i < numGhosts; i++) drawGhost({id: i, state: 'out', dir: 3, fright: false}, {x: t - i * 32 + 60, y: 140}, i === ((animT / 1.5) | 0) % numGhosts);
+
+  // the mode picker
+  let y = 176;
+  const opts = [4, 3, 2, 1], slot = 100, x0 = cx - slot * 1.5;
+  opts.forEach((n, i) => {
+    const x = x0 + i * slot, on = n === numGhosts;
+    if (on) { ctx.fillStyle = '#ffb8ff'; ctx.fillRect(x - 46, y - 6, 92, 22); ctx.fillStyle = '#000'; ctx.fillRect(x - 44, y - 4, 88, 18); }
+    text(MODES[n].name, x, y, 2, on ? '#ffff00' : '#888', 'center');
+  });
+  y += 26;
+  const solo = numGhosts === 1;
+  text((solo ? 'JUST YOU' : numGhosts + ' GHOSTS, YOU STEER ONE') + '   HI ' + hiScore, cx, y, 2, '#fff', 'center');
+  y += 16;
+  text('< > TO CHOOSE', cx, y, 1, '#888', 'center');
+
+  const dim = solo ? '#555' : '#fff', dimK = solo ? '#555' : '#ffff00';
   const rows = [
-    ['D-PAD', 'STEER YOUR GHOST'],
-    ['A', 'NEXT GHOST'],
-    ['B', 'PREVIOUS GHOST'],
-    ['SELECT', 'GHOST NEAREST PAC-MAN'],
-    ['START', 'START / PAUSE'],
+    ['D-PAD', 'STEER YOUR GHOST', '#ffff00', '#fff'],
+    ['A', 'NEXT GHOST', dimK, dim],
+    ['B', 'PREVIOUS GHOST', dimK, dim],
+    ['SELECT', 'GHOST NEAREST PAC-MAN', dimK, dim],
+    ['START', 'START / PAUSE', '#ffff00', '#fff'],
   ];
-  let y = 214;
-  for (const [k, v] of rows) { text(k, 60, y, 2, '#ffff00'); text(v, 160, y, 2, '#fff'); y += 20; }
-  y += 8;
+  y += 22;
+  for (const [k, v, kc, vc] of rows) { text(k, 60, y, 2, kc); text(v, 160, y, 2, vc); y += 18; }
+  y += 6;
   text('KEYS: ARROWS OR WASD   Z/K = A   X/J = B', cx, y, 2, '#aaa', 'center'); y += 14;
-  text('SHIFT = SELECT   ENTER = START   1-4 = PICK GHOST', cx, y, 2, '#aaa', 'center'); y += 30;
-  text('CATCH PAC-MAN BEFORE HE EATS EVERY DOT.', cx, y, 2, '#ffb8ae', 'center'); y += 18;
-  text('ONLY THE GHOST YOU STEER IS FAST', cx, y, 2, '#ffb8ae', 'center'); y += 18;
-  text('ENOUGH TO CATCH HIM. THE OTHERS HERD.', cx, y, 2, '#ffb8ae', 'center'); y += 18;
-  text('POWER PELLETS TURN THE TABLES.', cx, y, 2, '#ffb8ae', 'center'); y += 40;
+  text('SHIFT = SELECT  ENTER = START  1-4 = GHOST', cx, y, 2, '#aaa', 'center'); y += 14;
+  text('M = ' + (snd.muted ? 'SOUND ON (NOW MUTED)' : 'MUTE'), cx, y, 2, snd.muted ? '#ff6060' : '#aaa', 'center'); y += 26;
+  const rules = solo ? [
+    'CATCH PAC-MAN BEFORE HE EATS EVERY DOT.',
+    'SOLO: NO HELP. YOU ARE A LITTLE FASTER',
+    'THAN HIM, SO RUN HIM DOWN.',
+    'POWER PELLETS TURN THE TABLES.',
+  ] : [
+    'CATCH PAC-MAN BEFORE HE EATS EVERY DOT.',
+    'ANY GHOST THAT TOUCHES HIM CATCHES HIM.',
+    'YOURS IS FASTEST. THE OTHERS ARE SLOW:',
+    'TRAP HIM WITH THEM. PELLETS TURN THE TABLES.',
+  ];
+  for (const r of rules) { text(r, cx, y, 2, '#ffb8ae', 'center'); y += 16; }
+  y += 14;
   if (((animT * 2) | 0) % 2) text('PRESS START', cx, y, 3, '#ffff00', 'center');
-  text('HI ' + hiScore, 8, H - 14, 2, '#888');
   if (padName) text('CONTROLLER CONNECTED', cx, H - 14, 1, '#40e040', 'center');
-  text('V0.1', W - 8, H - 14, 2, '#666', 'right');
+  text('V0.2', W - 8, H - 14, 2, '#666', 'right');
 }
 
 // ---------------------------------------------------------------- layout
@@ -971,6 +1374,7 @@ function frame(now) {
   pollInput();
   acc += dt * SIM_SPEED;
   while (acc >= STEP) { update(STEP); animT += STEP; acc -= STEP; }
+  try { directMusic(); } catch (e) {}
   draw();
   requestAnimationFrame(frame);
 }

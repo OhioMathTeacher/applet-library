@@ -1,0 +1,972 @@
+<!--
+  GENERATED FILE - DO NOT EDIT
+  Source:    ../circuit-breaker/index.html
+  Rewritten: python3 sync-games.py
+  Edits made here are lost on the next sync. Fix the game in the
+  circuit-breaker repo and re-run the script.
+-->
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Circuit Breaker</title>
+<!-- One file, no build, no network. Open it straight from disk. -->
+<style>
+  html,body{margin:0;height:100%;background:#000;overflow:hidden}
+  /* The canvas is drawn at its native 400x272 and scaled up by CSS; pixelated
+     keeps the early-80s blocks sharp instead of smearing them. */
+  canvas{position:absolute;image-rendering:pixelated;image-rendering:crisp-edges}
+</style>
+<canvas id="c"></canvas>
+<script>
+"use strict";
+/* Shown quietly in the footer; bump with each release. */
+const VERSION = 'v0.1';
+
+/* ============================================================
+   Circuit Breaker
+   Lights out. Robots in the maze. Six bullets.
+   One endless night in one maze: every robot you destroy is
+   replaced by a tougher one. You see only what your light
+   reaches -- the fuse is blown.
+   ============================================================ */
+
+const T = 16, COLS = 25, ROWS = 15, HUD = 20, FOOT = 12;
+const W = COLS*T, PH = ROWS*T, H = HUD + PH + FOOT;   // 400 x 272
+const STEP = 1/60;
+const DX = [0, 1, 0, -1], DY = [-1, 0, 1, 0];        // 0=up 1=right 2=down 3=left
+const Q = new URLSearchParams(location.search);
+/* ?demo auto-starts with an invincible auto-pilot, so a headless browser can
+   screenshot real play. ?gen=N starts the robots at generation N. */
+const DEMO = Q.has('demo');
+const START_GEN = Math.max(1, parseInt(Q.get('gen')) || 1);
+
+/* # wall   c bunker wall   D bunker door   B bunker floor   W web   . floor
+   Checked by script: every floor tile connected, no dead ends -- a chase
+   maze needs loops so you can always run somewhere. */
+const MAP = [
+  "#########################",
+  "#WWW.....#.....#........#",
+  "#WWW.###.#.###.#.######.#",
+  "#.......................#",
+  "#.###.#.#.......#.#.###.#",
+  "#.....#.#.ccDcc.#.#.....#",
+  "###.#.#...cBBBc...#.#.###",
+  "###.#.###.DBBBD.###.#.###",
+  "###.#.#...cBBBc...#.#.###",
+  "#.....#.#.ccDcc.#.#.....#",
+  "#.###.#.#.......#.#.###.#",
+  "#.......................#",
+  "#.######.#.###.#.###.##.#",
+  "#........#.....#........#",
+  "#########################"];
+const tileAt = (x, y) => (x < 0 || y < 0 || x >= COLS || y >= ROWS) ? '#' : MAP[y][x];
+const isWall = c => c === '#' || c === 'c';
+const FLOOR = [];
+for (let y = 0; y < ROWS; y++) for (let x = 0; x < COLS; x++) if (MAP[y][x] === '.') FLOOR.push({x, y});
+const BUNKER_HOME = {x: 12, y: 7};
+const WEB_HOME = {x: 2, y: 1};
+/* The tile just outside each door, and the direction from it into the door.
+   Robots lurk here while you hide; blasters stand here and shoot the door. */
+const DOOR_FRONT = [{x:12,y:4,d:2}, {x:12,y:10,d:0}, {x:9,y:7,d:1}, {x:15,y:7,d:3}];
+
+/* Who may stand on which tile. The bunker keeps robots and spiders out until
+   a blaster breaks the doors; bats fly in regardless, so hiding isn't free. */
+const PASS = {
+  player: c => !isWall(c),
+  bat:    c => !isWall(c),
+  spider: c => !isWall(c) && c !== 'D' && c !== 'B',
+  robot:  c => !isWall(c) && (G.breached || (c !== 'D' && c !== 'B')),
+};
+
+/* ---------------- canvas & scaling ---------------- */
+const cv = document.getElementById('c'), ctx = cv.getContext('2d');
+cv.width = W; cv.height = H;
+function fit() {
+  let s = Math.min(innerWidth / W, innerHeight / H);
+  if (s >= 1) s = Math.floor(s);            // whole-number scale = even pixels
+  cv.style.width = W*s + 'px'; cv.style.height = H*s + 'px';
+  cv.style.left = ((innerWidth - W*s) / 2) + 'px';
+  cv.style.top = ((innerHeight - H*s) / 2) + 'px';
+}
+addEventListener('resize', fit); fit();
+const dk = document.createElement('canvas'); dk.width = W; dk.height = PH;
+const dctx = dk.getContext('2d');
+
+/* ---------------- 3x5 pixel font ---------------- */
+/* Canvas text at 5px is mush; a hand-made bitmap font is crisp at any scale
+   and needs no font download. */
+const FONT = {
+  A:'010101111101101',B:'110101110101110',C:'011100100100011',D:'110101101101110',
+  E:'111100110100111',F:'111100110100100',G:'011100101101011',H:'101101111101101',
+  I:'111010010010111',J:'001001001101010',K:'101101110101101',L:'100100100100111',
+  M:'101111111101101',N:'110101101101101',O:'010101101101010',P:'110101110100100',
+  Q:'010101101110011',R:'110101110101101',S:'011100010001110',T:'111010010010010',
+  U:'101101101101111',V:'101101101101010',W:'101101111111101',X:'101101010101101',
+  Y:'101101010010010',Z:'111001010100111',
+  '0':'111101101101111','1':'010110010010111','2':'110001010100111','3':'110001010001110',
+  '4':'101101111001001','5':'111100110001110','6':'011100111101111','7':'111001010010010',
+  '8':'111101111101111','9':'111101111001110',
+  '.':'000000000000010',':':'000010000010000','-':'000000111000000','!':'010010010000010',
+  '/':'001001010100100',"'":'010010000000000','?':'110001010000010','+':'000010111010000',
+  ',':'000000000010100','(':'001010010010001',')':'100010010010100','=':'000111000111000'
+};
+function text(s, x, y, sc = 1, col = '#fff', align = 'left') {
+  s = String(s).toUpperCase();
+  const w = s.length*4*sc - sc;
+  if (align === 'center') x -= (w/2) | 0; else if (align === 'right') x -= w;
+  x = Math.round(x); y = Math.round(y);
+  ctx.fillStyle = col;
+  for (let i = 0; i < s.length; i++) {
+    const g = FONT[s[i]]; if (!g) continue;
+    for (let p = 0; p < 15; p++) if (g.charCodeAt(p) === 49)
+      ctx.fillRect(x + i*4*sc + (p%3)*sc, y + ((p/3)|0)*sc, sc, sc);
+  }
+}
+
+/* ---------------- sound ---------------- */
+/* Browsers only allow audio after a user gesture, so the context is made on
+   the first key press. Sparse square-wave blips -- silence is part of the mood. */
+let actx = null, soundOn = true, noiseBuf = null;
+function ensureAudio() {
+  try {
+    if (!actx) {
+      actx = new (window.AudioContext || window.webkitAudioContext)();
+      noiseBuf = actx.createBuffer(1, actx.sampleRate*0.5, actx.sampleRate);
+      const d = noiseBuf.getChannelData(0);
+      for (let i = 0; i < d.length; i++) d[i] = Math.random()*2 - 1;
+    }
+    if (actx.state === 'suspended') actx.resume();
+  } catch (e) { actx = null; }
+}
+function blip(freq, dur, type = 'square', vol = 0.06, slideTo = 0) {
+  if (!soundOn || !actx || actx.state !== 'running') return;
+  const t = actx.currentTime, o = actx.createOscillator(), g = actx.createGain();
+  o.type = type; o.frequency.setValueAtTime(freq, t);
+  if (slideTo) o.frequency.exponentialRampToValueAtTime(slideTo, t + dur);
+  g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  o.connect(g).connect(actx.destination); o.start(t); o.stop(t + dur + 0.02);
+}
+function noise(dur, vol = 0.1) {
+  if (!soundOn || !actx || actx.state !== 'running') return;
+  const t = actx.currentTime, s = actx.createBufferSource(), g = actx.createGain();
+  s.buffer = noiseBuf; g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  s.connect(g).connect(actx.destination); s.start(t); s.stop(t + dur);
+}
+const SFX = {
+  shoot:   () => { blip(880, 0.08, 'square', 0.05, 220); },
+  empty:   () => blip(120, 0.05, 'square', 0.04),
+  rshoot:  () => blip(300, 0.12, 'sawtooth', 0.05, 90),
+  hit:     () => { noise(0.12, 0.08); blip(200, 0.1, 'square', 0.04, 60); },
+  boom:    () => { noise(0.5, 0.18); blip(110, 0.5, 'sawtooth', 0.06, 30); },
+  stun:    () => { blip(1400, 0.25, 'square', 0.03, 300); },
+  pickup:  () => { blip(520, 0.06); setTimeout(() => blip(780, 0.08), 70); },
+  die:     () => { blip(600, 0.9, 'sawtooth', 0.07, 40); noise(0.6, 0.1); },
+  step:    v  => blip(70, 0.04, 'square', v),
+  spawn:   () => blip(60, 0.6, 'sawtooth', 0.05, 180),
+  door:    () => { noise(0.15, 0.1); blip(150, 0.15, 'square', 0.05, 80); },
+  life:    () => { [523, 659, 784, 1046].forEach((f, i) => setTimeout(() => blip(f, 0.08), i*80)); },
+};
+
+/* ---------------- input ---------------- */
+/* Everything collapses onto the eight NES buttons. Keyboard and every
+   connected pad are OR-ed together, so either works at any moment. */
+const BTN = ['up','down','left','right','a','b','select','start'];
+const DIR_OF = {up: 0, right: 1, down: 2, left: 3};
+const KEYMAP = {
+  ArrowUp:'up', KeyW:'up', ArrowDown:'down', KeyS:'down', ArrowLeft:'left', KeyA:'left',
+  ArrowRight:'right', KeyD:'right', KeyZ:'a', KeyK:'a', KeyX:'b', KeyJ:'b',
+  ShiftLeft:'select', ShiftRight:'select', Enter:'start', NumpadEnter:'start', KeyP:'start'
+};
+const key = {}, keyTap = {}, held = {}, prevHeld = {}, pressed = {};
+let lastDir = null, padCount = 0;
+addEventListener('keydown', e => {
+  const b = KEYMAP[e.code]; if (!b) return;
+  e.preventDefault(); ensureAudio();
+  if (!e.repeat) keyTap[b] = true;     // catches taps shorter than one frame
+  key[b] = true;
+});
+addEventListener('keyup', e => { const b = KEYMAP[e.code]; if (b) key[b] = false; });
+addEventListener('blur', () => { for (const b of BTN) key[b] = false; });
+addEventListener('mousedown', ensureAudio);
+addEventListener('gamepadconnected', e => footNote('CONTROLLER CONNECTED'));
+addEventListener('gamepaddisconnected', e => footNote('CONTROLLER DISCONNECTED'));
+
+function pollInput() {
+  const pad = {};
+  let n = 0;
+  const pads = navigator.getGamepads ? navigator.getGamepads() : [];
+  for (const p of pads) {
+    if (!p) continue; n++;
+    const b = i => !!(p.buttons[i] && p.buttons[i].pressed);
+    const ax = p.axes[0] || 0, ay = p.axes[1] || 0;
+    /* Cheap NES-style USB pads often report the D-pad as axes 0/1 instead of
+       buttons 12-15, so both count. */
+    pad.up    = pad.up    || b(12) || ay < -0.5;
+    pad.down  = pad.down  || b(13) || ay >  0.5;
+    pad.left  = pad.left  || b(14) || ax < -0.5;
+    pad.right = pad.right || b(15) || ax >  0.5;
+    pad.a = pad.a || b(0); pad.b = pad.b || b(1);
+    pad.select = pad.select || b(8); pad.start = pad.start || b(9);
+  }
+  if (n > padCount) footNote('CONTROLLER CONNECTED');
+  padCount = n;
+  for (const b of BTN) {
+    held[b] = !!(key[b] || pad[b]);
+    if ((held[b] && !prevHeld[b]) || keyTap[b]) {
+      pressed[b] = true;
+      if (pad[b]) ensureAudio();
+      if (b in DIR_OF) lastDir = b;
+    }
+    keyTap[b] = false;
+    prevHeld[b] = held[b];
+  }
+}
+/* The newest held direction wins, so rolling from one arrow to the next turns
+   you even before you let go of the first. */
+function wantedDir() {
+  if (lastDir && held[lastDir]) return DIR_OF[lastDir];
+  for (const b of ['up','right','down','left']) if (held[b]) return DIR_OF[b];
+  return -1;
+}
+
+/* ---------------- grid movement ---------------- */
+/* Everything moves tile to tile like Pac-Man: a position is a tile plus
+   progress toward the next one, and a decision is made only on arrival at a
+   tile centre. That makes it impossible to clip a wall or jitter in a corner. */
+function mkMover(x, y, kind, speed) {
+  return {x, y, kind, speed, dir: -1, prog: 0, face: 1, anim: 0};
+}
+const canGo = (e, d) => d >= 0 && PASS[e.kind](tileAt(e.x + DX[d], e.y + DY[d]));
+function stepMover(e, dt, choose) {
+  if (e.dir < 0) {
+    const d = choose(e);
+    if (d >= 0 && canGo(e, d)) { e.dir = d; e.prog = 0; } else return;
+  }
+  e.prog += e.speed * dt;
+  while (e.prog >= 1) {
+    e.x += DX[e.dir]; e.y += DY[e.dir]; e.prog -= 1;
+    const d = choose(e);
+    if (d >= 0 && canGo(e, d)) e.dir = d;
+    else { e.dir = -1; e.prog = 0; break; }
+  }
+}
+const px = e => e.x*T + T/2 + (e.dir >= 0 ? DX[e.dir]*e.prog*T : 0);
+const py = e => e.y*T + T/2 + (e.dir >= 0 ? DY[e.dir]*e.prog*T : 0);
+const tileOf = e => ({x: Math.round((px(e) - T/2)/T), y: Math.round((py(e) - T/2)/T)});
+const dist = (a, b) => Math.hypot(px(a) - px(b), py(a) - py(b));
+
+/* Breadth-first distances to a tile, for robots hunting and spiders going home. */
+function bfs(tx, ty, kind) {
+  const d = new Int16Array(COLS*ROWS).fill(-1), q = [tx + ty*COLS];
+  d[q[0]] = 0;
+  for (let i = 0; i < q.length; i++) {
+    const x = q[i] % COLS, y = (q[i] / COLS) | 0;
+    for (let k = 0; k < 4; k++) {
+      const nx = x + DX[k], ny = y + DY[k], j = nx + ny*COLS;
+      if (PASS[kind](tileAt(nx, ny)) && d[j] < 0) { d[j] = d[q[i]] + 1; q.push(j); }
+    }
+  }
+  return d;
+}
+let fieldKey = '', fieldCache = null;
+function robotField(tx, ty) {
+  const k = tx + ',' + ty + ',' + G.breached;
+  if (k !== fieldKey) { fieldKey = k; fieldCache = bfs(tx, ty, 'robot'); }
+  return fieldCache;
+}
+let webField = null;
+function pickBy(e, dirs, score) {
+  let best = -1, bv = 1e9;
+  for (const d of dirs) { const v = score(d); if (v < bv) { bv = v; best = d; } }
+  return best;
+}
+const fieldAt = (f, x, y) => { const v = f[x + y*COLS]; return v < 0 ? 999 : v; };
+
+/* ---------------- robots ---------------- */
+/* Each robot is tougher than the last. From RED on, robot bullets break the
+   bunker doors, and once they're down the bunker is just another room. */
+const ROBOT_CLASSES = [
+  {name:'GRAY',  col:'#8d939c', speed:2.3, hp:1, fire:0.25, chase:0.50, cool:1.6, bspd:110, blast:false},
+  {name:'BLUE',  col:'#3d7dff', speed:2.9, hp:1, fire:0.70, chase:0.65, cool:1.2, bspd:130, blast:false},
+  {name:'WHITE', col:'#e8eef8', speed:3.2, hp:2, fire:0.90, chase:0.72, cool:1.0, bspd:140, blast:false},
+  {name:'RED',   col:'#ff4a3a', speed:3.5, hp:2, fire:1.10, chase:0.80, cool:0.9, bspd:150, blast:true},
+];
+const LATE = [['GOLD','#ffb020'], ['VIOLET','#c050ff'], ['CYAN','#20ffd0']];
+function robotStats(g) {
+  if (g <= 4) return ROBOT_CLASSES[g - 1];
+  const k = g - 4, [name, col] = LATE[(k - 1) % 3];
+  return {name, col, speed: Math.min(4.6, 3.5 + 0.2*k), hp: Math.min(4, 2 + (k >> 1)),
+    fire: Math.min(2, 1.1 + 0.15*k), chase: Math.min(0.92, 0.8 + 0.02*k),
+    cool: Math.max(0.5, 0.9 - 0.06*k), bspd: Math.min(190, 150 + 8*k), blast: true};
+}
+function playerInBunker() {
+  const t = tileOf(G.p), c = tileAt(t.x, t.y);
+  return c === 'B' || c === 'D';
+}
+function robotTarget() {
+  const t = tileOf(G.p);
+  if (playerInBunker() && !G.breached) {
+    /* Can't get in, so wait outside the door nearest you. */
+    return pickBy(null, DOOR_FRONT, f => Math.hypot(f.x - t.x, f.y - t.y)) ;
+  }
+  return t;
+}
+function robotChoose(r) {
+  if (r.spawnT > 0) return -1;
+  if (r.st.blast && !G.breached && playerInBunker() && G.p.dying <= 0) {
+    const f = DOOR_FRONT.find(f => f.x === r.x && f.y === r.y);
+    if (f) { r.face = f.d; r.blasting = true; return -1; }
+  }
+  r.blasting = false;
+  const all = [0,1,2,3].filter(d => canGo(r, d));
+  if (!all.length) return -1;
+  const back = r.dir >= 0 ? (r.dir + 2) % 4 : -1;
+  let opts = all.filter(d => d !== back); if (!opts.length) opts = all;
+  if (G.p.dying <= 0 && Math.random() < r.st.chase) {
+    const tg = robotTarget(), f = robotField(tg.x, tg.y);
+    /* Turning round costs a little extra, so robots sweep rather than dither. */
+    return pickBy(r, all, d => fieldAt(f, r.x + DX[d], r.y + DY[d]) + (d === back ? 2 : 0) + Math.random()*0.5);
+  }
+  return opts[(Math.random()*opts.length) | 0];
+}
+/* A clear line for a robot bullet: walls and intact doors stop it. */
+function robotLOS(a, b, d) {
+  let x = a.x, y = a.y;
+  while (x !== b.x || y !== b.y) {
+    x += DX[d]; y += DY[d];
+    const c = tileAt(x, y);
+    if (isWall(c) || (c === 'D' && !G.breached)) return false;
+  }
+  return true;
+}
+function farCorner() {
+  const corners = [{x:23,y:1}, {x:23,y:13}, {x:1,y:13}, {x:16,y:1}, {x:8,y:13}];
+  return pickBy(null, corners, c => -Math.hypot(c.x*T + 8 - px(G.p), c.y*T + 8 - py(G.p)));
+}
+function spawnRobot() {
+  G.gen++;
+  const st = robotStats(G.gen), c = farCorner();
+  const r = mkMover(c.x, c.y, 'robot', st.speed);
+  Object.assign(r, {st, hp: st.hp, cd: 1, spawnT: 1.2, flash: 0, stepT: 0, blasting: false});
+  G.robot = r;
+  toast('ROBOT ' + G.gen + ': ' + st.name + (st.blast && G.gen === 4 ? ' - BREAKS DOORS' : ''));
+  SFX.spawn();
+}
+function updateRobot(dt) {
+  const r = G.robot;
+  r.flash -= dt; r.cd -= dt; r.anim += dt;
+  if (r.spawnT > 0) { r.spawnT -= dt; return; }
+  stepMover(r, dt, robotChoose);
+  if (r.dir >= 0) r.face = r.dir;
+  const p = G.p;
+  if (p.dying > 0) return;
+  // footsteps you can hear before you can see
+  r.stepT -= dt;
+  if (r.stepT <= 0) {
+    r.stepT = 0.5 / (r.st.speed / 2.3);
+    const dd = dist(r, p) / T;
+    if (dd < 9 && r.dir >= 0) SFX.step(0.05 * (1 - dd/9));
+  }
+  // fire
+  if (r.cd <= 0) {
+    let fd = -1;
+    const rt = tileOf(r), pt = tileOf(p);
+    if (r.blasting) fd = r.face;
+    else {
+      if (rt.y === pt.y && rt.x !== pt.x) fd = pt.x > rt.x ? 1 : 3;
+      else if (rt.x === pt.x && rt.y !== pt.y) fd = pt.y > rt.y ? 2 : 0;
+      if (fd >= 0 && !robotLOS(rt, pt, fd)) fd = -1;
+      // only from near the corridor's centre line, or the shot hits the wall
+      if (fd >= 0) {
+        const off = fd % 2 ? Math.abs(py(r) - (rt.y*T + T/2)) : Math.abs(px(r) - (rt.x*T + T/2));
+        if (off > 3) fd = -1;
+      }
+    }
+    if (fd >= 0 && Math.random() < r.st.fire * dt * 3) {
+      let x = px(r), y = py(r);
+      if (fd % 2) y = rt.y*T + T/2; else x = rt.x*T + T/2;
+      G.rb.push({x, y, d: fd, spd: r.st.bspd, blast: r.st.blast});
+      r.cd = r.st.cool; r.face = fd; SFX.rshoot();
+    }
+  }
+  if (dist(r, p) < 11) killPlayer();
+}
+function hitRobot() {
+  const r = G.robot;
+  r.hp--; r.flash = 0.15;
+  if (r.hp > 0) { SFX.hit(); burst(px(r), py(r), r.st.col, 6); return; }
+  const pts = 150 * G.gen;
+  addScore(pts, px(r), py(r));
+  explode(px(r), py(r), r.st.col);
+  G.robot = null; G.robotT = 3.5;
+}
+
+/* ---------------- bats & spiders ---------------- */
+function wanderChoose(e) {
+  const all = [0,1,2,3].filter(d => canGo(e, d));
+  if (!all.length) return -1;
+  const back = e.dir >= 0 ? (e.dir + 2) % 4 : -1;
+  let opts = all.filter(d => d !== back); if (!opts.length) opts = all;
+  const p = G.p;
+  if (e.kind === 'bat') {
+    if (Math.random() < 0.25 && p.dying <= 0)   // drawn to you, loosely
+      return pickBy(e, opts, d => Math.hypot(e.x + DX[d] - p.x, e.y + DY[d] - p.y));
+    if (e.dir >= 0 && opts.includes(e.dir) && Math.random() < 0.5) return e.dir;
+    if (back >= 0 && all.includes(back) && Math.random() < 0.08) return back;
+  } else {
+    // spiders drift home to the web when they stray
+    if (!webField) webField = bfs(WEB_HOME.x, WEB_HOME.y, 'spider');
+    if (fieldAt(webField, e.x, e.y) > 7 && Math.random() < 0.6)
+      return pickBy(e, opts, d => fieldAt(webField, e.x + DX[d], e.y + DY[d]));
+    if (Math.random() < 0.3 && p.dying <= 0 && Math.hypot(e.x - p.x, e.y - p.y) < 6)
+      return pickBy(e, opts, d => Math.hypot(e.x + DX[d] - p.x, e.y + DY[d] - p.y));
+  }
+  return opts[(Math.random()*opts.length) | 0];
+}
+function farTile(minD) {
+  const p = G.p;
+  const ok = FLOOR.filter(t => Math.hypot(t.x*T + 8 - px(p), t.y*T + 8 - py(p)) > minD*T);
+  const list = ok.length ? ok : FLOOR;
+  return list[(Math.random()*list.length) | 0];
+}
+function updateCritters(dt) {
+  const maxBats = G.gen >= 3 ? 2 : 1;
+  if (G.bats.length < maxBats && (G.batT -= dt) <= 0) {
+    const t = farTile(8); G.bats.push(mkMover(t.x, t.y, 'bat', 4.2)); G.batT = 3;
+  }
+  if (G.spiders.length < 1 && (G.spiderT -= dt) <= 0) {
+    G.spiders.push(mkMover(WEB_HOME.x, WEB_HOME.y, 'spider', 2.2)); G.spiderT = 4;
+  }
+  for (const c of G.bats.concat(G.spiders)) {
+    stepMover(c, dt, wanderChoose);
+    if (c.dir >= 0) c.face = c.dir;
+    c.anim += dt;
+    if (G.p.dying <= 0 && dist(c, G.p) < 10) stunPlayer();
+  }
+}
+
+/* ---------------- player ---------------- */
+/* B is "hold aim": while it's held your facing is locked, so you can back
+   away down a corridor still pointing the gun at what's chasing you. */
+function playerChoose(e) {
+  if (DEMO) return demoChoose(e);
+  const w = e.want;
+  if (w >= 0 && canGo(e, w)) { e.buf = -1; return w; }
+  // a turn pressed a moment early is remembered until the next junction
+  if (e.buf >= 0 && e.bufT > 0 && canGo(e, e.buf)) { const d = e.buf; e.buf = -1; return d; }
+  if (w >= 0 && e.dir >= 0 && canGo(e, e.dir)) return e.dir;   // keep going while holding a blocked turn
+  if (e.buf >= 0 && e.bufT > 0 && e.dir >= 0 && canGo(e, e.dir)) return e.dir;
+  return -1;
+}
+function updatePlayer(dt) {
+  const p = G.p;
+  if (p.inv > 0) p.inv -= dt;
+  if (p.stunImm > 0) p.stunImm -= dt;
+  if (p.bufT > 0) p.bufT -= dt;
+  p.fireCd -= dt;
+  for (const b in DIR_OF) if (pressed[b]) { p.buf = DIR_OF[b]; p.bufT = 0.35; }
+  if (p.stun > 0) { p.stun -= dt; return; }
+  const want = DEMO ? -1 : wantedDir();
+  const aim = !DEMO && held.b;
+  // reversing is allowed mid-tile, so you can always back out
+  if (want >= 0 && p.dir >= 0 && want === (p.dir + 2) % 4) {
+    p.x += DX[p.dir]; p.y += DY[p.dir]; p.dir = want; p.prog = 1 - p.prog;
+  }
+  if (want >= 0 && !aim && p.dir < 0) p.face = want;   // pressing into a wall still turns you
+  p.want = want;
+  stepMover(p, dt, playerChoose);
+  if (p.dir >= 0) { p.anim += dt; if (!aim) p.face = p.dir; }
+  if (DEMO) demoAim();
+  if ((pressed.a || (DEMO && p.demoFire)) && p.fireCd <= 0) { playerFire(); p.demoFire = false; }
+}
+function playerFire() {
+  const p = G.p;
+  p.fireCd = 0.12;
+  if (G.ammo <= 0) { SFX.empty(); return; }
+  G.ammo--;
+  const t = tileOf(p); let x = px(p), y = py(p);
+  if (p.face % 2) y = t.y*T + T/2; else x = t.x*T + T/2;
+  G.pb.push({x, y, d: p.face, spd: 250});
+  G.flare = 0.1; SFX.shoot();
+  if (G.ammo === 0) { G.gun.active = false; G.gun.timer = 4; toast('OUT OF AMMO'); }
+}
+function stunPlayer() {
+  const p = G.p;
+  if (p.stun > 0 || p.stunImm > 0 || p.inv > 0) return;
+  p.stun = 2; p.stunImm = 3.2; p.dir = -1; p.prog = 0; p.buf = -1;
+  SFX.stun();
+}
+function killPlayer() {
+  const p = G.p;
+  if (p.dying > 0 || p.inv > 0) return;
+  if (DEMO) { burst(px(p), py(p), '#fff', 6); return; }
+  p.dying = 2; G.rb = []; SFX.die();
+  explode(px(p), py(p), '#40ff90', true);
+}
+function respawn() {
+  const p = G.p;
+  Object.assign(p, mkMover(BUNKER_HOME.x, BUNKER_HOME.y, 'player', 5), {
+    stun: 0, stunImm: 0, inv: 2.5, dying: 0, buf: -1, bufT: 0, fireCd: 0, want: -1});
+  p.face = 0;
+  if (G.robot) {   // send the robot back to a far corner to re-materialise
+    const r = G.robot, c = farCorner();
+    Object.assign(r, {x: c.x, y: c.y, dir: -1, prog: 0, spawnT: 1.2, cd: 1});
+  }
+}
+
+/* ---------------- demo auto-pilot ---------------- */
+function demoChoose(e) {
+  const all = [0,1,2,3].filter(d => canGo(e, d));
+  if (!all.length) return -1;
+  const back = e.dir >= 0 ? (e.dir + 2) % 4 : -1;
+  let opts = all.filter(d => d !== back); if (!opts.length) opts = all;
+  if (!G.ammo && G.gun.active && Math.random() < 0.85) {
+    const f = bfs(G.gun.x, G.gun.y, 'player');
+    return pickBy(e, all, d => fieldAt(f, e.x + DX[d], e.y + DY[d]));
+  }
+  if (e.dir >= 0 && opts.includes(e.dir) && Math.random() < 0.6) return e.dir;
+  return opts[(Math.random()*opts.length) | 0];
+}
+function demoAim() {
+  const p = G.p, pt = tileOf(p);
+  const targets = G.bats.concat(G.spiders); if (G.robot && G.robot.spawnT <= 0) targets.unshift(G.robot);
+  for (const t of targets) {
+    const tt = tileOf(t); let d = -1;
+    if (tt.y === pt.y && Math.abs(tt.x - pt.x) < 9) d = tt.x > pt.x ? 1 : 3;
+    else if (tt.x === pt.x && Math.abs(tt.y - pt.y) < 9) d = tt.y > pt.y ? 2 : 0;
+    if (d < 0) continue;
+    let x = pt.x, y = pt.y, clear = true;
+    while (x !== tt.x || y !== tt.y) { x += DX[d]; y += DY[d]; if (isWall(tileAt(x, y))) { clear = false; break; } }
+    if (clear) { p.face = d; if (G.ammo > 0 && Math.random() < 0.08) p.demoFire = true; return; }
+  }
+}
+
+/* ---------------- bullets ---------------- */
+function updateBullets(dt) {
+  for (const list of [G.pb, G.rb]) {
+    for (let i = list.length - 1; i >= 0; i--) {
+      const b = list[i];
+      b.x += DX[b.d]*b.spd*dt; b.y += DY[b.d]*b.spd*dt;
+      const c = tileAt(Math.floor(b.x/T), Math.floor(b.y/T));
+      const mine = list === G.pb;
+      if (isWall(c) || (!mine && c === 'D' && !G.breached)) {
+        // back the spark up to the wall face so it doesn't sit inside the wall
+        const sx = b.x - DX[b.d]*4, sy = b.y - DY[b.d]*4;
+        burst(sx, sy, mine ? '#9ff' : '#f84', 3);
+        if (!mine && c === 'D' && b.blast) damageBunker();
+        list.splice(i, 1); continue;
+      }
+      if (mine) {
+        let hit = false;
+        const r = G.robot;
+        if (r && r.spawnT <= 0 && Math.hypot(px(r) - b.x, py(r) - b.y) < 8) { hitRobot(); hit = true; }
+        for (const arr of [G.bats, G.spiders]) {
+          if (hit) break;
+          for (let j = arr.length - 1; j >= 0; j--) {
+            const c2 = arr[j];
+            if (Math.hypot(px(c2) - b.x, py(c2) - b.y) < 7) {
+              const bat = c2.kind === 'bat';
+              addScore(bat ? 100 : 50, px(c2), py(c2));
+              burst(px(c2), py(c2), bat ? '#a070ff' : '#c08040', 10); SFX.hit();
+              arr.splice(j, 1);
+              if (bat) G.batT = 3; else G.spiderT = 4;
+              hit = true; break;
+            }
+          }
+        }
+        if (hit) list.splice(i, 1);
+      } else if (G.p.dying <= 0 && Math.hypot(px(G.p) - b.x, py(G.p) - b.y) < 6) {
+        list.splice(i, 1); killPlayer();
+      }
+    }
+  }
+}
+function damageBunker() {
+  if (G.breached) return;
+  G.bunkerHP--; G.doorFlash = 0.2; SFX.door();
+  if (G.bunkerHP <= 0) {
+    G.breached = true; toast('BUNKER BREACHED');
+    for (const f of DOOR_FRONT) explode(f.x*T + 8 + DX[f.d]*T, f.y*T + 8 + DY[f.d]*T, '#3dff8a');
+  }
+}
+
+/* ---------------- effects ---------------- */
+function burst(x, y, col, n) {
+  for (let i = 0; i < n; i++) {
+    const a = Math.random()*6.28, s = 20 + Math.random()*60;
+    G.parts.push({x, y, vx: Math.cos(a)*s, vy: Math.sin(a)*s, life: 0.3 + Math.random()*0.3, col});
+  }
+}
+function explode(x, y, col, big) {
+  burst(x, y, col, big ? 40 : 24); burst(x, y, '#fff', 8);
+  G.lights.push({x, y, r: big ? 70 : 50, t: 0.5, max: 0.5});
+  SFX.boom();
+}
+function addScore(n, x, y) {
+  G.score += n;
+  G.parts.push({x, y: y - 6, vx: 0, vy: -18, life: 0.9, col: '#fff', txt: '+' + n});
+  if (G.score >= G.nextLife) { G.nextLife += 5000; G.lives++; toast('EXTRA LIFE'); SFX.life(); }
+}
+let toastMsg = '', toastT = 0, footMsg = '', footT = 0;
+function toast(s) { toastMsg = s; toastT = 2.2; }
+function footNote(s) { footMsg = s; footT = 3; }
+
+/* ---------------- game state ---------------- */
+let state = 'title', paused = false, G = null, overT = 0, titleT = 0;
+let hi = 0;
+try { hi = +localStorage.getItem('circuitBreaker.hi') || 0; } catch (e) {}
+function newGame() {
+  G = {score: 0, lives: 3, nextLife: 5000, gen: START_GEN - 1, robot: null, robotT: DEMO ? 1 : 3,
+    bats: [], spiders: [], batT: 4, spiderT: 6, pb: [], rb: [], parts: [], lights: [],
+    gun: {x: 0, y: 0, active: false, timer: 1.5}, ammo: 0, breached: false, bunkerHP: 8,
+    doorFlash: 0, flare: 0, time: 0, p: {}};
+  respawn(); G.p.inv = 0;
+  fieldKey = '';
+  state = 'play'; paused = false;
+}
+function update(dt) {
+  if (footT > 0) footT -= dt;
+  titleT += dt;
+  if (pressed.select) { soundOn = !soundOn; footNote(soundOn ? 'SOUND ON' : 'SOUND OFF'); }
+  if (state === 'title') { if (pressed.start || pressed.a) { ensureAudio(); newGame(); } return; }
+  if (state === 'over') {
+    overT += dt;
+    if (overT > 1.2 && pressed.start) newGame();
+    return;
+  }
+  if (pressed.start) { paused = !paused; blip(paused ? 300 : 600, 0.06); }
+  if (paused) return;
+  if (toastT > 0) toastT -= dt;
+  G.time += dt;
+  G.flare -= dt; G.doorFlash -= dt;
+  const p = G.p;
+  if (p.dying > 0) {
+    p.dying -= dt;
+    if (p.dying <= 0) {
+      G.lives--;
+      if (G.lives <= 0) {
+        state = 'over'; overT = 0; p.dying = 0.0001;
+        if (G.score > hi) { hi = G.score; try { localStorage.setItem('circuitBreaker.hi', hi); } catch (e) {} }
+      } else respawn();
+    }
+  } else updatePlayer(dt);
+  // gun
+  const g = G.gun;
+  if (!g.active && G.ammo === 0 && (g.timer -= dt) <= 0) {
+    const t = farTile(7); g.x = t.x; g.y = t.y; g.active = true;
+  }
+  if (g.active && p.dying <= 0) {
+    const t = tileOf(p);
+    if (t.x === g.x && t.y === g.y) { g.active = false; G.ammo = 6; SFX.pickup(); toast('GUN: 6 SHOTS'); }
+  }
+  if (p.dying <= 0) {
+    if (!G.robot && (G.robotT -= dt) <= 0) spawnRobot();
+    if (G.robot) updateRobot(dt);
+  }
+  updateCritters(dt);
+  updateBullets(dt);
+  for (let i = G.parts.length - 1; i >= 0; i--) {
+    const q = G.parts[i]; q.x += q.vx*dt; q.y += q.vy*dt; q.vx *= 0.94; q.vy *= q.txt ? 1 : 0.94;
+    if ((q.life -= dt) <= 0) G.parts.splice(i, 1);
+  }
+  for (let i = G.lights.length - 1; i >= 0; i--) if ((G.lights[i].t -= dt) <= 0) G.lights.splice(i, 1);
+  if (G.score > hi) hi = G.score;
+}
+
+/* ---------------- map art (drawn once) ---------------- */
+/* Walls are circuit boards: dim traces run along the inside of each wall and
+   the edges facing the corridors are lit electric blue. Under the darkness
+   they read as a faint glow, enough to navigate by. */
+const mapC = document.createElement('canvas'); mapC.width = W; mapC.height = PH;
+(function drawMap() {
+  const m = mapC.getContext('2d');
+  for (let y = 0; y < ROWS; y++) for (let x = 0; x < COLS; x++) {
+    const c = MAP[y][x], X = x*T, Y = y*T;
+    if (!isWall(c)) {
+      m.fillStyle = c === 'B' || c === 'D' ? '#0b1a12' : '#06090d'; m.fillRect(X, Y, T, T);
+      m.fillStyle = '#0f171f'; m.fillRect(X + 7, Y + 7, 2, 2);
+      continue;
+    }
+    const bunker = c === 'c';
+    m.fillStyle = bunker ? '#0e2418' : '#08131d'; m.fillRect(X, Y, T, T);
+    // traces toward neighbouring wall tiles
+    m.fillStyle = bunker ? '#1d6b3c' : '#0f4a36';
+    let links = 0;
+    for (let d = 0; d < 4; d++) {
+      if (!isWall(tileAt(x + DX[d], y + DY[d]))) continue;
+      links++;
+      if (d === 0) m.fillRect(X + 7, Y, 2, 8); if (d === 2) m.fillRect(X + 7, Y + 8, 2, 8);
+      if (d === 1) m.fillRect(X + 8, Y + 7, 8, 2); if (d === 3) m.fillRect(X, Y + 7, 8, 2);
+    }
+    if (links !== 2 || (x*7 + y*3) % 5 === 0) {      // solder pads at junctions and ends
+      m.fillStyle = bunker ? '#3dff8a' : '#1bd08a'; m.fillRect(X + 6, Y + 6, 4, 4);
+      m.fillStyle = '#04080c'; m.fillRect(X + 7, Y + 7, 2, 2);
+    }
+    // lit edges facing open floor
+    m.fillStyle = bunker ? '#3dff8a' : '#1f9cff';
+    if (!isWall(tileAt(x, y - 1))) m.fillRect(X, Y, T, 1);
+    if (!isWall(tileAt(x, y + 1))) m.fillRect(X, Y + T - 1, T, 1);
+    if (!isWall(tileAt(x - 1, y))) m.fillRect(X, Y, 1, T);
+    if (!isWall(tileAt(x + 1, y))) m.fillRect(X + T - 1, Y, 1, T);
+  }
+  // the web, strung from the top-left corner
+  m.strokeStyle = '#59606e'; m.lineWidth = 1;
+  const cx = 16, cy = 16;
+  for (let a = 0; a <= 6; a++) {
+    const ang = a/6 * Math.PI/2;
+    m.beginPath(); m.moveTo(cx, cy); m.lineTo(cx + Math.cos(ang)*48, cy + Math.sin(ang)*32); m.stroke();
+  }
+  for (let r = 8; r <= 40; r += 8) {
+    m.beginPath();
+    for (let a = 0; a <= 6; a++) {
+      const ang = a/6 * Math.PI/2, rr = r * (a % 2 ? 0.9 : 1);
+      const X = cx + Math.cos(ang)*rr, Y = cy + Math.sin(ang)*rr*0.7;
+      a ? m.lineTo(X, Y) : m.moveTo(X, Y);
+    }
+    m.stroke();
+  }
+})();
+
+/* ---------------- sprites ---------------- */
+function R(x, y, w, h) { ctx.fillRect(Math.round(x), Math.round(y), w, h); }
+function drawPlayer(p) {
+  const cx = Math.round(px(p)), cy = Math.round(py(p)), x = cx - 4, y = cy - 7;
+  const step = ((p.anim*8) | 0) % 2;
+  const stunned = p.stun > 0;
+  ctx.fillStyle = '#e8c89a'; R(x + 2, y, 4, 4);
+  ctx.fillStyle = '#123'; if (p.face === 1) R(x + 5, y + 1, 1, 1); else if (p.face === 3) R(x + 2, y + 1, 1, 1); else if (p.face === 2) { R(x + 3, y + 1, 1, 1); R(x + 5, y + 1, 1, 1); }
+  ctx.fillStyle = stunned ? (((G.time*16) | 0) % 2 ? '#ff0' : '#40ff90') : '#40ff90';
+  R(x + 1, y + 4, 6, 5); R(x, y + 5, 1, 3); R(x + 7, y + 5, 1, 3);
+  ctx.fillStyle = '#2a6fd0';
+  if (step) { R(x + 2, y + 9, 2, 4); R(x + 5, y + 9, 2, 3); } else { R(x + 1, y + 9, 2, 3); R(x + 4, y + 9, 2, 4); }
+  // the gun (or an empty hand) points where you're facing
+  ctx.fillStyle = G.ammo > 0 ? '#d8dde6' : '#e8c89a';
+  for (let i = 4; i < (G.ammo > 0 ? 9 : 6); i++) R(cx + DX[p.face]*i - (DX[p.face] ? 0 : 1), cy + 1 + DY[p.face]*i, DX[p.face] ? 1 : 2, DX[p.face] ? 2 : 1);
+  if (stunned) { ctx.fillStyle = '#ff0'; for (let i = 0; i < 3; i++) { const a = G.time*6 + i*2.1; R(cx + Math.cos(a)*6, y - 2 + Math.sin(a)*2, 1, 1); } }
+}
+function drawRobot(r, x0, y0, gen) {
+  const st = r ? r.st : robotStats(gen);
+  const cx = Math.round(r ? px(r) : x0), cy = Math.round(r ? py(r) : y0), x = cx - 6, y = cy - 7;
+  const col = r && r.flash > 0 ? '#fff' : st.col;
+  const step = r ? ((r.anim*6) | 0) % 2 : 0;
+  ctx.fillStyle = '#444'; R(x + 6, y - 1, 1, 2);
+  ctx.fillStyle = col;
+  R(x + 2, y + 1, 9, 5); R(x + 1, y + 6, 11, 5); R(x - 1, y + 6, 2, 4); R(x + 12, y + 6, 2, 4);
+  ctx.fillStyle = '#111'; R(x + 3, y + 3, 7, 1); R(x + 3, y + 8, 7, 1);
+  ctx.fillStyle = shade(st.col); R(x + 3 - step, y + 11, 3, 3); R(x + 8 + step, y + 11, 3, 3);
+  if (r && r.hp < st.hp) { ctx.fillStyle = '#ff0'; R(x + 4, y + 7, 1, 1); R(x + 9, y + 9, 1, 1); }  // damaged sparks
+}
+function shade(hex) {
+  const n = parseInt(hex.slice(1), 16);
+  return '#' + [16, 8, 0].map(s => (((n >> s) & 255) * 0.55 | 0).toString(16).padStart(2, '0')).join('');
+}
+function drawBat(b, x0, y0) {
+  const cx = Math.round(b ? px(b) : x0), cy = Math.round(b ? py(b) : y0);
+  const up = b ? ((b.anim*10) | 0) % 2 : 0;
+  ctx.fillStyle = '#8a5cff'; R(cx - 1, cy - 1, 3, 3); R(cx - 1, cy - 2, 1, 1); R(cx + 1, cy - 2, 1, 1);
+  const wing = up ? [[2,-1],[3,-2],[4,-3],[5,-3],[6,-2],[6,-1]] : [[2,0],[3,1],[4,1],[5,2],[6,1],[6,2]];
+  for (const [wx, wy] of wing) { R(cx - wx, cy + wy, 1, 1); R(cx + wx, cy + wy, 1, 1); }
+  ctx.fillStyle = '#ff0'; R(cx - 1, cy - 1, 1, 1); R(cx + 1, cy - 1, 1, 1);
+}
+function drawSpider(s, x0, y0) {
+  const cx = Math.round(s ? px(s) : x0), cy = Math.round(s ? py(s) : y0);
+  const k = s ? ((s.anim*8) | 0) % 2 : 0;
+  ctx.fillStyle = '#6b4424';
+  for (let i = 0; i < 4; i++) {
+    const ly = cy - 3 + i*2 + ((i + k) % 2);
+    R(cx - 6, ly, 3, 1); R(cx + 4, ly, 3, 1); R(cx - 7, ly + 1, 1, 1); R(cx + 7, ly + 1, 1, 1);
+  }
+  ctx.fillStyle = '#c08040'; R(cx - 3, cy - 3, 7, 5); R(cx - 2, cy + 2, 5, 2);
+  ctx.fillStyle = '#f33'; R(cx - 1, cy + 2, 1, 1); R(cx + 1, cy + 2, 1, 1);
+}
+function drawGun(cx, cy) {
+  ctx.fillStyle = '#c8ccd6'; R(cx - 5, cy - 3, 10, 3); R(cx + 1, cy, 3, 4);
+  ctx.fillStyle = '#6a7080'; R(cx - 5, cy - 3, 2, 1); R(cx + 2, cy + 1, 1, 2);
+}
+
+/* ---------------- darkness ---------------- */
+/* The dark is a near-opaque layer with holes punched in it. Three stepped
+   rings instead of a smooth gradient: it reads as 1982, not as a shader. */
+function hole(x, y, r) {
+  dctx.fillStyle = 'rgba(0,0,0,0.45)'; dctx.beginPath(); dctx.arc(x, y, r, 0, 7); dctx.fill();
+  dctx.fillStyle = 'rgba(0,0,0,0.6)'; dctx.beginPath(); dctx.arc(x, y, r*0.78, 0, 7); dctx.fill();
+  dctx.fillStyle = '#000'; dctx.beginPath(); dctx.arc(x, y, r*0.56, 0, 7); dctx.fill();
+}
+function darkness(lights) {
+  dctx.globalCompositeOperation = 'source-over';
+  dctx.clearRect(0, 0, W, PH);
+  dctx.fillStyle = 'rgba(1,3,8,0.9)'; dctx.fillRect(0, 0, W, PH);
+  dctx.globalCompositeOperation = 'destination-out';
+  for (const l of lights) hole(l.x, l.y, l.r);
+  ctx.drawImage(dk, 0, 0);
+}
+
+/* ---------------- drawing ---------------- */
+function drawDoors(glow) {
+  for (let y = 0; y < ROWS; y++) for (let x = 0; x < COLS; x++) {
+    if (MAP[y][x] !== 'D') continue;
+    const X = x*T, Y = y*T, vert = MAP[y][x - 1] === '.' || MAP[y][x + 1] === '.';
+    if (G && G.breached) {
+      if (!glow) { ctx.fillStyle = '#2a1a10'; R(X + 3, Y + 3, 3, 2); R(X + 10, Y + 9, 3, 2); }
+      continue;
+    }
+    // a force field: flickering bars across the doorway
+    const hurt = G ? 1 - G.bunkerHP/8 : 0;
+    const on = Math.random() > hurt*0.5;
+    ctx.globalAlpha = glow ? 0.35 : 0.9;
+    ctx.fillStyle = G && G.doorFlash > 0 ? '#fff' : (hurt > 0.5 ? '#ffb030' : '#3dff8a');
+    if (on) for (let i = 2; i < T; i += 4) { if (vert) R(X + i, Y + 1, 1, T - 2); else R(X + 1, Y + i, T - 2, 1); }
+    ctx.globalAlpha = 1;
+  }
+}
+function drawWorld() {
+  const p = G.p;
+  ctx.save(); ctx.translate(0, HUD);
+  ctx.drawImage(mapC, 0, 0);
+  drawDoors(false);
+  if (G.gun.active) drawGun(G.gun.x*T + 8, G.gun.y*T + 9);
+  for (const s of G.spiders) drawSpider(s);
+  for (const b of G.bats) drawBat(b);
+  const r = G.robot;
+  if (r) {
+    if (r.spawnT > 0) { ctx.globalAlpha = Math.random()*0.6; drawRobot(r); ctx.globalAlpha = 1; }
+    else drawRobot(r);
+  }
+  const blink = p.inv > 0 && ((G.time*10) | 0) % 2;
+  if (p.dying <= 0 && !blink) drawPlayer(p);
+
+  // light sources: you, your shots, explosions
+  const lights = [];
+  const flick = Math.random() < 0.03 ? -6 : 0;     // the fuse is not entirely happy
+  let rad = 54 + flick + (G.flare > 0 ? 18 : 0);
+  if (p.dying > 0) rad = Math.max(0, 54 * (p.dying - 1));
+  if (state === 'over') rad = 0;
+  if (rad > 0) lights.push({x: px(p), y: py(p), r: rad});
+  for (const b of G.pb) lights.push({x: b.x, y: b.y, r: 18});
+  for (const b of G.rb) lights.push({x: b.x, y: b.y, r: 12});
+  for (const l of G.lights) lights.push({x: l.x, y: l.y, r: l.r * (l.t / l.max)});
+  darkness(lights);
+
+  // what shows through the dark: eyes, door fields, tracer fire, sparks
+  drawDoors(true);
+  if (r) {
+    const x = Math.round(px(r)) - 6, y = Math.round(py(r)) - 7;
+    if (r.spawnT > 0) { ctx.fillStyle = r.st.col; for (let i = 0; i < 4; i++) R(x + Math.random()*14, y + Math.random()*14, 1, 1); }
+    else {
+      const blinkOff = (G.time % 3.1) < 0.12;
+      if (!blinkOff) { ctx.fillStyle = r.blasting ? '#ff0' : '#ff2a2a'; R(x + 4, y + 3, 2, 1); R(x + 8, y + 3, 2, 1); }
+      if (((G.time*2) | 0) % 2) { ctx.fillStyle = '#f40'; R(x + 6, y - 2, 1, 1); }  // antenna beacon
+    }
+  }
+  for (const b of G.bats) if (((b.anim*3) | 0) % 3) { ctx.fillStyle = 'rgba(255,240,0,0.55)'; R(px(b) - 1, py(b) - 1, 1, 1); R(px(b) + 1, py(b) - 1, 1, 1); }
+  if (G.gun.active && (G.time % 1.6) < 0.18) { ctx.fillStyle = '#fff'; R(G.gun.x*T + 4, G.gun.y*T + 6, 2, 1); R(G.gun.x*T + 5, G.gun.y*T + 5, 1, 3); }
+  ctx.fillStyle = '#bff'; for (const b of G.pb) R(b.x - (b.d % 2 ? 2 : 0), b.y - (b.d % 2 ? 0 : 2), b.d % 2 ? 4 : 1, b.d % 2 ? 1 : 4);
+  for (const b of G.rb) { ctx.fillStyle = b.blast ? '#ff0' : '#f63'; R(b.x - 1, b.y - 1, 3, 3); }
+  for (const q of G.parts) {
+    if (q.txt) text(q.txt, q.x, q.y, 1, '#fff', 'center');
+    else { ctx.fillStyle = q.col; R(q.x, q.y, 1, 1); }
+  }
+  ctx.restore();
+}
+function drawHUD() {
+  ctx.fillStyle = '#03060a'; ctx.fillRect(0, 0, W, HUD);
+  ctx.fillStyle = '#0c3a5a'; ctx.fillRect(0, HUD - 1, W, 1);
+  const lab = '#2f8fc0';
+  text('SCORE', 4, 2, 1, lab); text(String(G.score).padStart(6, '0'), 4, 9, 2, '#e0f4ff');
+  text('HI', 66, 2, 1, lab); text(String(hi).padStart(6, '0'), 66, 9, 2, '#7fa8c0');
+  text('LIVES', 128, 2, 1, lab);
+  for (let i = 0; i < Math.min(G.lives, 6); i++) {
+    ctx.fillStyle = '#e8c89a'; R(129 + i*7, 9, 3, 3); ctx.fillStyle = '#40ff90'; R(128 + i*7, 12, 5, 4); ctx.fillStyle = '#2a6fd0'; R(129 + i*7, 16, 3, 3);
+  }
+  const st = robotStats(Math.max(1, G.gen));
+  text('ROBOT', 184, 2, 1, lab);
+  text(String(Math.max(1, G.gen)), 184, 9, 2, '#e0f4ff');
+  ctx.fillStyle = st.col; R(202, 10, 8, 8); text(st.name, 213, 12, 1, st.col);
+  text('BUNKER', 262, 2, 1, lab);
+  if (G.breached) text('BREACHED', 262, 12, 1, ((G.time*3) | 0) % 2 ? '#ff4a3a' : '#802018');
+  else for (let i = 0; i < 8; i++) { ctx.fillStyle = i < G.bunkerHP ? (G.bunkerHP > 4 ? '#3dff8a' : '#ffb030') : '#1a2a20'; R(262 + i*5, 11, 4, 6); }
+  text('AMMO', 336, 2, 1, lab);
+  if (G.ammo > 0) for (let i = 0; i < 6; i++) { ctx.fillStyle = i < G.ammo ? '#ffd860' : '#2a2a20'; R(336 + i*9, 9, 4, 9); ctx.fillStyle = i < G.ammo ? '#c08020' : '#1a1a14'; R(336 + i*9, 15, 4, 3); }
+  else text('NO GUN', 336, 12, 1, ((G.time*2) | 0) % 2 ? '#ff6a4a' : '#7a3020');
+}
+function drawFooter() {
+  const y = HUD + PH + 4;
+  ctx.fillStyle = '#020407'; ctx.fillRect(0, HUD + PH, W, FOOT);
+  if (footT > 0) text(footMsg, 4, y, 1, '#5fd0ff');
+  else text('A FIRE   B HOLD AIM   SELECT SOUND   START PAUSE', 4, y, 1, '#24506a');
+  text((soundOn ? 'SND ' : 'MUTE ') + VERSION + (DEMO ? ' DEMO' : ''), W - 4, y, 1, '#24506a', 'right');
+}
+function panel(x, y, w, h) {
+  ctx.fillStyle = 'rgba(0,4,10,0.82)'; ctx.fillRect(x, y, w, h);
+  ctx.fillStyle = '#1f9cff'; ctx.fillRect(x, y, w, 1); ctx.fillRect(x, y + h - 1, w, 1);
+}
+function drawTitle() {
+  ctx.save(); ctx.translate(0, HUD);
+  ctx.drawImage(mapC, 0, 0); drawDoors(false);
+  const t = titleT;
+  darkness([{x: 200 + Math.cos(t*0.5)*170, y: 120 + Math.sin(t*0.83)*100, r: 50}]);
+  drawDoors(true);
+  ctx.restore();
+  ctx.fillStyle = '#03060a'; ctx.fillRect(0, 0, W, HUD); ctx.fillRect(0, HUD + PH, W, FOOT);
+  text('HI ' + String(hi).padStart(6, '0'), W/2, 6, 1, '#7fa8c0', 'center');
+  panel(40, 34, 320, 218);
+  text('CIRCUIT', W/2 + 2, 46, 5, '#0a4a30', 'center'); text('CIRCUIT', W/2, 44, 5, '#3cf', 'center');
+  text('BREAKER', W/2 + 2, 76, 5, '#0a4a30', 'center'); text('BREAKER', W/2, 74, 5, '#3cf', 'center');
+  text('LIGHTS OUT. ROBOTS IN THE MAZE. SIX BULLETS.', W/2, 106, 1, '#40ff90', 'center');
+  const L = 96, rows = [
+    [() => drawGun(L, 128), 'GUN - WALK OVER IT. SIX SHOTS, THEN IT MOVES'],
+    [() => drawBat(null, L, 144), 'BAT - TOUCH STUNS YOU'],
+    [() => drawSpider(null, L, 160), 'SPIDER - TOUCH STUNS YOU. LIVES IN THE WEB'],
+    [() => drawRobot(null, L, 177, 1), 'ROBOT - ITS SHOT KILLS. EACH ONE IS TOUGHER'],
+    [() => { ctx.fillStyle = '#3dff8a'; for (let i = 0; i < 12; i += 3) R(L - 6 + i, 188, 1, 10); }, 'BUNKER - ROBOTS CANT GET IN... AT FIRST'],
+  ];
+  rows.forEach(([draw, s], i) => { draw(); text(s, L + 14, 126 + i*16, 1, '#a8c0d0'); });
+  if (((t*2) | 0) % 2) text('PRESS START', W/2, 214, 2, '#fff', 'center');
+  text('MOVE: DPAD / ARROWS / WASD   FIRE: A / Z / K', W/2, 234, 1, '#5f88a0', 'center');
+  text('HOLD AIM: B / X / J   START: ENTER   SOUND: SELECT / SHIFT', W/2, 242, 1, '#5f88a0', 'center');
+  drawFooter();
+}
+function render() {
+  ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
+  if (state === 'title') { drawTitle(); return; }
+  drawWorld(); drawHUD(); drawFooter();
+  if (toastT > 0 && !paused && state === 'play') {
+    const w = toastMsg.length*8 + 12; panel(W/2 - w/2, HUD + 6, w, 16); text(toastMsg, W/2, HUD + 9, 2, '#e0f4ff', 'center');
+  }
+  if (paused) { panel(120, 110, 160, 50); text('PAUSED', W/2, 120, 3, '#3cf', 'center'); text('PRESS START TO RESUME', W/2, 145, 1, '#a8c0d0', 'center'); }
+  if (state === 'over') {
+    panel(100, 100, 200, 74);
+    text('GAME OVER', W/2, 110, 3, '#ff4a3a', 'center');
+    text('SCORE ' + G.score + '   ROBOTS ' + Math.max(0, G.gen - (G.robot ? 1 : 0) - START_GEN + 1), W/2, 136, 1, '#e0f4ff', 'center');
+    if (overT > 1.2 && ((overT*2) | 0) % 2) text('PRESS START', W/2, 154, 2, '#fff', 'center');
+  }
+}
+
+/* ---------------- loop ---------------- */
+/* Fixed 60 Hz simulation, decoupled from the display's refresh rate, so a
+   144 Hz monitor doesn't make the robots faster. Button presses are latched
+   until a simulation step has seen them. */
+let last = performance.now(), acc = 0;
+function frame(now) {
+  const dt = Math.min(0.25, Math.max(0, (now - last) / 1000)); last = now;
+  pollInput();
+  acc += dt;
+  let n = 0;
+  while (acc >= STEP && n < 8) {
+    update(STEP); acc -= STEP; n++;
+    for (const b of BTN) pressed[b] = false;
+  }
+  if (n >= 8) acc = 0;
+  render();
+  requestAnimationFrame(frame);
+}
+document.addEventListener('visibilitychange', () => { if (document.hidden && state === 'play') paused = true; });
+if (DEMO) {
+  newGame();
+  /* ?demo&warp=N runs N simulation steps up front -- headless browsers barely
+     tick requestAnimationFrame, and this lets a screenshot show real play. */
+  const warp = Math.min(60*600, parseInt(Q.get('warp')) || 0);
+  for (let i = 0; i < warp; i++) update(STEP);
+}
+requestAnimationFrame(frame);
+</script>

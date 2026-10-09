@@ -46,6 +46,7 @@
     .card b { display: block; font-size: 15px; font-weight: 700; margin: 2px 0 6px; }
     .card:hover b { text-decoration: underline; }
     .card .blurb { display: block; font-size: 14px; line-height: 1.45; color: var(--muted); }
+    .card .wip { display: inline-block; margin-left: 8px; padding: 1px 7px; font-size: 11px; font-weight: 700; letter-spacing: .02em; vertical-align: 1px; background: var(--yellow); border: 1.5px solid var(--ink); border-radius: 3px; }
 
     footer a { color: inherit; }
     footer { margin-top: 64px; padding-top: 16px; border-top: 1px solid var(--rule); font-size: 13px; color: #6b6b6b; }
@@ -115,16 +116,6 @@
             </svg>
           </span>
           <span><b>Marginalia</b><span class="blurb">A reading-and-writing studio: read and annotate five source documents, and think in the margin.</span></span>
-        </a>
-        <a class="card" href="dragonkeep/index.html">
-          <span class="tile"><!-- nested frames: a corridor in one-point perspective -->
-            <svg viewBox="0 0 64 64" aria-hidden="true">
-              <rect class="ic" x="6" y="9" width="52" height="46" rx="2" fill="none"/>
-              <rect class="ic" x="23" y="24" width="18" height="16" rx="1" style="fill:var(--pink)"/>
-              <path class="ic-thin" d="M6 9 23 24 M58 9 41 24 M6 55 23 40 M58 55 41 40"/>
-            </svg>
-          </span>
-          <span><b>Dragonkeep</b><span class="blurb">Draw a dungeon floor plan and walk through it. Volume, surface area, and a dragon you win by not killing.</span></span>
         </a>
         <a class="card" href="telefone/index.html">
           <span class="tile"><!-- the message shrinking each round -->
@@ -235,6 +226,56 @@
       </div>
     </section>
 
+    <section class="sec" id="games">
+      <h2>Retro Educational Games</h2>
+      <div class="cards">
+        <a class="card" href="dragonkeep/index.html">
+          <span class="tile"><!-- nested frames: a corridor in one-point perspective -->
+            <svg viewBox="0 0 64 64" aria-hidden="true">
+              <rect class="ic" x="6" y="9" width="52" height="46" rx="2" fill="none"/>
+              <rect class="ic" x="23" y="24" width="18" height="16" rx="1" style="fill:var(--pink)"/>
+              <path class="ic-thin" d="M6 9 23 24 M58 9 41 24 M6 55 23 40 M58 55 41 40"/>
+            </svg>
+          </span>
+          <span><b>Dragonkeep</b><span class="blurb">Draw a dungeon floor plan and walk through it. Volume, surface area, and a dragon you win by not killing.</span></span>
+        </a>
+        <a class="card" href="haunt/">
+          <span class="tile"><!-- a ghost -->
+            <svg viewBox="0 0 64 64" aria-hidden="true">
+              <path d="M12 58 V30 C12 17 21 8 32 8 C43 8 52 17 52 30 V58 L45 51 L38.5 58 L32 51 L25.5 58 L19 51 Z" style="fill:var(--purple)" class="ic"/>
+              <ellipse cx="24" cy="29" rx="5" ry="6" fill="#fff" class="ic-thin"/>
+              <ellipse cx="40" cy="29" rx="5" ry="6" fill="#fff" class="ic-thin"/>
+              <circle cx="25.5" cy="30" r="2" fill="var(--ink)"/>
+              <circle cx="41.5" cy="30" r="2" fill="var(--ink)"/>
+            </svg>
+          </span>
+          <span><b>Haunt <span class="wip">Under construction</span></b><span class="blurb">You are the ghosts. The computer plays the hero; you switch among four ghosts to corner him before he clears the maze.</span></span>
+        </a>
+        <a class="card" href="chomp-and-spell/">
+          <span class="tile"><!-- a chomper about to eat a letter tile -->
+            <svg viewBox="0 0 64 64" aria-hidden="true">
+              <path d="M22 32 L37.6 23 A18 18 0 1 0 37.6 41 Z" style="fill:var(--yellow)" class="ic"/>
+              <rect x="42" y="22" width="18" height="20" rx="3" fill="#fff" class="ic"/>
+              <path d="M46.5 37 L51 26 L55.5 37 M48 33.5 H54" fill="none" class="ic-thin"/>
+            </svg>
+          </span>
+          <span><b>Chomp &amp; Spell <span class="wip">Under construction</span></b><span class="blurb">Eat the letters, then spell the words. A maze chase that ends in a Scrabble-scored spelling round.</span></span>
+        </a>
+        <a class="card" href="circuit-breaker/">
+          <span class="tile"><!-- a circle of light in a dark maze -->
+            <svg viewBox="0 0 64 64" aria-hidden="true">
+              <rect x="6" y="6" width="52" height="52" rx="4" fill="var(--ink)" class="ic"/>
+              <circle cx="38" cy="38" r="14" style="fill:var(--teal)" class="ic-thin"/>
+              <path d="M24 38 H52 M38 24 V52" stroke="var(--ink)" stroke-width="2.5"/>
+              <circle cx="18" cy="18" r="2.2" fill="#ff5a4e"/>
+              <circle cx="24" cy="18" r="2.2" fill="#ff5a4e"/>
+            </svg>
+          </span>
+          <span><b>Circuit Breaker <span class="wip">Under construction</span></b><span class="blurb">Lights out. Robots in the maze. Six bullets. Survive one endless night by the light you carry.</span></span>
+        </a>
+      </div>
+    </section>
+
     <section class="sec" id="utilities">
       <h2>Utilities</h2>
       <div class="cards">
@@ -288,7 +329,7 @@
     if (window.top !== window.self) {
       document.querySelectorAll('a.card, footer a').forEach(a => { a.target = '_blank'; a.rel = 'noopener'; });
     }
-    // ?section=talks|teaching|utilities|research shows just that section, for one-section pages.
+    // ?section=talks|teaching|games|utilities|research shows just that section, for one-section pages.
     const only = new URLSearchParams(location.search).get('section');
     if (only && document.getElementById(only)) {
       document.querySelector('.intro').hidden = true;

@@ -43,8 +43,21 @@ Watch the principal-vs-interest split on a monthly mortgage payment over the ful
 ### 📐 [Pell Explorer](../../Ohio-Journal-Summer-2026/Apps/pell-explorer/index.html)
 Explore the mathematics of Pell’s equation and its solutions, inspired by the work of Indian mathematicians. Visualize integer solutions and patterns interactively.
 
+---
+
+## Retro Educational Games
+
 ### 🐉 [Dragonkeep](https://ohiomathteacher.github.io/applet-library/dragonkeep/)
 Draw a dungeon floor plan and it becomes a prism you can walk through. The editor measures area, perimeter, volume and surface area live; the dragon is won by walling it in rather than killing it, which makes "is this level winnable?" a minimum cut.
+
+### 👻 [Haunt](https://ohiomathteacher.github.io/applet-library/haunt/)
+*Under construction.* You are the ghosts. The computer plays the hero; you steer one ghost at a time and switch among all four. Only the ghost you are steering is fast enough to catch him, so the other three can only herd. Built for an NES-style controller; the keyboard works too.
+
+### 🔤 [Chomp & Spell](https://ohiomathteacher.github.io/applet-library/chomp-and-spell/)
+*Under construction.* Eat the letters, then spell the words. Letters take the place of power pellets, and each cleared maze ends in a spelling round scored by Scrabble letter values. The word list is filtered for the classroom.
+
+### 🔦 [Circuit Breaker](https://ohiomathteacher.github.io/applet-library/circuit-breaker/)
+*Under construction.* Lights out. Robots in the maze. Six bullets. You see only what your light reaches; find the gun, shoot what hunts you, and survive one endless, escalating night.
 
 ---
 

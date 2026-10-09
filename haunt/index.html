@@ -26,14 +26,16 @@
 
 // ---------------------------------------------------------------- tuning
 // speeds are fractions of BASE_SPEED (tiles per second). The whole game hangs
-// on the ordering ACTIVE > PAC > AUTO: only the ghost you steer can close the
-// gap, so the other three are useful only as walls that Pac-Man is afraid of.
+// on the ordering ACTIVE > PAC > AUTO: only the ghost you steer can run him
+// down from behind. Any ghost that touches him catches him, so the slower
+// autopilot ghosts matter as the other jaw of a trap: a dead end, a pincer,
+// the last few dots they sit on.
 const BASE_SPEED          = 7.5;
 const ACTIVE_SPEED        = 1.00;
-const PAC_SPEED           = 0.90;
-const AUTO_SPEED          = 0.80;
+const PAC_SPEED           = 0.86;
+const AUTO_SPEED          = 0.78;
 const PAC_SPEED_PER_LEVEL = 0.02;   // Pac-Man creeps toward your speed...
-const PAC_SPEED_MAX       = 0.98;
+const PAC_SPEED_MAX       = 0.96;   // ...but never reaches it, so SOLO stays winnable
 const AUTO_SPEED_PER_LEVEL= 0.02;   // ...while your herders get lazier
 const AUTO_SPEED_MIN      = 0.62;
 const FRIGHT_ACTIVE_SPEED = 0.60;
@@ -52,6 +54,10 @@ const CATCH_BASE          = 200;    // catch score = (base + per-dot * dots left
 const CATCH_PER_DOT       = 5;
 const GHOST_EATEN_PENALTY = 100;
 const CATCH_RADIUS        = 0.7;    // tiles between centres
+const TRAP_BONUS          = 1.5;    // a catch by an autopilot ghost (TRAPPED!) pays more
+// how many ghosts you play with: fewer is harder, and pays more per catch
+const MODES = {4: {name: 'EASY', mult: 1}, 3: {name: 'NORMAL', mult: 1.5},
+               2: {name: 'HARD', mult: 2}, 1: {name: 'SOLO', mult: 3}};
 
 // Pac-Man's brain. He scores each way he could go and takes the best.
 const PAC_LOOKAHEAD       = 18;     // tiles of breadth-first look-ahead
@@ -66,6 +72,14 @@ const PAC_PANIC_DIST      = 8;      // ghost this close (path tiles) sends him f
 const PAC_W_HUNT          = 3.0;
 const PAC_REVERSE_PENALTY = 0.25;   // damps dithering back and forth
 const PAC_NOISE           = 0.08;
+// he gets cleverer level by level. At level 1 he only counts open corridor
+// near him; by PAC_SMART_LEVELS he floods outward only through tiles he can
+// reach before every ghost, so a corridor with ghosts closing on both ends
+// (a pincer) or a dead end with a ghost at the mouth scores as the trap it is.
+const PAC_SMART_LEVELS    = 7;
+const PAC_SAFE_MARGIN     = 0.35;   // seconds of lead he wants on a tile, when fully smart
+const PAC_W_TRAP          = 8.0;    // penalty for heading into a pocket with no way out
+const PAC_TRAP_ROOM       = 14;     // safe tiles below this count as a pocket
 
 // ---------------------------------------------------------------- maze
 // the left half is written out and mirrored, which keeps the maze symmetric
@@ -156,26 +170,42 @@ const homeField = bfs(HOME_TILE.x, HOME_TILE.y, true).dist;
 const params = new URLSearchParams(location.search);
 const DEMO = params.has('demo');
 const SIM_SPEED = Math.max(1, Math.min(20, +params.get('speed') || 1));
+// ?seed=N makes a demo run repeatable, for comparing tuning changes
+let seed = (+params.get('seed') || 0) >>> 0;
+const rng = seed ? () => { seed = (seed + 0x6D2B79F5) >>> 0; let t = seed;
+  t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+  return ((t ^ (t >>> 14)) >>> 0) / 4294967296; } : Math.random;
 
 const cv = document.getElementById('c');
 const ctx = cv.getContext('2d');
 
 let state = 'title';      // title ready play paused caught cleared gameover
 let stateT = 0;           // seconds spent in the current state
+let stateN = 0;           // bumps on every state change, so music can tell re-entries apart
 let score = 0, hiScore = 0, level = 1, lives = START_LIVES, catches = 0;
+let numGhosts = 4;        // 4 EASY, 3 NORMAL, 2 HARD, 1 SOLO
+let lastCatch = '';       // 'GOTCHA' (your ghost) or 'TRAPPED' (an autopilot ghost)
 let dots, dotsLeft, dotsTotal;
 let pac, ghosts, active = 0;
 let frightT = 0, hitstop = 0;
 let popups = [];
 let padNote = 0, padName = '';
 let demoSwitchT = 0;
-const stats = {catches: 0, clears: 0, ghostsEaten: 0, games: 0};
-try { hiScore = +localStorage.getItem('haunt-hi') || 0; } catch (e) {}
+const stats = {catches: 0, traps: 0, clears: 0, ghostsEaten: 0, games: 0};
+function store(k, v) { try { if (v === undefined) return localStorage.getItem(k); localStorage.setItem(k, v); } catch (e) {} return null; }
+// v0.1 kept one high score, from games that all had four ghosts
+if (store('haunt-hi') && !store('haunt-hi-4')) store('haunt-hi-4', store('haunt-hi'));
+function loadMode(n) {
+  numGhosts = MODES[n] ? n : 4;
+  hiScore = +store('haunt-hi-' + numGhosts) || 0;
+}
+loadMode(+params.get('ghosts') || +store('haunt-ghosts') || 4);
 
 function levelPacSpeed()  { return Math.min(PAC_SPEED_MAX, PAC_SPEED + PAC_SPEED_PER_LEVEL * (level - 1)); }
 function levelAutoSpeed() { return Math.max(AUTO_SPEED_MIN, AUTO_SPEED - AUTO_SPEED_PER_LEVEL * (level - 1)); }
 function levelFright()    { return Math.max(FRIGHT_TIME_MIN, FRIGHT_TIME - FRIGHT_TIME_PER_LEVEL * (level - 1)); }
-function catchValue()     { return (CATCH_BASE + CATCH_PER_DOT * dotsLeft) * level; }
+function catchValue()     { return Math.round((CATCH_BASE + CATCH_PER_DOT * dotsLeft) * level * MODES[numGhosts].mult); }
+function pacSmart()       { return Math.min(1, (level - 1) / PAC_SMART_LEVELS); }
 
 function freshDots() {
   dots = new Uint8Array(COLS * ROWS);
@@ -222,7 +252,7 @@ function advance(a, dist, decide, onTile) {
 
 function resetActors() {
   pac = makeActor(PAC_START.x, PAC_START.y, 1);
-  ghosts = GHOST_START.map((s, i) => {
+  ghosts = GHOST_START.slice(0, numGhosts).map((s, i) => {
     const g = makeActor(s.x, s.y, 1);
     g.id = i;
     g.state = i === 0 ? 'out' : 'house';
@@ -243,7 +273,7 @@ function startLevel() {
   resetActors();
   setState('ready');
 }
-function setState(s) { state = s; stateT = 0; }
+function setState(s) { state = s; stateT = 0; stateN++; }
 
 // ---------------------------------------------------------------- ghost brains
 function ghostSpeed(g) {
@@ -303,7 +333,7 @@ function ghostDecide(g) {
   }
   if (!opts.length) return g.dir >= 0 && openFor(g.tx + DX[opp(g.dir)], g.ty + DY[opp(g.dir)], false) ? opp(g.dir) : -1;
   if (opts.length === 1) return opts[0];
-  if (g.fright) return opts[(Math.random() * opts.length) | 0];
+  if (g.fright) return opts[(rng() * opts.length) | 0];
   const t = ghostTarget(g);
   let best = opts[0], bv = 1e9;
   for (const d of opts) {
@@ -352,6 +382,8 @@ function pacDecide(a) {
   for (let d = 0; d < 4; d++) if (openFor(cx + DX[d], cy + DY[d], false)) opts.push(d);
   if (!opts.length) return -1;
   const vp = pacSpeed() * BASE_SPEED;
+  const smart = pacSmart();
+  const margin = PAC_SAFE_MARGIN * smart;
   const threats = [], prey = new Set();
   for (const g of ghosts) {
     if (g.state !== 'out') continue;
@@ -361,6 +393,11 @@ function pacDecide(a) {
       threats.push({dist: bfs(t.x, t.y, false).dist, v: ghostSpeed(g) * BASE_SPEED,
                     w: g.id === active ? PAC_ACTIVE_FEAR : 1});
     }
+  }
+  // when the nearest ghost could get to each tile
+  const ghostT = new Float32Array(COLS * ROWS).fill(Infinity);
+  for (const t of threats) for (let k = 0; k < ghostT.length; k++) {
+    const gd = t.dist[k]; if (gd >= 0 && gd / t.v < ghostT[k]) ghostT[k] = gd / t.v;
   }
   let near = 99;
   for (const t of threats) { const d = t.dist[idx(cx, cy)]; if (d >= 0 && d < near) near = d; }
@@ -374,20 +411,43 @@ function pacDecide(a) {
     let room = 0, food = -1, pellet = -1, preyD = -1;
     for (const k of order) {
       const dp = dist[k];
-      let gt = Infinity;
-      for (const t of threats) { const gd = t.dist[k]; if (gd >= 0 && gd / t.v < gt) gt = gd / t.v; }
-      if ((dp + 1) / vp < gt) room++;
+      if ((dp + 1) / vp < ghostT[k]) room++;
       if (food < 0 && dots[k] === 1) food = dp;
       if (pellet < 0 && dots[k] === 2) pellet = dp;
       if (preyD < 0 && prey.has(k)) preyD = dp;
     }
-    let s = -PAC_W_DANGER * danger + PAC_W_ROOM * Math.min(1, room / PAC_ROOM_NORM);
+    // the clever part: flood out only through tiles he would reach first with
+    // some lead. Tiles beyond a ghost-held choke point don't count, so a
+    // corridor being closed from both ends comes out small.
+    let safe = room;
+    if (smart > 0) {
+      safe = 0;
+      const seen = new Uint8Array(COLS * ROWS);
+      seen[idx(cx, cy)] = 1;
+      const q = [];
+      if ((1) / vp + margin < ghostT[nk]) { q.push(nk, 1); seen[nk] = 1; }
+      for (let h = 0; h < q.length && safe < PAC_ROOM_NORM; h += 2) {
+        const k = q[h], dp = q[h + 1], x = k % COLS, y = (k / COLS) | 0;
+        safe++;
+        for (let i = 0; i < 4; i++) {
+          const mx = wrapX(x + DX[i]), my = y + DY[i];
+          if (!openFor(mx, my, false)) continue;
+          const m = idx(mx, my);
+          if (seen[m]) continue;
+          seen[m] = 1;
+          if ((dp + 1) / vp + margin < ghostT[m]) q.push(m, dp + 1);
+        }
+      }
+      safe = smart * safe + (1 - smart) * room;
+    }
+    let s = -PAC_W_DANGER * danger + PAC_W_ROOM * Math.min(1, safe / PAC_ROOM_NORM);
+    if (smart > 0 && safe < PAC_TRAP_ROOM && frightT <= 0) s -= PAC_W_TRAP * smart * (1 - safe / PAC_TRAP_ROOM);
     if (food >= 0) s += PAC_W_FOOD / (1 + food);
     else if (pellet >= 0) s += PAC_W_FOOD / (1 + pellet);
     if (near < PAC_PANIC_DIST && pellet >= 0 && frightT <= 0) s += PAC_W_PELLET / (1 + pellet);
     if (preyD >= 0 && frightT > preyD / vp + 0.5) s += PAC_W_HUNT / (1 + preyD);
     if (a.dir >= 0 && d === opp(a.dir)) s -= PAC_REVERSE_PENALTY;
-    s += Math.random() * PAC_NOISE;
+    s += rng() * PAC_NOISE * (1 - 0.5 * smart);
     if (s > bestS) { bestS = s; best = d; }
   }
   return best;
@@ -424,7 +484,7 @@ function update(dt) {
   if (state === 'caught' && stateT > 2) { level++; startLevel(); }
   if (state === 'cleared' && stateT > 2.5) {
     lives--;
-    if (lives <= 0) { saveHi(); setState('gameover'); }
+    if (lives <= 0) { saveHi(); log('gameover', {level, score}); setState('gameover'); }
     else startLevel();
   }
   if (state === 'gameover' && DEMO && stateT > 2) newGame();
@@ -473,20 +533,25 @@ function collide() {
       stats.ghostsEaten++;
       hitstop = 0.35;
       sfx.eaten();
-    } else if (g.id === active) {
-      const v = catchValue();
+    } else {
+      // any ghost catches him. Yours running him down is a GOTCHA; one of
+      // the slow autopilot ghosts closing the trap is a TRAPPED, worth more
+      // because it means you herded him into it
+      const trap = g.id !== active;
+      const v = trap ? Math.round(catchValue() * TRAP_BONUS) : catchValue();
       score += v; catches++;
-      popup(gp, '+' + v, '#ffff00');
-      stats.catches++; log('catch', {level, dotsLeft, score});
-      sfx.caught();
+      lastCatch = trap ? 'TRAPPED' : 'GOTCHA';
+      popup(gp, '+' + v, trap ? '#40ff80' : '#ffff00');
+      stats.catches++; if (trap) stats.traps++;
+      log('catch', {level, dotsLeft, score, by: lastCatch});
+      sfx.caught(trap);
       if (catches >= CATCHES_PER_LEVEL) { saveHi(); setState('caught'); return; }
     }
-    // an autopilot ghost brushing past him does nothing: only you can catch him
   }
 }
 function popup(p, text, color) { popups.push({x: p.x, y: p.y, text, color, t: 1.2}); }
 function saveHi() {
-  if (score > hiScore) { hiScore = score; try { localStorage.setItem('haunt-hi', hiScore); } catch (e) {} }
+  if (score > hiScore) { hiScore = score; if (!DEMO) store('haunt-hi-' + numGhosts, hiScore); }
 }
 function log(ev, data) { if (DEMO) console.log('HAUNT ' + ev + ' ' + JSON.stringify(Object.assign({}, data, stats))); }
 
@@ -507,12 +572,12 @@ function watchdog(dt) {
 function setActive(i, quiet) {
   const prev = ghosts[active];
   if (prev && prev.dir >= 0) prev.wantDir = prev.dir;
-  active = ((i % 4) + 4) % 4;
+  active = ((i % numGhosts) + numGhosts) % numGhosts;
   const g = ghosts[active];
   // a direction already held carries over, so you can switch mid-swerve
   const h = heldDir();
   g.wantDir = h >= 0 ? h : (g.dir >= 0 ? g.dir : g.wantDir);
-  if (!quiet) sfx.switchTo(active);
+  if (!quiet && numGhosts > 1) sfx.switchTo(active);
 }
 function selectNearest(quiet) {
   const f = pacField();
@@ -601,7 +666,7 @@ function pollInput() {
     if (presses.a) setActive(active + 1);
     if (presses.b) setActive(active - 1);
     if (presses.select) selectNearest();
-    for (const e of extraPress) { const m = /^ghost(\d)$/.exec(e); if (m) setActive(+m[1]); }
+    for (const e of extraPress) { const m = /^ghost(\d)$/.exec(e); if (m && +m[1] < numGhosts) setActive(+m[1]); }
     // a new press wins; otherwise a held direction keeps the buffer topped up
     let d = -1;
     for (let i = 0; i < 4; i++) if (presses[DIR_BTN[i]]) d = i;
@@ -850,7 +915,7 @@ function draw() {
   };
   const order = ghosts.filter(g => g.id !== active).concat([ghosts[active]]);
   const showPac = state !== 'caught' || ((animT * 8) | 0) % 2;
-  for (const g of order.slice(0, 3)) drawWrapped(bob(g), sp => drawGhost(g, sp, false));
+  for (const g of order.slice(0, -1)) drawWrapped(bob(g), sp => drawGhost(g, sp, false));
   if (showPac) drawWrapped(posOf(pac), sp => drawPac(sp, pac.dir, state === 'play' ? Math.abs(Math.sin(pac.moved * Math.PI)) : 0.5));
   const ag = ghosts[active];
   drawWrapped(bob(ag), sp => drawGhost(ag, sp, true));
@@ -862,7 +927,8 @@ function draw() {
   const cy = MAZE_Y + 13 * TILE + 3, cx = W / 2;
   if (state === 'ready') banner('READY!', '#ffff00', 'YOU ARE ' + GHOST_NAMES[active]);
   if (state === 'paused') banner('PAUSED', '#ffffff', 'PRESS START');
-  if (state === 'caught') banner('GOTCHA!', '#ffff00', 'LEVEL ' + (level + 1) + ' NEXT');
+  if (state === 'caught') banner(lastCatch + '!', lastCatch === 'TRAPPED' ? '#40ff80' : '#ffff00',
+    (lastCatch === 'TRAPPED' ? 'TEAM TRAP BONUS  ' : '') + 'LEVEL ' + (level + 1) + ' NEXT');
   if (state === 'cleared') banner('MAZE CLEARED', '#ff4040', lives > 1 ? 'YOU LOSE A LIFE' : 'LAST LIFE GONE');
   if (state === 'gameover') {
     ctx.fillStyle = 'rgba(0,0,0,0.75)'; ctx.fillRect(0, MAZE_Y + 8 * TILE, W, 12 * TILE);

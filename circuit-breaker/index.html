@@ -20,7 +20,7 @@
 <script>
 "use strict";
 /* Shown quietly in the footer; bump with each release. */
-const VERSION = 'v0.1';
+const VERSION = 'v0.2';
 
 /* ============================================================
    Circuit Breaker
@@ -124,48 +124,428 @@ function text(s, x, y, sc = 1, col = '#fff', align = 'left') {
 }
 
 /* ---------------- sound ---------------- */
-/* Browsers only allow audio after a user gesture, so the context is made on
-   the first key press. Sparse square-wave blips -- silence is part of the mood. */
-let actx = null, soundOn = true, noiseBuf = null;
+/* Everything you hear is synthesized right here -- square, triangle, saw and
+   noise, AY-chip style. No audio files, no network.
+   Browsers only allow audio after a user gesture, so the context is made (or
+   resumed) on the first key, click, touch or pad press. A pad press may not
+   count as a gesture in every browser; any key or click always does.
+
+   Signal flow:
+     effects ---------------------------> sfxBus --\
+     pause / game-over jingles ---------> uiBus ----+--> master -> limiter -> out
+     soundtrack notes --> seqBus --\                |
+          arpeggios -> echo ---/    +--> musicLP --/   (musicLP muffles the
+     electrical hum (always on) ---/                    music inside the bunker)
+     bat flutter (always on, level 0 until a bat is near) -> sfxBus
+
+   The hum, bat flutter and their wobblers are persistent oscillators, made
+   once and never stopped; their levels go to 0 when they shouldn't sound.
+   Every other note is a one-shot that stops itself. */
+const MASTER_VOL = 0.5;
+let actx = null, soundOn = true, noiseBuf = null, A = null;
 function ensureAudio() {
   try {
     if (!actx) {
       actx = new (window.AudioContext || window.webkitAudioContext)();
-      noiseBuf = actx.createBuffer(1, actx.sampleRate*0.5, actx.sampleRate);
-      const d = noiseBuf.getChannelData(0);
-      for (let i = 0; i < d.length; i++) d[i] = Math.random()*2 - 1;
+      buildAudio();
     }
-    if (actx.state === 'suspended') actx.resume();
-  } catch (e) { actx = null; }
+    if (actx.state === 'suspended' && !document.hidden) {
+      const pr = actx.resume(); if (pr && pr.catch) pr.catch(() => {});
+    }
+  } catch (e) { console.warn('audio', e); actx = null; A = null; }
 }
-function blip(freq, dur, type = 'square', vol = 0.06, slideTo = 0) {
-  if (!soundOn || !actx || actx.state !== 'running') return;
-  const t = actx.currentTime, o = actx.createOscillator(), g = actx.createGain();
-  o.type = type; o.frequency.setValueAtTime(freq, t);
-  if (slideTo) o.frequency.exponentialRampToValueAtTime(slideTo, t + dur);
-  g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-  o.connect(g).connect(actx.destination); o.start(t); o.stop(t + dur + 0.02);
+const audioLive = () => !!(A && actx && actx.state === 'running');
+function buildAudio() {
+  const c = actx;
+  noiseBuf = c.createBuffer(1, c.sampleRate, c.sampleRate);
+  const nd = noiseBuf.getChannelData(0);
+  for (let i = 0; i < nd.length; i++) nd[i] = Math.random()*2 - 1;
+  const gain = v => { const g = c.createGain(); g.gain.value = v; return g; };
+  const filt = (type, f, q = 0.7) => { const b = c.createBiquadFilter(); b.type = type; b.frequency.value = f; b.Q.value = q; return b; };
+  const osc = (type, f) => { const o = c.createOscillator(); o.type = type; o.frequency.value = f; return o; };
+  A = {last: {}};
+  // a gentle limiter so an explosion on top of the music never clips
+  const lim = c.createDynamicsCompressor();
+  lim.threshold.value = -14; lim.knee.value = 8; lim.ratio.value = 6; lim.attack.value = 0.003; lim.release.value = 0.2;
+  lim.connect(c.destination);
+  A.master = gain(soundOn ? MASTER_VOL : 0); A.master.connect(lim);
+  A.sfx = gain(0); A.sfx.connect(A.master);
+  A.ui = gain(1); A.ui.connect(A.master);
+  A.musLP = filt('lowpass', 16000); A.musLP.connect(A.master);
+  A.seq = gain(0); A.seq.connect(A.musLP);
+  // arpeggios get a dub echo: a delay feeding back into itself
+  A.arp = gain(1); A.arp.connect(A.seq);
+  A.echo = c.createDelay(1); A.echo.delayTime.value = 0.27;
+  const fb = gain(0.33), eo = gain(0.4);
+  A.arp.connect(A.echo); A.echo.connect(fb); fb.connect(A.echo); A.echo.connect(eo); eo.connect(A.seq);
+  // the blown-fuse hum: a 55 Hz saw and a slightly sharp 110 Hz square
+  // beating against each other, through a lowpass that drifts
+  A.hum = gain(0); A.hum.connect(A.musLP);
+  const hlp = filt('lowpass', 240, 3); hlp.connect(A.hum);
+  const h1 = osc('sawtooth', 55), h2 = osc('square', 110.7), h2g = gain(0.3);
+  h1.connect(hlp); h2.connect(h2g).connect(hlp);
+  const hl = osc('sine', 0.23), hlg = gain(70); hl.connect(hlg).connect(hlp.frequency);
+  // bat flutter: looping noise, bandpassed, chopped by a wing-beat LFO
+  const bsrc = c.createBufferSource(); bsrc.buffer = noiseBuf; bsrc.loop = true;
+  const bbp = filt('bandpass', 2400, 1.4);
+  A.batVca = gain(0); A.batDepth = gain(0);
+  A.batLfo = osc('square', 12);
+  bsrc.connect(bbp).connect(A.batVca).connect(A.sfx);
+  A.batLfo.connect(A.batDepth).connect(A.batVca.gain);
+  for (const o of [h1, h2, hl, A.batLfo]) o.start();
+  bsrc.start();
 }
-function noise(dur, vol = 0.1) {
-  if (!soundOn || !actx || actx.state !== 'running') return;
-  const t = actx.currentTime, s = actx.createBufferSource(), g = actx.createGain();
-  s.buffer = noiseBuf; g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-  s.connect(g).connect(actx.destination); s.start(t); s.stop(t + dur);
+/* Move a level smoothly; skips the call when nothing changed, so a value set
+   every frame doesn't pile events onto the parameter's timeline. */
+function lvl(k, param, v, tc = 0.05) {
+  const old = A.last[k];
+  if (old !== undefined && Math.abs(old - v) <= 1e-4*Math.max(1, Math.abs(v))) return;
+  A.last[k] = v; param.setTargetAtTime(v, actx.currentTime, tc);
 }
-const SFX = {
-  shoot:   () => { blip(880, 0.08, 'square', 0.05, 220); },
-  empty:   () => blip(120, 0.05, 'square', 0.04),
-  rshoot:  () => blip(300, 0.12, 'sawtooth', 0.05, 90),
-  hit:     () => { noise(0.12, 0.08); blip(200, 0.1, 'square', 0.04, 60); },
-  boom:    () => { noise(0.5, 0.18); blip(110, 0.5, 'sawtooth', 0.06, 30); },
-  stun:    () => { blip(1400, 0.25, 'square', 0.03, 300); },
-  pickup:  () => { blip(520, 0.06); setTimeout(() => blip(780, 0.08), 70); },
-  die:     () => { blip(600, 0.9, 'sawtooth', 0.07, 40); noise(0.6, 0.1); },
-  step:    v  => blip(70, 0.04, 'square', v),
-  spawn:   () => blip(60, 0.6, 'sawtooth', 0.05, 180),
-  door:    () => { noise(0.15, 0.1); blip(150, 0.15, 'square', 0.05, 80); },
-  life:    () => { [523, 659, 784, 1046].forEach((f, i) => setTimeout(() => blip(f, 0.08), i*80)); },
+const mtof = m => 440*Math.pow(2, (m - 69)/12);
+/* One note, at an absolute AudioContext time. */
+function tone(t, f, dur, o = {}) {
+  const os = actx.createOscillator(), g = actx.createGain();
+  const v = o.vol === undefined ? 0.05 : o.vol, a = Math.min(o.attack || 0.003, dur*0.5);
+  os.type = o.type || 'square';
+  os.frequency.setValueAtTime(f, t);
+  if (o.slide) os.frequency.exponentialRampToValueAtTime(o.slide, t + dur);
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(v, t + a);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  os.connect(g).connect(o.dest || A.sfx);
+  os.onended = () => g.disconnect();
+  os.start(t); os.stop(t + dur + 0.02);
+}
+/* A burst of filtered noise. */
+function hiss(t, dur, o = {}) {
+  const s = actx.createBufferSource(), g = actx.createGain();
+  s.buffer = noiseBuf; s.loop = true;
+  let out = s;
+  if (o.filt) {
+    const b = actx.createBiquadFilter(); b.type = o.filt; b.Q.value = o.q || 0.8;
+    b.frequency.setValueAtTime(o.f || 1000, t);
+    if (o.fTo) b.frequency.exponentialRampToValueAtTime(o.fTo, t + dur);
+    s.connect(b); out = b;
+  }
+  const v = o.vol === undefined ? 0.05 : o.vol;
+  g.gain.setValueAtTime(v, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  out.connect(g).connect(o.dest || A.sfx);
+  s.onended = () => g.disconnect();
+  s.start(t, Math.random()*0.8); s.stop(t + dur + 0.02);
+}
+/* Wrap an effect: silent when muted or locked, and a sound bug can never
+   take the game down with it. */
+const fx = fn => (...args) => {
+  if (!soundOn || !audioLive()) return;
+  try { fn(actx.currentTime + 0.005, ...args); } catch (e) { console.warn('audio', e); }
 };
+/* 0..1, how close something at (x, y) is to you, over `range` tiles. */
+function nearXY(x, y, range) {
+  if (!G || !G.p) return 0;
+  return Math.max(0, Math.min(1, 1 - Math.hypot(x - px(G.p), y - py(G.p))/T/range));
+}
+/* A different arrival sting for each robot colour. */
+const STINGS = {
+  GRAY:   ['sawtooth', [45, 52], 0.22],
+  BLUE:   ['square',   [57, 60, 64], 0.11],
+  WHITE:  ['triangle', [69, 72, 76, 81], 0.09],
+  RED:    ['square',   [69, 68, 69, 68, 69, 68], 0.07],
+  GOLD:   ['square',   [57, 64, 69, 73, 76], 0.08],
+  VIOLET: ['sawtooth', [60, 62, 64, 66, 68, 70], 0.07],
+  CYAN:   ['triangle', [84, 79, 88, 83, 91], 0.07],
+};
+const SFX = {
+  shoot:  fx(t => {
+    tone(t, 1300, 0.1, {vol: 0.05, slide: 170});
+    tone(t, 2600, 0.05, {type: 'triangle', vol: 0.025, slide: 700});
+    hiss(t, 0.035, {filt: 'highpass', f: 3000, vol: 0.04});
+  }),
+  empty:  fx(t => {     // dry click, then the hammer
+    hiss(t, 0.012, {filt: 'highpass', f: 4000, vol: 0.07}); tone(t, 1900, 0.012, {vol: 0.02});
+    hiss(t + 0.06, 0.01, {filt: 'highpass', f: 2500, vol: 0.04});
+  }),
+  wall:   fx((t, mine, v) => {
+    if (mine) { hiss(t, 0.06, {filt: 'bandpass', f: 2600, vol: 0.045}); tone(t, 340, 0.05, {vol: 0.02, slide: 120}); }
+    else hiss(t, 0.07, {filt: 'bandpass', f: 900, vol: 0.005 + 0.04*v});
+  }),
+  pickup: fx(t => {
+    hiss(t, 0.02, {filt: 'highpass', f: 3000, vol: 0.05});
+    [523, 784, 1046].forEach((f, i) => tone(t + 0.03 + i*0.06, f, 0.08, {vol: 0.045}));
+    tone(t + 0.21, 2093, 0.18, {type: 'triangle', vol: 0.03});
+  }),
+  rshoot: fx((t, v) => {
+    tone(t, 540, 0.17, {type: 'sawtooth', vol: 0.015 + 0.04*v, slide: 85});
+    tone(t, 270, 0.14, {vol: 0.01 + 0.02*v, slide: 70});
+  }),
+  rhit:   fx(t => {       // metal clang: two partials that don't agree
+    tone(t, 523, 0.18, {vol: 0.045, slide: 470});
+    tone(t, 1393, 0.24, {type: 'triangle', vol: 0.035});
+    hiss(t, 0.08, {filt: 'highpass', f: 2000, vol: 0.05});
+  }),
+  rkill:  fx(t => { [880, 660, 494, 370, 277, 208].forEach((f, i) => tone(t + i*0.045, f, 0.06, {vol: 0.03})); }),
+  hit:    fx(t => { hiss(t, 0.1, {filt: 'lowpass', f: 1400, vol: 0.07}); tone(t, 320, 0.1, {vol: 0.03, slide: 60}); }),
+  boom:   fx(t => {
+    hiss(t, 0.65, {filt: 'lowpass', f: 2200, fTo: 120, vol: 0.2});
+    tone(t, 110, 0.55, {type: 'sawtooth', vol: 0.06, slide: 28});
+    tone(t, 70, 0.6, {type: 'triangle', vol: 0.09, slide: 24});
+  }),
+  stun:   fx(t => { tone(t, 1400, 0.22, {vol: 0.03, slide: 300}); hiss(t, 0.05, {filt: 'highpass', f: 2500, vol: 0.03}); }),
+  die:    fx(t => {
+    tone(t, 600, 0.9, {type: 'sawtooth', vol: 0.06, slide: 40});
+    hiss(t, 0.6, {filt: 'lowpass', f: 3000, fTo: 200, vol: 0.09});
+    [64, 63, 62, 61].forEach((m, i) => tone(t + 0.5 + i*0.16, mtof(m), 0.15, {type: 'triangle', vol: 0.04}));
+  }),
+  respawn: fx(t => { tone(t, 220, 0.35, {type: 'triangle', vol: 0.035, slide: 880}); tone(t + 0.3, 1760, 0.12, {type: 'triangle', vol: 0.02}); }),
+  rstep:  fx((t, v, alt) => {   // heavy, metallic; louder as it nears
+    tone(t, alt ? 78 : 66, 0.06, {vol: v});
+    hiss(t, 0.03, {filt: 'highpass', f: 2200, vol: v*0.5});
+  }),
+  foot:   fx((t, alt) => {    // your own steps: soft, alternating
+    hiss(t, 0.025, {filt: 'lowpass', f: alt ? 900 : 650, vol: 0.03});
+    tone(t, alt ? 150 : 128, 0.03, {type: 'triangle', vol: 0.018});
+  }),
+  spawn:  fx((t, gen, name) => {
+    // the robot materialising, then its own call
+    tone(t, 60, 0.7, {type: 'sawtooth', vol: 0.04, slide: 180});
+    const [wave, notes, len] = STINGS[name] || STINGS.GRAY;
+    const up = gen > 7 ? 2*Math.floor((gen - 5)/3) : 0;   // later laps of the colours sit higher
+    notes.forEach((m, i) => tone(t + 0.15 + i*len, mtof(m + up), len*0.95, {type: wave, vol: 0.045}));
+  }),
+  door:   fx(t => {
+    hiss(t, 0.16, {filt: 'bandpass', f: 1500, vol: 0.09});
+    tone(t, 150, 0.15, {vol: 0.05, slide: 80});
+    tone(t, 2200, 0.07, {type: 'sawtooth', vol: 0.015, slide: 400});
+  }),
+  breach: fx(t => {
+    hiss(t, 0.8, {filt: 'lowpass', f: 2500, fTo: 100, vol: 0.2});
+    tone(t, 70, 0.7, {type: 'triangle', vol: 0.09, slide: 24});
+    for (let i = 0; i < 10; i++) tone(t + 0.2 + i*0.17, i % 2 ? 660 : 880, 0.15, {vol: 0.035});
+  }),
+  bunkerIn:  fx(t => { tone(t, 220, 0.2, {type: 'triangle', vol: 0.03, slide: 440}); hiss(t, 0.15, {filt: 'bandpass', f: 600, fTo: 1800, vol: 0.02}); }),
+  bunkerOut: fx(t => { tone(t, 440, 0.2, {type: 'triangle', vol: 0.03, slide: 220}); hiss(t, 0.15, {filt: 'bandpass', f: 1800, fTo: 600, vol: 0.02}); }),
+  life:   fx(t => {
+    [72, 76, 79, 84, 88].forEach((m, i) => {
+      tone(t + i*0.07, mtof(m), 0.09, {vol: 0.04});
+      tone(t + i*0.07, mtof(m - 12), 0.09, {type: 'triangle', vol: 0.03});
+    });
+  }),
+  gameover: fx(t => {
+    [69, 68, 67, 66].forEach((m, i) => {
+      tone(t + i*0.34, mtof(m), 0.3, {vol: 0.04, dest: A.ui});
+      tone(t + i*0.34, mtof(m - 24), 0.3, {type: 'triangle', vol: 0.06, dest: A.ui});
+    });
+    tone(t + 1.36, mtof(57), 1.4, {vol: 0.035, dest: A.ui});
+    tone(t + 1.36, mtof(33), 1.6, {type: 'triangle', vol: 0.08, dest: A.ui});
+  }),
+  flicker: fx(t => {
+    const n = 3 + (Math.random()*4 | 0);
+    for (let i = 0; i < n; i++) hiss(t + Math.random()*0.12, 0.01 + Math.random()*0.015, {filt: 'highpass', f: 2500, vol: 0.012 + Math.random()*0.02});
+  }),
+  glint:  fx((t, v) => { tone(t, 2637, 0.12, {type: 'triangle', vol: v}); tone(t + 0.06, 3951, 0.1, {type: 'triangle', vol: v*0.6}); }),
+  skitter: fx((t, v) => hiss(t, 0.012, {filt: 'highpass', f: 4500 + Math.random()*2000, vol: v})),
+  pause:  fx((t, on) => tone(t, on ? 300 : 600, 0.06, {vol: 0.05, dest: A.ui})),
+};
+function setSound(on) {
+  soundOn = on;
+  if (A) try { lvl('master', A.master.gain, on ? MASTER_VOL : 0, 0.03); } catch (e) {}
+}
+
+/* ---------------- music ---------------- */
+/* A lookahead sequencer: each frame, every sixteenth-note step that falls in
+   the next 0.12 s is scheduled on the AudioContext clock, so timing never
+   depends on when the frame happened to run.
+
+   Tempo comes from the robot itself: one eighth note per tile the robot
+   walks (steps per second = 2 x robot.speed), and up to 45% faster as it gets
+   close to you by maze path. A new tempo is taken only on a beat, and only
+   half-way at a time, so it surges rather than jumps. Each robot generation
+   adds layers: hats from BLUE, snare and a darker chord from WHITE, octave
+   bass and an alarm wail from RED, a rising siren and running arpeggios
+   from GOLD on. */
+const MUS = {mode: null, next: 0, step: 0, bar: 0, sps: 4.6, target: 4.6, gen: 1, prox: 0, breached: false};
+const PROG = [45, 45, 41, 40];           // A  A  F  E
+const PROG_DARK = [45, 46, 41, 40];      // A  Bb F  E  (WHITE on)
+const TITLE_PROG = [45, 43, 41, 40];     // A  G  F  E
+const QUAL = {45: [0, 3, 7], 46: [0, 4, 7], 43: [0, 4, 7], 41: [0, 4, 7], 40: [0, 4, 7]};
+const BASS = [0, 0, 12, 0, 0, 7, 12, 0];  // per eighth note, over the bar's root
+function thump(t, v) { tone(t, 115, 0.14, {type: 'triangle', vol: v, slide: 38, dest: A.seq}); }
+function arpHit(g, s, bar) {
+  if (g >= 5) return s % 2 === 1 || s === 0;
+  if (g >= 3) return [3, 6, 10, 11, 14].includes(s);
+  if (g >= 2) return s === 6 || s === 14 || (bar % 2 === 1 && s === 11);
+  return bar % 2 === 1 && (s === 6 || s === 14);     // GRAY: sparse and eerie
+}
+function playStep(t, s, bar) {
+  const d = 1/MUS.sps, sq = A.seq;
+  if (MUS.mode === 'title') {
+    const root = TITLE_PROG[bar % 4], ch = QUAL[root];
+    if (s === 0 || s === 8) tone(t, mtof(root - 12 + (s ? 7 : 0)), d*7, {type: 'triangle', vol: 0.08, dest: sq});
+    if (s === 0) thump(t, 0.07);
+    if (s % 2 === 0) {
+      const i = [0, 1, 2, 3, 2, 1, 0, 1][s >> 1];
+      tone(t, mtof(root + 24 + (i === 3 ? 12 : ch[i])), d*1.8, {vol: 0.02, dest: A.arp});
+    }
+    if (bar % 4 === 3 && s === 12) tone(t, mtof(88), d*6, {type: 'triangle', vol: 0.02, dest: A.arp});
+    return;
+  }
+  const g = MUS.gen, prox = MUS.prox;
+  const root = (g >= 3 ? PROG_DARK : PROG)[bar % 4], ch = QUAL[root];
+  // heartbeat: lub-dub twice a bar, racing when the tempo does
+  if (s === 0 || s === 8) thump(t, 0.09 + 0.04*prox);
+  if (s === 2 || s === 10) thump(t, 0.055 + 0.03*prox);
+  // the pulsing bass ostinato
+  if (s % 2 === 0) {
+    const m = root + BASS[s >> 1];
+    tone(t, mtof(m), d*1.6, {type: 'triangle', vol: 0.075, dest: sq});
+    if (g >= 4) tone(t, mtof(m - 12), d*1.2, {vol: 0.016, dest: sq});
+  } else if (g >= 3 && (s === 7 || s === 15)) tone(t, mtof(root + 12), d*0.8, {type: 'triangle', vol: 0.03, dest: sq});
+  if (g >= 2 && s % 4 === 2) hiss(t, 0.03, {filt: 'highpass', f: 7000, vol: 0.02, dest: sq});
+  if (g >= 4 && s % 2 === 1) hiss(t, 0.02, {filt: 'highpass', f: 8000, vol: 0.011, dest: sq});
+  if (g >= 3 && (s === 4 || s === 12)) hiss(t, 0.09, {filt: 'bandpass', f: 1800, vol: 0.035, dest: sq});
+  if (arpHit(g, s, bar)) {
+    const m = root + 24 + ch[(s + bar) % 3] + (g >= 5 && s % 4 === 3 ? 12 : 0);
+    tone(t, mtof(m), d*1.2, {vol: 0.022, dest: A.arp});
+  }
+  if (g >= 4 && s === 0 && bar % 2 === 0) {   // RED and up: an alarm wail
+    tone(t, mtof(root + 24), d*2, {vol: 0.018, dest: sq});
+    tone(t + d*2, mtof(root + 25), d*2, {vol: 0.018, dest: sq});
+  }
+  if (g >= 5 && s === 0 && bar % 2 === 1)      // GOLD and up: a slow rising siren
+    tone(t, mtof(root + 12), d*16, {type: 'sawtooth', vol: 0.012, slide: mtof(root + 24), attack: d*4, dest: sq});
+  if (MUS.breached && s === 8) {              // the bunker alarm never quite stops
+    tone(t, 880, d*1.5, {vol: 0.011, dest: sq}); tone(t + d*2, 660, d*1.5, {vol: 0.011, dest: sq});
+  }
+  if (prox > 0.55 && s % 2 === 0)              // it's right behind you
+    tone(t, 1760, 0.03, {vol: 0.004 + 0.02*(prox - 0.55)/0.45, dest: sq});
+}
+function scheduleMusic() {
+  const now = actx.currentTime;
+  if (MUS.next < now) MUS.next = now + 0.03;    // first run, or the page stalled
+  while (MUS.next < now + 0.12) {
+    if (MUS.step % 4 === 0) MUS.sps += (MUS.target - MUS.sps)*0.5;
+    playStep(MUS.next, MUS.step, MUS.bar);
+    MUS.next += 1/MUS.sps;
+    if (++MUS.step === 16) { MUS.step = 0; MUS.bar++; }
+  }
+}
+
+/* ---------------- what should be sounding right now ---------------- */
+/* Called once per drawn frame. Reads the game state and sets every loop's
+   level, starts or stops the music, and fires the sounds that come from a
+   change of state rather than an event in the game code. */
+const au = {prevState: null, prevDying: 0, inB: null, foot: -1, glint: -1, skit: 0, flick: false,
+  lastFlick: 0, stun: null, path: null, pathKey: '', rstep: 0};
+function robotProximity(r) {
+  const pt = tileOf(G.p), k = pt.x + ',' + pt.y;
+  if (k !== au.pathKey) { au.pathKey = k; au.path = bfs(pt.x, pt.y, 'player'); }
+  const rt = tileOf(r), i = rt.x + rt.y*COLS;
+  let d = i >= 0 && i < au.path.length ? au.path[i] : -1;
+  if (d < 0) d = dist(r, G.p)/T;
+  return Math.max(0, Math.min(1, 1 - (d - 1)/13));
+}
+function startWarble() {     // dizzy: a square whose pitch wobbles on two LFOs
+  const c = actx, t = c.currentTime;
+  const o = c.createOscillator(), l1 = c.createOscillator(), l2 = c.createOscillator();
+  const d1 = c.createGain(), d2 = c.createGain(), g = c.createGain();
+  o.type = 'square'; o.frequency.value = 760;
+  l1.frequency.value = 9; d1.gain.value = 220;
+  l2.frequency.value = 0.8; d2.gain.value = 260;
+  l1.connect(d1).connect(o.frequency); l2.connect(d2).connect(o.frequency);
+  g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.022, t + 0.05);
+  o.connect(g).connect(A.sfx);
+  o.onended = () => g.disconnect();
+  for (const n of [o, l1, l2]) n.start(t);
+  return {g, nodes: [o, l1, l2]};
+}
+function stopLoop(L) {
+  try {
+    const t = actx.currentTime;
+    L.g.gain.cancelScheduledValues(t); L.g.gain.setTargetAtTime(0, t, 0.02);
+    for (const n of L.nodes) n.stop(t + 0.15);
+  } catch (e) {}
+}
+function audioFrame(dt) {
+  if (!A) return;
+  try {
+    const live = actx.state === 'running';
+    const playing = state === 'play' && !paused && !document.hidden;
+    const p = G && G.p, alive = playing && p.dying <= 0;
+    if (state === 'over' && au.prevState === 'play') SFX.gameover();
+    if (state === 'play' && au.prevState === 'play' && au.prevDying > 0 && p.dying <= 0) SFX.respawn();
+    au.prevState = state; au.prevDying = p ? p.dying : 0;
+
+    // buses: effects only while playing; the hum through play and the title
+    lvl('sfx', A.sfx.gain, playing ? 1 : 0, 0.02);
+    lvl('hum', A.hum.gain, state === 'title' ? 0.03 : playing ? 0.055 : 0, 0.08);
+
+    // music
+    const mode = state === 'title' ? 'title' : alive ? 'play' : null;
+    if (G && state === 'play') {
+      const r = G.robot;
+      const speed = r ? r.speed : robotStats(Math.max(1, G.gen)).speed;
+      const prox = r && r.spawnT <= 0 && alive ? robotProximity(r) : 0;
+      MUS.prox += (prox - MUS.prox)*Math.min(1, dt*4);
+      MUS.target = 2*speed*(1 + 0.45*MUS.prox);
+      MUS.gen = Math.max(1, G.gen); MUS.breached = G.breached;
+    } else MUS.target = 4.8;
+    if (mode !== MUS.mode) {
+      if (mode) { MUS.step = 0; MUS.bar = 0; MUS.next = 0; if (!MUS.mode || mode === 'title') MUS.sps = MUS.target; }
+      MUS.mode = mode;
+    }
+    lvl('seq', A.seq.gain, mode ? 1 : 0, mode ? 0.05 : 0.03);
+    if (mode && live && soundOn) scheduleMusic();
+
+    // the bunker: a whoosh in or out, and the music goes muffled inside
+    const inB = alive && playerInBunker();
+    lvl('lp', A.musLP.frequency, inB ? 650 : 16000, 0.12);
+    if (alive) { if (au.inB !== null && inB !== au.inB) (inB ? SFX.bunkerIn : SFX.bunkerOut)(); au.inB = inB; }
+    else au.inB = null;
+
+    // your footsteps
+    if (alive && p.stun <= 0 && p.dir >= 0) {
+      const i = Math.floor(p.anim*4);
+      if (au.foot >= 0 && i !== au.foot) SFX.foot(i % 2);
+      au.foot = i;
+    } else au.foot = -1;
+
+    // bat flutter: the persistent loop, opened up as the nearest bat closes in
+    let bl = 0;
+    if (alive) for (const b of G.bats) bl = Math.max(bl, 1 - dist(b, p)/T/7);
+    bl = Math.round(bl*100)/100;
+    lvl('batA', A.batVca.gain, bl*0.03, 0.04); lvl('batB', A.batDepth.gain, bl*0.03, 0.04);
+    lvl('batF', A.batLfo.frequency, 11 + 5*bl, 0.1);
+
+    // spider skitter
+    let sk = 0;
+    if (alive) for (const s of G.spiders) if (s.dir >= 0) sk = Math.max(sk, 1 - dist(s, p)/T/8);
+    if (sk > 0 && (au.skit -= dt) <= 0) { au.skit = 0.045 + Math.random()*0.06; SFX.skitter(0.008 + 0.03*sk); }
+
+    // the gun glints (in sync with the white sparkle on screen)
+    if (alive && G.gun.active) {
+      const ph = G.time % 1.6;
+      if (au.glint >= 0 && ph < au.glint) SFX.glint(0.006 + 0.02*nearXY(G.gun.x*T + 8, G.gun.y*T + 8, 20));
+      au.glint = ph;
+    } else au.glint = -1;
+
+    // the light flickered (drawWorld raised the flag)
+    if (au.flick && alive && G.time - au.lastFlick > 0.3) { SFX.flicker(); au.lastFlick = G.time; }
+    au.flick = false;
+
+    // stunned: a dizzy warble for exactly as long as the stun lasts
+    const stunned = alive && p.stun > 0;
+    if (stunned && !au.stun && live && soundOn) au.stun = startWarble();
+    else if (!stunned && au.stun) { stopLoop(au.stun); au.stun = null; }
+  } catch (e) { console.warn('audio', e); }
+}
+/* A hidden tab is silent: the whole context sleeps until you come back. */
+function audioVisibility() {
+  if (!actx) return;
+  try {
+    const pr = document.hidden ? actx.suspend() : actx.resume();
+    if (pr && pr.catch) pr.catch(() => {});
+  } catch (e) {}
+}
 
 /* ---------------- input ---------------- */
 /* Everything collapses onto the eight NES buttons. Keyboard and every
@@ -180,14 +560,15 @@ const KEYMAP = {
 const key = {}, keyTap = {}, held = {}, prevHeld = {}, pressed = {};
 let lastDir = null, padCount = 0;
 addEventListener('keydown', e => {
+  ensureAudio();                       // any key unlocks sound
   const b = KEYMAP[e.code]; if (!b) return;
-  e.preventDefault(); ensureAudio();
+  e.preventDefault();
   if (!e.repeat) keyTap[b] = true;     // catches taps shorter than one frame
   key[b] = true;
 });
 addEventListener('keyup', e => { const b = KEYMAP[e.code]; if (b) key[b] = false; });
 addEventListener('blur', () => { for (const b of BTN) key[b] = false; });
-addEventListener('mousedown', ensureAudio);
+for (const ev of ['mousedown', 'pointerdown', 'touchend']) addEventListener(ev, ensureAudio);
 addEventListener('gamepadconnected', e => footNote('CONTROLLER CONNECTED'));
 addEventListener('gamepaddisconnected', e => footNote('CONTROLLER DISCONNECTED'));
 
@@ -214,7 +595,7 @@ function pollInput() {
     held[b] = !!(key[b] || pad[b]);
     if ((held[b] && !prevHeld[b]) || keyTap[b]) {
       pressed[b] = true;
-      if (pad[b]) ensureAudio();
+      if (pad[b]) ensureAudio();      // may not count as a gesture in every browser
       if (b in DIR_OF) lastDir = b;
     }
     keyTap[b] = false;
@@ -350,7 +731,7 @@ function spawnRobot() {
   Object.assign(r, {st, hp: st.hp, cd: 1, spawnT: 1.2, flash: 0, stepT: 0, blasting: false});
   G.robot = r;
   toast('ROBOT ' + G.gen + ': ' + st.name + (st.blast && G.gen === 4 ? ' - BREAKS DOORS' : ''));
-  SFX.spawn();
+  SFX.spawn(G.gen, st.name);
 }
 function updateRobot(dt) {
   const r = G.robot;
@@ -365,7 +746,7 @@ function updateRobot(dt) {
   if (r.stepT <= 0) {
     r.stepT = 0.5 / (r.st.speed / 2.3);
     const dd = dist(r, p) / T;
-    if (dd < 9 && r.dir >= 0) SFX.step(0.05 * (1 - dd/9));
+    if (dd < 11 && r.dir >= 0) SFX.rstep(0.07 * Math.pow(1 - dd/11, 1.5), (au.rstep ^= 1));
   }
   // fire
   if (r.cd <= 0) {
@@ -386,7 +767,7 @@ function updateRobot(dt) {
       let x = px(r), y = py(r);
       if (fd % 2) y = rt.y*T + T/2; else x = rt.x*T + T/2;
       G.rb.push({x, y, d: fd, spd: r.st.bspd, blast: r.st.blast});
-      r.cd = r.st.cool; r.face = fd; SFX.rshoot();
+      r.cd = r.st.cool; r.face = fd; SFX.rshoot(nearXY(px(r), py(r), 14));
     }
   }
   if (dist(r, p) < 11) killPlayer();
@@ -394,9 +775,10 @@ function updateRobot(dt) {
 function hitRobot() {
   const r = G.robot;
   r.hp--; r.flash = 0.15;
-  if (r.hp > 0) { SFX.hit(); burst(px(r), py(r), r.st.col, 6); return; }
+  if (r.hp > 0) { SFX.rhit(); burst(px(r), py(r), r.st.col, 6); return; }
   const pts = 150 * G.gen;
   addScore(pts, px(r), py(r));
+  SFX.rkill();
   explode(px(r), py(r), r.st.col);
   G.robot = null; G.robotT = 3.5;
 }
@@ -554,6 +936,7 @@ function updateBullets(dt) {
         const sx = b.x - DX[b.d]*4, sy = b.y - DY[b.d]*4;
         burst(sx, sy, mine ? '#9ff' : '#f84', 3);
         if (!mine && c === 'D' && b.blast) damageBunker();
+        else SFX.wall(mine, nearXY(b.x, b.y, 12));
         list.splice(i, 1); continue;
       }
       if (mine) {
@@ -585,8 +968,8 @@ function damageBunker() {
   if (G.breached) return;
   G.bunkerHP--; G.doorFlash = 0.2; SFX.door();
   if (G.bunkerHP <= 0) {
-    G.breached = true; toast('BUNKER BREACHED');
-    for (const f of DOOR_FRONT) explode(f.x*T + 8 + DX[f.d]*T, f.y*T + 8 + DY[f.d]*T, '#3dff8a');
+    G.breached = true; toast('BUNKER BREACHED'); SFX.breach();
+    for (const f of DOOR_FRONT) explode(f.x*T + 8 + DX[f.d]*T, f.y*T + 8 + DY[f.d]*T, '#3dff8a', false, true);
   }
 }
 
@@ -597,10 +980,10 @@ function burst(x, y, col, n) {
     G.parts.push({x, y, vx: Math.cos(a)*s, vy: Math.sin(a)*s, life: 0.3 + Math.random()*0.3, col});
   }
 }
-function explode(x, y, col, big) {
+function explode(x, y, col, big, silent) {
   burst(x, y, col, big ? 40 : 24); burst(x, y, '#fff', 8);
   G.lights.push({x, y, r: big ? 70 : 50, t: 0.5, max: 0.5});
-  SFX.boom();
+  if (!silent) SFX.boom();
 }
 function addScore(n, x, y) {
   G.score += n;
@@ -627,14 +1010,14 @@ function newGame() {
 function update(dt) {
   if (footT > 0) footT -= dt;
   titleT += dt;
-  if (pressed.select) { soundOn = !soundOn; footNote(soundOn ? 'SOUND ON' : 'SOUND OFF'); }
+  if (pressed.select) { setSound(!soundOn); footNote(soundOn ? 'SOUND ON' : 'SOUND OFF'); }
   if (state === 'title') { if (pressed.start || pressed.a) { ensureAudio(); newGame(); } return; }
   if (state === 'over') {
     overT += dt;
     if (overT > 1.2 && pressed.start) newGame();
     return;
   }
-  if (pressed.start) { paused = !paused; blip(paused ? 300 : 600, 0.06); }
+  if (pressed.start) { paused = !paused; SFX.pause(paused); }
   if (paused) return;
   if (toastT > 0) toastT -= dt;
   G.time += dt;
@@ -838,6 +1221,7 @@ function drawWorld() {
   // light sources: you, your shots, explosions
   const lights = [];
   const flick = Math.random() < 0.03 ? -6 : 0;     // the fuse is not entirely happy
+  if (flick) au.flick = true;                       // ...and you hear it crackle
   let rad = 54 + flick + (G.flare > 0 ? 18 : 0);
   if (p.dying > 0) rad = Math.max(0, 54 * (p.dying - 1));
   if (state === 'over') rad = 0;
@@ -893,8 +1277,11 @@ function drawFooter() {
   const y = HUD + PH + 4;
   ctx.fillStyle = '#020407'; ctx.fillRect(0, HUD + PH, W, FOOT);
   if (footT > 0) text(footMsg, 4, y, 1, '#5fd0ff');
+  else if (soundOn && !audioLive()) text('PRESS ANY KEY OR CLICK FOR SOUND', 4, y, 1, ((titleT*2) | 0) % 2 ? '#5fd0ff' : '#2f6f90');
   else text('A FIRE   B HOLD AIM   SELECT SOUND   START PAUSE', 4, y, 1, '#24506a');
-  text((soundOn ? 'SND ' : 'MUTE ') + VERSION + (DEMO ? ' DEMO' : ''), W - 4, y, 1, '#24506a', 'right');
+  const tail = ' ' + VERSION + (DEMO ? ' DEMO' : '');
+  text(tail, W - 4, y, 1, '#24506a', 'right');
+  text(soundOn ? 'SND' : 'MUTE', W - 4 - tail.length*4, y, 1, soundOn ? '#24506a' : '#ff6a4a', 'right');
 }
 function panel(x, y, w, h) {
   ctx.fillStyle = 'rgba(0,4,10,0.82)'; ctx.fillRect(x, y, w, h);
@@ -958,10 +1345,15 @@ function frame(now) {
   }
   if (n >= 8) acc = 0;
   render();
+  audioFrame(dt);
   requestAnimationFrame(frame);
 }
-document.addEventListener('visibilitychange', () => { if (document.hidden && state === 'play') paused = true; });
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden && state === 'play') paused = true;
+  audioVisibility();
+});
 if (DEMO) {
+  ensureAudio();   // only actually plays if the browser allows autoplay
   newGame();
   /* ?demo&warp=N runs N simulation steps up front -- headless browsers barely
      tick requestAnimationFrame, and this lets a screenshot show real play. */

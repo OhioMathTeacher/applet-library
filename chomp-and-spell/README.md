@@ -31,7 +31,8 @@ You start with 3 lives and earn one more at 10,000 points.
 | Select | Shift | — | Finish the round (press twice) |
 
 In the spelling round, keyboard players can also just **type letters**, then
-Enter to submit and Backspace to undo. M toggles sound.
+Enter to submit and Backspace to undo. M toggles sound (anywhere but the
+spelling round, where M is a letter); MUTE shows in the corner while it's off.
 
 A USB gamepad works through the browser's Gamepad API; press any button on it
 once the page is open so the browser notices it.

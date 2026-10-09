@@ -21,7 +21,7 @@
 <canvas id="screen" width="336" height="392"></canvas>
 <script>
 /* Shown quietly in the corner; bump with each release. */
-const VERSION = 'v0.1';
+const VERSION = 'v0.2';
 
 /* ============================================================
    Chomp & Spell
@@ -88,6 +88,8 @@ const grid = MAZE.map((row, r) => row.split('').map((ch, c) => {
   if (ch === 'o') { POWER_SPOTS.push({c, r}); return ' '; }
   return ch;
 }));
+
+const DOT_TOTAL = MAZE.join('').split('.').length - 1;   // the music's siren climbs as these go
 
 function tileAt(c, r) {
   if (r < 0 || r >= ROWS) return '#';
@@ -300,11 +302,13 @@ function ghostDecide(g) {
   return best;
 }
 
+/* Named so the music can read them: its tempo follows the ghosts' speed. */
+const GHOST_FRIGHT_SPEED = 0.7, EYES_SPEED = 2.6;
 function ghostSpeed(g) {
-  if (g.state === 'eyes') return 2.6;
+  if (g.state === 'eyes') return EYES_SPEED;
   const {c, r} = tileOf(g);
   if (r === TUNNEL_R && (c <= 4 || c >= COLS - 5)) return 0.6;
-  if (g.frightened) return 0.7;
+  if (g.frightened) return GHOST_FRIGHT_SPEED;
   return G.ghostSpeed;
 }
 
@@ -364,7 +368,9 @@ function stepPlay() {
   for (const q of G.pending) q.t--;
   while (G.pending.length && G.pending[0].t <= 0) { G.pending.shift(); spawnBonus(); }
   for (const l of G.letters) l.ttl--;
+  const had = G.letters.length;
   G.letters = G.letters.filter(l => l.ttl > 0);
+  if (G.letters.length < had) sfx('vanish');
 
   if (G.dotsLeft === 0 && G.state === 'play') { G.state = 'clear'; G.timer = 150; G.letters = []; sfx('clear'); }
 }
@@ -378,7 +384,7 @@ function eatAt({c, r}) {
   addScore(50);
   if (G.rack.length < RACK_MAX) G.rack.push(l.ch);
   else { addScore(50); say('RACK FULL! +50'); }
-  sfx('letter');
+  sfx('letter', l);
   if (l.power) {
     G.frightT = G.frightLen; G.frightMax = G.frightLen; G.chain = 0;
     for (const g of G.ghosts) if (g.state !== 'eyes' && g.state !== 'entering') {
@@ -406,6 +412,7 @@ function spawnBonus() {
   if (!pool.length) return;
   const s = pool[Math.floor(Math.random() * pool.length)];
   G.letters.push({c:s.c, r:s.r, ch:drawLetter(boardContext()), power:false, ttl:600});
+  sfx('sparkle');
 }
 
 function collide() {
@@ -418,7 +425,7 @@ function collide() {
       const pts = 200 * 2 ** Math.min(G.chain++, 3);
       addScore(pts);
       G.popup = {x:g.x, y:g.y, text:String(pts)}; G.freeze = 40;
-      sfx('ghost');
+      sfx('ghost', G.chain);
     } else if (G.state === 'play') {
       G.state = 'dying'; G.timer = 100; sfx('die');
       return;
@@ -449,10 +456,10 @@ function spellMsg(text, color = PAL.white) { const S = G.spell; S.msg = text; S.
 function addTile(i) {
   const S = G.spell, t = S.tiles[i];
   if (!t) return;
-  if (t.used) return spellMsg('THAT TILE IS SPENT', PAL.grey);
-  if (S.word.includes(i)) return spellMsg('ALREADY IN THE WORD', PAL.grey);
+  if (t.used) { sfx('nope'); return spellMsg('THAT TILE IS SPENT', PAL.grey); }
+  if (S.word.includes(i)) { sfx('nope'); return spellMsg('ALREADY IN THE WORD', PAL.grey); }
   if (S.word.length >= RACK_MAX) return;
-  S.word.push(i); sfx('tick');
+  S.word.push(i); sfx('place', S.word.length);
 }
 
 function typeLetter(ch) {
@@ -460,20 +467,20 @@ function typeLetter(ch) {
   // prefer the tile under the cursor, then the first free one with that letter
   const free = i => S.tiles[i].ch === ch && !S.tiles[i].used && !S.word.includes(i);
   let i = free(S.cursor) ? S.cursor : S.tiles.findIndex((_, k) => free(k));
-  if (i < 0) return spellMsg('NO FREE ' + ch + ' TILE', PAL.bad);
+  if (i < 0) { sfx('nope'); return spellMsg('NO FREE ' + ch + ' TILE', PAL.bad); }
   S.cursor = i; addTile(i);
 }
 
 function submitWord() {
   const S = G.spell;
   const w = S.word.map(i => S.tiles[i].ch).join('');
-  if (w.length < 2) return spellMsg('WORDS NEED 2+ LETTERS', PAL.grey);
-  if (S.made.some(m => m.w === w)) return spellMsg('ALREADY SPELLED ' + w, PAL.bad);
+  if (w.length < 2) { sfx('nope'); return spellMsg('WORDS NEED 2+ LETTERS', PAL.grey); }
+  if (S.made.some(m => m.w === w)) { sfx('bad'); return spellMsg('ALREADY SPELLED ' + w, PAL.bad); }
   if (!isWord(w)) { sfx('bad'); return spellMsg(w + ' IS NOT IN THE LIST', PAL.bad); }
   const pts = scoreWord(w);
   for (const i of S.word) S.tiles[i].used = true;
   S.word = []; S.made.push({w, pts}); S.pts += pts; addScore(pts);
-  spellMsg(w + ' +' + pts, PAL.good); sfx('word');
+  spellMsg(w + ' +' + pts, PAL.good); sfx('word', pts);
   const nextFree = S.tiles.findIndex(t => !t.used);
   if (nextFree < 0) finishSpelling(); else if (S.tiles[S.cursor].used) S.cursor = nextFree;
 }
@@ -481,8 +488,19 @@ function submitWord() {
 function finishSpelling() {
   const S = G.spell;
   G.rack = S.tiles.filter(t => !t.used).map(t => t.ch);
-  S.word = [];
+  S.word = []; S.shown = 0;
   G.state = 'spelldone'; G.timer = 30;
+  if (!S.pts) sfx('tallyEnd', 0);
+}
+
+/* The round total counts up on screen with a rising tick, so the score
+   lands rather than just appearing. */
+function tallyUp() {
+  const S = G.spell;
+  if (S.shown >= S.pts) return;
+  S.shown = Math.min(S.pts, S.shown + Math.max(10, Math.ceil(S.pts / 45)));
+  if (S.shown === S.pts) sfx('tallyEnd', S.pts);
+  else if (G.frame % 3 === 0) sfx('tally', S.shown / S.pts);
 }
 
 function updateSpell() {
@@ -490,18 +508,20 @@ function updateSpell() {
   if (S.msgT > 0) S.msgT--;
   if (FLAGS.demo) return demoSpell();
   let acted = false;
+  const was = S.cursor;
   if (pressed.left)  { S.cursor = (S.cursor + n - 1) % n; acted = true; }
   if (pressed.right) { S.cursor = (S.cursor + 1) % n; acted = true; }
   if (pressed.up   && S.cursor >= 8)    { S.cursor -= 8; acted = true; }
   if (pressed.down && S.cursor + 8 < n) { S.cursor += 8; acted = true; }
+  if (S.cursor !== was) sfx('move');
   if (pressed.a) { addTile(S.cursor); acted = true; }
   while (typedQueue.length) { typeLetter(typedQueue.shift()); acted = true; }
-  if (pressed.b && S.word.length) { S.word.pop(); sfx('tick'); acted = true; }
+  if (pressed.b && S.word.length) { S.word.pop(); sfx('back'); acted = true; }
   if (pressed.start) { submitWord(); acted = true; }
   if (G.state !== 'spell') return;
   if (pressed.select) {
     if (S.confirm) return finishSpelling();
-    S.confirm = true; spellMsg('SELECT AGAIN TO FINISH', PAL.gold); S.msgT = 600;
+    S.confirm = true; spellMsg('SELECT AGAIN TO FINISH', PAL.gold); S.msgT = 600; sfx('ask');
   } else if (acted) S.confirm = false;
 }
 
@@ -612,7 +632,7 @@ function onKeyDown(e) {
   if (spelling && /^[a-zA-Z]$/.test(e.key) && !e.ctrlKey && !e.metaKey && !e.altKey) {
     typedQueue.push(e.key.toUpperCase()); e.preventDefault(); return;
   }
-  if (!spelling && (e.key === 'm' || e.key === 'M')) { G.muted = !G.muted; say(G.muted ? 'SOUND OFF' : 'SOUND ON'); return; }
+  if (!spelling && (e.key === 'm' || e.key === 'M')) { setMuted(!G.muted); say(G.muted ? 'SOUND OFF' : 'SOUND ON'); return; }
   const btn = (spelling ? SPELL_KEYMAP : KEYMAP)[e.key];
   if (!btn) return;
   e.preventDefault();
@@ -627,35 +647,312 @@ function onKeyUp(e) {
   if (btn) kbHeld[btn] = false;
 }
 
-/* ---------- sound ---------- */
-let AC = null, wakaFlip = false;
+/* ---------- sound ----------
+   All synthesized here: square and triangle oscillators plus a noise buffer,
+   the early-80s arcade palette. No audio files.
+
+   Two kinds of sound. Effects (sfx) are fire-and-forget blips on the effects
+   bus. Music lives in "scenes": one scene at a time, chosen from the game
+   state every tick by audioTick(). A scene owns its own gain bus and any
+   long-running oscillators (the siren), so stopping a scene fades its bus and
+   stops its oscillators, and nothing can be left droning after a state
+   change. Pause, dying, level clear, game over and a hidden tab have no
+   scene, so they're silent apart from their one-shot effects.
+
+   Browsers only allow audio after a user gesture, so the context is created
+   on the first key, click or gamepad press. Every audio call is wrapped so a
+   sound failure can never stop the game. */
+let AC = null, MASTER = null, SFX = null, NOISE = null, scene = null;
+let wakaFlip = false, lastWaka = 0;
+const VOL = 0.8, MUSIC_VOL = 0.45, LOOKAHEAD = 0.15;
+
 function audioInit() {
   if (!IS_BROWSER) return;
   try {
-    if (!AC) AC = new (window.AudioContext || window.webkitAudioContext)();
-    if (AC.state === 'suspended') AC.resume();
+    if (!AC) {
+      const ac = new (window.AudioContext || window.webkitAudioContext)();
+      const master = ac.createGain(), fx = ac.createGain();
+      master.gain.value = G.muted ? 0 : VOL;
+      master.connect(ac.destination); fx.connect(master);
+      const buf = ac.createBuffer(1, ac.sampleRate, ac.sampleRate), data = buf.getChannelData(0);
+      for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+      AC = ac; MASTER = master; SFX = fx; NOISE = buf;
+    }
+    if (AC.state === 'suspended' && !document.hidden) AC.resume().catch(() => {});
   } catch (e) { AC = null; }
 }
-function tone(f, dur, type = 'square', vol = 0.05, f2 = f, delay = 0) {
-  if (!AC || G.muted || AC.state !== 'running') return;
-  const t0 = AC.currentTime + delay, o = AC.createOscillator(), g = AC.createGain();
-  o.type = type; o.frequency.setValueAtTime(f, t0); o.frequency.linearRampToValueAtTime(f2, t0 + dur);
-  g.gain.setValueAtTime(vol, t0); g.gain.exponentialRampToValueAtTime(0.0005, t0 + dur);
-  o.connect(g); g.connect(AC.destination); o.start(t0); o.stop(t0 + dur + 0.02);
+function audioLive() { return !!AC && AC.state === 'running'; }
+
+/* Mute turns the master bus down rather than stopping anything, so the music
+   picks up in step when it's turned back on. */
+function setMuted(m) {
+  G.muted = m;
+  try { if (MASTER) MASTER.gain.setTargetAtTime(m ? 0 : VOL, AC.currentTime, 0.02); } catch (e) {}
 }
-function sfx(kind) {
+
+/* A hidden tab stops the game loop, so stop the audio clock with it. */
+function onVisibility() {
   if (!AC) return;
-  switch (kind) {
-    case 'dot': wakaFlip = !wakaFlip; tone(wakaFlip ? 300 : 420, 0.05, 'triangle', 0.06); break;
-    case 'letter': [523, 659, 784].forEach((f, i) => tone(f, 0.08, 'square', 0.04, f, i*0.06)); break;
-    case 'ghost': tone(200, 0.3, 'square', 0.05, 1200); break;
-    case 'die': tone(700, 1.2, 'square', 0.05, 80); break;
-    case 'clear': [523, 659, 784, 1046].forEach((f, i) => tone(f, 0.12, 'square', 0.04, f, i*0.1)); break;
-    case 'tick': tone(880, 0.03, 'square', 0.03); break;
-    case 'word': [659, 784, 988, 1318].forEach((f, i) => tone(f, 0.09, 'square', 0.04, f, i*0.07)); break;
-    case 'bad': tone(140, 0.25, 'sawtooth', 0.05, 90); break;
-    case 'life': [784, 988, 784, 988].forEach((f, i) => tone(f, 0.08, 'square', 0.04, f, i*0.09)); break;
+  try { if (document.hidden) AC.suspend().catch(() => {}); else AC.resume().catch(() => {}); } catch (e) {}
+}
+
+const hz = m => 440 * 2 ** ((m - 69) / 12);   // MIDI note number to frequency
+
+/* One plucked note: quick attack, exponential decay, optional glide to f2. */
+function blip(dest, t, f, dur, type = 'square', vol = 0.05, f2 = f) {
+  const o = AC.createOscillator(), g = AC.createGain();
+  o.type = type;
+  o.frequency.setValueAtTime(f, t);
+  if (f2 !== f) o.frequency.linearRampToValueAtTime(f2, t + dur);
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.linearRampToValueAtTime(vol, t + 0.004);
+  g.gain.exponentialRampToValueAtTime(0.0005, t + dur);
+  o.connect(g); g.connect(dest); o.start(t); o.stop(t + dur + 0.02);
+}
+function hiss(dest, t, dur, vol = 0.03, cutoff = 5000) {
+  const src = AC.createBufferSource(), f = AC.createBiquadFilter(), g = AC.createGain();
+  src.buffer = NOISE; f.type = 'highpass'; f.frequency.value = cutoff;
+  g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0005, t + dur);
+  src.connect(f); f.connect(g); g.connect(dest);
+  src.start(t, Math.random() * 0.5); src.stop(t + dur + 0.02);
+}
+/* A little score: parts of [step, midi, lengthInSteps] played from t0. */
+function playScore(dest, t0, d, parts) {
+  for (const p of parts) for (const [s, m, len] of p.notes)
+    blip(dest, t0 + s*d, hz(m), len*d, p.type, p.vol);
+}
+
+/* Effects. tone() and the delay argument are the original v0.1 helpers. */
+function tone(f, dur, type = 'square', vol = 0.05, f2 = f, delay = 0) {
+  if (!audioLive() || G.muted) return;
+  blip(SFX, AC.currentTime + delay, f, dur, type, vol, f2);
+}
+function seq(notes, step, type = 'square', vol = 0.04, len = step) {
+  notes.forEach((m, i) => { if (m) tone(hz(m), len, type, vol, hz(m), i*step); });
+}
+function sfx(kind, arg) {
+  if (!audioLive() || G.muted) return;
+  try {
+    const now = AC.currentTime;
+    switch (kind) {
+      /* the chomp: alternating up and down sweeps, at most one per 70 ms so a
+         fast run of dots never piles up into a buzz */
+      case 'dot':
+        if (now - lastWaka < 0.07) break;
+        lastWaka = now; wakaFlip = !wakaFlip;
+        if (wakaFlip) tone(220, 0.075, 'triangle', 0.09, 470);
+        else tone(470, 0.075, 'triangle', 0.09, 220);
+        break;
+      /* letters ring higher and longer the more they're worth in Scrabble,
+         so a Z or Q sounds like the prize it is */
+      case 'letter': {
+        const v = VALUES[arg.ch] || 1, root = 72 + Math.min(v, 10);
+        const steps = [0, 4, 7].concat(v >= 3 ? [12] : [], v >= 5 ? [16] : [], v >= 8 ? [19, 24] : []);
+        seq(steps.map(k => root + k), 0.045, 'square', 0.04, 0.09);
+        if (v >= 8) seq([0, 0, 0, 0, 0, 0, root + 24, root + 19, root + 24], 0.045, 'triangle', 0.05, 0.12);
+        if (arg.power) tone(130, 0.25, 'triangle', 0.1, 65);
+        break;
+      }
+      case 'sparkle': seq([100, 103, 107, 112], 0.035, 'triangle', 0.025, 0.06); break;
+      case 'vanish': tone(620, 0.18, 'triangle', 0.035, 180); break;
+      /* each ghost in a chain zaps a little higher than the last */
+      case 'ghost': {
+        const k = Math.min(arg || 1, 4) - 1;
+        tone(160 * 2 ** (k/3), 0.28, 'square', 0.05, 1300 * 2 ** (k/3));
+        tone(320 * 2 ** (k/3), 0.28, 'triangle', 0.06, 2600 * 2 ** (k/3), 0.03);
+        break;
+      }
+      /* a falling minor line that ends in two thuds; fits the 100-tick dying spell */
+      case 'die':
+        [79, 75, 72, 68, 67, 63, 60, 56].forEach((m, i) => tone(hz(m), 0.12, 'square', 0.05, hz(m) * 0.92, i*0.12));
+        tone(240, 0.16, 'square', 0.06, 60, 1.02); tone(240, 0.22, 'square', 0.06, 50, 1.22);
+        hiss(SFX, now + 1.22, 0.25, 0.05, 800);
+        break;
+      case 'clear':
+        playScore(SFX, now, 0.11, [
+          {type:'square', vol:0.045, notes:[[0,72,1],[1,76,1],[2,79,1],[3,84,2],[5,79,1],[6,84,1],[7,88,3],[10,86,1],[11,88,1],[12,91,6]]},
+          {type:'triangle', vol:0.1, notes:[[0,48,3],[3,52,2],[5,55,2],[7,60,3],[10,55,2],[12,60,6]]},
+          {type:'triangle', vol:0.05, notes:[[12,76,6],[12,79,6]]},
+        ]);
+        break;
+      case 'life':
+        seq([88, 91, 96, 0, 88, 91, 96, 100], 0.06, 'triangle', 0.07, 0.14);
+        seq([0, 0, 0, 0, 0, 0, 0, 84], 0.06, 'square', 0.03, 0.4);
+        break;
+      case 'start': tone(988, 0.06, 'square', 0.04); tone(1319, 0.12, 'square', 0.04, 1319, 0.06); break;
+      case 'pause': tone(880, 0.06, 'square', 0.035); tone(587, 0.1, 'square', 0.035, 587, 0.07); break;
+      case 'unpause': tone(587, 0.06, 'square', 0.035); tone(880, 0.1, 'square', 0.035, 880, 0.07); break;
+      /* spelling round */
+      case 'move': tone(1400, 0.018, 'square', 0.015); break;
+      case 'place': tone(hz(72 + 2 * Math.min(arg || 0, 12)), 0.05, 'square', 0.035); hiss(SFX, now, 0.02, 0.03, 3000); break;
+      case 'back': tone(520, 0.07, 'square', 0.03, 260); break;
+      case 'nope': tone(196, 0.07, 'triangle', 0.08); tone(175, 0.1, 'triangle', 0.08, 175, 0.08); break;
+      case 'ask': tone(660, 0.07, 'square', 0.03); tone(880, 0.07, 'square', 0.03, 880, 0.09); break;
+      case 'bad':
+        tone(110, 0.3, 'square', 0.04, 95); tone(116, 0.3, 'square', 0.04, 100);
+        hiss(SFX, now, 0.12, 0.03, 1200);
+        break;
+      /* a valid word: an arpeggio into a held chord that grows with the score */
+      case 'word': {
+        const pts = arg || 0;
+        const chord = pts >= 300 ? [0, 4, 7, 12, 16, 19, 24] : pts >= 200 ? [0, 4, 7, 12, 16]
+                    : pts >= 100 ? [0, 4, 7, 12] : [0, 4, 7];
+        const root = pts >= 200 ? 72 : 67;
+        seq(chord.map(k => root + k), 0.05, 'square', 0.035, 0.1);
+        const at = chord.length * 0.05, hold = 0.3 + chord.length * 0.06;
+        for (const k of chord.slice(0, 4)) tone(hz(root + k), hold, 'triangle', 0.05, hz(root + k), at);
+        if (pts >= 300) for (let i = 0; i < 6; i++) tone(hz(103 + (i % 3) * 2), 0.05, 'triangle', 0.02, hz(103 + (i % 3) * 2), at + i*0.06);
+        break;
+      }
+      /* round-end tally: a rising tick per count, then a closing cadence */
+      case 'tally': tone(hz(72 + Math.round(24 * (arg || 0))), 0.03, 'square', 0.025); break;
+      case 'tallyEnd':
+        if (arg > 0) seq([79, 84, 88, 91], 0.07, 'triangle', 0.08, 0.25);
+        else seq([67, 60], 0.12, 'triangle', 0.07, 0.2);
+        break;
+    }
+  } catch (e) {}
+}
+
+/* ---------- music ---------- */
+/* The maze music moves one eighth note for every tile a ghost travels, so the
+   tempo comes straight from the ghosts' speed: quicker each level, half-time
+   when they're frightened, and it follows any retuning of those numbers. */
+function tileTime(speed) { return T / (Math.max(speed, 0.2) * 60); }
+function frightMode() { return G.frightT > 0 && G.ghosts.some(g => g.frightened); }
+function packSpeed() { return frightMode() ? GHOST_FRIGHT_SPEED : G.ghostSpeed; }
+function eyesOut() { return G.ghosts.some(g => g.state === 'eyes' || g.state === 'entering'); }
+
+/* Loops are 8th-note steps, 0 = rest. All original tunes. */
+const TITLE_LEAD = [72,0,76,79, 84,0,79,76,  77,0,81,77, 74,0,71,74,  76,0,79,76, 81,79,77,76,  74,0,79,0, 72,0,0,0];
+const TITLE_BASS = [48,60,48,60, 48,60,48,60,  41,53,41,53, 43,55,43,55,  45,57,45,57, 41,53,41,53,  43,55,43,55, 48,60,48,0];
+const CHASE_BASS = [45,57,45,57, 45,57,48,50,  41,53,41,53, 41,53,43,45,  43,55,43,55, 43,55,47,50,  40,52,40,52, 44,47,52,47];
+const CHASE_LEAD = [69,0,0,72, 0,76,0,0,  77,0,76,0, 72,0,0,0,  74,0,0,71, 0,74,0,79,  76,0,0,0, 75,0,76,0];
+const FRIGHT_BASS = [45,0,46,0, 45,0,44,0,  45,0,48,0, 47,0,46,0];
+const SPELL_CHORDS = [[65,69,72,76], [62,65,69,72], [58,62,65,69], [60,64,67,70]];
+const SPELL_ROOTS = [41, 38, 46, 48], SPELL_TUNE = [81, 77, 74, 76];
+const SPELL_ARP = [0, 2, 1, 3, 2, 1, 3, 2];
+const JINGLE = [
+  {type:'square', vol:0.045, notes:[[1,67,1],[2,71,1],[3,74,1],[4,79,2],[6,78,1],[7,79,1],[8,81,2],[10,79,1],[11,74,1],[12,76,1],[13,78,1],[14,79,4]]},
+  {type:'triangle', vol:0.11, notes:[[1,43,3],[4,47,2],[6,50,2],[8,48,2],[10,47,2],[12,50,2],[14,43,4]]},
+];
+const JINGLE_AGAIN = [
+  {type:'square', vol:0.045, notes:[[1,79,1],[2,74,1],[3,71,1],[4,74,1],[5,79,2],[8,79,1],[9,81,1],[10,83,1],[11,86,4]]},
+  {type:'triangle', vol:0.11, notes:[[1,43,4],[5,47,3],[8,50,3],[11,43,4]]},
+];
+
+/* A scene's long-running oscillator (the siren and the fright warble). It
+   lives exactly as long as its scene. */
+function voice(s, key, type) {
+  if (s.voices[key]) return s.voices[key];
+  const osc = AC.createOscillator(), g = AC.createGain();
+  osc.type = type; g.gain.value = 0;
+  osc.connect(g); g.connect(s.bus); osc.start();
+  return s.voices[key] = {osc, g};
+}
+function level(v, t, vol) { v.g.gain.setTargetAtTime(vol, t, 0.015); }
+
+/* Each scene schedules one step at time t and returns how long the step lasts. */
+const SCENES = {
+  title(s, t) {
+    const i = s.step++ % 32, d = 0.14;
+    if (TITLE_LEAD[i]) blip(s.bus, t, hz(TITLE_LEAD[i]), d * 1.6, 'square', 0.03);
+    if (TITLE_BASS[i]) blip(s.bus, t, hz(TITLE_BASS[i]), d * 0.9, 'triangle', 0.1);
+    if (i % 4 === 2) hiss(s.bus, t, 0.03, 0.02, 6000);
+    return d;
+  },
+  /* the start-of-life jingle, scheduled whole on the first step; the full one
+     when the maze is untouched, a shorter one after losing a life */
+  ready(s, t) {
+    if (s.step++ === 0) playScore(s.bus, t, 0.1, G.dotsLeft === DOT_TOTAL ? JINGLE : JINGLE_AGAIN);
+    return 0.1;
+  },
+  maze(s, t) {
+    const mode = frightMode() ? 'fright' : 'chase';
+    if (mode !== s.mode) { s.mode = mode; s.step = 0; }
+    if (s.step % 8 === 0) s.dur = tileTime(packSpeed());   // tempo changes land on a bar line
+    const i = s.step++, d = s.dur;
+    const siren = voice(s, 'siren', 'triangle'), warble = voice(s, 'warble', 'square');
+    if (mode === 'chase') {
+      const k = i % 32;
+      if (CHASE_BASS[k]) blip(s.bus, t, hz(CHASE_BASS[k]), d * 0.9, 'triangle', 0.09);
+      if (CHASE_LEAD[k]) blip(s.bus, t, hz(CHASE_LEAD[k]), d * 1.8, 'square', 0.018);
+      if (k % 2) hiss(s.bus, t, 0.025, 0.012, 7000);
+      /* the siren sweeps up and back once a beat and climbs as the dots run out */
+      if (i % 2 === 0) {
+        const lo = 260 * 2 ** (1 - G.dotsLeft / DOT_TOTAL), f = siren.osc.frequency;
+        f.cancelScheduledValues(t); f.setValueAtTime(lo, t);
+        f.linearRampToValueAtTime(lo * 1.5, t + d); f.linearRampToValueAtTime(lo, t + 2*d);
+      }
+      level(siren, t, 0.06); level(warble, t, 0);
+    } else {
+      const k = i % 16;
+      if (FRIGHT_BASS[k]) blip(s.bus, t, hz(FRIGHT_BASS[k]), d * 1.5, 'triangle', 0.09);
+      /* two falling wobbles a step; faster while the ghosts are flashing */
+      const n = G.frightT < 120 ? 3 : 2, f = warble.osc.frequency;
+      f.cancelScheduledValues(t);
+      for (let j = 0; j < n; j++) { f.setValueAtTime(560, t + j*d/n); f.linearRampToValueAtTime(240, t + (j + 1)*d/n); }
+      level(siren, t, 0); level(warble, t, 0.022);
+    }
+    return d;
+  },
+  /* calmer thinking music for the spelling round: slow arpeggios, a soft tune */
+  spell(s, t) {
+    const i = s.step++ % 32, bar = i >> 3, b = i & 7, d = 0.27;
+    blip(s.bus, t, hz(SPELL_CHORDS[bar][SPELL_ARP[b]]), d * 1.8, 'triangle', 0.035);
+    if (b === 0 || b === 4) blip(s.bus, t, hz(SPELL_ROOTS[bar] + (b ? 7 : 0)), d * 3.5, 'triangle', 0.08);
+    if (b === 0) blip(s.bus, t, hz(SPELL_TUNE[bar]), d * 6, 'square', 0.012);
+    return d;
+  },
+};
+
+function wantedScene() {
+  switch (G.state) {
+    case 'title': return 'title';
+    case 'ready': return 'ready';
+    case 'play': return G.paused ? null : 'maze';
+    case 'spell': case 'spelldone': return 'spell';
+    default: return null;   // dying and clear have their own effect; game over is quiet
   }
+}
+function startScene(name) {
+  const bus = AC.createGain();
+  bus.gain.value = MUSIC_VOL; bus.connect(MASTER);
+  scene = {name, bus, voices:{}, step:0, t:AC.currentTime + 0.05, eyesT:0};
+}
+function stopScene() {
+  if (!scene) return;
+  const s = scene; scene = null;
+  try {
+    const now = AC.currentTime;
+    s.bus.gain.cancelScheduledValues(now);
+    s.bus.gain.setValueAtTime(s.bus.gain.value, now);
+    s.bus.gain.linearRampToValueAtTime(0, now + 0.04);
+    for (const v of Object.values(s.voices)) v.osc.stop(now + 0.06);
+    setTimeout(() => { try { s.bus.disconnect(); } catch (e) {} }, 400);
+  } catch (e) {}
+}
+/* Called once per game tick: switch scenes if the state calls for it, then
+   schedule whatever falls inside the lookahead window. */
+function audioTick() {
+  if (!audioLive()) return;
+  try {
+    const want = wantedScene();
+    if ((scene && scene.name) !== want) { stopScene(); if (want) startScene(want); }
+    if (!scene) return;
+    const s = scene, now = AC.currentTime;
+    if (s.t < now) s.t = now + 0.02;   // a stalled frame: rejoin rather than cram the backlog
+    while (s.t < now + LOOKAHEAD) s.t += SCENES[s.name](s, s.t);
+    /* returning eyes chirp once per tile they cross, on their own clock */
+    if (s.name === 'maze') {
+      const ed = tileTime(EYES_SPEED);
+      if (s.eyesT < now) s.eyesT = now + 0.02;
+      while (s.eyesT < now + LOOKAHEAD) {
+        if (eyesOut() && !G.freeze) blip(s.bus, s.eyesT, 700, ed * 0.8, 'square', 0.02, 1700);
+        s.eyesT += ed;
+      }
+    }
+  } catch (e) {}
 }
 
 /* ---------- main tick ---------- */
@@ -665,13 +962,13 @@ function update() {
   if (G.toast && --G.toast.t <= 0) G.toast = null;
   switch (G.state) {
     case 'title':
-      if (pressed.start || pressed.a) newGame();
+      if (pressed.start || pressed.a) { sfx('start'); newGame(); }
       break;
     case 'ready':
       if (--G.timer <= 0) G.state = 'play';
       break;
     case 'play':
-      if (pressed.start) { G.paused = !G.paused; break; }
+      if (pressed.start) { G.paused = !G.paused; sfx(G.paused ? 'pause' : 'unpause'); break; }
       if (G.paused) break;
       if (G.freeze > 0) { if (--G.freeze === 0) G.popup = null; break; }
       stepPlay();
@@ -686,6 +983,7 @@ function update() {
       updateSpell();
       break;
     case 'spelldone':
+      tallyUp();
       if (G.timer > 0) G.timer--;
       else if (pressed.start || pressed.a || FLAGS.demo) nextLevel();
       break;
@@ -694,6 +992,7 @@ function update() {
       else if (pressed.start || pressed.a) G.state = 'title';
       break;
   }
+  audioTick();
 }
 
 /* ============================================================
@@ -944,7 +1243,7 @@ function drawSpell() {
 
   if (done) {
     ctx.fillStyle = 'rgba(0,0,0,0.75)'; ctx.fillRect(0, 300, W, 92);
-    drawText('ROUND OVER  +' + S.pts, W/2, 312, PAL.good, 2, 'center');
+    drawText('ROUND OVER  +' + S.shown, W/2, 312, PAL.good, 2, 'center');
     const left = G.rack.length;
     drawText(left ? left + ' TILE' + (left > 1 ? 'S' : '') + ' CARRY TO NEXT LEVEL' : 'RACK EMPTY', W/2, 336, PAL.grey, 1, 'center');
     if (G.timer <= 0 && Math.floor(G.frame / 30) % 2 === 0) drawText('PRESS START', W/2, 356, PAL.chomp, 1, 'center');
@@ -961,6 +1260,16 @@ function draw() {
   else if (G.state === 'spell' || G.state === 'spelldone') drawSpell();
   else drawPlay();
   drawToast();
+  drawMute();
+}
+
+/* M can't be pressed in the spelling round (it's a letter there), so the
+   mute state stays on screen wherever you are. */
+function drawMute() {
+  if (!G.muted) return;
+  const inMaze = G.state !== 'title' && G.state !== 'spell' && G.state !== 'spelldone';
+  if (inMaze) drawText('MUTE', W - 10 - textWidth(VERSION), 14, PAL.grey, 1, 'right');
+  else drawText('MUTE', W - 4, 4, PAL.grey, 1, 'right');
 }
 
 /* ---------- boot ---------- */
@@ -984,6 +1293,7 @@ function boot() {
   addEventListener('keydown', onKeyDown);
   addEventListener('keyup', onKeyUp);
   addEventListener('pointerdown', audioInit);
+  document.addEventListener('visibilitychange', onVisibility);
   addEventListener('resize', () => resize(cv));
   addEventListener('gamepadconnected', () => { padSeen = true; say('CONTROLLER CONNECTED'); });
   addEventListener('gamepaddisconnected', () => { padSeen = false; say('CONTROLLER UNPLUGGED'); });

@@ -19,7 +19,7 @@
 <canvas id="c"></canvas>
 <script>
 "use strict";
-const VERSION = 'v0.2';
+const VERSION = 'v0.3';
 
 /* ============================================================
    Twelve Stories
@@ -89,6 +89,15 @@ function rng(seed) {
    (boarded up: hop over it). GAP[r][i]: the ledge between column i and i+1
    is broken. Each loop of the building is harder. */
 let WIN = [], GAP = [], loop = 0;
+/* Cheeky windows (Todd, v0.2: "Cheeky!"): neighbours caught in the middle of
+   their own lives. They never throw anything -- they don't even notice you,
+   which is the tell: only a tenant leaning out with something in hand throws.
+   Climb onto one and you get a gag and 50 points. */
+let GAG_RATE = 0.2;
+const GAGS = ['towel', 'kiss', 'shower', 'dance', 'sleep', 'bath'];
+const GAG_SAY = {towel: 'EEK! HE DROPPED THE SOAP',  kiss: 'OOPS. SORRY, LOVEBIRDS',
+                 shower: 'LA LA LAAA! (DON\'T LOOK)', dance: 'NICE BOXERS. NICE MOVES',
+                 sleep: 'SHHH. HE\'S SLEEPWALKING',   bath: 'RUBBER DUCKY, YOU\'RE THE ONE'};
 function buildBuilding() {
   const R = rng(0x12AB + loop*7919);
   WIN = []; GAP = [];
@@ -103,8 +112,9 @@ function buildBuilding() {
     for (let c = 0; c < COLS; c++) {
       const kind = bc.has(c) ? 'board' : (R() < Math.max(0.25, 0.6 - hard*0.025) ? 'open' : 'cycle');
       const per = Math.max(6.5, 10 - hard*0.2) + R()*3;
-      WIN[r].push({kind, per, ph: R()*per, frac: Math.max(0.6, 0.75 - hard*0.01),
-                   lit: kind !== 'board' && R() < 0.24 + s*0.012});
+      const gag = kind !== 'board' && R() < GAG_RATE ? GAGS[Math.floor(R()*GAGS.length)] : null;
+      WIN[r].push({kind, per, ph: R()*per, frac: Math.max(0.6, 0.75 - hard*0.01), gag, seen: false, curtain: 0,
+                   lit: kind !== 'board' && (!!gag || R() < 0.24 + s*0.012)});
     }
     if (r > 1) for (let i = 0; i < 4; i++) GAP[r][i] = R() < Math.min(0.3, 0.03 + hard*0.022);
   }
@@ -242,6 +252,14 @@ const fx = fn => (...args) => {
 };
 const PENTA = [0, 2, 4, 7, 9];
 const SFX = {
+  gag:    fx((t, g) => {
+            if (g === 'towel') { tone(t, 1200, 0.08, {vol: 0.05, slide: 1800}); tone(t + 0.1, 1500, 0.1, {vol: 0.05, slide: 2200}); }
+            else if (g === 'kiss') { tone(t, 900, 0.05, {vol: 0.05, slide: 1400}); hiss(t + 0.08, 0.25, {filt: 'lowpass', f: 2000, vol: 0.05}); }
+            else if (g === 'shower') [72, 76, 79, 84].forEach((m, i) => tone(t + i*0.12, mtof(m), 0.11, {vol: 0.035}));
+            else if (g === 'dance') [60, 64, 67, 64, 72].forEach((m, i) => tone(t + i*0.08, mtof(m), 0.07, {vol: 0.035}));
+            else if (g === 'sleep') { tone(t, 120, 0.35, {vol: 0.05, slide: 90}); tone(t + 0.45, 110, 0.35, {vol: 0.05, slide: 80}); }
+            else [79, 74].forEach((m, i) => tone(t + i*0.14, mtof(m), 0.1, {vol: 0.05}));   // squeak squeak
+          }),
   /* each row up is a step up a pentatonic scale: you can hear the climb */
   climb:  fx((t, r) => { const m = 60 + 12*Math.floor((r % 15)/5) + PENTA[r % 5];
             tone(t, mtof(m), 0.07, {vol: 0.04}); hiss(t, 0.03, {filt: 'lowpass', f: 900, vol: 0.03}); }),
@@ -473,6 +491,12 @@ function arrive() {
   P.mode = 'idle';
   if (P.r === ROOF_ROW) { reachRoof(); return; }
   if (!isOpen(P.r, P.c)) { knock(); return; }
+  const gw = P.r <= ROWS && WIN[P.r][P.c];
+  if (gw && gw.gag && !gw.seen) {
+    gw.seen = true; score += 50*(loop + 1);
+    if (gw.gag === 'kiss') gw.curtain = time;
+    say(GAG_SAY[gw.gag] + '  +' + 50*(loop + 1), 2); SFX.gag(gw.gag);
+  }
   if (P.r > best) {
     for (let r = best + 1; r <= P.r && r <= ROWS; r++) {
       score += 10*storyOf(r)*(loop + 1);
@@ -623,7 +647,7 @@ function updateThrowers(dt) {
     const top = Math.floor((Math.round(camB) + PH - 34)/ROWH);
     for (let r = Math.max(1, P.r + 1); r <= Math.min(ROWS, P.r + 5, top); r++) for (let c = 0; c < COLS; c++) {
       const w = WIN[r][c];
-      if (w.kind === 'board' || (night && !w.lit) || !isOpen(r, c)) continue;
+      if (w.kind === 'board' || w.gag || (night && !w.lit) || !isOpen(r, c)) continue;
       if (throwers.some(t => t.r === r && t.c === c)) continue;
       const dc = Math.abs(c - P.c), wt = (dc === 0 ? 4 : dc === 1 ? 2 : 0.6)*(r - P.r <= 3 ? 1.3 : 1);
       cand.push([r, c, wt]); tot += wt;
@@ -961,6 +985,77 @@ function drawShutters(wx, top, k, col, slat) {
   }
 }
 
+/* A cheeky window, 22x24. By night the blind is down and lit from inside:
+   you get the same scene as a shadow play. */
+function drawGag(w, wx, top, r, c, k, night) {
+  const SIL = '#3a2a10';
+  const L = col => night ? SIL : mix('#000000', col, 0.25 + 0.75*k);
+  const R_ = (x, y, ww, hh, col) => rect(wx + x, top + y, ww, hh, L(col));
+  const SK = '#f0b090', ph = time + r*1.7 + c*0.9;
+  if (!night) R_(0, 0, 22, 24, {towel: '#a8d8e8', kiss: '#e8a0b8', shower: '#c8e8f0', dance: '#2a1a40', sleep: '#3a4a7a', bath: '#d8f0f0'}[w.gag]);
+  else R_(0, 0, 22, 24, '#e8c050'), rect(wx, top, 22, 24, '#e8c050');
+  switch (w.gag) {
+    case 'towel': {           // a man in a towel, dashing back and forth
+      const p = (ph*9) % 24, x = 3 + Math.round(p < 12 ? p : 24 - p);
+      R_(x, 4, 5, 5, SK); R_(x, 3, 5, 2, C.brown);                  // wet head
+      R_(x - 1, 9, 7, 6, SK);                                        // bare chest
+      R_(x - 2, 10, 2, 4, SK); R_(x + 6, 10, 2, 4, SK);              // arms
+      R_(x - 1, 15, 7, 5, C.white); R_(x - 1, 17, 7, 1, C.cyan);     // the towel
+      R_(x, 20, 2, 4, SK); R_(x + 3, 20, 2, 4, SK);
+      if (!night) { R_(x + 1, 6, 1, 1, '#000'); R_(x + 3, 6, 1, 1, '#000'); }
+      break;
+    }
+    case 'kiss': {            // two heads close together; they draw the curtain on you
+      const lean = Math.round(Math.sin(ph*2)*1);
+      R_(4 + lean, 6, 5, 5, SK); R_(3 + lean, 5, 6, 3, C.yellow); R_(3 + lean, 8, 2, 6, C.yellow);
+      R_(13 - lean, 6, 5, 5, SK); R_(13 - lean, 5, 5, 2, C.brown);
+      R_(3 + lean, 11, 6, 10, C.red); R_(13 - lean, 11, 6, 10, C.blue);
+      if (!night && Math.floor(ph*2) % 2) { R_(9, 1, 2, 2, C.red); R_(12, 1, 2, 2, C.red); R_(9, 3, 5, 1, C.red); R_(10, 4, 3, 1, C.red); }
+      if (w.curtain) {         // pink curtains swish shut, and stay shut
+        const q = Math.min(1, (time - w.curtain)/0.4), cw = Math.round(11*q);
+        rect(wx, top, cw, 24, night ? SIL : L(C.pink)); rect(wx + 22 - cw, top, cw, 24, night ? SIL : L(C.pink));
+      }
+      break;
+    }
+    case 'shower': {          // steamy glass, a pink shape, soap bubbles, a song
+      R_(6, 0, 2, 3, C.gray); R_(5, 3, 4, 1, C.gray);
+      R_(8, 7, 6, 5, SK); R_(7, 12, 8, 9, SK); R_(5, 9, 2, 5, SK); R_(15, 9, 2, 5, SK);
+      if (!night) { rect(wx, top + 6, 22, 18, 'rgba(230,245,255,0.55)');
+        for (let i = 0; i < 4; i++) R_(3 + ((i*7 + Math.floor(ph*3)) % 16), 22 - ((ph*8 + i*6) % 18), 2, 2, C.white); }
+      if (Math.floor(ph*1.5) % 2) { R_(17, 3, 2, 2, night ? SIL : '#000'); R_(18, 0, 1, 4, night ? SIL : '#000'); }
+      break;
+    }
+    case 'dance': {           // heart-print boxers, arms in the air
+      const b = Math.floor(ph*4) % 2;
+      if (!night) for (let i = 0; i < 4; i++) R_(1 + i*5, 21, 5, 3, [C.red, C.yellow, C.green, C.blue][(i + Math.floor(ph*4)) % 4]);
+      R_(8, 3 + b, 5, 5, SK); R_(8, 2 + b, 5, 2, C.brown);
+      R_(7, 8 + b, 7, 6, SK);
+      R_(5, b ? 1 : 8, 2, 7, SK); R_(14, b ? 8 : 1, 2, 7, SK);
+      R_(7, 14 + b, 7, 4, C.white); if (!night) { R_(8, 15 + b, 1, 1, C.red); R_(11, 16 + b, 1, 1, C.red); R_(12, 14 + b, 1, 1, C.red); }
+      R_(7 + b, 18 + b, 2, 5 - b, SK); R_(12 - b, 18 + b, 2, 5 - b, SK);
+      break;
+    }
+    case 'sleep': {           // nightcap, striped pyjamas, arms out, drifting
+      const x = 5 + Math.round(Math.sin(ph*0.6)*4);
+      R_(x + 2, 4, 5, 5, SK); R_(x + 1, 2, 7, 2, C.red); R_(x + 7, 3, 2, 2, C.white);
+      R_(x + 1, 9, 7, 13, C.cyan); if (!night) for (let y = 10; y < 22; y += 3) R_(x + 1, y, 7, 1, C.white);
+      R_(x + 8, 10, 6, 2, C.cyan); R_(x + 14, 10, 2, 2, SK);
+      if (!night) { R_(x + 3, 6, 2, 1, '#000'); R_(x + 6, 6, 1, 1, '#000'); }
+      const z = (ph*1.2) % 3;
+      if (z < 2.4) text('z', wx + 16 - Math.round(z*2), top + 1 + Math.round(3 - z*1.5), night ? SIL : C.white, 'left', 7);
+      break;
+    }
+    case 'bath': {            // a tub full of bubbles, a shower cap, a duck
+      R_(1, 15, 20, 7, C.white); R_(3, 22, 2, 2, C.gray); R_(17, 22, 2, 2, C.gray);
+      R_(5, 8, 5, 5, SK); R_(4, 6, 7, 3, C.pink); R_(2, 12, 2, 4, SK);   // waving arm
+      if (!night) for (let i = 0; i < 6; i++) R_(2 + i*3, 12 + (i % 2), 3, 3, '#ffffff');
+      const d = Math.round(Math.sin(ph*2)*1);
+      R_(14, 11 + d, 5, 3, C.yellow); R_(17, 9 + d, 3, 3, C.yellow); R_(20, 10 + d, 2, 1, C.orange);
+      break;
+    }
+  }
+}
+
 function drawFigure(x, y, s, lean, k) {
   /* a tenant leaning out: apron in their colour */
   const T = TENANTS[s], L = col => mix('#000000', col, 0.25 + 0.75*k);
@@ -1010,11 +1105,12 @@ function drawBuilding() {
       const night = lit ? '#e8c050' : '#07060c';
       rect(wx, top, 22, 24, mix(night, T.inside, k));
       if (st.k < 1 && !st.board) {
-        drawDeco(s, wx, top, r, c, lit ? Math.max(k, 0.7) : k);
+        if (w.gag) drawGag(w, wx, top, r, c, k, when === 'night');
+        else drawDeco(s, wx, top, r, c, lit ? Math.max(k, 0.7) : k);
         const th = throwers.find(t => t.r === r && t.c === c);
         if (th && !th.thrown) drawFigure(x, top + 2, s, Math.min(1, th.t/th.tele), lit ? Math.max(k, 0.8) : k);
         else if (th) drawFigure(x, top + 2, s, Math.max(0, th.after/0.35), lit ? Math.max(k, 0.8) : k);
-        else if (lit && (r*7 + c*3) % 4 === 0) { rect(x - 3, top + 8, 6, 14, '#3a2a10'); rect(x - 2, top + 4, 4, 4, '#3a2a10'); }  // a tenant at home
+        else if (lit && !w.gag && (r*7 + c*3) % 4 === 0) { rect(x - 3, top + 8, 6, 14, '#3a2a10'); rect(x - 2, top + 4, 4, 4, '#3a2a10'); }  // a tenant at home
       }
       rect(wx - 2, top - 2, 26, 2, mix('#1a1410', '#c8b890', k));      // lintel
       if (st.board) {
@@ -1211,14 +1307,15 @@ function drawTitle() {
     'A cat is stranded on the roof. Climb up to it,',
     'window by window, past twelve floors of tenants',
     'who throw things. OPEN windows are footholds;',
-    'a closing shutter knocks you down.',
+    'a closing shutter knocks you down. Mind',
+    'the neighbours: they\'re busy.',
     '',
     'D-PAD  climb, shuffle along the ledge',
     'A      hop over a window / leap a gap',
     'B      flatten against the wall (hold)',
     'SELECT day / night     START  start, pause',
   ];
-  rows.forEach((r, i) => text(r, W/2, 76 + i*11, C.white, 'center'));
+  rows.forEach((r, i) => text(r, W/2, 74 + i*10, C.white, 'center'));
   text('HI ' + String(hi).padStart(6, '0'), W/2, 182, C.gray, 'center');
   if (Math.floor(time*2) % 2) text('PRESS START', W/2, 200, C.ylgreen, 'center', 12);
   if (!audioLive()) text('PRESS ANY KEY FOR SOUND', W/2, 228, C.yellow, 'center');
@@ -1285,4 +1382,6 @@ if (DEMO) {
   for (let i = 0; i < warp; i++) { if (i === turnAt) turnTime(); pollInput(); update(STEP); for (const b of BTN) pressed[b] = false; }
 }
 requestAnimationFrame(frame);
+/* ?mod=name loads name.js from beside this page: a local add-on. */
+if (Q.get('mod')) { const m = document.createElement('script'); m.src = Q.get('mod').replace(/[^\w-]/g, '') + '.js'; document.body.appendChild(m); }
 </script>

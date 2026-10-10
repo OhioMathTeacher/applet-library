@@ -71,6 +71,9 @@ Draw a dungeon floor plan and it becomes a prism you can walk through. The edito
 ### 🌊 [Tidewall](https://ohiomathteacher.github.io/applet-library/tidewall/)
 *Under construction.* A city on a sea wall, at night. Raiders pass lower and lower until they dive. Steer a searchlight to find them and fire three cannons to bring them down. Every building lost lets the tide rise.
 
+### 🐸 [Hop Count](https://ohiomathteacher.github.io/applet-library/hop-count/)
+*Under construction.* A single-screen crossing game on a rainy spring night. You're a toad migrating to the pond where you were born: hop through five lanes of traffic, then across a creek on logs and turtles, and fill the five bays in the reeds. Puff up to scare off snakes and herons, and look out for the volunteer with a bucket.
+
 ---
 
 ## About

@@ -35,6 +35,7 @@ GAMES = [
     ("lantern-run", "lantern-run"),
     ("twelve-stories", "twelve-stories"),
     ("tidewall", "tidewall"),
+    ("hop-count", "hop-count"),
 ]
 
 BANNER = """<!--

@@ -1,0 +1,1289 @@
+<!--
+  GENERATED FILE - DO NOT EDIT
+  Source:    ../hop-count/index.html
+  Rewritten: python3 sync-games.py
+  Edits made here are lost on the next sync. Fix the game in the
+  hop-count repo and re-run the script.
+-->
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Hop Count</title>
+<!-- One file, no build, no network. Open it straight from disk. -->
+<style>
+  html,body{margin:0;height:100%;background:#000;overflow:hidden}
+  /* Drawn at its native 400x272 and scaled up by CSS; pixelated keeps the
+     early-80s blocks sharp instead of smearing them. */
+  canvas{position:absolute;image-rendering:pixelated;image-rendering:crisp-edges}
+</style>
+<canvas id="c"></canvas>
+<script>
+"use strict";
+const VERSION = 'v0.1';
+
+/* ============================================================
+   Hop Count
+   A rainy spring night. You are a toad, and the pond you were
+   born in is on the other side of a road and a creek. Hop the
+   traffic, ride the logs and turtles, and fill the five bays in
+   the reeds. Then the next toad, the next night, a little busier.
+   Single-screen, Frogger-style: one tile per hop.
+   ============================================================ */
+
+const HUD = 20, FOOT = 12, W = 400, PH = 240, H = HUD + PH + FOOT;   // 400 x 272
+const T = 16;                       // one tile, one hop
+const STEP = 1/60;
+const Q = new URLSearchParams(location.search);
+/* ?demo: invincible autopilot, so a headless browser can screenshot real
+   play. &warp=N runs N steps first. &level=N starts on level N. &bucket
+   brings the volunteer early and the autopilot waits for her. */
+const DEMO = Q.has('demo');
+/* &mortal: the demo can die, to check the death and game-over screens. */
+const IMMORTAL = DEMO && !Q.has('mortal');
+/* The demo runs on a seeded random sequence (&seed=N), so the same URL always
+   plays out the same way and a screenshot can be aimed at a moment. */
+if (DEMO) {
+  let a = (parseInt(Q.get('seed')) || 1) >>> 0;
+  Math.random = () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ t >>> 15, t | 1); t ^= t + Math.imul(t ^ t >>> 7, t | 61); return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+}
+const HI_KEY = 'hop-count-hi';
+
+/* The rows, top to bottom. */
+const POND_ROW = 0, HOME_ROW = 1, CREEK_TOP = 2, CREEK_BOT = 6, MEDIAN = 7,
+      ROAD_TOP = 8, ROAD_BOT = 12, START_ROW = 13, WOOD_ROW = 14;
+const isCreek = r => r >= CREEK_TOP && r <= CREEK_BOT;
+const isRoad = r => r >= ROAD_TOP && r <= ROAD_BOT;
+const BAYS = [40, 120, 200, 280, 360], BAY_HALF = 13;
+const START_X = 200;
+
+/* Sixteen colours, Intellivision-like. Everything that moves or can hurt you
+   is drawn in these, full strength. The night scenery underneath uses dimmed
+   shades (SCN) so the sprites always stand out against it. */
+const C = {
+  black: '#000000', blue: '#2a5cff', red: '#ff3d10', tan: '#c9cfab', dkgreen: '#386b3f', green: '#00a756',
+  yellow: '#faea50', white: '#fffcff', gray: '#a8a8b8', cyan: '#24b8ff', orange: '#ffb41f', brown: '#8a5a1e',
+  pink: '#ff6e6e', ltblue: '#a496ff', ygreen: '#75cc80', purple: '#b51a58'
+};
+const SCN = {
+  pond: '#0a1c52', water: '#0d2766', flow: '#2a4c9a', reed: '#163a1e', reedLt: '#2f6a34',
+  grass: '#173a1e', grassLt: '#24592c', road: '#2a2a35', roadLt: '#3a3a48', line: '#9a9aa8',
+  wood: '#0a1c10', trunk: '#2a1a0e', kerb: '#55555f', rain: '#9fb0e8'
+};
+
+/* ---------------- canvas ---------------- */
+const cv = document.getElementById('c'), ctx = cv.getContext('2d');
+cv.width = W; cv.height = H;
+function fit() {
+  const k = Math.max(1, Math.min(innerWidth / W, innerHeight / H));
+  cv.style.width = (W*k) + 'px'; cv.style.height = (H*k) + 'px';
+  cv.style.left = ((innerWidth - W*k)/2) + 'px'; cv.style.top = ((innerHeight - H*k)/2) + 'px';
+}
+addEventListener('resize', fit); fit();
+const rect = (x, y, w, h, c) => { ctx.fillStyle = c; ctx.fillRect(Math.round(x), Math.round(y), w, h); };
+function text(s, x, y, c = C.white, align = 'left', size = 8) {
+  ctx.font = `bold ${size}px monospace`; ctx.textAlign = align; ctx.textBaseline = 'top';
+  ctx.fillStyle = '#000'; ctx.fillText(s, x + 1, y + 1);
+  ctx.fillStyle = c; ctx.fillText(s, x, y);
+}
+const pad = (n, k) => String(Math.max(0, Math.floor(n))).padStart(k, '0');
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const rnd = (a, b) => a + Math.random()*(b - a);
+
+/* Pixel maps, drawn chunky: each character is one block of s x s pixels.
+   rot turns the map: 0 up, 1 right, 2 down, 3 left. */
+function sprite(map, cx, cy, s, cols, rot = 0) {
+  const n = map.length, m = map[0].length;
+  const w = (rot % 2 ? n : m)*s, h = (rot % 2 ? m : n)*s;
+  const x0 = Math.round(cx - w/2), y0 = Math.round(cy - h/2);
+  for (let j = 0; j < n; j++) for (let i = 0; i < m; i++) {
+    const ch = map[j][i]; if (ch === '.') continue;
+    let u = i, v = j;
+    if (rot === 1) { u = n - 1 - j; v = i; }
+    else if (rot === 2) { u = m - 1 - i; v = n - 1 - j; }
+    else if (rot === 3) { u = j; v = m - 1 - i; }
+    ctx.fillStyle = cols[ch]; ctx.fillRect(x0 + u*s, y0 + v*s, s, s);
+  }
+}
+/* The toad, top-down, facing up. */
+const TOAD = [
+  'd.b..b.d',
+  '.ekbbke.',
+  '.bbbbbb.',
+  'dbdbbdbd',
+  '.bbbbbb.',
+  '.bdbbdb.',
+  'db.bb.bd',
+  'd......d',
+];
+const TOAD_HOP = [
+  '..b..b..',
+  '.ekbbke.',
+  'dbbbbbbd',
+  '.bdbbdb.',
+  '.bbbbbb.',
+  '..bddb..',
+  '.d....d.',
+  'd......d',
+];
+const TOAD_COL = {b: C.orange, d: C.brown, e: C.yellow, k: C.black};
+const MALE_COL = {b: C.ygreen, d: C.dkgreen, e: C.yellow, k: C.black};
+const HERON = [
+  '....ww..',
+  '...wwkyy',
+  '....w...',
+  '....w...',
+  '..ggww..',
+  '.ggggwg.',
+  'gggggg..',
+  '..g.g...',
+  '..y.y...',
+];
+const HERON_COL = {w: C.white, k: C.black, y: C.yellow, g: C.gray};
+const VOLUNTEER = [
+  '..hh..',
+  '.hssh.',
+  '..ss..',
+  'yyyyyy',
+  'yoyyoy',
+  'yyyyyy',
+  's.bb.s',
+  '..bb..',
+  '..bb..',
+  '.kk.kk',
+];
+const VOL_COL = {h: C.brown, s: C.pink, y: C.yellow, o: C.orange, b: C.blue, k: C.black};
+const FACE_ROT = {up: 0, right: 1, down: 2, left: 3};
+
+/* ---------------- sound ---------------- */
+/* Everything you hear is synthesized here -- square, triangle and noise,
+   General Instrument / AY-chip style. No audio files, no network.
+   Browsers only allow audio after a user gesture, so the context is made (or
+   resumed) on the first key, click or touch.
+
+     effects ---------------------> sfx --\
+     soundtrack (lookahead) ------> music --+--> master -> limiter -> out
+     rain (always on, looping noise) -> rain --/
+   */
+const MASTER_VOL = 0.5;
+let actx = null, soundOn = true, noiseBuf = null, A = null;
+function ensureAudio() {
+  try {
+    if (!actx) { actx = new (window.AudioContext || window.webkitAudioContext)(); buildAudio(); }
+    if (actx.state === 'suspended' && !document.hidden) {
+      const pr = actx.resume(); if (pr && pr.catch) pr.catch(() => {});
+    }
+  } catch (e) { console.warn('audio', e); actx = null; A = null; }
+}
+const audioLive = () => !!(A && actx && actx.state === 'running');
+function buildAudio() {
+  const c = actx;
+  noiseBuf = c.createBuffer(1, c.sampleRate, c.sampleRate);
+  const nd = noiseBuf.getChannelData(0);
+  for (let i = 0; i < nd.length; i++) nd[i] = Math.random()*2 - 1;
+  const gain = v => { const g = c.createGain(); g.gain.value = v; return g; };
+  A = {last: {}};
+  const lim = c.createDynamicsCompressor();
+  lim.threshold.value = -14; lim.knee.value = 8; lim.ratio.value = 6; lim.attack.value = 0.003; lim.release.value = 0.2;
+  lim.connect(c.destination);
+  A.master = gain(soundOn ? MASTER_VOL : 0); A.master.connect(lim);
+  A.sfx = gain(1); A.sfx.connect(A.master);
+  A.mus = gain(0); A.mus.connect(A.master);
+  // the rain: looping noise through a soft bandpass, always running
+  const rs = c.createBufferSource(); rs.buffer = noiseBuf; rs.loop = true;
+  const bp = c.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 4200; bp.Q.value = 0.4;
+  A.rain = gain(0); rs.connect(bp).connect(A.rain).connect(A.master); rs.start();
+}
+function lvl(k, param, v, tc = 0.05) {
+  const old = A.last[k];
+  if (old !== undefined && Math.abs(old - v) <= 1e-4*Math.max(1, Math.abs(v))) return;
+  A.last[k] = v; param.setTargetAtTime(v, actx.currentTime, tc);
+}
+const mtof = m => 440*Math.pow(2, (m - 69)/12);
+function tone(t, f, dur, o = {}) {
+  const os = actx.createOscillator(), g = actx.createGain();
+  const v = o.vol === undefined ? 0.05 : o.vol, a = Math.min(o.attack || 0.003, dur*0.5);
+  os.type = o.type || 'square';
+  os.frequency.setValueAtTime(f, t);
+  if (o.slide) os.frequency.exponentialRampToValueAtTime(o.slide, t + dur);
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(v, t + a);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  os.connect(g).connect(o.dest || A.sfx);
+  os.onended = () => g.disconnect();
+  os.start(t); os.stop(t + dur + 0.02);
+}
+function hiss(t, dur, o = {}) {
+  const s = actx.createBufferSource(), g = actx.createGain();
+  s.buffer = noiseBuf; s.loop = true;
+  let out = s;
+  if (o.filt) {
+    const b = actx.createBiquadFilter(); b.type = o.filt; b.Q.value = o.q || 0.8;
+    b.frequency.setValueAtTime(o.f || 1000, t);
+    if (o.fTo) b.frequency.exponentialRampToValueAtTime(o.fTo, t + dur);
+    s.connect(b); out = b;
+  }
+  const v = o.vol === undefined ? 0.05 : o.vol;
+  g.gain.setValueAtTime(v, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  out.connect(g).connect(o.dest || A.sfx);
+  s.onended = () => g.disconnect();
+  s.start(t, Math.random()*0.8); s.stop(t + dur + 0.02);
+}
+/* Wrap an effect: silent when muted or locked, and a sound bug can never take
+   the game down with it. */
+const fx = fn => (...args) => {
+  if (!soundOn || !audioLive()) return;
+  try { fn(actx.currentTime + 0.005, ...args); } catch (e) { console.warn('audio', e); }
+};
+const SFX = {
+  hop:    fx(t => { tone(t, 330, 0.07, {vol: 0.045, slide: 660}); }),
+  long:   fx(t => { tone(t, 220, 0.2, {vol: 0.045, slide: 990}); tone(t + 0.12, 1320, 0.08, {type: 'triangle', vol: 0.03}); }),
+  thud:   fx(t => { tone(t, 140, 0.06, {type: 'triangle', vol: 0.06, slide: 90}); hiss(t, 0.04, {filt: 'lowpass', f: 700, vol: 0.04}); }),
+  plop:   fx(t => { tone(t, 190, 0.05, {type: 'triangle', vol: 0.06, slide: 130}); hiss(t, 0.03, {filt: 'bandpass', f: 1600, vol: 0.03}); }),
+  splash: fx(t => { hiss(t, 0.35, {filt: 'bandpass', f: 2200, fTo: 500, vol: 0.09}); tone(t, 600, 0.12, {type: 'triangle', vol: 0.03, slide: 200}); }),
+  paddle: fx(t => { hiss(t, 0.07, {filt: 'highpass', f: 2500, vol: 0.03}); }),
+  road:   fx(t => {
+    hiss(t, 0.3, {filt: 'lowpass', f: 2500, fTo: 200, vol: 0.12});
+    [72, 69, 65, 60].forEach((m, i) => tone(t + 0.25 + i*0.12, mtof(m), 0.11, {vol: 0.04}));
+  }),
+  swept:  fx(t => {
+    hiss(t, 0.6, {filt: 'bandpass', f: 1800, fTo: 300, vol: 0.08});
+    tone(t, 900, 0.9, {type: 'triangle', vol: 0.05, slide: 110});
+  }),
+  eaten:  fx(t => {
+    tone(t, 260, 0.25, {type: 'sawtooth', vol: 0.05, slide: 70});
+    hiss(t, 0.05, {filt: 'highpass', f: 3000, vol: 0.06});
+    [67, 63, 60].forEach((m, i) => tone(t + 0.3 + i*0.14, mtof(m), 0.12, {vol: 0.04}));
+  }),
+  time:   fx(t => { [76, 72, 69, 64].forEach((m, i) => tone(t + i*0.15, mtof(m), 0.13, {type: 'triangle', vol: 0.06})); }),
+  home:   fx(t => {
+    [72, 76, 79, 84].forEach((m, i) => tone(t + i*0.07, mtof(m), 0.09, {vol: 0.04}));
+    tone(t + 0.3, mtof(88), 0.2, {type: 'triangle', vol: 0.04});
+  }),
+  clear:  fx(t => {
+    const mel = [72, 76, 79, 76, 79, 84, 0, 84];
+    mel.forEach((m, i) => { if (m) { tone(t + i*0.11, mtof(m), 0.1, {vol: 0.045}); tone(t + i*0.11, mtof(m - 24), 0.1, {type: 'triangle', vol: 0.05}); } });
+    tone(t + 0.9, mtof(84), 0.5, {vol: 0.04}); tone(t + 0.9, mtof(60), 0.6, {type: 'triangle', vol: 0.07});
+  }),
+  puff:   fx(t => { tone(t, 160, 0.3, {type: 'triangle', vol: 0.08, slide: 420}); hiss(t, 0.25, {filt: 'lowpass', f: 600, fTo: 1600, vol: 0.03}); }),
+  snake:  fx(t => { hiss(t, 0.6, {filt: 'highpass', f: 4500, vol: 0.035}); }),
+  scared: fx(t => { hiss(t, 0.2, {filt: 'highpass', f: 3500, vol: 0.04}); tone(t, 700, 0.15, {type: 'triangle', vol: 0.03, slide: 1400}); }),
+  heron:  fx(t => { tone(t, 620, 0.22, {type: 'sawtooth', vol: 0.03, slide: 380}); hiss(t, 0.15, {filt: 'bandpass', f: 1400, vol: 0.03}); }),
+  flap:   fx(t => { for (let i = 0; i < 5; i++) hiss(t + i*0.09, 0.05, {filt: 'bandpass', f: 900, vol: 0.05}); }),
+  croak:  fx(t => { tone(t, 150, 0.08, {vol: 0.04}); tone(t + 0.11, 135, 0.1, {vol: 0.04}); }),
+  bucket: fx(t => {
+    tone(t, 1250, 0.08, {type: 'triangle', vol: 0.04}); tone(t, 1660, 0.08, {type: 'triangle', vol: 0.03});
+    [67, 72, 76, 79, 76, 79, 84].forEach((m, i) => tone(t + 0.12 + i*0.09, mtof(m), 0.08, {vol: 0.035}));
+  }),
+  mayfly: fx(t => { for (let i = 0; i < 4; i++) tone(t + i*0.05, 2000 + i*300, 0.04, {vol: 0.03}); }),
+  bonus:  fx(t => { [79, 84, 88].forEach((m, i) => tone(t + i*0.06, mtof(m), 0.07, {vol: 0.035})); }),
+  tick:   fx(t => tone(t, 1500, 0.03, {vol: 0.03})),
+  life:   fx(t => { [72, 76, 79, 84, 88].forEach((m, i) => tone(t + i*0.07, mtof(m), 0.09, {vol: 0.04})); }),
+  thunder: fx(t => {
+    hiss(t, 2.4, {filt: 'lowpass', f: 160, vol: 0.32});
+    hiss(t + 0.15, 1.2, {filt: 'lowpass', f: 380, fTo: 120, vol: 0.12});
+  }),
+  chorus: fx(t => {      // toads calling, far off across the pond
+    const f = rnd(260, 360);
+    for (let i = 0; i < 3; i++) tone(t + i*0.13, f, 0.07, {type: 'triangle', vol: 0.012});
+  }),
+  gameover: fx(t => {
+    [69, 68, 67, 66].forEach((m, i) => { tone(t + i*0.3, mtof(m), 0.26, {vol: 0.04}); tone(t + i*0.3, mtof(m - 24), 0.26, {type: 'triangle', vol: 0.06}); });
+    tone(t + 1.2, mtof(57), 1.2, {vol: 0.035}); tone(t + 1.2, mtof(33), 1.4, {type: 'triangle', vol: 0.08});
+  }),
+  pause:  fx((t, on) => tone(t, on ? 300 : 600, 0.06, {vol: 0.05})),
+};
+function setSound(on) {
+  soundOn = on;
+  if (A) try { lvl('master', A.master.gain, on ? MASTER_VOL : 0, 0.03); } catch (e) {}
+}
+
+/* ---------------- music ---------------- */
+/* A lookahead sequencer, as in Circuit Breaker: every sixteenth-note step
+   that falls in the next 0.12 s is scheduled on the AudioContext clock.
+   A light, hopping tune in A minor; a hair faster each level. */
+const MUS = {next: 0, step: 0, bar: 0};
+const MEL = [
+  69, 0, 72, 0, 76, 74, 72, 0,   69, 0, 72, 0, 77, 76, 72, 0,
+  67, 0, 72, 0, 76, 0, 79, 76,   74, 0, 71, 0, 67, 0, 0, 0,
+  76, 0, 76, 74, 72, 0, 69, 0,   72, 0, 72, 69, 65, 0, 69, 0,
+  71, 0, 74, 0, 79, 0, 77, 74,   76, 0, 0, 0, 68, 0, 71, 0,
+];
+const ROOTS = [45, 41, 48, 43, 45, 41, 43, 40];
+function playStep(t, s, bar) {
+  const d = 1/musSps(), b = bar % 8, root = ROOTS[b];
+  if (s % 2 === 0) {
+    const m = MEL[b*8 + s/2];
+    if (m) tone(t, mtof(m), d*1.4, {vol: 0.018, dest: A.mus});
+  }
+  if (s === 0 || s === 8) tone(t, mtof(root + (s ? 7 : 0)), d*3, {type: 'triangle', vol: 0.07, dest: A.mus});
+  if (s === 4 || s === 12) tone(t, mtof(root + 12), d*1.5, {type: 'triangle', vol: 0.04, dest: A.mus});
+  if (s % 4 === 2) hiss(t, 0.025, {filt: 'highpass', f: 7000, vol: 0.012, dest: A.mus});
+}
+const musSps = () => 6.4*(1 + 0.03*Math.min(10, level - 1));
+function scheduleMusic() {
+  const now = actx.currentTime;
+  if (MUS.next < now) MUS.next = now + 0.03;
+  while (MUS.next < now + 0.12) {
+    playStep(MUS.next, MUS.step, MUS.bar);
+    MUS.next += 1/musSps();
+    if (++MUS.step === 16) { MUS.step = 0; MUS.bar++; }
+  }
+}
+function audioFrame() {
+  if (!A || !audioLive()) return;
+  try {
+    const quiet = state === 'pause' || state === 'notes';
+    lvl('rain', A.rain.gain, quiet ? 0.006 : 0.028, 0.3);
+    const music = state === 'play' && soundOn;
+    lvl('mus', A.mus.gain, music ? 1 : 0, 0.08);
+    if (music) scheduleMusic(); else { MUS.next = 0; MUS.step = 0; }
+  } catch (e) { console.warn('audio', e); }
+}
+
+/* ---------------- input ---------------- */
+/* Everything collapses onto the eight NES buttons. Keyboard and every
+   connected pad are OR-ed together, so either works at any moment. */
+const BTN = ['up','down','left','right','a','b','select','start'];
+const DIRS = ['up','down','left','right'];
+const KEYMAP = {
+  ArrowUp:'up', KeyW:'up', ArrowDown:'down', KeyS:'down', ArrowLeft:'left', KeyA:'left',
+  ArrowRight:'right', KeyD:'right', KeyZ:'a', KeyK:'a', Space:'a', KeyX:'b', KeyJ:'b',
+  ShiftLeft:'select', ShiftRight:'select', Enter:'start', NumpadEnter:'start', KeyP:'start'
+};
+const key = {}, keyTap = {}, held = {}, prevHeld = {}, pressed = {};
+let footMsg = '', footT = 0, padCount = 0;
+const footNote = m => { footMsg = m; footT = 3; };
+addEventListener('keydown', e => {
+  ensureAudio();
+  const b = KEYMAP[e.code]; if (!b) return;
+  e.preventDefault();
+  if (!e.repeat) keyTap[b] = true;     // catches taps shorter than one frame
+  key[b] = true;
+});
+addEventListener('keyup', e => { const b = KEYMAP[e.code]; if (b) key[b] = false; });
+addEventListener('blur', () => { for (const b of BTN) key[b] = false; });
+for (const ev of ['mousedown', 'pointerdown', 'touchend']) addEventListener(ev, ensureAudio);
+addEventListener('gamepaddisconnected', () => footNote('CONTROLLER DISCONNECTED'));
+function pollInput() {
+  const pad = {};
+  let n = 0;
+  for (const p of (navigator.getGamepads ? navigator.getGamepads() : [])) {
+    if (!p) continue; n++;
+    const b = i => !!(p.buttons[i] && p.buttons[i].pressed);
+    const ax = p.axes[0] || 0, ay = p.axes[1] || 0;
+    /* Cheap NES-style USB pads often report the D-pad as axes 0/1 instead of
+       buttons 12-15, so both count. */
+    pad.up = pad.up || b(12) || ay < -0.5; pad.down = pad.down || b(13) || ay > 0.5;
+    pad.left = pad.left || b(14) || ax < -0.5; pad.right = pad.right || b(15) || ax > 0.5;
+    pad.a = pad.a || b(0); pad.b = pad.b || b(1);
+    pad.select = pad.select || b(8); pad.start = pad.start || b(9);
+  }
+  if (n > padCount) footNote('CONTROLLER CONNECTED');
+  padCount = n;
+  for (const b of BTN) {
+    held[b] = !!(key[b] || pad[b]);
+    pressed[b] = (held[b] && !prevHeld[b]) || !!keyTap[b];
+    if (pressed[b] && pad[b]) ensureAudio();   // may not count as a gesture in every browser
+    keyTap[b] = false; prevHeld[b] = held[b];
+  }
+  if (DEMO && state === 'play') demoPilot();
+}
+
+/* ---------------- game state ---------------- */
+let state = 'title', notesFrom = 'play', time = 0, blink = 0;
+let score = 0, hi = 0, lives = 4, level = 1, hops = 0, nextLife = 10000, clearT = 0, clearBonus = 0;
+try { hi = +localStorage.getItem(HI_KEY) || 0; } catch (e) {}
+const homes = [false, false, false, false, false];
+const P = {x: START_X, row: START_ROW, face: 'up', hop: null, swim: false, puffing: false, puffT: 0, puffCd: 0,
+           longCd: 0, rep: 0, repDir: null, buffered: null, maxRow: START_ROW, time: 50, maxTime: 50,
+           rider: false, ride: null, dead: null, paddleCd: 0, lastTick: 0};
+let toast = '', toastT = 0, pops = [], ripples = [], thunderT = 12;
+const PUFF_MAX = 1.2, PUFF_CD = 2.0, LONG_CD = 3.0;
+const toadTime = () => Math.max(32, 50 - 3*(level - 1));
+const say = (m, t = 2.2) => { toast = m; toastT = t; };
+function pop(x, y, s) { pops.push({x, y, s, t: 1.3}); }
+function addScore(n) {
+  score += n;
+  if (score >= nextLife) { nextLife += 10000; lives++; SFX.life(); say('EXTRA TOAD!'); }
+}
+
+/* ---------------- lanes ---------------- */
+/* Every lane is a loop wider than the screen: things leave one side and come
+   back on the other. M is the hidden margin each side. */
+const M = 96, LOOP = W + 2*M;
+const WIDTH = {car: 26, bike: 14, lorry: 62, tractor: 30};
+const NAME = {car: 'CAR', bike: 'MOTORBIKE', lorry: 'LORRY', tractor: 'TRACTOR'};
+const CAR_COLS = [C.red, C.cyan, C.yellow, C.pink, C.ltblue, C.white, C.purple];
+let lanes = [], laneAt = {};
+function buildLanes(lv) {
+  /* Level 1 is gentle. Each level after is 10% quicker (to a cap), and the
+     road gets busier every couple of levels. */
+  const k = Math.min(1.9, 1 + 0.1*(lv - 1));
+  const more = i => (lv >= 3 && i % 2 === 0 ? 1 : 0) + (lv >= 5 && i % 2 === 1 ? 1 : 0) + (lv >= 7 ? 1 : 0);
+  const dives = lv >= 3 ? 2 : 1;
+  const shrink = lv >= 4 ? 16 : 0;
+  const defs = [
+    {row: 2, kind: 'log',    dir:  1, v: 20, len: 64 - shrink, n: 3},
+    {row: 3, kind: 'turtle', dir: -1, v: 16, len: 2, n: 4},
+    {row: 4, kind: 'log',    dir:  1, v: 24, len: 80 - shrink, n: 3},
+    {row: 5, kind: 'log',    dir:  1, v: 15, len: 48, n: 4},
+    {row: 6, kind: 'turtle', dir: -1, v: 13, len: 3, n: 4},
+    {row: 8, kind: 'bike',    dir:  1, v: 46, n: 1},
+    {row: 9, kind: 'car',     dir: -1, v: 26, n: 2},
+    {row: 10, kind: 'lorry',  dir:  1, v: 17, n: 1},
+    {row: 11, kind: 'car',    dir: -1, v: 20, n: 3},
+    {row: 12, kind: 'tractor', dir: 1, v: 11, n: 2},
+  ];
+  let ci = 0;
+  lanes = defs.map((d, i) => {
+    const road = d.row >= ROAD_TOP;
+    const n = d.n + (road ? more(i) : 0);
+    const L = {row: d.row, kind: d.kind, v: d.v*k*d.dir, objs: []};
+    const gap = LOOP/n;
+    for (let j = 0; j < n; j++) {
+      let kind = d.kind;
+      if (d.row === 12 && j >= 2) kind = 'car';              // later levels: cars behind the tractors
+      const o = {kind, x: -M + j*gap + (road ? rnd(0, gap*0.25) : rnd(0, gap*0.15)), ph: rnd(0, 8)};
+      o.w = d.kind === 'log' ? d.len : d.kind === 'turtle' ? d.len*T : WIDTH[kind];
+      o.col = CAR_COLS[ci++ % CAR_COLS.length];
+      o.dive = d.kind === 'turtle' && j < dives && (d.row === 6 || lv >= 2 || j === 0);
+      if (d.kind === 'turtle' && d.row === 3 && lv === 1) o.dive = false;   // level 1: one diving group only
+      L.objs.push(o);
+    }
+    return L;
+  });
+  laneAt = {}; for (const L of lanes) laneAt[L.row] = L;
+}
+/* Diving turtles: up, sinking (still safe, drawn darker as a warning),
+   under (not safe), rising (not safe yet). */
+function turtleState(o) {
+  if (!o.dive) return 0;
+  const c = o.ph % 8;
+  return c < 4.8 ? 0 : c < 6 ? 1 : c < 7.4 ? 2 : 3;
+}
+function floaterAt(row, x) {
+  const L = laneAt[row]; if (!L || !isCreek(row)) return null;
+  for (const o of L.objs) if (x > o.x + 1 && x < o.x + o.w - 1 && (o.kind !== 'turtle' || turtleState(o) < 2)) return o;
+  return null;
+}
+function vehicleAt(row, x) {
+  const L = laneAt[row]; if (!L || !isRoad(row)) return null;
+  for (const o of L.objs) if (x + 5 > o.x + 2 && x - 5 < o.x + o.w - 2) return o;
+  return null;
+}
+function updateLanes(dt) {
+  for (const L of lanes) {
+    if (P.ride && isRoad(L.row)) continue;         // the traffic waits for the volunteer
+    for (const o of L.objs) {
+      o.x += L.v*dt; o.ph += dt; o.stopped = false;
+      if (L.v > 0 && o.x >= -M + LOOP) o.x -= LOOP;
+      if (L.v < 0 && o.x < -M) o.x += LOOP;
+    }
+    /* The volunteer's lane: traffic behind her slows and queues. */
+    if (L.row === ROAD_BOT && V.on) {
+      let limit = V.x - 12;
+      const behind = L.objs.filter(o => o.x < V.x).sort((a, b) => b.x - a.x);
+      for (const o of behind) {
+        if (o.x + o.w > limit) { o.x = limit - o.w; o.stopped = true; }
+        limit = o.x - 6;
+      }
+    }
+  }
+}
+
+/* ---------------- the night's other characters ---------------- */
+const V = {on: false, x: -24, y: ROAD_BOT, cd: 6};                 // the toad-patrol volunteer
+const S = {on: false, x: 0, dir: 1, v: 18, cd: 16, len: 46, scared: false, t: 0};   // grass snake
+const HR = {bay: -1, t: 0, cd: 26, fly: 0, fx: 0};                 // heron
+const MF = {bay: -1, t: 0, cd: 9};                                  // mayfly
+const MALE = {on: false, cd: 10, obj: null, off: 0, row: 0, x: 0, t: 0};
+
+function updateWorld(dt) {
+  const spawning = state === 'play' && !P.ride;
+  const k = Math.min(1.9, 1 + 0.1*(level - 1));
+  // volunteer
+  if (!V.on) {
+    if (spawning) V.cd -= dt;
+    const clear = !laneAt[ROAD_BOT].objs.some(o => o.x < 12 && o.x + o.w > -50);
+    if (V.cd <= 0 && clear) { V.on = true; V.x = -24; V.y = ROAD_BOT; }
+  } else if (!P.ride) {
+    V.x += 9*dt;
+    if (V.x > W + 24) { V.on = false; V.cd = rnd(18, 28); }
+  }
+  // grass snake on the median
+  if (!S.on) {
+    if (spawning) S.cd -= dt;
+    if (S.cd <= 0 && !(P.row === MEDIAN && !P.hop)) {
+      S.on = true; S.scared = false; S.dir = Math.random() < 0.5 ? 1 : -1;
+      S.x = S.dir > 0 ? -8 : W + 8; S.v = 17*k; S.t = 0; SFX.snake();
+    }
+  } else {
+    S.x += S.dir*S.v*dt; S.t += dt;
+    const tail = S.x - S.dir*S.len;
+    if ((S.dir > 0 && tail > W + 8) || (S.dir < 0 && tail < -8)) { S.on = false; S.cd = rnd(22, 36) - Math.min(10, level*1.5); }
+  }
+  // heron in a bay
+  const bayFree = b => !homes[b] && MF.bay !== b && HR.bay !== b;
+  if (HR.fly > 0) HR.fly -= dt;
+  if (HR.bay < 0) {
+    if (spawning) HR.cd -= dt;
+    if (HR.cd <= 0) {
+      const ok = [0, 1, 2, 3, 4].filter(b => bayFree(b) && !(P.row <= CREEK_TOP + 1 && Math.abs(BAYS[b] - P.x) < 24));
+      if (ok.length) { HR.bay = ok[Math.floor(Math.random()*ok.length)]; HR.t = Math.max(5, 8 - level*0.3); SFX.heron(); }
+      else HR.cd = 3;
+    }
+  } else {
+    HR.t -= dt;
+    if (HR.t <= 0) heronLeaves();
+  }
+  // mayfly in a bay
+  if (MF.bay < 0) {
+    if (spawning) MF.cd -= dt;
+    if (MF.cd <= 0) {
+      const ok = [0, 1, 2, 3, 4].filter(bayFree);
+      if (ok.length) { MF.bay = ok[Math.floor(Math.random()*ok.length)]; MF.t = 6; }
+      MF.cd = rnd(10, 18);
+    }
+  } else { MF.t -= dt; if (MF.t <= 0) MF.bay = -1; }
+  // the lone male toad: on a log drifting in, or sitting on the median
+  if (!MALE.on) {
+    if (spawning && !P.rider) MALE.cd -= dt;
+    if (MALE.cd <= 0) {
+      MALE.cd = rnd(12, 20);
+      const row = Math.random() < 0.5 ? 4 : 5, L = laneAt[row];
+      const cands = L.objs.filter(o => o.x + o.w < -4);
+      if (cands.length && Math.random() < 0.7) {
+        const o = cands[0]; Object.assign(MALE, {on: true, obj: o, off: o.w/2, row, x: o.x + o.w/2, t: 0});
+      } else if (!S.on && P.row !== MEDIAN) {
+        Object.assign(MALE, {on: true, obj: null, row: MEDIAN, x: rnd(40, 360), t: 0});
+      }
+    }
+  } else {
+    MALE.t += dt;
+    if (MALE.obj) {
+      MALE.x = MALE.obj.x + MALE.off;
+      if (MALE.t > 2 && (MALE.x > W + 12 || MALE.x < -12)) MALE.on = false;
+    } else if (MALE.t > 11) MALE.on = false;
+  }
+}
+function heronLeaves() {
+  if (HR.bay < 0) return;
+  HR.fx = BAYS[HR.bay]; HR.fly = 1; HR.bay = -1; HR.cd = rnd(14, 24) - Math.min(8, level); SFX.flap();
+}
+function scareSnake() {
+  if (!S.on || S.scared) return;
+  S.scared = true; S.x = S.x - S.dir*S.len; S.dir = -S.dir; S.v *= 2.4; SFX.scared();
+  pop(P.x, MEDIAN*T, 'SHOO!');
+}
+
+/* ---------------- the toad ---------------- */
+function resetToad() {
+  Object.assign(P, {x: START_X, row: START_ROW, face: 'up', hop: null, swim: false, puffing: false, puffT: 0,
+    puffCd: 0, longCd: 0, rep: 0, repDir: null, buffered: null, maxRow: START_ROW, rider: false, ride: null, dead: null});
+  P.maxTime = P.time = toadTime(); P.lastTick = 0;
+}
+function bayAt(x) { return BAYS.findIndex(b => Math.abs(x - b) <= BAY_HALF); }
+
+function tryHop(dir) {
+  if (state !== 'play' || P.dead || P.ride || P.puffing) return false;
+  if (P.hop) { if (!P.hop.long && P.hop.t > P.hop.dur*0.35) P.buffered = dir; return false; }
+  const long = dir === 'long';
+  let dx = 0, dr = 0;
+  if (dir === 'up') dr = -1; else if (dir === 'down') dr = 1;
+  else if (dir === 'left') dx = -T; else if (dir === 'right') dx = T;
+  else if (long) dr = -2;
+  P.face = long ? 'up' : dir;
+  let r1 = P.row + dr; const x1 = P.x + dx;
+  if (r1 < HOME_ROW) r1 = HOME_ROW;
+  if (r1 > START_ROW || r1 === P.row && dx === 0) return false;
+  if (x1 < 8 || x1 > W - 8) { SFX.thud(); return false; }
+  if (r1 === HOME_ROW) {
+    const b = bayAt(x1);
+    if (b < 0 || homes[b]) { SFX.thud(); return false; }    // reeds, or a bay already taken
+  }
+  const dur = long ? 0.24 : 0.12;
+  if (P.swim) {
+    /* In the creek the current is too strong to swim across: you can only
+       hop out onto something -- a log, a turtle, the bank or a bay. */
+    const L = laneAt[r1];
+    const solid = !isCreek(r1) || floaterAt(r1, x1 - (L ? L.v*dur : 0)) || floaterAt(r1, x1);
+    if (!solid) {
+      if (P.paddleCd <= 0) { SFX.paddle(); ripples.push({x: P.x, y: P.row*T + 8, t: 0}); P.paddleCd = 0.18; }
+      return false;
+    }
+  }
+  P.hop = {x0: P.x, r0: P.row, x1, r1, t: 0, dur, long};
+  P.swim = false;
+  if (long) { P.longCd = LONG_CD; SFX.long(); } else SFX.hop();
+  hops++;
+  return true;
+}
+function landed() {
+  const h = P.hop; P.hop = null;
+  P.x = h.x1; P.row = h.r1;
+  if (P.row === HOME_ROW) return reachHome();
+  if (isCreek(P.row)) {
+    if (floaterAt(P.row, P.x)) { P.swim = false; SFX.plop(); }
+    else { P.swim = true; SFX.splash(); ripples.push({x: P.x, y: P.row*T + 8, t: 0}); say('IN THE CREEK! GRAB A LOG', 1.5); }
+  } else P.swim = false;
+  if (P.row < P.maxRow) { addScore(10*(P.maxRow - P.row)); P.maxRow = P.row; }
+  if (P.buffered) { const b = P.buffered; P.buffered = null; tryHop(b); }
+}
+function reachHome() {
+  const b = bayAt(P.x);
+  if (b === HR.bay) {
+    if (IMMORTAL) { resetToad(); return; }
+    return kill('A HERON WAS WAITING IN THAT BAY', 'eaten');
+  }
+  homes[b] = true; P.x = BAYS[b];
+  let bonus = 50 + Math.ceil(P.time)*10, extra = [];
+  if (MF.bay === b) { bonus += 200; MF.bay = -1; extra.push('MAYFLY'); SFX.mayfly(); }
+  if (P.rider) { bonus += 200; extra.push('PAIR'); SFX.croak(); }
+  addScore(bonus);
+  pop(BAYS[b], HOME_ROW*T - 4, '+' + bonus);
+  say(extra.length ? 'HOME!  ' + extra.join(' + ') + ' BONUS' : 'HOME!', 1.6);
+  SFX.home();
+  if (homes.every(Boolean)) {
+    clearBonus = 1000; addScore(clearBonus);
+    state = 'clear'; clearT = 3.2; SFX.clear();
+    return;
+  }
+  resetToad();
+}
+function kill(cause, how) {
+  if (state !== 'play' || P.dead) return;
+  if (IMMORTAL) return;
+  P.dead = {cause, how, t: 0, x: P.x, row: P.row};
+  P.hop = null; P.puffing = false; P.rider = false;
+  (SFX[how] || SFX.road)();
+  state = 'dying';
+}
+function afterDeath() {
+  lives--;
+  if (lives <= 0) {
+    state = 'over'; SFX.gameover();
+    if (!DEMO && score > hi) { hi = score; try { localStorage.setItem(HI_KEY, hi); } catch (e) {} }
+    return;
+  }
+  resetToad(); state = 'play';
+}
+function startRide() {
+  P.ride = {t: 0, dur: 1.8, x0: V.x + 10}; P.hop = null; P.swim = false; P.buffered = null;
+  SFX.bucket(); say('A VOLUNTEER CARRIES YOU ACROSS', 1.8);
+}
+
+function updatePlayer(dt) {
+  P.puffCd = Math.max(0, P.puffCd - dt); P.longCd = Math.max(0, P.longCd - dt); P.paddleCd = Math.max(0, P.paddleCd - dt);
+  if (P.ride) {
+    const r = P.ride; r.t += dt;
+    V.y = ROAD_BOT + (MEDIAN - ROAD_BOT)*Math.min(1, r.t/(r.dur*0.85));
+    P.x = V.x + 10; P.row = V.y;
+    if (r.t >= r.dur) {
+      P.ride = null; P.row = MEDIAN; P.x = clamp(V.x + 10, 8, W - 8);
+      /* She won't set you down next to a snake: she shoos it off first. */
+      if (S.on && !S.scared && Math.abs(S.x - P.x) < 60) scareSnake();
+      V.on = false; V.y = ROAD_BOT; V.cd = rnd(22, 30);
+      addScore(200); pop(P.x, MEDIAN*T - 6, '+200');
+      if (MEDIAN < P.maxRow) { addScore(10*(P.maxRow - MEDIAN)); P.maxRow = MEDIAN; }
+    }
+    return;
+  }
+  /* The clock. Last ten seconds tick. */
+  P.time -= dt;
+  if (P.time < 10 && Math.ceil(P.time) !== P.lastTick) { P.lastTick = Math.ceil(P.time); SFX.tick(); }
+  if (P.time <= 0) { if (IMMORTAL) P.time = P.maxTime; else return kill('OUT OF TIME', 'time'); }
+
+  /* B: puff up. You can't move while puffed. */
+  if (P.puffing) {
+    P.puffT += dt;
+    if (!held.b || P.puffT >= PUFF_MAX) { P.puffing = false; P.puffCd = PUFF_CD; }
+  } else if (pressed.b && P.puffCd <= 0 && !P.hop) { P.puffing = true; P.puffT = 0; SFX.puff(); }
+  if (P.puffing) {
+    if (HR.bay >= 0 && P.row <= CREEK_TOP + 1 && Math.abs(BAYS[HR.bay] - P.x) < 40) { heronLeaves(); pop(P.x, P.row*T - 6, 'SHOO!'); }
+    if (S.on && !S.scared && P.row === MEDIAN && Math.abs(S.x - P.x) < 34) scareSnake();
+  }
+
+  /* D-pad: one hop per press. Holding repeats, but slowly. A: long hop. */
+  let want = null;
+  for (const d of DIRS) if (pressed[d]) want = d;
+  if (want) { tryHop(want); P.rep = 0.32; P.repDir = want; }
+  else if (P.repDir && held[P.repDir]) {
+    P.rep -= dt;
+    if (P.rep <= 0 && !P.hop && !P.puffing) { if (tryHop(P.repDir)) P.rep = 0.3; }
+  } else P.repDir = null;
+  if (pressed.a && P.longCd <= 0) tryHop('long');
+
+  if (P.hop) {
+    P.hop.t += dt;
+    if (P.hop.t >= P.hop.dur) landed();
+  }
+  if (state !== 'play') return;
+  if (!P.hop) {
+    /* The creek: ride what you stand on; in the water, the current takes you. */
+    if (isCreek(P.row)) {
+      const L = laneAt[P.row];
+      if (!P.swim && !floaterAt(P.row, P.x)) {
+        P.swim = true; SFX.splash(); ripples.push({x: P.x, y: P.row*T + 8, t: 0}); say('THE TURTLES DIVED!', 1.5);
+      }
+      if (P.swim) {
+        P.x += Math.sign(L.v)*(Math.abs(L.v)*0.5 + 6)*dt;
+        if (floaterAt(P.row, P.x)) { P.swim = false; SFX.plop(); }
+      } else P.x += L.v*dt;
+      if (P.x < 0 || P.x > W) {
+        if (IMMORTAL) P.x = clamp(P.x, 8, W - 8);
+        else return kill(P.swim ? 'SWEPT DOWNSTREAM' : 'CARRIED OFF DOWNSTREAM', 'swept');
+      }
+    }
+  }
+  /* What you're touching. Mid-hop you count as in the row you're nearer;
+     a long hop is in the air until it lands. */
+  const h = P.hop;
+  const row = h ? (h.long ? -1 : (h.t < h.dur/2 ? h.r0 : h.r1)) : P.row;
+  const x = h ? h.x0 + (h.x1 - h.x0)*(h.t/h.dur) : P.x;
+  if (isRoad(row)) {
+    if (row === ROAD_BOT && V.on && x > V.x - 12 && x < V.x + 20) return startRide();
+    const o = vehicleAt(row, x);
+    if (o) return kill('HIT BY A ' + NAME[o.kind], 'road');
+  }
+  if (row === MEDIAN && S.on && !S.scared && !h) {
+    const a = Math.min(S.x, S.x - S.dir*S.len), b = Math.max(S.x, S.x - S.dir*S.len);
+    if (x + 5 > a && x - 5 < b) {
+      if (P.puffing) scareSnake(); else return kill('A GRASS SNAKE GOT YOU', 'eaten');
+    }
+  }
+  if (MALE.on && !P.rider && !h && P.row === MALE.row && Math.abs(P.x - MALE.x) < 10) {
+    P.rider = true; MALE.on = false; SFX.croak(); pop(P.x, P.row*T - 6, 'PAIRED!');
+    say('A MALE CLIMBS ON YOUR BACK: AMPLEXUS', 2);
+  }
+}
+
+/* ---------------- flow ---------------- */
+function newGame() {
+  score = 0; lives = 4; nextLife = 10000;
+  level = DEMO ? Math.max(1, parseInt(Q.get('level')) || 1) : 1;
+  startLevel();
+  state = 'play';
+}
+function startLevel() {
+  buildLanes(level);
+  homes.fill(false); hops = 0;
+  Object.assign(V, {on: false, x: -24, y: ROAD_BOT, cd: DEMO && Q.has('bucket') ? 0.5 : 6});
+  Object.assign(S, {on: false, cd: level === 1 ? 18 : 10});
+  Object.assign(HR, {bay: -1, cd: level === 1 ? 26 : 14, fly: 0});
+  Object.assign(MF, {bay: -1, cd: 9});
+  Object.assign(MALE, {on: false, cd: 10});
+  /* &male (demo): a male waits on the median in the autopilot's path. */
+  if (DEMO && Q.has('male')) Object.assign(MALE, {on: true, obj: null, row: MEDIAN, x: START_X, t: -60});
+  resetToad();
+  say('LEVEL ' + level, 2);
+}
+
+function update(dt) {
+  time += dt; blink += dt;
+  if (toastT > 0) toastT -= dt; if (footT > 0) footT -= dt;
+  for (const p of pops) p.t -= dt; pops = pops.filter(p => p.t > 0);
+  for (const r of ripples) r.t += dt; ripples = ripples.filter(r => r.t < 0.8);
+  if (Math.random() < dt*7) ripples.push({x: rnd(0, W), y: Math.random() < 0.15 ? rnd(3, 13) : rnd(CREEK_TOP*T + 2, (CREEK_BOT + 1)*T - 2), t: 0});
+  updateRain(dt);
+
+  if (state === 'notes') {
+    if (pressed.a) { setSound(!soundOn); footNote(soundOn ? 'SOUND ON' : 'SOUND OFF'); }
+    if (pressed.select || pressed.start || pressed.b) state = notesFrom;
+    return;
+  }
+  if (pressed.select && (state === 'play' || state === 'pause' || state === 'title' || state === 'over')) {
+    notesFrom = state; state = 'notes'; return;
+  }
+  if (state === 'title' || state === 'over') { updateLanes(dt); if (pressed.start) newGame(); return; }
+  if (state === 'pause') { if (pressed.start) { state = 'play'; SFX.pause(false); } return; }
+  if (state === 'play' && pressed.start) { state = 'pause'; SFX.pause(true); return; }
+
+  /* The night itself: distant thunder now and then, toads calling. */
+  thunderT -= dt;
+  if (thunderT <= 0) { SFX.thunder(); thunderT = rnd(25, 50); }
+  if (Math.random() < dt*0.35) SFX.chorus();
+
+  updateLanes(dt);
+  updateWorld(dt);
+  if (state === 'dying') { P.dead.t += dt; if (P.dead.t > 1.7) afterDeath(); return; }
+  if (state === 'clear') {
+    clearT -= dt;
+    if (clearT <= 0) { level++; startLevel(); state = 'play'; }
+    return;
+  }
+  updatePlayer(dt);
+}
+
+/* ---------------- demo autopilot ---------------- */
+/* Invincible on the road, and it never drowns -- but it still reads the
+   lanes, so the screenshots show real play. */
+let demoT = 0;
+function demoPilot() {
+  for (const d of DIRS) pressed[d] = false; pressed.a = pressed.b = false;
+  held.b = P.puffing && S.on && !S.scared;
+  if (P.hop || P.ride || P.puffing) return;
+  demoT -= STEP; if (demoT > 0) return;
+  demoT = 0.12;
+  const r = P.row, x = P.x;
+  const go = d => { pressed[d] = true; demoT = 0.2; };
+  if (r === START_ROW && Q.has('bucket')) {
+    if (V.on && V.x > x - 24 && V.x < x - 4) go('up');
+    return;
+  }
+  if (r === MEDIAN && S.on && !S.scared && Math.abs(S.x - x) < 40) { pressed.b = held.b = true; return; }
+  if (isRoad(r - 1) || r - 1 === MEDIAN) {
+    const L = laneAt[r - 1];
+    const danger = L && L.objs.some(o => {
+      const ahead = L.v > 0 ? x - (o.x + o.w) : o.x - x;
+      return (x + 6 > o.x && x - 6 < o.x + o.w) || (ahead > 0 && ahead < Math.abs(L.v)*0.45 + 8);
+    });
+    if (!danger) go('up');
+    return;
+  }
+  /* The creek: the top lane's logs drift right, the turtles below drift
+     left, so it rides whichever is heading for an open bay. */
+  const open = [0, 1, 2, 3, 4].filter(b => !homes[b] && HR.bay !== b);
+  const bx = open.length ? BAYS[open.reduce((p, q) => Math.abs(BAYS[q] - x) < Math.abs(BAYS[p] - x) ? q : p)] : x;
+  const solidAt = (row, dt = 0.12) => { const L = laneAt[row]; return floaterAt(row, x + L.v*dt) && floaterAt(row, x + L.v*0.5); };
+  if (r === CREEK_TOP) {
+    if (!open.length) return;
+    if (Math.abs(bx - x) <= BAY_HALF - 3) go('up');
+    else if (bx < x && solidAt(CREEK_TOP + 1)) go('down');
+    else if (!P.swim && bx < x - 24) go('left');
+    return;
+  }
+  if (r === CREEK_TOP + 1) {
+    const sinking = !P.swim && turtleState(floaterAt(r, x) || {}) >= 1;
+    if ((bx >= x - 24 || sinking || P.swim) && solidAt(CREEK_TOP)) go('up');
+    return;
+  }
+  if (isCreek(r - 1)) {
+    if (solidAt(r - 1)) go('up');
+    return;
+  }
+}
+
+/* ---------------- rain ---------------- */
+const drops = [];
+for (let i = 0; i < 70; i++) drops.push({x: rnd(0, W + 60), y: rnd(0, PH), v: rnd(230, 300)});
+function updateRain(dt) {
+  for (const d of drops) {
+    d.y += d.v*dt; d.x -= d.v*0.3*dt;
+    if (d.y > PH) { d.y -= PH + 10; d.x = rnd(0, W + 60); }
+  }
+}
+
+/* ---------------- drawing ---------------- */
+/* The still parts of the scene, painted once. */
+const bg = document.createElement('canvas'); bg.width = W; bg.height = PH;
+const LAMPS = [{x: 70, row: START_ROW}, {x: 330, row: START_ROW}, {x: 200, row: MEDIAN}];
+(function paintBackground() {
+  const b = bg.getContext('2d');
+  const r = (x, y, w, h, c) => { b.fillStyle = c; b.fillRect(x, y, w, h); };
+  // the pond
+  r(0, 0, W, T, SCN.pond);
+  for (const [x, y] of [[30, 4], [96, 9], [168, 3], [250, 8], [342, 5], [384, 10]]) {
+    b.fillStyle = SCN.reedLt; b.beginPath(); b.ellipse(x, y + 2, 6, 3, 0, 0, 7); b.fill();
+    r(x - 1, y + 1, 2, 2, SCN.pond);
+  }
+  // reeds, with five bays of open water
+  r(0, T, W, T, SCN.reed);
+  for (let x = 1; x < W; x += 3) {
+    const h = 6 + ((x*37) % 9);
+    r(x, 2*T - h, 1, h, (x % 2) ? SCN.reedLt : '#21502a');
+    if (x % 7 === 0) r(x, 2*T - h - 2, 1, 3, '#6a4a22');   // bulrush heads
+  }
+  for (const bx of BAYS) { r(bx - BAY_HALF, T, BAY_HALF*2, T, SCN.pond); r(bx - BAY_HALF, T, BAY_HALF*2, 1, '#173070'); }
+  // the creek
+  r(0, CREEK_TOP*T, W, 5*T, SCN.water);
+  r(0, CREEK_TOP*T, W, 1, '#24406e'); r(0, MEDIAN*T - 1, W, 1, '#24406e');
+  // grass verges
+  for (const row of [MEDIAN, START_ROW]) {
+    r(0, row*T, W, T, SCN.grass);
+    for (let x = 2; x < W; x += 5) {
+      const y = row*T + 2 + ((x*13) % 11);
+      r(x, y, 1, 2, SCN.grassLt); r(x + 1, y - 1, 1, 2, SCN.grassLt);
+    }
+  }
+  // the road
+  r(0, ROAD_TOP*T, W, 5*T, SCN.road);
+  for (let i = 0; i < 1400; i++) {      // grain in the tarmac
+    const x = (i*97) % W, y = ROAD_TOP*T + ((i*53) % (5*T));
+    r(x, y, 1, 1, i % 3 ? SCN.roadLt : '#24242e');
+  }
+  r(0, ROAD_TOP*T, W, 2, SCN.kerb); r(0, START_ROW*T - 2, W, 2, SCN.kerb);
+  for (let row = ROAD_TOP + 1; row <= ROAD_BOT; row++)
+    for (let x = 4; x < W; x += 24) r(x, row*T - 1, 12, 1, SCN.line);
+  // the wood
+  r(0, WOOD_ROW*T, W, T, SCN.wood);
+  for (let x = 6; x < W; x += 22) {
+    r(x + 5, WOOD_ROW*T + 8, 3, 8, SCN.trunk);
+    b.fillStyle = (x % 44) ? '#13301b' : '#0f2816';
+    b.beginPath(); b.arc(x + 6, WOOD_ROW*T + 5, 9, 0, 7); b.fill();
+  }
+  // street lamps: a pool of warm light on the wet road, and the lamp itself
+  for (const L of LAMPS) {
+    const cy = L.row === START_ROW ? START_ROW*T - 10 : ROAD_TOP*T + 10;
+    const g = b.createRadialGradient(L.x, cy, 2, L.x, cy, 46);
+    g.addColorStop(0, 'rgba(255,214,120,0.22)'); g.addColorStop(1, 'rgba(255,214,120,0)');
+    b.fillStyle = g; b.fillRect(L.x - 50, cy - 50, 100, 100);
+    const py = L.row*T + (L.row === START_ROW ? 3 : 11);
+    r(L.x - 1, py - 1, 3, 3, '#555'); r(L.x - 2, py - 2, 5, 1, '#ffe08a');
+  }
+})();
+
+function drawWater() {
+  // flow lines, moving with each lane, so you can read the current
+  for (const L of lanes) {
+    if (!isCreek(L.row)) continue;
+    for (let i = 0; i < 7; i++) {
+      const x = (((i*71 + time*L.v*0.9) % (W + 40)) + W + 40) % (W + 40) - 20;
+      rect(x, L.row*T + 3 + (i % 3)*5, 7, 1, SCN.flow);
+    }
+  }
+  // the moon on the pond
+  for (let i = 0; i < 4; i++) {
+    const w = 10 - i*2 + Math.sin(time*3 + i)*2;
+    rect(312 - w/2, 2 + i*3, w, 1, '#e8e4b8');
+  }
+  // rain on the water
+  ctx.strokeStyle = 'rgba(164,150,255,0.55)'; ctx.lineWidth = 1;
+  for (const r of ripples) {
+    const k = r.t/0.8;
+    ctx.globalAlpha = 1 - k;
+    ctx.beginPath(); ctx.ellipse(r.x, r.y, 1 + k*6, 0.5 + k*2.5, 0, 0, 7); ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+}
+function drawLog(o, y) {
+  rect(o.x, y + 3, o.w, 10, C.brown);
+  rect(o.x, y + 3, o.w, 2, '#a8763a');
+  for (let x = o.x + 6; x < o.x + o.w - 6; x += 11) rect(x, y + 7, 5, 1, '#5e3a12');
+  rect(o.x + o.w - 3, y + 4, 3, 8, C.tan); rect(o.x, y + 4, 2, 8, '#5e3a12');
+}
+function drawTurtles(o, y, dir) {
+  const st = turtleState(o);
+  const n = o.w / T;
+  for (let i = 0; i < n; i++) {
+    const cx = o.x + i*T + 8, cy = y + 8;
+    if (st === 2) {             // under: only a ring shows where they are
+      ctx.strokeStyle = 'rgba(164,150,255,0.6)'; ctx.beginPath(); ctx.ellipse(cx, cy, 6, 3, 0, 0, 7); ctx.stroke();
+      continue;
+    }
+    const shell = st === 0 ? C.green : '#1d5a3a', edge = st === 0 ? C.ygreen : '#2a6a4a';
+    if (st === 0) rect(cx + dir*7 - 1, cy - 1, 3, 3, C.ygreen);         // head
+    if (st === 0) { rect(cx - 5, cy - 6, 2, 2, C.ygreen); rect(cx + 3, cy - 6, 2, 2, C.ygreen); rect(cx - 5, cy + 4, 2, 2, C.ygreen); rect(cx + 3, cy + 4, 2, 2, C.ygreen); }
+    ctx.fillStyle = edge; ctx.beginPath(); ctx.ellipse(cx, cy, 6, 5, 0, 0, 7); ctx.fill();
+    ctx.fillStyle = shell; ctx.beginPath(); ctx.ellipse(cx, cy, 4.5, 3.5, 0, 0, 7); ctx.fill();
+    if (st === 1 && Math.floor(time*6) % 2) {    // sinking: a warning flicker
+      ctx.strokeStyle = C.ltblue; ctx.beginPath(); ctx.ellipse(cx, cy, 7, 6, 0, 0, 7); ctx.stroke();
+    }
+  }
+}
+function drawVehicle(o, y, dir) {
+  const x = o.x, w = o.w, front = dir > 0 ? x + w : x;
+  // headlight beams on the wet road, and their glare running back down the tarmac
+  const beam = o.kind === 'bike' ? 30 : 40, spread = o.kind === 'bike' ? 2 : 3;
+  const g = ctx.createLinearGradient(front, 0, front + dir*beam, 0);
+  g.addColorStop(0, 'rgba(255,236,150,0.30)'); g.addColorStop(1, 'rgba(255,236,150,0)');
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  ctx.moveTo(front, y + 4); ctx.lineTo(front + dir*beam, y + 3 - spread);
+  ctx.lineTo(front + dir*beam, y + 13 + spread); ctx.lineTo(front, y + 12); ctx.fill();
+  // the glare on wet tarmac: broken streaks under each lamp
+  ctx.fillStyle = 'rgba(255,236,150,0.22)';
+  for (let i = 0; i < 4; i++) {
+    const sx = front + dir*(4 + i*8 + (Math.floor(time*12 + i) % 3));
+    ctx.fillRect(Math.round(sx), y + 13, 3 - (i >> 1), 1); ctx.fillRect(Math.round(sx), y + 3, 3 - (i >> 1), 1);
+  }
+  const tail = o.stopped || o.kind === 'tractor' ? '#ff5a3a' : '#c0281a';
+  if (o.kind === 'car') {
+    rect(x, y + 3, w, 10, o.col);
+    rect(x + 7, y + 5, w - 14, 6, '#20284a');                  // windows
+    rect(x + 3, y + 2, 5, 1, C.black); rect(x + w - 8, y + 2, 5, 1, C.black);
+    rect(x + 3, y + 13, 5, 1, C.black); rect(x + w - 8, y + 13, 5, 1, C.black);
+    rect(dir > 0 ? x + w - 2 : x, y + 4, 2, 2, C.yellow); rect(dir > 0 ? x + w - 2 : x, y + 10, 2, 2, C.yellow);
+    rect(dir > 0 ? x : x + w - 2, y + 4, 2, 2, tail); rect(dir > 0 ? x : x + w - 2, y + 10, 2, 2, tail);
+  } else if (o.kind === 'lorry') {
+    const cab = dir > 0 ? x + w - 14 : x;
+    const box = dir > 0 ? x : x + 14;
+    rect(box, y + 2, w - 15, 12, C.gray); rect(box, y + 7, w - 15, 2, C.purple);
+    rect(cab, y + 3, 14, 10, C.blue); rect(cab + (dir > 0 ? 8 : 2), y + 4, 4, 8, '#20284a');
+    rect(dir > 0 ? x + w - 2 : x, y + 4, 2, 2, C.yellow); rect(dir > 0 ? x + w - 2 : x, y + 10, 2, 2, C.yellow);
+    rect(dir > 0 ? x : x + w - 2, y + 3, 2, 2, tail); rect(dir > 0 ? x : x + w - 2, y + 11, 2, 2, tail);
+  } else if (o.kind === 'tractor') {
+    const back = dir > 0 ? x : x + w - 12;
+    rect(x + 2, y + 4, w - 4, 8, C.green);
+    rect(back, y, 12, 4, C.black); rect(back, y + 12, 12, 4, C.black);            // big rear wheels
+    rect(dir > 0 ? x + w - 8 : x + 2, y + 2, 6, 2, C.black); rect(dir > 0 ? x + w - 8 : x + 2, y + 12, 6, 2, C.black);
+    rect(back + 2, y + 5, 8, 6, C.tan);                                             // cab roof
+    if (Math.floor(time*3) % 2) rect(back + 5, y + 7, 2, 2, C.orange);             // amber beacon
+    rect(dir > 0 ? x + w - 2 : x + 1, y + 6, 2, 4, C.yellow);
+  } else if (o.kind === 'bike') {
+    rect(x + 1, y + 7, w - 2, 2, C.gray);
+    rect(x + 4, y + 5, 6, 6, C.white);
+    rect(x + 5, y + 6, 4, 4, C.red);                                                 // helmet
+    rect(dir > 0 ? x + w - 2 : x, y + 7, 2, 2, C.yellow);
+    rect(dir > 0 ? x : x + w - 2, y + 7, 2, 2, tail);
+  }
+}
+function drawToadAt(x, y, opts = {}) {
+  const map = opts.hop ? TOAD_HOP : TOAD;
+  const rot = FACE_ROT[opts.face || 'up'];
+  if (opts.puff) {
+    const r = 10 + Math.sin(time*20)*0.5;
+    ctx.fillStyle = C.brown; ctx.beginPath(); ctx.arc(x, y, r + 1, 0, 7); ctx.fill();
+    ctx.fillStyle = C.orange; ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fill();
+    for (const [dx, dy] of [[-5, 2], [4, 3], [0, -3], [-2, 6], [6, -2]]) rect(x + dx, y + dy, 2, 2, C.brown);
+    rect(x - 6, y - 8, 4, 4, C.yellow); rect(x + 2, y - 8, 4, 4, C.yellow);
+    rect(x - 5, y - 7, 2, 2, C.black); rect(x + 3, y - 7, 2, 2, C.black);
+    return;
+  }
+  sprite(map, x, y, 2, opts.male ? MALE_COL : TOAD_COL, rot);
+  if (opts.rider) sprite(TOAD, x, y + 1, 1, MALE_COL, rot);
+}
+function drawPlayer() {
+  if (state === 'dying') {
+    const d = P.dead, x = d.x, y = d.row*T + 8, k = Math.min(1, d.t/0.5);
+    if (d.how === 'road') {
+      ctx.fillStyle = C.orange; ctx.beginPath(); ctx.ellipse(x, y, 9, 4, 0, 0, 7); ctx.fill();
+      rect(x - 5, y - 1, 2, 2, C.yellow); rect(x + 3, y - 1, 2, 2, C.yellow);
+    } else if (d.how === 'swept' || d.how === 'time') {
+      ctx.strokeStyle = C.ltblue; ctx.lineWidth = 1;
+      for (let i = 0; i < 3; i++) { ctx.beginPath(); ctx.arc(x, y, 3 + k*8 + i*4, 0, 7); ctx.stroke(); }
+      if (d.how === 'time') sprite(TOAD, x, y, 2, TOAD_COL);
+    } else {
+      ctx.globalAlpha = 1 - k; sprite(TOAD, x, y, 2, TOAD_COL); ctx.globalAlpha = 1;
+      ctx.strokeStyle = C.white; ctx.beginPath(); ctx.arc(x, y, 4 + k*10, 0, 7); ctx.stroke();
+    }
+    return;
+  }
+  if (state === 'clear' || state === 'over') return;
+  if (P.ride) return;                    // drawn in the bucket
+  const h = P.hop;
+  let x = P.x, y = P.row*T + 8, lift = 0;
+  if (h) {
+    const k = h.t/h.dur;
+    x = h.x0 + (h.x1 - h.x0)*k; y = (h.r0 + (h.r1 - h.r0)*k)*T + 8;
+    lift = Math.sin(Math.PI*k)*(h.long ? 7 : 3);
+    ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.beginPath(); ctx.ellipse(x, y + 4, 6, 2.5, 0, 0, 7); ctx.fill();
+  }
+  if (P.swim) {
+    // only your head above the water, and the current pulling at you
+    ctx.strokeStyle = C.ltblue; ctx.beginPath(); ctx.ellipse(x, y + 1, 9 + Math.sin(time*8), 5, 0, 0, 7); ctx.stroke();
+    ctx.save(); ctx.beginPath(); ctx.rect(x - 10, y - 10, 20, 11); ctx.clip();
+    drawToadAt(x, y, {face: P.face, rider: P.rider}); ctx.restore();
+    if (Math.floor(time*4) % 2) text('!', x + 9, y - 14, C.yellow);
+    return;
+  }
+  drawToadAt(x, y - lift, {face: P.face, hop: !!h, puff: P.puffing, rider: P.rider});
+}
+function drawVolunteer() {
+  if (!V.on) return;
+  const y = V.y*T + 8, x = V.x;
+  // torch beam on the road ahead of her
+  ctx.fillStyle = 'rgba(255,240,170,0.18)';
+  ctx.beginPath(); ctx.moveTo(x + 4, y); ctx.lineTo(x + 40, y - 7); ctx.lineTo(x + 40, y + 8); ctx.fill();
+  sprite(VOLUNTEER, x, y - 2, 2, VOL_COL);
+  // the bucket, and you in it during the ride
+  const bx = x + 11, by = y + 3;
+  rect(bx - 5, by - 5, 10, 9, C.cyan); rect(bx - 5, by - 5, 10, 2, C.white); rect(bx - 4, by - 7, 8, 1, C.gray);
+  if (P.ride) sprite(TOAD, bx, by - 6, 1, TOAD_COL);
+}
+function drawSnake() {
+  if (!S.on) return;
+  const y = MEDIAN*T + 8;
+  for (let i = S.len; i >= 0; i -= 3) {
+    const sx = S.x - S.dir*i, sy = y + Math.sin(time*7 - i*0.25)*3;
+    rect(sx - 2, sy - 2, 4, 4, i % 6 < 3 ? C.green : C.dkgreen);
+  }
+  const hy = y + Math.sin(time*7)*3;
+  rect(S.x - S.dir*5 - 2, hy - 2, 3, 5, C.yellow);              // the yellow collar of a grass snake
+  rect(S.x - 3, hy - 3, 6, 6, C.green); rect(S.x + S.dir*2 - 1, hy - 2, 2, 2, C.black);
+  if (Math.floor(time*5) % 2) rect(S.x + S.dir*4, hy, 3*S.dir, 1, C.red);   // tongue
+}
+function drawBays() {
+  BAYS.forEach((bx, b) => {
+    const y = HOME_ROW*T + 8;
+    if (homes[b]) sprite(TOAD, bx, y, 2, TOAD_COL, 2);
+    if (MF.bay === b) {
+      /* a mayfly: long tail, upright wings that flicker */
+      const f = Math.floor(time*10) % 2;
+      ctx.fillStyle = 'rgba(250,234,80,0.18)'; ctx.beginPath(); ctx.arc(bx, y, 9, 0, 7); ctx.fill();
+      rect(bx - 1, y - 3, 3, 8, C.yellow); rect(bx, y + 5, 1, 3, C.tan);
+      rect(bx - 7, y - (f ? 6 : 4), 6, 4, C.white); rect(bx + 2, y - (f ? 6 : 4), 6, 4, C.white);
+      rect(bx - 1, y - 5, 3, 2, C.black);
+    }
+  });
+  if (HR.bay >= 0) {
+    const bx = BAYS[HR.bay];
+    sprite(HERON, bx, HOME_ROW*T + 2, 2, HERON_COL);
+    if (HR.t < 1.5 && Math.floor(time*6) % 2) text('?', bx + 9, HOME_ROW*T - 12, C.white);
+  }
+  if (HR.fly > 0) {
+    const k = 1 - HR.fly, x = HR.fx + k*90, y = HOME_ROW*T - k*30;
+    const f = Math.floor(time*8) % 2;
+    rect(x - 8, y - (f ? 4 : 0), 16, 2, C.gray); rect(x - 3, y - 1, 6, 4, C.white); rect(x + 3, y - 2, 4, 2, C.yellow);
+  }
+}
+function drawMale() {
+  if (!MALE.on) return;
+  const bob = Math.floor(time*2) % 2;
+  sprite(TOAD, MALE.x, MALE.row*T + 8 - bob, 2, MALE_COL, 2);
+}
+function drawRain() {
+  ctx.strokeStyle = SCN.rain; ctx.globalAlpha = 0.45; ctx.lineWidth = 1;
+  ctx.beginPath();
+  for (const d of drops) { ctx.moveTo(Math.round(d.x) + 0.5, Math.round(d.y)); ctx.lineTo(Math.round(d.x - 2) + 0.5, Math.round(d.y + 6)); }
+  ctx.stroke(); ctx.globalAlpha = 1;
+}
+function drawScene() {
+  ctx.save(); ctx.translate(0, HUD);
+  ctx.beginPath(); ctx.rect(0, 0, W, PH); ctx.clip();
+  ctx.drawImage(bg, 0, 0);
+  drawWater();
+  for (const L of lanes) {
+    const y = L.row*T, dir = Math.sign(L.v);
+    for (const o of L.objs) {
+      if (o.x > W + 40 || o.x + o.w < -40) continue;
+      if (o.kind === 'log') drawLog(o, y);
+      else if (o.kind === 'turtle') drawTurtles(o, y, dir);
+      else drawVehicle(o, y, dir);
+    }
+  }
+  drawBays();
+  drawSnake();
+  drawMale();
+  if (!(P.ride)) drawVolunteer();
+  if (state !== 'title') drawPlayer();
+  if (P.ride) drawVolunteer();
+  for (const p of pops) text(p.s, p.x, p.y - (1.3 - p.t)*12, C.yellow, 'center');
+  drawRain();
+  ctx.restore();
+}
+
+function drawHud() {
+  rect(0, 0, W, HUD, '#000');
+  text('SCORE ' + pad(score, 6), 4, 6, C.white);
+  text('HI ' + pad(Math.max(hi, DEMO ? 0 : score), 6), 92, 6, C.cyan);
+  text('LEVEL ' + level, 170, 6, C.ygreen);
+  text('HOPS ' + pad(hops, 3), 226, 6, C.yellow);
+  // the moon, for company
+  ctx.fillStyle = '#e8e4b8'; ctx.beginPath(); ctx.arc(298, 10, 4, 0, 7); ctx.fill();
+  ctx.fillStyle = '#000'; ctx.beginPath(); ctx.arc(300, 9, 3.5, 0, 7); ctx.fill();
+  for (let i = 0; i < Math.min(lives, 6); i++) sprite(TOAD, W - 10 - i*14, 10, 1, TOAD_COL);
+  // footer: the clock for this toad, puff and long-hop readiness, sound
+  const y = HUD + PH;
+  rect(0, y, W, FOOT, '#000');
+  text('TIME', 4, y + 2, C.gray);
+  const k = clamp(P.time/P.maxTime, 0, 1), col = P.time < 10 ? C.red : P.time < 20 ? C.yellow : C.ygreen;
+  rect(30, y + 3, 100, 6, '#1a1a1a'); rect(30, y + 3, Math.round(100*k), 6, col);
+  const ready = (label, x, cd, max, c) => {
+    text(label, x, y + 2, cd > 0 ? '#555' : c);
+    rect(x + 28, y + 4, 24, 4, '#1a1a1a'); rect(x + 28, y + 4, Math.round(24*(1 - cd/max)), 4, cd > 0 ? '#555' : c);
+  };
+  ready('PUFF', 140, P.puffing ? PUFF_CD : P.puffCd, PUFF_CD, C.orange);
+  ready('LEAP', 200, P.longCd, LONG_CD, C.cyan);
+  if (footT > 0) text(footMsg, W - 4, y + 2, C.cyan, 'right');
+  else if (soundOn && !audioLive()) text('PRESS ANY KEY FOR SOUND', W - 4, y + 2, Math.floor(blink*2) % 2 ? C.yellow : '#8a7a20', 'right');
+  else text((soundOn ? 'SND ' : 'MUTE ') + VERSION + (DEMO ? ' DEMO' : ''), W - 4, y + 2, C.gray, 'right');
+  if (toastT > 0 && state === 'play') text(toast, W/2, HUD + WOOD_ROW*T + 4, C.white, 'center');
+}
+function panel(title, top = 40, h = 170) {
+  ctx.fillStyle = 'rgba(0,0,0,0.86)'; ctx.fillRect(24, HUD + top, W - 48, h);
+  ctx.strokeStyle = C.orange; ctx.lineWidth = 1; ctx.strokeRect(24.5, HUD + top + 0.5, W - 49, h - 1);
+  text(title, W/2, HUD + top + 8, C.yellow, 'center', 10);
+}
+function wrap(s, n) {
+  const out = []; let line = '';
+  for (const w of s.split(' ')) { if ((line + ' ' + w).trim().length > n) { out.push(line); line = w; } else line = (line + ' ' + w).trim(); }
+  if (line) out.push(line); return out;
+}
+const FACTS = [
+  'Toads go back to breed in the pond where they hatched, and many follow the same route every year.',
+  'They travel on the first mild, wet nights of early spring, mostly after dark.',
+  'A male grabs a female and rides on her back to the pond. This hold is called amplexus.',
+  'On migration nights, volunteers patrol the roads with buckets and torches and carry toads across.',
+];
+function drawNotes() {
+  panel('FIELD NOTES', 14, 212);
+  let y = HUD + 40;
+  for (const f of FACTS) {
+    const lines = wrap(f, 58);
+    rect(36, y + 2, 4, 4, C.orange);
+    lines.forEach((l, i) => text(l, 46, y + i*10, C.white));
+    y += lines.length*10 + 10;
+  }
+  text('A: SOUND ' + (soundOn ? 'ON' : 'OFF'), W/2, HUD + 196, C.cyan, 'center');
+  text('SELECT OR START: BACK', W/2, HUD + 208, C.gray, 'center');
+}
+function drawTitle() {
+  ctx.fillStyle = 'rgba(0,0,0,0.72)'; ctx.fillRect(0, HUD, W, PH);
+  text('HOP COUNT', W/2, HUD + 14, C.orange, 'center', 24);
+  text('A TOAD MIGRATION ON A RAINY SPRING NIGHT', W/2, HUD + 44, C.tan, 'center');
+  sprite(TOAD, W/2 - 90, HUD + 26, 2, TOAD_COL); sprite(TOAD, W/2 + 90, HUD + 26, 2, MALE_COL);
+  const rows = [
+    'Cross the road and the creek to the pond.',
+    'Fill all five bays in the reeds.',
+    '',
+    '',
+    '',
+    '',
+    '',
+    '',
+    'Fall in the creek and the current takes you:',
+    'hop onto a log or turtle before you are swept off.',
+    'Hop into the volunteer\'s bucket for a lift.',
+  ];
+  rows.forEach((r, i) => text(r, W/2, HUD + 62 + i*11, C.white, 'center'));
+  [['D-PAD', 'hop, one tile a press'], ['A', 'long hop: two rows forward'], ['B', 'hold to puff up: snakes and herons give up'],
+   ['SELECT', 'field notes'], ['START', 'start / pause']].forEach(([b, d], i) => {
+    text(b, 78, HUD + 92 + i*11, C.yellow); text(d, 128, HUD + 92 + i*11, C.white);
+  });
+  if (Math.floor(blink*2) % 2) text('PRESS START', W/2, HUD + 196, C.ygreen, 'center', 12);
+  text('HI ' + pad(hi, 6), W/2, HUD + 216, C.cyan, 'center');
+}
+function draw() {
+  drawScene();
+  drawHud();
+  if (state === 'title') drawTitle();
+  if (state === 'notes') drawNotes();
+  if (state === 'pause') { panel('PAUSED', 70, 80); text('START TO GO ON', W/2, HUD + 104, C.white, 'center'); text('SELECT FOR FIELD NOTES', W/2, HUD + 118, C.gray, 'center'); }
+  if (state === 'dying') text(P.dead.cause, W/2, HUD + WOOD_ROW*T + 3, C.red, 'center', 10);
+  if (state === 'clear') {
+    panel('LEVEL ' + level + ' CLEAR', 60, 100);
+    text('ALL FIVE TOADS HOME IN ' + hops + ' HOPS', W/2, HUD + 92, C.ygreen, 'center');
+    text('BONUS ' + clearBonus, W/2, HUD + 110, C.white, 'center');
+    text('NEXT: A BUSIER NIGHT', W/2, HUD + 128, C.gray, 'center');
+  }
+  if (state === 'over') {
+    panel('GAME OVER', 50, 130);
+    text('SCORE ' + score, W/2, HUD + 86, C.yellow, 'center', 10);
+    if (score >= hi && score > 0 && !DEMO) text('NEW HIGH SCORE', W/2, HUD + 104, C.cyan, 'center');
+    text('REACHED LEVEL ' + level, W/2, HUD + 120, C.white, 'center');
+    if (Math.floor(blink*2) % 2) text('PRESS START', W/2, HUD + 150, C.ygreen, 'center');
+  }
+}
+
+/* ---------------- loop ---------------- */
+let last = performance.now(), acc = 0;
+function frame(now) {
+  acc += Math.min(0.1, (now - last)/1000); last = now;
+  while (acc >= STEP) { pollInput(); update(STEP); acc -= STEP; for (const b of BTN) pressed[b] = false; }
+  audioFrame();
+  draw();
+  requestAnimationFrame(frame);
+}
+document.addEventListener('visibilitychange', () => { if (document.hidden && state === 'play') state = 'pause'; });
+buildLanes(1);
+if (DEMO) {
+  newGame();
+  /* ?demo&warp=N runs N simulation steps up front -- headless browsers barely
+     tick requestAnimationFrame, and this lets a screenshot show real play. */
+  const warp = Math.min(60*900, parseInt(Q.get('warp')) || 0);
+  for (let i = 0; i < warp; i++) { pollInput(); update(STEP); for (const b of BTN) pressed[b] = false; }
+  /* &notes opens the field notes card, to check it. */
+  if (Q.has('notes')) { notesFrom = state; state = 'notes'; }
+}
+requestAnimationFrame(frame);
+</script>

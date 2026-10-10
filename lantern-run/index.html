@@ -19,22 +19,25 @@
 <canvas id="c"></canvas>
 <script>
 "use strict";
-const VERSION = 'v0.1';
+const VERSION = 'v0.2';
 
 /* ============================================================
    Lantern Run
-   A night in the Amazon. Twelve species. Twenty minutes.
-   You are a zoologist with a lantern. The forest has four
-   layers -- floor, understory, canopy, emergent treetops --
-   and each species lives in its own. Find them, get close,
-   and hold still long enough to write them down.
+   An expedition in the Amazon. Twenty-four species: twelve that
+   come out at night, twelve that come out by day. Thirty minutes.
+   You are a zoologist. The forest has four layers -- floor,
+   understory, canopy, emergent treetops -- and each species lives
+   in its own. By night you see by lantern; by day you can see
+   everything, and so can they. Switch between night and day from
+   the field journal whenever you like: dusk or dawn falls, and
+   the forest changes who is out.
    ============================================================ */
 
 const HUD = 20, FOOT = 12, W = 400, PH = 240, H = HUD + PH + FOOT;   // 400 x 272
 const STEP = 1/60;
 const Q = new URLSearchParams(location.search);
-/* ?demo: invincible and lit, auto-running, so a headless browser can
-   screenshot real play. */
+/* ?demo: invincible, auto-running, so a headless browser can screenshot real
+   play. &warp=N runs N steps first. &day starts in daylight. */
 const DEMO = Q.has('demo');
 
 /* The four layers of a rainforest, as the y of the surface you stand on. */
@@ -42,32 +45,49 @@ const FLOOR = 200, UNDER = 152, CANOPY = 104, EMERGENT = 56;
 const TIER_NAME = {[FLOOR]: 'FOREST FLOOR', [UNDER]: 'UNDERSTORY', [CANOPY]: 'CANOPY', [EMERGENT]: 'EMERGENT LAYER'};
 const TIER_RANK = {[FLOOR]: 0, [UNDER]: 1, [CANOPY]: 2, [EMERGENT]: 3};
 
-/* Sixteen colours, Intellivision-ish. */
+/* Sixteen-ish colours, Intellivision-ish. */
 const C = {
-  black: '#000', night: '#08132a', navy: '#0e2348', dkgreen: '#174d1f', green: '#2f8a34',
-  ltgreen: '#7ccf4f', brown: '#5c3417', bark: '#7a4a24', tan: '#c8a165', khaki: '#b5a36a',
-  water: '#1b4a9a', blue: '#3d7be0', red: '#e0302a', yellow: '#f6e05e', white: '#f4f4f4',
-  gray: '#8a8a8a', orange: '#f08a24', pink: '#f2b49a', purple: '#7e3fbf', cyan: '#45c6d8'
+  night: '#08132a', dkgreen: '#174d1f', green: '#2f8a34', ltgreen: '#7ccf4f', brown: '#5c3417',
+  bark: '#7a4a24', tan: '#c8a165', khaki: '#b5a36a', water: '#1b4a9a', blue: '#3d7be0',
+  red: '#e0302a', yellow: '#f6e05e', white: '#f4f4f4', gray: '#8a8a8a', orange: '#f08a24', pink: '#f2b49a'
 };
 
 /* ---------------- the species ---------------- */
 /* Every behaviour here is meant to be true to the animal. The one-line facts
-   show in the field journal (Select) once a species is documented. */
+   show in the field journal once a species is documented. `when` is when it
+   is out: a nocturnal species only appears at night, a diurnal one by day. */
 const SPECIES = [
-  {id: 'caiman',   name: 'SPECTACLED CAIMAN',     tier: FLOOR,    fact: 'Its eyes glow red in your light: a mirror layer behind the eye bounces it back.'},
-  {id: 'anaconda', name: 'GREEN ANACONDA',        tier: FLOOR,    fact: 'The heaviest snake on Earth. It hunts from the water\'s edge.'},
-  {id: 'viper',    name: 'FER-DE-LANCE',          tier: FLOOR,    fact: 'A pit viper: heat-sensing pits let it strike in total darkness.'},
-  {id: 'jaguar',   name: 'JAGUAR',                tier: FLOOR,    fact: 'The strongest bite of any big cat for its size, and a strong swimmer.'},
-  {id: 'armadillo',name: 'NINE-BANDED ARMADILLO', tier: FLOOR,    fact: 'Startle it and it leaps straight up. It can hold its breath for six minutes.'},
-  {id: 'bat',      name: 'COMMON VAMPIRE BAT',    tier: UNDER,    fact: 'Senses body heat to find blood vessels, and laps blood rather than sucking it.'},
-  {id: 'firefly',  name: 'FIREFLIES',             tier: UNDER,    fact: 'Each species flashes its own code to find a mate.'},
-  {id: 'kinkajou', name: 'KINKAJOU',              tier: UNDER,    fact: 'A raccoon relative with a grasping tail. It pollinates the flowers it feeds on.'},
-  {id: 'owl',      name: 'SPECTACLED OWL',        tier: CANOPY,   fact: 'Named for the white rings around its eyes, like spectacles.'},
-  {id: 'sloth',    name: 'TWO-TOED SLOTH',        tier: CANOPY,   fact: 'Moves so slowly that algae grow in its fur.'},
-  {id: 'monkey',   name: 'NIGHT MONKEY',          tier: CANOPY,   fact: 'The only truly nocturnal monkey in the world.'},
-  {id: 'harpy',    name: 'HARPY EAGLE',           tier: EMERGENT, fact: 'Its talons are as long as a grizzly bear\'s claws. It roosts in the tallest trees.'},
+  // night
+  {id: 'caiman',   when: 'night', name: 'SPECTACLED CAIMAN',     tier: FLOOR,    fact: 'Its eyes glow red in your light: a mirror layer behind the eye bounces it back.'},
+  {id: 'anaconda', when: 'night', name: 'GREEN ANACONDA',        tier: FLOOR,    fact: 'The heaviest snake on Earth. It hunts from the water\'s edge, day or night.'},
+  {id: 'viper',    when: 'night', name: 'FER-DE-LANCE',          tier: FLOOR,    fact: 'A pit viper: heat-sensing pits let it strike in total darkness.'},
+  {id: 'jaguar',   when: 'night', name: 'JAGUAR',                tier: FLOOR,    fact: 'Hunts by night and by day. The strongest bite of any big cat for its size.'},
+  {id: 'armadillo',when: 'night', name: 'NINE-BANDED ARMADILLO', tier: FLOOR,    fact: 'Startle it and it leaps straight up. It can hold its breath for six minutes.'},
+  {id: 'bat',      when: 'night', name: 'COMMON VAMPIRE BAT',    tier: UNDER,    fact: 'Senses body heat to find blood vessels, and laps blood rather than sucking it.'},
+  {id: 'firefly',  when: 'night', name: 'FIREFLIES',             tier: UNDER,    fact: 'Each species flashes its own code to find a mate.'},
+  {id: 'kinkajou', when: 'night', name: 'KINKAJOU',              tier: UNDER,    fact: 'A raccoon relative with a grasping tail. It pollinates the flowers it feeds on.'},
+  {id: 'owl',      when: 'night', name: 'SPECTACLED OWL',        tier: CANOPY,   fact: 'Named for the white rings around its eyes, like spectacles.'},
+  {id: 'sloth',    when: 'night', name: 'TWO-TOED SLOTH',        tier: CANOPY,   fact: 'Moves so slowly that algae grow in its fur.'},
+  {id: 'monkey',   when: 'night', name: 'NIGHT MONKEY',          tier: CANOPY,   fact: 'The only truly nocturnal monkey in the world.'},
+  {id: 'potoo',    when: 'night', name: 'GREAT POTOO',           tier: EMERGENT, fact: 'By day it freezes upright and passes for a broken branch. By night it hunts moths.'},
+  // day
+  {id: 'frog',     when: 'day',   name: 'POISON DART FROG',      tier: FLOOR,    fact: 'Its bright colours warn predators. The poison comes from the ants and mites it eats.'},
+  {id: 'otter',    when: 'day',   name: 'GIANT RIVER OTTER',     tier: FLOOR,    fact: 'Up to 1.8 m long. Families hunt together and call to each other constantly.'},
+  {id: 'capybara', when: 'day',   name: 'CAPYBARA',              tier: FLOOR,    fact: 'The largest rodent in the world, and a strong swimmer with webbed feet.'},
+  {id: 'morpho',   when: 'day',   name: 'BLUE MORPHO',           tier: UNDER,    fact: 'Its blue is not pigment: tiny scales on the wings bend light into colour.'},
+  {id: 'squirrel', when: 'day',   name: 'SQUIRREL MONKEY',       tier: UNDER,    fact: 'Lives in troops that can number a hundred or more.'},
+  {id: 'hoatzin',  when: 'day',   name: 'HOATZIN',               tier: UNDER,    fact: 'Its chicks have claws on their wings and can climb back up if they fall.'},
+  {id: 'iguana',   when: 'day',   name: 'GREEN IGUANA',          tier: CANOPY,   fact: 'Startled on a high branch, it simply lets go and drops to safety.'},
+  {id: 'toucan',   when: 'day',   name: 'TOUCAN',                tier: CANOPY,   fact: 'Its huge bill is light and hollow, and helps it shed heat.'},
+  {id: 'howler',   when: 'day',   name: 'RED HOWLER MONKEY',     tier: CANOPY,   fact: 'Its call carries for kilometres, amplified by an enlarged throat bone.'},
+  {id: 'sloth3',   when: 'day',   name: 'THREE-TOED SLOTH',      tier: CANOPY,   fact: 'Has extra neck bones, so it can turn its head 270 degrees.'},
+  {id: 'macaw',    when: 'day',   name: 'SCARLET MACAW',         tier: EMERGENT, fact: 'Flocks gather at riverbank clay licks, probably for the salt.'},
+  {id: 'harpy',    when: 'day',   name: 'HARPY EAGLE',           tier: EMERGENT, fact: 'Its talons are as long as a grizzly bear\'s claws. It hunts sloths and monkeys.'},
 ];
 const SPEC = Object.fromEntries(SPECIES.map(s => [s.id, s]));
+const OF = when => SPECIES.filter(s => s.when === when);
+/* Out at both times, so they can turn up whichever it is. */
+const ROUND_THE_CLOCK = new Set(['jaguar', 'anaconda', 'caiman']);
 
 /* ---------------- the jungle ---------------- */
 /* A loop of screens: walk off either edge and the next one flips in, and
@@ -95,25 +115,29 @@ const LAYOUTS = [
 ];
 const POND = {x0: 150, x1: 250};
 
-/* Each species lives on two or three screens, spread round the loop. */
-const ORDER = (() => {
-  const ids = SPECIES.map(s => s.id), out = [];
-  let b = 0x5A;
+/* Each species lives on two or three screens, spread round the loop -- the
+   night cast and the day cast each shuffled their own way. */
+function shuffled(ids, seed) {
+  ids = ids.slice(); const out = [];
+  let b = seed;
   while (ids.length) { b = lfsrNext(b); out.push(ids.splice(b % ids.length, 1)[0]); }
   return out;
-})();
+}
+const ORDER = {night: shuffled(OF('night').map(s => s.id), 0x5A), day: shuffled(OF('day').map(s => s.id), 0x3B)};
 
-function screenSpec(s) {
+function screenSpec(s, when) {
   const b = BYTES[s];
-  let floor = s === 0 ? 0 : (b & 3);              // 0,3 solid; 1 caiman creek; 2 creek with a swinging vine
-  const resident = ORDER[s % ORDER.length];
-  /* Screen 1 is a calm place to start: no creek, nothing living there. */
-  if (s === 0) return {s, floor: 0, layout: LAYOUTS[(b >> 2) & 3], resident: '', extra: '', bats: 0};
-  if (resident === 'caiman') floor = 1;
-  if (floor === 1 && resident !== 'caiman' && (s % 3)) floor = 2;   // caiman creeks are the caiman's
   const layout = LAYOUTS[(b >> 2) & 3];
-  const extra = (floor === 0 || floor === 3) ? ['', '', '', 'viper', 'anaconda', 'jaguar', '', ''][(b >> 5) & 7] : '';
-  return {s, floor, layout, resident, extra: extra === resident ? '' : extra, bats: (b >> 4) & 1};
+  /* Screen 1 is a calm place to start: no creek, nothing living there. */
+  if (s === 0) return {s, floor: 0, layout, resident: '', extra: '', bats: 0};
+  /* The ground is the same by day and by night: only who is out changes. */
+  let floor = b & 3;                               // 0,3 solid; 1 caiman creek; 2 creek with a swinging vine
+  if (ORDER.night[s % 12] === 'caiman') floor = 1;
+  if (floor === 1 && ORDER.night[s % 12] !== 'caiman' && (s % 3)) floor = 2;
+  const resident = ORDER[when][s % 12];
+  const extras = when === 'night' ? ['', '', '', 'viper', 'anaconda', 'jaguar', '', ''] : ['', '', '', 'frog', 'anaconda', 'jaguar', '', ''];
+  const extra = (floor === 0 || floor === 3) ? extras[(b >> 5) & 7] : '';
+  return {s, floor, layout, resident, extra: extra === resident ? '' : extra, bats: when === 'night' ? (b >> 4) & 1 : 0};
 }
 
 /* ---------------- canvas ---------------- */
@@ -133,10 +157,18 @@ function text(s, x, y, c = C.white, align = 'left', size = 8) {
   ctx.fillStyle = '#000'; ctx.fillText(s, x + 1, y + 1);
   ctx.fillStyle = c; ctx.fillText(s, x, y);
 }
+/* Blend two #rrggbb colours: 0 gives a, 1 gives b. Day and night are one
+   palette sliding between two ends, so dusk and dawn come for free. */
+function mix(a, b, t) {
+  const p = s => [1, 3, 5].map(i => parseInt(s.slice(i, i + 2), 16));
+  const A = p(a), B = p(b);
+  return '#' + A.map((v, i) => Math.round(v + (B[i] - v)*t).toString(16).padStart(2, '0')).join('');
+}
 
 /* ---------------- sound ---------------- */
 /* Square waves and filtered noise, in the spirit of a General Instrument
-   sound chip, plus the night itself: crickets and frogs, always. */
+   sound chip, plus the forest itself: crickets and frogs by night, birds and
+   the odd distant howler by day. */
 let actx = null, soundOn = true, master = null, noiseBuf = null;
 function ensureAudio() {
   try {
@@ -175,9 +207,15 @@ const SFX = {
   splash: () => hiss(0.5, {f: 1200, vol: 0.12}),
   doc: () => [523, 659, 784, 1047].forEach((f, i) => beep(f, 0.12, {vol: 0.07, at: i*0.08})),
   tick: () => beep(1200, 0.03, {vol: 0.03}),
+  flee: () => hiss(0.25, {f: 3000, type: 'bandpass', vol: 0.06}),
   thunder: (at) => { hiss(1.6, {f: 220, vol: 0.35, at}); hiss(0.4, {f: 600, vol: 0.15, at}); },
   cricket: () => { for (let i = 0; i < 3; i++) beep(4300, 0.025, {vol: 0.012, at: i*0.05}); },
   frog: () => { beep(170, 0.07, {vol: 0.03}); beep(150, 0.09, {vol: 0.03, at: 0.1}); },
+  bird: () => { const f = 1800 + Math.random()*1400; beep(f, 0.06, {vol: 0.02, slide: 600}); beep(f*1.2, 0.05, {vol: 0.018, at: 0.09, slide: -400}); },
+  macaw: () => { beep(900, 0.12, {type: 'sawtooth', vol: 0.025, slide: -300}); },
+  howl: () => { hiss(1.4, {f: 300, type: 'bandpass', q: 3, vol: 0.06}); beep(110, 1.2, {type: 'sawtooth', vol: 0.015, slide: 40}); },
+  dusk: () => [784, 659, 523, 392].forEach((f, i) => beep(f, 0.18, {type: 'triangle', vol: 0.05, at: i*0.14})),
+  dawn: () => [392, 523, 659, 784].forEach((f, i) => beep(f, 0.18, {type: 'triangle', vol: 0.05, at: i*0.14})),
 };
 
 /* ---------------- input ---------------- */
@@ -221,7 +259,7 @@ function pollInput() {
     if (pressed[b] && pad[b]) ensureAudio();
     keyTap[b] = false; prevHeld[b] = held[b];
   }
-  if (DEMO) {
+  if (DEMO && state !== 'journal') {
     /* The demo runs right and hops the creeks. */
     held.right = true; held.left = false;
     const creekAhead = scr && overCreek(P.x + 28) && !overCreek(P.x);
@@ -230,15 +268,29 @@ function pollInput() {
 }
 
 /* ---------------- game state ---------------- */
-let state = 'title', time = 0, clock = 1200, score = 0, lives = 3;
+const EXPEDITION = 1800;             // seconds: thirty minutes, day and night together
+let state = 'title', time = 0, clock = EXPEDITION, score = 0, lives = 3;
 let screen = 0, scr = null, animals = [], fireflies = [];
-let flash = 0, nextBolt = 8, thunderAt = -1;
-let toast = '', toastT = 0, journalSel = 0, nightT = 0;
+/* when: which cast is out. light: 0 = full night, 1 = full day, sliding
+   between during dusk and dawn. */
+let when = 'night', light = 0, turning = 0;
+let flash = 0, nextBolt = 8;
+let toast = '', toastT = 0, journalSel = 0, journalPage = 'night', nightT = 0;
 const documented = new Set();
 const P = {x: 30, y: FLOOR, vx: 0, vy: 0, ground: true, face: 1, climb: null, swing: false, swingCd: 0,
            drop: 0, stun: 0, inv: 0, deadT: 0, cause: '', run: 0, obs: 0, obsTarget: null};
+const isDay = () => light >= 0.5;
 
 function say(m, t = 2.5) { toast = m; toastT = t; }
+
+/* Dusk or dawn: two seconds of the light sliding, and halfway through, the
+   cast on this screen changes over. */
+function turnTime() {
+  if (turning) return;
+  turning = when === 'night' ? 1 : -1;
+  if (turning > 0) SFX.dawn(); else SFX.dusk();
+  say(turning > 0 ? 'DAWN. THE NIGHT ANIMALS SLIP AWAY...' : 'DUSK. THE DAY ANIMALS SETTLE IN...', 2.5);
+}
 
 /* ---------------- the creek, the vine ---------------- */
 const VINE = {ax: 200, ay: CANOPY, len: 78, amp: 0.85, period: 2.8};
@@ -259,47 +311,70 @@ function overCreek(x) { return scr && scr.floor !== 0 && scr.floor !== 3 && x > 
 
 /* ---------------- animals ---------------- */
 /* Only the screen you're on is alive, like the original: every animal is
-   made fresh when its screen flips in. */
+   made fresh when its screen flips in, or when the light turns. */
 function platformsAt(y) { return scr.layout.plat.filter(p => p[0] === y); }
-function home(tier) {
+function home(tier, pick = -1) {
   if (tier === FLOOR) return {x: 300, y: FLOOR, x0: 40, x1: 380};
-  const ps = platformsAt(tier); const p = ps[ps.length - 1];
+  const ps = platformsAt(tier); const p = ps[pick < 0 ? ps.length - 1 : pick % ps.length];
   return {x: (p[1] + p[2])/2, y: tier, x0: p[1] + 6, x1: p[2] - 6};
 }
+const FLOOR_WALKERS = new Set(['anaconda', 'jaguar', 'armadillo', 'viper', 'frog', 'capybara']);
 function makeAnimal(id) {
-  const h = home(SPEC[id].tier);
+  const h = home(SPEC[id].tier, id === 'hoatzin' ? 0 : -1);
   const a = {id, x: h.x, y: h.y, x0: h.x0, x1: h.x1, dir: 1, t: Math.random()*5, gone: 0, state: 'calm'};
   if (id === 'caiman') { a.x = 200; a.y = FLOOR + 6; }
-  if (id === 'anaconda' || id === 'jaguar' || id === 'armadillo' || id === 'viper') {
+  if (FLOOR_WALKERS.has(id)) {
     /* Floor animals keep clear of the creek. */
     if (scr.floor === 1 || scr.floor === 2) { a.x0 = 262; a.x1 = 380; a.x = 320; }
-    if (id === 'viper') a.x = scr.floor === 0 || scr.floor === 3 ? 250 : 320;
+    if (id === 'viper' || id === 'frog') a.x = scr.floor === 0 || scr.floor === 3 ? 250 : 320;
     if (id === 'jaguar') a.x = a.x1 - 20;
   }
+  if (id === 'otter') {
+    /* In the creek if there is one; on the bank if not. */
+    if (scr.floor === 1 || scr.floor === 2) { a.x0 = POND.x0 + 8; a.x1 = POND.x1 - 8; a.x = 200; a.y = FLOOR + 5; a.swim = true; }
+  }
   if (id === 'bat') { a.y = UNDER - 26; a.ph = 1.6; a.x = 365; }
-  if (id === 'sloth') { a.y = h.y + 4; }
-  if (id === 'firefly') { a.x = h.x; a.y = h.y - 30; }
+  if (id === 'sloth' || id === 'sloth3') { a.y = h.y + 4; }
+  if (id === 'firefly' || id === 'morpho') { a.x = h.x; a.y = h.y - 30; }
+  if (id === 'potoo') { a.x = h.x0 + 4; }
   return a;
 }
 function spawnScreen() {
-  scr = screenSpec(screen);
+  scr = screenSpec(screen, when);
   animals = [];
   if (scr.resident) animals.push(makeAnimal(scr.resident));
   if (scr.extra) animals.push(makeAnimal(scr.extra));
   if (scr.bats && scr.resident !== 'bat') { const b = makeAnimal('bat'); b.ph = -1.6; b.x = 35; b.y = FLOOR - 40; animals.push(b); }
   fireflies = [];
-  const nf = scr.resident === 'firefly' ? 9 : (BYTES[screen] % 3);
-  const fh = scr.resident === 'firefly' ? animals[0] : {x: 80 + (BYTES[screen] % 240), y: UNDER - 30};
-  for (let i = 0; i < nf; i++) fireflies.push({cx: fh.x, cy: fh.y, r: 14 + Math.random()*22, a: Math.random()*6.3, w: 0.6 + Math.random(), blink: Math.random()*4});
+  if (when === 'night') {
+    const nf = scr.resident === 'firefly' ? 9 : (BYTES[screen] % 3);
+    const fh = scr.resident === 'firefly' ? animals[0] : {x: 80 + (BYTES[screen] % 240), y: UNDER - 30};
+    for (let i = 0; i < nf; i++) fireflies.push({cx: fh.x, cy: fh.y, r: 14 + Math.random()*22, a: Math.random()*6.3, w: 0.6 + Math.random(), blink: Math.random()*4});
+  }
 }
 
 const pbox = () => ({x0: P.x - 4, x1: P.x + 4, y0: P.y - 18, y1: P.y});
 const hit = (a, b) => a.x0 < b.x1 && a.x1 > b.x0 && a.y0 < b.y1 && a.y1 > b.y0;
 
+/* By day the animals can see you too. Run near one and it's gone for a
+   while; creep (hold B) and you can get much closer; stand still and you
+   are part of the forest. Night animals mostly trust the dark. */
+function spooked(a, radius) {
+  const c = animalCenter(a), d = Math.hypot(c.x - P.x, c.y - (P.y - 10));
+  const speed = Math.abs(P.vx) + Math.abs(P.vy)*0.5;
+  if (speed < 8) return false;
+  return d < (held.b && speed < 50 ? radius*0.45 : radius);
+}
+function flee(a, secs) { a.state = 'away'; a.away = secs; SFX.flee(); }
+
 function updateAnimal(a, dt) {
   a.t += dt;
   const px = P.x, near = Math.abs(px - a.x), sameFloor = P.ground && Math.abs(P.y - FLOOR) < 2;
   const running = Math.abs(P.vx) > 60;
+  if (a.state === 'away') {
+    a.away -= dt; if (a.away <= 0) a.state = 'calm';
+    a.shy = a.state !== 'calm'; a.box = null; return;
+  }
   switch (a.id) {
     case 'anaconda':
       a.x += a.dir * 14 * dt;
@@ -348,44 +423,97 @@ function updateAnimal(a, dt) {
       a.dir = nx >= a.x ? 1 : -1; a.x = nx;
       a.dy = Math.sin(a.t * 3) * 14;
       a.box = {x0: a.x - 6, x1: a.x + 6, y0: a.y + a.dy - 4, y1: a.y + a.dy + 4};
-      a.bite = true;
+      a.bite = 'BITTEN BY A VAMPIRE BAT';
       break;
     }
     case 'owl':
-      if (a.state === 'calm' && Math.abs(P.y - a.y) < 60 && near < 70 && running) { a.state = 'away'; a.away = 8; }
-      if (a.state === 'away') { a.away -= dt; if (a.away <= 0) a.state = 'calm'; }
-      a.shy = a.state !== 'calm';
+      if (Math.abs(P.y - a.y) < 60 && near < 70 && running) flee(a, 8);
       break;
     case 'kinkajou':
       a.x += a.dir * 26 * dt; if (a.x < a.x0) a.dir = 1; if (a.x > a.x1) a.dir = -1;
       break;
-    case 'sloth':
+    case 'sloth': case 'sloth3':
+      /* Sloths can't flee. That's the whole strategy. */
       a.x += a.dir * 3 * dt; if (a.x < a.x0) a.dir = 1; if (a.x > a.x1) a.dir = -1;
       break;
-    case 'monkey': {
-      /* Hops from branch to branch in the canopy and treetops. */
+    case 'monkey': case 'squirrel': {
+      /* Hops from branch to branch: night monkeys up high, squirrel monkeys
+         lower and quicker. A squirrel monkey troop bolts if you run at it. */
+      if (a.id === 'squirrel' && spooked(a, 80)) { flee(a, 7); break; }
+      const tiers = a.id === 'monkey' ? [CANOPY, EMERGENT] : [UNDER, CANOPY];
       if (!a.hop) { a.wait = (a.wait || 2) - dt; if (a.wait <= 0) {
-        const ps = scr.layout.plat.filter(p => p[0] === CANOPY || p[0] === EMERGENT);
+        const ps = scr.layout.plat.filter(p => tiers.includes(p[0]));
         const p = ps[Math.floor(Math.random()*ps.length)];
         a.hop = {x0: a.x, y0: a.y, x1: p[1] + 8 + Math.random()*(p[2] - p[1] - 16), y1: p[0], t: 0};
       } } else {
-        a.hop.t += dt/0.8; const k = Math.min(1, a.hop.t);
+        a.hop.t += dt/(a.id === 'squirrel' ? 0.55 : 0.8); const k = Math.min(1, a.hop.t);
         a.x = a.hop.x0 + (a.hop.x1 - a.hop.x0)*k; a.y = a.hop.y0 + (a.hop.y1 - a.hop.y0)*k - Math.sin(k*Math.PI)*30;
         a.dir = a.hop.x1 > a.hop.x0 ? 1 : -1;
-        if (k >= 1) { a.hop = null; a.wait = 2 + Math.random()*2; }
+        if (k >= 1) { a.hop = null; a.wait = (a.id === 'squirrel' ? 1 : 2) + Math.random()*2; }
       }
       break;
     }
+    case 'potoo':
+      /* Holds dead still. Easy to look straight at and never notice. */
+      break;
+    /* ---- by day ---- */
+    case 'frog':
+      /* Small, slow, and you must not touch it. */
+      a.hopT = (a.hopT || 1.5) - dt;
+      if (a.hopT <= 0) { a.hopT = 1.5 + Math.random()*2; a.dir = Math.random() < 0.5 ? -1 : 1; a.hopV = 1; }
+      if (a.hopV > 0) { a.hopV -= dt*3; a.x += a.dir*30*dt; a.ay = -Math.sin(Math.max(0, a.hopV)*Math.PI)*5; }
+      else a.ay = 0;
+      a.x = Math.max(a.x0, Math.min(a.x1, a.x));
+      a.box = {x0: a.x - 4, x1: a.x + 4, y0: a.y - 5 + a.ay, y1: a.y + a.ay};
+      a.bite = 'TOUCHED A POISON DART FROG';
+      break;
+    case 'otter':
+      if (spooked(a, 90)) { flee(a, 6); break; }
+      a.x += a.dir * (a.swim ? 40 : 22) * dt; if (a.x < a.x0) a.dir = 1; if (a.x > a.x1) a.dir = -1;
+      if (Math.random() < dt*0.4) SFX.bird();       // otters chirp and squeal all day
+      break;
+    case 'capybara':
+      if (spooked(a, 80)) { flee(a, 6); break; }
+      a.x += a.dir * 8 * dt; if (a.x < a.x0) a.dir = 1; if (a.x > a.x1) a.dir = -1;
+      break;
+    case 'morpho':
+      a.x = 200 + 150*Math.sin(a.t*0.35) + 12*Math.sin(a.t*2.3);
+      a.y = UNDER - 40 + 20*Math.sin(a.t*0.9) + 6*Math.sin(a.t*5.1);
+      a.dir = Math.cos(a.t*0.35) >= 0 ? 1 : -1;
+      break;
+    case 'hoatzin': case 'toucan': case 'macaw': case 'harpy': {
+      /* Perched birds. Run at one and it flies off for a while. */
+      const r = {hoatzin: 60, toucan: 80, macaw: 90, harpy: 110}[a.id];
+      if (spooked(a, r)) { flee(a, a.id === 'harpy' ? 12 : 8); break; }
+      if (a.id === 'macaw' && Math.random() < dt*0.3) SFX.macaw();
+      break;
+    }
+    case 'iguana':
+      /* Startled, it lets go of the branch and drops to the forest floor. */
+      if (a.state === 'calm' && spooked(a, 70)) { a.state = 'drop'; a.vy = 0; SFX.flee(); }
+      if (a.state === 'drop') {
+        a.vy += 600*dt; a.y += a.vy*dt;
+        if (a.y >= FLOOR) { a.y = FLOOR; a.state = 'away'; a.away = 10; }
+      }
+      a.shy = a.state !== 'calm';
+      break;
+    case 'howler':
+      a.x += a.dir * 10 * dt; if (a.x < a.x0) a.dir = 1; if (a.x > a.x1) a.dir = -1;
+      a.howlT = (a.howlT === undefined ? 2 : a.howlT) - dt;
+      if (a.howlT <= 0) { a.howlT = 9 + Math.random()*8; a.howling = 1.4; SFX.howl(); }
+      a.howling = Math.max(0, (a.howling || 0) - dt);
+      break;
   }
+  if (a.state !== 'drop' && a.id !== 'armadillo') a.shy = a.state !== 'calm';
 }
 
-/* What the lantern lets you see, and what counts as "in view" to observe. */
+/* What you can see, and what counts as "in view" to observe. */
 function lightR() { return (DEMO ? 140 : (held.b ? 92 : 58)) + Math.sin(time*23)*1.5 + Math.sin(time*7)*1; }
 function lanternPos() { return {x: P.x + P.face*5, y: P.y - 11}; }
 function animalCenter(a) {
-  if (a.id === 'firefly') return {x: a.x, y: a.y};
+  if (a.id === 'firefly' || a.id === 'morpho') return {x: a.x, y: a.y};
   if (a.id === 'bat') return {x: a.x, y: a.y + (a.dy || 0)};
-  if (a.id === 'sloth') return {x: a.x, y: a.y + 6};
+  if (a.id === 'sloth' || a.id === 'sloth3') return {x: a.x, y: a.y + 6};
   return {x: a.x, y: a.y - 6 + (a.ay || 0)};
 }
 
@@ -496,15 +624,27 @@ function updatePlayer(dt) {
   if (P.ground && Math.abs(P.vx) > 20) { P.run += dt*Math.abs(P.vx)/12; }
 }
 
-/* Stand still, lantern raised, with an undocumented species in the light. */
+/* Stand still holding B with an undocumented species in view. By night that
+   means inside your lantern light; by day, through binoculars, much further
+   off -- but facing it. */
+function canObserve(a) {
+  if (documented.has(a.id) || a.shy || a.gone > 0 || a.state === 'away') return false;
+  if (SPEC[a.id].when !== when) return false;     // a night species glimpsed at dawn waits for night
+  const c = animalCenter(a);
+  if (isDay()) {
+    const dx = c.x - P.x, d = Math.hypot(dx, c.y - (P.y - 16));
+    return d < 160 && (Math.abs(dx) < 12 || Math.sign(dx) === P.face);
+  }
+  const lp = lanternPos();
+  return Math.hypot(c.x - lp.x, c.y - lp.y) < Math.min(lightR(), 96);
+}
 function updateObserve(dt) {
-  const lp = lanternPos(), r = lightR();
   let best = null, bd = 1e9;
-  if (held.b && P.ground && Math.abs(P.vx) < 6 && P.stun <= 0) {
+  if (held.b && P.ground && Math.abs(P.vx) < 6 && P.stun <= 0 && !turning) {
     for (const a of animals) {
-      if (documented.has(a.id) || a.shy || a.gone > 0) continue;
-      const c = animalCenter(a), d = Math.hypot(c.x - lp.x, c.y - lp.y);
-      if (d < Math.min(r, 96) && d < bd) { best = a; bd = d; }
+      if (!canObserve(a)) continue;
+      const c = animalCenter(a), d = Math.hypot(c.x - P.x, c.y - P.y);
+      if (d < bd) { best = a; bd = d; }
     }
   }
   if (best && best === P.obsTarget) {
@@ -526,11 +666,16 @@ function updateObserve(dt) {
 function update(dt) {
   time += dt; nightT += dt;
   if (toastT > 0) toastT -= dt; if (footT > 0) footT -= dt;
-  if (pressed.select && (state === 'play' || state === 'journal')) { state = state === 'journal' ? 'play' : 'journal'; return; }
+  if (pressed.select && (state === 'play' || state === 'journal')) {
+    if (state === 'play') journalPage = when;
+    state = state === 'journal' ? 'play' : 'journal'; return;
+  }
   if (state === 'journal') {
-    if (pressed.up) journalSel = (journalSel + SPECIES.length - 1) % SPECIES.length;
-    if (pressed.down) journalSel = (journalSel + 1) % SPECIES.length;
+    if (pressed.up) journalSel = (journalSel + 11) % 12;
+    if (pressed.down) journalSel = (journalSel + 1) % 12;
+    if (pressed.left || pressed.right) journalPage = journalPage === 'night' ? 'day' : 'night';
     if (pressed.a) { setSound(!soundOn); footNote(soundOn ? 'SOUND ON' : 'SOUND OFF'); }
+    if (pressed.b && !turning) { turnTime(); state = 'play'; }
     if (pressed.start) state = 'play';
     return;
   }
@@ -541,12 +686,23 @@ function update(dt) {
   if (pressed.start) { state = state === 'pause' ? 'play' : (state === 'play' ? 'pause' : state); return; }
   if (state === 'pause') return;
 
-  /* The night: crickets, frogs, and now and then a storm. */
-  if (Math.random() < dt*2.2) SFX.cricket();
-  if (Math.random() < dt*0.25) SFX.frog();
+  /* Dusk and dawn. The cast changes over at the darkest-brightest middle. */
+  if (turning) {
+    const before = light;
+    light = Math.max(0, Math.min(1, light + turning*dt/2));
+    if ((before < 0.5) !== (light < 0.5)) { when = light >= 0.5 ? 'day' : 'night'; spawnScreen(); P.obs = 0; P.obsTarget = null; }
+    if (light === 0 || light === 1) turning = 0;
+  }
+
+  /* The forest: crickets and frogs by night, birds by day, and at night now
+     and then a storm. */
+  if (light < 0.5) {
+    if (Math.random() < dt*2.2) SFX.cricket();
+    if (Math.random() < dt*0.25) SFX.frog();
+    nextBolt -= dt;
+    if (nextBolt <= 0) { flash = 1; nextBolt = 9 + Math.random()*14; SFX.thunder(0.4 + Math.random()*1.2); }
+  } else if (Math.random() < dt*0.9) SFX.bird();
   flash = Math.max(0, flash - dt*1.4);
-  nextBolt -= dt;
-  if (nextBolt <= 0) { flash = 1; nextBolt = 9 + Math.random()*14; SFX.thunder(0.4 + Math.random()*1.2); }
 
   if (state === 'dying') {
     P.deadT -= dt;
@@ -554,7 +710,7 @@ function update(dt) {
     return;
   }
   clock -= dt;
-  if (clock <= 0) { clock = 0; state = 'over'; P.cause = 'DAWN. THE NIGHT IS OVER.'; return; }
+  if (clock <= 0) { clock = 0; state = 'over'; P.cause = 'TIME\'S UP. THE EXPEDITION IS OVER.'; return; }
 
   updatePlayer(dt);
   for (const a of animals) updateAnimal(a, dt);
@@ -569,7 +725,7 @@ function update(dt) {
       if (a.knock && P.stun <= 0) { P.stun = 0.7; P.vx = (P.x < a.x ? -1 : 1)*120; P.vy = -120; P.ground = false; SFX.bite(); say('KNOCKED OVER BY A LEAPING ARMADILLO'); }
       if (a.bite && P.stun <= 0) {
         P.stun = 0.8; clock = Math.max(0, clock - 15); a.gone = 4; SFX.bite();
-        say('BITTEN BY A VAMPIRE BAT  -15 SEC');
+        say(a.bite + '  -15 SEC');
       }
     }
   }
@@ -577,51 +733,54 @@ function update(dt) {
 }
 
 function newGame() {
-  score = 0; lives = 3; clock = 1200; time = 0; screen = 0; documented.clear();
+  score = 0; lives = 3; clock = EXPEDITION; time = 0; screen = 0; documented.clear();
+  when = DEMO && Q.has('day') ? 'day' : 'night'; light = when === 'day' ? 1 : 0; turning = 0;
   Object.assign(P, {x: 30, y: FLOOR, vx: 0, vy: 0, ground: true, face: 1, climb: null, swing: false, stun: 0, inv: 1, obs: 0, obsTarget: null});
-  spawnScreen(); state = 'play'; nextBolt = 3; say('FIND AND DOCUMENT 12 SPECIES BEFORE DAWN', 4);
+  spawnScreen(); state = 'play'; nextBolt = 3; say('DOCUMENT 24 SPECIES. SELECT, THEN B, TURNS NIGHT TO DAY', 5);
 }
 
 /* ---------------- drawing ---------------- */
 function drawScene() {
-  const L = scr.layout;
-  /* sky and the far forest */
+  const L = scr.layout, k = light;
+  /* sky and the far forest, night sliding to day */
   const g = ctx.createLinearGradient(0, HUD, 0, HUD + PH);
-  g.addColorStop(0, C.night); g.addColorStop(1, '#0a1d14');
+  g.addColorStop(0, mix(C.night, '#7cc0ea', k)); g.addColorStop(0.55, mix('#0b1a24', '#4f9a5a', k)); g.addColorStop(1, mix('#0a1d14', '#2f6b3a', k));
   ctx.fillStyle = g; ctx.fillRect(0, HUD, W, PH);
-  for (let i = 0; i < 9; i++) {           // stars through gaps in the canopy
+  if (k < 0.4) for (let i = 0; i < 9; i++) {      // stars through gaps in the canopy
     const sx = (BYTES[(screen + i) % NSCREENS]*37 + i*53) % W, sy = HUD + 4 + (i*29 % 40);
     if ((time*2 + i) % 7 > 0.4) rect(sx, sy, 1, 1, '#9fb4d8');
   }
-  for (const tx of L.trunks) {            // trunks, floor to treetops
-    rect(tx - 5, HUD + EMERGENT - 20, 10, FLOOR - EMERGENT + 20, C.brown);
-    rect(tx - 2, HUD + EMERGENT - 20, 2, FLOOR - EMERGENT + 20, C.bark);
+  if (k > 0.6) {                                   // by day, shafts of light through the canopy
+    ctx.fillStyle = `rgba(255,250,200,${((k - 0.6)*0.18).toFixed(3)})`;
+    for (const sx of [90, 230, 330]) { ctx.beginPath(); ctx.moveTo(sx, HUD); ctx.lineTo(sx + 16, HUD); ctx.lineTo(sx - 30, HUD + FLOOR); ctx.lineTo(sx - 52, HUD + FLOOR); ctx.fill(); }
   }
-  /* foliage clumps behind each branch */
-  for (const p of L.plat) {
-    const [y, x0, x1] = p;
-    ctx.fillStyle = C.dkgreen;
-    for (let x = x0 - 6; x < x1 + 6; x += 14) {
-      ctx.beginPath(); ctx.ellipse(x + 7, HUD + y - 9, 11, 9, 0, 0, 7); ctx.fill();
-    }
+  const leaf = mix(C.dkgreen, '#2e8b3a', k), trunk = mix(C.brown, '#6b4224', k), bark = mix(C.bark, '#9a6634', k);
+  for (const tx of L.trunks) {                     // trunks, floor to treetops
+    rect(tx - 5, HUD + EMERGENT - 20, 10, FLOOR - EMERGENT + 20, trunk);
+    rect(tx - 2, HUD + EMERGENT - 20, 2, FLOOR - EMERGENT + 20, bark);
   }
-  for (const p of L.plat) {               // the branches you stand on
+  for (const p of L.plat) {                        // foliage clumps behind each branch
     const [y, x0, x1] = p;
-    rect(x0, HUD + y, x1 - x0, 4, C.bark); rect(x0, HUD + y + 4, x1 - x0, 2, C.brown);
+    ctx.fillStyle = leaf;
+    for (let x = x0 - 6; x < x1 + 6; x += 14) { ctx.beginPath(); ctx.ellipse(x + 7, HUD + y - 9, 11, 9, 0, 0, 7); ctx.fill(); }
+  }
+  for (const p of L.plat) {                        // the branches you stand on
+    const [y, x0, x1] = p;
+    rect(x0, HUD + y, x1 - x0, 4, bark); rect(x0, HUD + y + 4, x1 - x0, 2, trunk);
     for (let x = x0; x < x1; x += 9) rect(x, HUD + y - 2, 4, 2, C.green);
   }
-  for (const l of L.lianas) {             // lianas
+  for (const l of L.lianas) {                      // lianas
     for (let y = l[1]; y < l[2]; y += 4) rect(l[0] + Math.round(Math.sin((y + l[0])*0.3)), HUD + y, 1, 3, C.ltgreen);
   }
   /* the forest floor, and the creek */
-  rect(0, HUD + FLOOR, W, PH - FLOOR, C.brown);
+  rect(0, HUD + FLOOR, W, PH - FLOOR, mix(C.brown, '#7a4f2a', k));
   rect(0, HUD + FLOOR, W, 3, C.green);
   for (let x = 4; x < W; x += 13) rect(x, HUD + FLOOR - 3, 2, 3, C.ltgreen);
   if (scr.floor === 1 || scr.floor === 2) {
-    rect(POND.x0, HUD + FLOOR, POND.x1 - POND.x0, PH - FLOOR, C.water);
+    rect(POND.x0, HUD + FLOOR, POND.x1 - POND.x0, PH - FLOOR, mix(C.water, '#2f86c8', k));
     for (let x = POND.x0; x < POND.x1; x += 6) rect(x + Math.round(Math.sin(time*2 + x)*2), HUD + FLOOR + 6 + (x % 3)*4, 3, 1, C.blue);
   }
-  if (scr.floor === 2) {                  // the vine, hung from the canopy
+  if (scr.floor === 2) {                           // the vine, hung from the canopy
     const tip = vineTip(time);
     ctx.strokeStyle = C.ltgreen; ctx.lineWidth = 1.5; ctx.beginPath();
     ctx.moveTo(VINE.ax, HUD + VINE.ay); ctx.lineTo(tip.x, HUD + tip.y); ctx.stroke();
@@ -635,13 +794,14 @@ function drawScene() {
 }
 
 function drawAnimal(a) {
+  if (a.state === 'away') return;
   const x = Math.round(a.x), y = HUD + Math.round(a.y + (a.ay || 0)), d = a.dir;
   switch (a.id) {
     case 'anaconda':
       for (let i = -20; i < 20; i += 2) rect(x + i, y - 5 + Math.round(Math.sin((i + a.t*30)*0.25)*1.5), 2, 4, i % 6 ? '#4f6b2a' : '#2d3d17');
       rect(x + d*20 - (d < 0 ? 4 : 0), y - 6, 4, 4, '#4f6b2a');
       break;
-    case 'jaguar':
+    case 'jaguar': {
       rect(x - 12, y - 11, 24, 8, '#c98a2c');
       for (let i = -10; i < 10; i += 5) rect(x + i, y - 9, 2, 2, '#3a250f');
       rect(x + d*12 - (d < 0 ? 6 : 0), y - 13, 6, 6, '#c98a2c');
@@ -649,6 +809,7 @@ function drawAnimal(a) {
       rect(x - 10, y - 3, 3, 3 - step, '#c98a2c'); rect(x + 7, y - 3, 3, 2 + step, '#c98a2c');
       rect(x - d*12 - (d > 0 ? 6 : 0), y - 10, 6, 2, '#c98a2c');
       break;
+    }
     case 'viper': {
       const reach = (a.strike || 0) > 0 ? 18 : 0;
       ctx.fillStyle = '#8a6a3a'; ctx.beginPath(); ctx.ellipse(x, y - 3, 7, 3, 0, 0, 7); ctx.fill();
@@ -671,23 +832,80 @@ function drawAnimal(a) {
       break;
     }
     case 'owl':
-      if (a.state === 'away') break;
       rect(x - 5, y - 14, 10, 13, '#5a3a20'); rect(x - 4, y - 8, 8, 6, '#d8c49a');
       rect(x - 4, y - 13, 3, 3, C.white); rect(x + 1, y - 13, 3, 3, C.white);
       break;
     case 'kinkajou':
       rect(x - 6, y - 7, 12, 6, '#a86a2a'); rect(x + d*6 - (d < 0 ? 4 : 0), y - 9, 4, 4, '#a86a2a');
-      for (let i = 0; i < 8; i++) rect(x - d*(6 + i) , y - 4 + Math.round(Math.sin(i*0.8 + a.t*3)), 1, 1, '#a86a2a');
+      for (let i = 0; i < 8; i++) rect(x - d*(6 + i), y - 4 + Math.round(Math.sin(i*0.8 + a.t*3)), 1, 1, '#a86a2a');
       break;
-    case 'sloth':
-      rect(x - 7, y, 14, 7, '#7a6a4a'); rect(x - 7, y - 3, 2, 3, '#4a3a2a'); rect(x + 5, y - 3, 2, 3, '#4a3a2a');
-      rect(x + d*5 - 2, y + 2, 4, 4, '#a89a7a');
-      if (Math.floor(a.t*0.5) % 2) rect(x - 3, y + 3, 2, 1, '#4c8a3a');   // algae
+    case 'sloth': case 'sloth3': {
+      const fur = a.id === 'sloth' ? '#7a6a4a' : '#8a7a5e';
+      rect(x - 7, y, 14, 7, fur); rect(x - 7, y - 3, 2, 3, '#4a3a2a'); rect(x + 5, y - 3, 2, 3, '#4a3a2a');
+      rect(x + d*5 - 2, y + 2, 4, 4, a.id === 'sloth' ? '#a89a7a' : '#e0d6b8');
+      if (a.id === 'sloth3') rect(x + d*5 - 1, y + 3, 2, 1, '#3a2a1a');       // the dark eye-stripe
+      if (Math.floor(a.t*0.5) % 2) rect(x - 3, y + 3, 2, 1, '#4c8a3a');         // algae
       break;
+    }
     case 'monkey':
       rect(x - 4, y - 10, 8, 8, '#8a7a5a'); rect(x - 3, y - 14, 6, 5, '#8a7a5a');
       rect(x - 2, y - 13, 1, 1, C.white); rect(x + 1, y - 13, 1, 1, C.white);
       for (let i = 0; i < 9; i++) rect(x - d*(4 + i), y - 4 + (i > 5 ? i - 5 : 0), 1, 1, '#8a7a5a');
+      break;
+    case 'potoo':
+      /* a stub of broken branch -- until you look closely */
+      rect(x - 2, y - 16, 5, 16, '#6a5a44'); rect(x - 1, y - 18, 3, 2, '#7a6a52');
+      rect(x - 1, y - 13, 1, 1, '#2a2218'); rect(x + 1, y - 13, 1, 1, '#2a2218');
+      break;
+    case 'frog':
+      rect(x - 4, y - 4, 8, 4, '#2a5ad8'); rect(x - 3, y - 5, 6, 1, '#2a5ad8');
+      rect(x - 3, y - 4, 2, 1, '#111'); rect(x + 1, y - 3, 2, 1, '#111');
+      rect(x - 2, y - 6, 1, 1, '#f6e05e'); rect(x + 1, y - 6, 1, 1, '#f6e05e');
+      break;
+    case 'otter':
+      rect(x - 10, y - 6, 20, 5, '#5a3a24'); rect(x + d*10 - (d < 0 ? 5 : 0), y - 8, 5, 5, '#5a3a24');
+      rect(x + d*10 - (d < 0 ? 3 : 2) + d, y - 5, 2, 2, '#e8dcc0');            // the pale throat patch
+      rect(x - d*10 - (d > 0 ? 6 : 0), y - 4, 6, 2, '#5a3a24');
+      break;
+    case 'capybara':
+      rect(x - 11, y - 11, 22, 9, '#8a5a34'); rect(x + d*11 - (d < 0 ? 7 : 0), y - 12, 7, 7, '#8a5a34');
+      rect(x + d*14 - (d < 0 ? 2 : 0) - d*2, y - 10, 1, 1, '#111');
+      rect(x - 9, y - 3, 3, 3, '#6a4426'); rect(x + 6, y - 3, 3, 3, '#6a4426');
+      break;
+    case 'morpho': {
+      const open = Math.floor(a.t*9) % 2;
+      rect(x - (open ? 5 : 2), y - 3, open ? 4 : 2, 5, '#3aa0ff'); rect(x + 1, y - 3, open ? 4 : 2, 5, '#3aa0ff');
+      rect(x - 1, y - 3, 1, 6, '#222');
+      break;
+    }
+    case 'squirrel':
+      rect(x - 3, y - 8, 6, 6, '#d8b048'); rect(x - 3, y - 12, 6, 4, '#e8e0c8'); rect(x - 2, y - 10, 4, 1, '#222');
+      for (let i = 0; i < 8; i++) rect(x - d*(3 + i), y - 4 + (i > 4 ? i - 4 : 0), 1, 1, '#d8b048');
+      break;
+    case 'hoatzin':
+      rect(x - 5, y - 12, 10, 11, '#8a5a34'); rect(x - 4, y - 8, 8, 5, '#d8a060');
+      rect(x - 2, y - 16, 4, 4, '#2a6ad8'); rect(x - 1, y - 19, 2, 3, '#d86a2a');   // blue face, spiky crest
+      rect(x + d*2, y - 15, 1, 1, C.red);
+      break;
+    case 'iguana':
+      rect(x - 9, y - 5, 18, 4, '#5aa83a'); rect(x + d*9 - (d < 0 ? 4 : 0), y - 7, 4, 4, '#5aa83a');
+      for (let i = -7; i < 8; i += 3) rect(x + i, y - 6, 1, 1, '#3a7a2a');
+      for (let i = 0; i < 10; i++) rect(x - d*(9 + i), y - 3, 1, 1, i % 3 ? '#5aa83a' : '#2a4a1a');
+      break;
+    case 'toucan':
+      rect(x - 4, y - 13, 8, 12, '#111'); rect(x - 3, y - 11, 5, 4, C.white);
+      rect(x + d*4 - (d < 0 ? 8 : 0), y - 12, 8, 3, '#f08a24'); rect(x + d*4 - (d < 0 ? 8 : 0), y - 10, 8, 1, C.yellow);
+      break;
+    case 'howler': {
+      rect(x - 6, y - 11, 12, 9, '#a8402a'); rect(x - 4, y - 15, 8, 5, '#a8402a');
+      if (a.howling > 0) rect(x - 1, y - 12, 3, 2, '#2a0a0a');                  // mouth open, howling
+      for (let i = 0; i < 10; i++) rect(x - d*(6 + i), y - 5 + (i > 6 ? i - 6 : 0), 1, 1, '#a8402a');
+      break;
+    }
+    case 'macaw':
+      rect(x - 3, y - 14, 6, 12, C.red); rect(x - 3, y - 7, 6, 2, C.yellow); rect(x - 3, y - 5, 6, 3, '#2a6ad8');
+      rect(x - 2, y - 13, 1, 1, C.white); rect(x + d*3 - (d < 0 ? 2 : 0), y - 13, 2, 2, '#ddd');
+      for (let i = 0; i < 7; i++) rect(x - 1, y - 2 + i, 2, 1, i % 2 ? C.red : '#2a6ad8');
       break;
     case 'harpy':
       rect(x - 6, y - 15, 12, 14, '#6a6a6a'); rect(x - 5, y - 9, 10, 7, C.white);
@@ -701,14 +919,16 @@ function drawAnimal(a) {
 
 /* Eyes that catch the lantern: shown even in the dark, which is the point. */
 function drawEyeshine(a) {
+  if (a.state === 'away') return;
   const x = Math.round(a.x), y = HUD + Math.round(a.y + (a.ay || 0)), d = a.dir;
   const eye = (ex, ey, c) => { rect(ex, ey, 2, 1, c); };
   switch (a.id) {
     case 'jaguar': eye(x + d*14 - 1, y - 12, '#7dff6a'); break;
-    case 'owl': if (a.state !== 'away') { eye(x - 3, y - 12, C.orange); eye(x + 2, y - 12, C.orange); } break;
+    case 'owl': eye(x - 3, y - 12, C.orange); eye(x + 2, y - 12, C.orange); break;
     case 'kinkajou': eye(x + d*7 - 1, y - 8, C.yellow); break;
     case 'monkey': eye(x - 2, y - 12, C.orange); eye(x + 1, y - 12, C.orange); break;
     case 'armadillo': eye(x + d*8 - 1, y - 4, '#ff9a6a'); break;
+    case 'potoo': eye(x - 1, y - 13, '#ffd27a'); break;   // the one thing that gives a potoo away at night
   }
 }
 function drawCaimanEyes() {
@@ -726,16 +946,24 @@ function drawPlayer() {
   rect(x - 3, y - 17, 6, 4, C.pink);                                                             // face
   rect(x - 5, y - 19, 10, 2, C.tan); rect(x - 3, y - 21, 6, 2, C.tan);                           // hat
   rect(x + f*2 - (f < 0 ? 1 : 0), y - 16, 1, 1, '#000');                                         // eye
-  /* the lantern, raised when you hold B */
-  const ly = held.b ? y - 19 : y - 11;
-  rect(x + f*5 - 1, ly, 3, 4, C.yellow); rect(x + f*5 - 1, ly - 1, 3, 1, C.gray);
+  if (isDay()) {
+    /* by day the lantern hangs at the belt; B brings up the binoculars */
+    rect(x - f*5 - 1, y - 10, 2, 3, '#7a7050');
+    if (held.b) { rect(x + f*3 - (f < 0 ? 3 : 0), y - 17, 4, 2, '#222'); rect(x + f*3 - (f < 0 ? 3 : 0), y - 15, 4, 1, '#222'); }
+  } else {
+    /* the lantern, raised when you hold B */
+    const ly = held.b ? y - 19 : y - 11;
+    rect(x + f*5 - 1, ly, 3, 4, C.yellow); rect(x + f*5 - 1, ly - 1, 3, 1, C.gray);
+  }
 }
 
 function drawDarkness() {
+  const night = 1 - light;
+  if (night <= 0.001) return;
   const lp = lanternPos(), r = lightR();
   dctx.globalCompositeOperation = 'source-over';
   dctx.clearRect(0, 0, W, PH);
-  dctx.fillStyle = `rgba(0,0,6,${(0.96*(1 - Math.min(1, flash*1.6))).toFixed(3)})`;
+  dctx.fillStyle = `rgba(0,0,6,${(0.96*night*(1 - Math.min(1, flash*1.6))).toFixed(3)})`;
   dctx.fillRect(0, 0, W, PH);
   dctx.globalCompositeOperation = 'destination-out';
   const hole = (x, y, rad, k = 1) => {
@@ -752,7 +980,7 @@ function drawDarkness() {
   ctx.drawImage(dark, 0, HUD);
   /* a warm tint inside the lantern's reach */
   const g = ctx.createRadialGradient(lp.x, HUD + lp.y, 0, lp.x, HUD + lp.y, r);
-  g.addColorStop(0, 'rgba(255,200,90,0.16)'); g.addColorStop(1, 'rgba(255,200,90,0)');
+  g.addColorStop(0, `rgba(255,200,90,${(0.16*night).toFixed(3)})`); g.addColorStop(1, 'rgba(255,200,90,0)');
   ctx.fillStyle = g; ctx.fillRect(0, HUD, W, PH);
   if (flash > 0.5) { ctx.fillStyle = `rgba(200,210,255,${((flash - 0.5)*0.5).toFixed(3)})`; ctx.fillRect(0, HUD, W, PH); }
 }
@@ -775,23 +1003,26 @@ function drawHud() {
   rect(0, 0, W, HUD, '#000');
   const mm = Math.floor(clock/60), ss = Math.floor(clock % 60);
   text('SCORE ' + String(score).padStart(6, '0'), 4, 6, C.white);
-  text('SPECIES ' + documented.size + '/' + SPECIES.length, 118, 6, C.ltgreen);
-  text(String(mm).padStart(2, '0') + ':' + String(ss).padStart(2, '0'), 238, 6, clock < 120 ? C.red : C.yellow);
+  text('SPECIES ' + documented.size + '/' + SPECIES.length, 112, 6, C.ltgreen);
+  /* the moon or the sun, beside the clock */
+  if (light >= 0.5) { ctx.fillStyle = C.yellow; ctx.beginPath(); ctx.arc(232, 10, 4, 0, 7); ctx.fill(); }
+  else { ctx.fillStyle = '#dfe6ff'; ctx.beginPath(); ctx.arc(232, 10, 4, 0, 7); ctx.fill(); ctx.fillStyle = '#000'; ctx.beginPath(); ctx.arc(234, 9, 3.5, 0, 7); ctx.fill(); }
+  text(String(mm).padStart(2, '0') + ':' + String(ss).padStart(2, '0'), 242, 6, clock < 120 ? C.red : C.yellow);
   for (let i = 0; i < lives; i++) rect(W - 12 - i*10, 7, 6, 7, C.tan);
   rect(0, HUD + PH, W, FOOT, '#000');
   const tier = TIER_NAME[P.y >= FLOOR - 1 ? FLOOR : (P.y >= UNDER - 1 ? UNDER : (P.y >= CANOPY - 1 ? CANOPY : EMERGENT))] || '';
-  text(footT > 0 ? footMsg : `LANTERN RUN ${VERSION}   SCREEN ${String(screen + 1).padStart(2, '0')}   ${tier}`, 4, HUD + PH + 2, C.gray);
+  text(footT > 0 ? footMsg : `LANTERN RUN ${VERSION}  ${when === 'day' ? 'DAY' : 'NIGHT'}  SCREEN ${String(screen + 1).padStart(2, '0')}  ${tier}`, 4, HUD + PH + 2, C.gray);
   /* Browsers start sound only after a key press or click, and a gamepad
      button may not count -- so say so rather than be silently quiet. */
   if (soundOn && !live()) text('PRESS ANY KEY FOR SOUND', W - 4, HUD + PH + 2, C.yellow, 'right');
   else text(soundOn ? 'SND' : 'MUTE', W - 4, HUD + PH + 2, C.gray, 'right');
-  if (toastT > 0) text(toast, W/2, HUD + 16, C.white, 'center');
+  if (toastT > 0) text(toast, W/2, HUD + 16, light > 0.6 ? '#fffbe0' : C.white, 'center');
 }
 
 function panel(title) {
-  ctx.fillStyle = 'rgba(0,0,0,0.82)'; ctx.fillRect(16, HUD + 10, W - 32, PH - 20);
-  ctx.strokeStyle = C.tan; ctx.lineWidth = 1; ctx.strokeRect(16.5, HUD + 10.5, W - 33, PH - 21);
-  text(title, W/2, HUD + 18, C.yellow, 'center', 10);
+  ctx.fillStyle = 'rgba(0,0,0,0.85)'; ctx.fillRect(16, HUD + 6, W - 32, PH - 12);
+  ctx.strokeStyle = C.tan; ctx.lineWidth = 1; ctx.strokeRect(16.5, HUD + 6.5, W - 33, PH - 13);
+  text(title, W/2, HUD + 12, C.yellow, 'center', 10);
 }
 function wrap(s, n) {
   const out = []; let line = '';
@@ -799,32 +1030,37 @@ function wrap(s, n) {
   if (line) out.push(line); return out;
 }
 function drawJournal() {
-  panel('FIELD JOURNAL');
-  SPECIES.forEach((s, i) => {
-    const got = documented.has(s.id), y = HUD + 36 + i*12, sel = i === journalSel;
+  const list = OF(journalPage), got = list.filter(s => documented.has(s.id)).length;
+  panel('FIELD JOURNAL: ' + (journalPage === 'night' ? 'BY NIGHT' : 'BY DAY') + '  ' + got + '/12');
+  list.forEach((s, i) => {
+    const have = documented.has(s.id), y = HUD + 28 + i*12, sel = i === journalSel;
     if (sel) rect(26, y - 2, W - 52, 11, '#2a2a10');
-    text(got ? s.name : '? ? ?', 32, y, got ? C.ltgreen : C.gray);
-    text(TIER_NAME[s.tier], W - 32, y, got ? C.tan : '#555', 'right');
+    text(have ? s.name : '? ? ?', 32, y, have ? C.ltgreen : C.gray);
+    text(TIER_NAME[s.tier], W - 32, y, have ? C.tan : '#555', 'right');
   });
-  const s = SPECIES[journalSel], fy = HUD + 36 + SPECIES.length*12 + 6;
-  const lines = documented.has(s.id) ? wrap(s.fact, 52) : ['NOT YET DOCUMENTED. LOOK IN THE ' + TIER_NAME[s.tier] + '.'];
+  const s = list[journalSel], fy = HUD + 28 + 12*12 + 4;
+  const lines = documented.has(s.id) ? wrap(s.fact, 52)
+    : ['NOT YET DOCUMENTED. OUT BY ' + (s.when === 'night' ? 'NIGHT' : 'DAY') + ', IN THE ' + TIER_NAME[s.tier] + '.'];
   lines.forEach((l, i) => text(l, W/2, fy + i*10, C.white, 'center'));
-  text('UP/DOWN: BROWSE   A: SOUND ' + (soundOn ? 'OFF' : 'ON') + '   SELECT: BACK', W/2, HUD + PH - 22, C.gray, 'center');
+  text('UP/DOWN BROWSE  LEFT/RIGHT ' + (journalPage === 'night' ? 'DAY' : 'NIGHT') + ' PAGE  A SOUND', W/2, HUD + PH - 32, C.gray, 'center');
+  text(turning ? 'THE LIGHT IS TURNING...' : 'B: TURN ' + (when === 'night' ? 'NIGHT TO DAY' : 'DAY TO NIGHT') + '   SELECT: BACK', W/2, HUD + PH - 20, C.yellow, 'center');
 }
 function drawTitle() {
   ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
-  text('LANTERN RUN', W/2, 40, C.yellow, 'center', 22);
-  text('A NIGHT IN THE AMAZON', W/2, 72, C.tan, 'center', 10);
+  text('LANTERN RUN', W/2, 30, C.yellow, 'center', 22);
+  text('AN EXPEDITION IN THE AMAZON', W/2, 60, C.tan, 'center', 10);
   const rows = [
-    'You are a zoologist with one lantern and one night.',
-    'Find 12 species across the four layers of the forest.',
-    'Hold B near one, stand still in your light: documented.',
+    'You are a zoologist. Twelve species come out by night,',
+    'twelve by day, across the four layers of the forest.',
+    'Hold B near one and stand still: documented.',
+    'By night you see by lantern. By day you see everything,',
+    'and so can they: creep (hold B) or they bolt.',
     '',
     'D-PAD  run, climb lianas     A  jump (hold = higher)',
-    'DOWN+A  drop through a branch   B  raise lantern, creep',
-    'SELECT  field journal          START  pause',
+    'DOWN+A  drop through a branch   B  lantern/binoculars, creep',
+    'SELECT  field journal: B there turns night to day',
   ];
-  rows.forEach((r, i) => text(r, W/2, 100 + i*13, C.white, 'center'));
+  rows.forEach((r, i) => text(r, W/2, 84 + i*12, C.white, 'center'));
   if (Math.floor(nightT*2) % 2) text('PRESS START', W/2, 210, C.ltgreen, 'center', 12);
   if (!live()) text('PRESS ANY KEY FOR SOUND', W/2, 236, C.yellow, 'center');
   text(VERSION, W - 4, H - 12, C.gray, 'right');
@@ -836,16 +1072,18 @@ function draw() {
   for (const a of animals) drawAnimal(a);
   drawPlayer();
   drawDarkness();
-  drawFireflies();
-  drawCaimanEyes();
-  for (const a of animals) drawEyeshine(a);
+  if (light < 0.5) {
+    drawFireflies();
+    drawCaimanEyes();
+    for (const a of animals) drawEyeshine(a);
+  }
   drawObserve();
   drawHud();
   if (state === 'journal') drawJournal();
   if (state === 'pause') { panel('PAUSED'); text('START TO GO ON   SELECT FOR THE JOURNAL', W/2, HUD + 110, C.white, 'center'); }
   if (state === 'dying') text(P.cause, W/2, HUD + 100, C.red, 'center', 10);
   if (state === 'over') {
-    panel(P.cause.startsWith('DAWN') ? 'DAWN' : 'EXPEDITION OVER');
+    panel('EXPEDITION OVER');
     text(P.cause, W/2, HUD + 60, C.white, 'center');
     text('SPECIES DOCUMENTED: ' + documented.size + ' OF ' + SPECIES.length, W/2, HUD + 90, C.ltgreen, 'center');
     text('SCORE ' + score, W/2, HUD + 110, C.yellow, 'center', 10);
@@ -853,7 +1091,7 @@ function draw() {
   }
   if (state === 'won') {
     panel('EXPEDITION COMPLETE');
-    text('ALL 12 SPECIES DOCUMENTED BEFORE DAWN.', W/2, HUD + 60, C.ltgreen, 'center');
+    text('ALL 24 SPECIES DOCUMENTED, BY NIGHT AND BY DAY.', W/2, HUD + 60, C.ltgreen, 'center');
     text('TIME BONUS ' + Math.floor(clock)*5, W/2, HUD + 90, C.white, 'center');
     text('SCORE ' + score, W/2, HUD + 110, C.yellow, 'center', 10);
     text('PRESS START', W/2, HUD + 160, C.white, 'center');
@@ -875,7 +1113,9 @@ if (DEMO) {
   /* ?demo&warp=N runs N simulation steps up front -- headless browsers barely
      tick requestAnimationFrame, and this lets a screenshot show real play. */
   const warp = Math.min(60*600, parseInt(Q.get('warp')) || 0);
-  for (let i = 0; i < warp; i++) { pollInput(); update(STEP); for (const b of BTN) pressed[b] = false; }
+  /* &turn=N: dusk or dawn falls at step N, to test the change-over. */
+  const turnAt = Q.has('turn') ? parseInt(Q.get('turn')) || 0 : -1;
+  for (let i = 0; i < warp; i++) { if (i === turnAt) turnTime(); pollInput(); update(STEP); for (const b of BTN) pressed[b] = false; }
 }
 requestAnimationFrame(frame);
 </script>

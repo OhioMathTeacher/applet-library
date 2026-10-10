@@ -63,7 +63,7 @@ Draw a dungeon floor plan and it becomes a prism you can walk through. The edito
 *Under construction.* Five beams, one horizon. Hop between beams that run off to a single vanishing point, clear fifteen saucers a sector, then torpedo the sector ship. Select flips to a side view of the same scene, showing how linear perspective draws it.
 
 ### 🏮 [Lantern Run](https://ohiomathteacher.github.io/applet-library/lantern-run/)
-*Under construction.* A zoologist, a lantern, one night in the Amazon. Climb through the four layers of the rainforest (floor, understory, canopy, emergent) to find and document twelve nocturnal species, each behaving as the real animal does, before dawn.
+*Under construction.* A zoologist in the Amazon. Climb through the four layers of the rainforest (floor, understory, canopy, emergent) to find and document twenty-four species, twelve nocturnal and twelve diurnal, each behaving as the real animal does. Switch night to day at any time and watch the cast change over.
 
 ---
 

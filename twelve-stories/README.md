@@ -6,7 +6,7 @@ A cat is stranded on the roof of a twelve-storey building, and every floor has a
 
 Climb the front of the building, window by window, to the cat on the roof. Each floor is its own story: a bakery, a florist, a laundry, a library, a pigeon roost, a music teacher, a painter, a toy shop, a clockmaker, a gym, a pizzeria and a beekeeper. Each tenant has a look in the window and something to throw: rolling pins, flowerpots, wet sheets, books, pigeons, metronomes, paint cans, bouncing balls, rolling gears, dumbbells, pizza dough and bees. The bottom of the screen shows the floor you're on and what's coming.
 
-**Shutters.** You can only climb onto an open sill. Most windows have shutters that open and close on a rhythm. Just before they close, they turn orange and swing on their hinges. If they slam shut while you're on that sill, you're knocked down to the first open sill below. Boarded-up windows never open: hop over them.
+**Shutters.** Open windows are your footholds: you can only climb onto an open sill. Some windows have shutters that open and close slowly on a rhythm, and more of them do the higher you go. Just before they close, they turn orange and swing on their hinges. If they slam shut while you're on that sill, you're knocked down to the first open sill below. Boarded-up windows never open: hop over them.
 
 **Tenants.** A tenant leans out of an open window above you and holds something up for a moment before letting go. That moment is your warning. Move out of the way, or hold B to flatten yourself against the wall so it misses. You can only hold your breath for so long (the B bar at the top), and a gear rolling along your ledge will still run you over.
 

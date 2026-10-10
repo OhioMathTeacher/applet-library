@@ -6,7 +6,11 @@ A city on a sea wall, at night. Raiders overhead, three cannons and a searchligh
 
 Six buildings and three cannon posts stand on a sea wall. Raiders fly across the sky in four **altitude bands**, left to right and right to left, and each time they turn round they come back one band lower. Once a raider reaches the lowest band it **dives and bombs** whatever it's aiming for. Shoot it down before then.
 
-**The sky is dark.** You see a raider only where a searchlight beam touches it. You steer one beam yourself. Two more sweep on their own from the lamp towers, but only while those towers stand. Outside the beams, a raider shows only as a winking running light, and you can hear each one throbbing on its side of the screen, faster the lower it flies. You can shoot blind if you trust your ears.
+**Two versions.** On the title screen, Left/Right chooses between them, and each keeps its own high score.
+
+- **Moonlit:** a clear night. You can see every raider; the searchlights just brighten the sky.
+- **Searchlight (hard):** the sky is dark. You see a raider only where a searchlight beam touches it. You steer one beam yourself. Two more sweep on their own from the lamp towers, but only while those towers stand. Outside the beams, a raider shows only as a winking running light, and you can hear each one throbbing on its side of the screen, faster the lower it flies. You can shoot blind if you trust your ears.
+
 
 **The tide rises.** Every building that falls lets the sea climb higher up the wall, flooding it from the low end. When all six buildings are gone, or all three cannons, the city falls. Every 10,000 points one fallen building is rebuilt and the sea draws back.
 

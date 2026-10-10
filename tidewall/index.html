@@ -19,7 +19,7 @@
 <canvas id="c"></canvas>
 <script>
 "use strict";
-const VERSION = 'v0.1';
+const VERSION = 'v0.2';
 
 /* ============================================================
    Tidewall
@@ -37,6 +37,9 @@ const Q = new URLSearchParams(location.search);
    &warp=N runs N steps first. &aim=P: the autopilot ignores each raider with
    probability 1-P (aim=0 never fires, so the city falls). */
 const DEMO = Q.has('demo');
+/* Two versions. MOONLIT: the whole sky is visible, the searchlights only
+   brighten it. SEARCHLIGHT: black sky, you see raiders only in a beam. */
+let mode = Q.has('dark') ? 'dark' : 'moon';
 /* In the demo, a seeded random (&seed=N), so a screenshot and a DOM dump of
    the same URL show the same game. */
 if (DEMO) {
@@ -274,11 +277,13 @@ let queue = [], spawnT = 0, banner = '', bannerT = 0, breakT = 0, flareT = 0, fl
 let tide = TIDE0, tideTarget = TIDE0, nextRebuild = 10000, aim = 0, overT = 0, overCause = '';
 let threat = 0, quake = 0;
 const cool = {L: 0, C: 0, R: 0};
-try { hi = parseInt(localStorage.getItem('tidewall-hi')) || 0; } catch (e) {}
+const HI_KEY = () => mode === 'dark' ? 'tidewall-hi' : 'tidewall-hi-moonlit';
+function loadHi() { hi = 0; try { hi = parseInt(localStorage.getItem(HI_KEY())) || 0; } catch (e) {} }
+loadHi();
 function saveHi() {
   if (score <= hi) return;
   hi = score;
-  if (!DEMO) try { localStorage.setItem('tidewall-hi', String(hi)); } catch (e) {}
+  if (!DEMO) try { localStorage.setItem(HI_KEY(), String(hi)); } catch (e) {}
 }
 
 const standing = () => city.filter(s => !s.down);
@@ -455,6 +460,7 @@ function inBeam(b, x, y, pad = 0) {
 }
 const flareK = () => flareT > 0 ? Math.min(1, flareT/0.8) : 0;
 function lit(r, bs) {
+  if (mode === 'moon') return true;
   if (flareK() > 0.3) return true;
   const cx = r.x + r.T.w/2;
   return bs.some(b => inBeam(b, cx, r.y, r.T.w/2));
@@ -493,7 +499,11 @@ function demoPilot() {
 function update(dt) {
   time += dt;
   if (footT > 0) footT -= dt;
-  if (state === 'title') { if (pressed.start) newGame(); return; }
+  if (state === 'title') {
+    if (pressed.left || pressed.right || pressed.select) { mode = mode === 'moon' ? 'dark' : 'moon'; loadHi(); SFX.pause(mode === 'dark'); }
+    if (pressed.start) newGame();
+    return;
+  }
   if (state === 'over') {
     overT += dt;
     if (overT > 1 && pressed.start) newGame();
@@ -629,9 +639,10 @@ function drawDarkness(bs) {
   /* The city's own glow thins the dark just above the rooftops, so a
      raider diving at it shows dimly even outside the beams. */
   const g0 = dctx.createLinearGradient(0, 0, 0, 196);
-  g0.addColorStop(0, `rgba(0,0,0,${(0.97*k).toFixed(3)})`);
-  g0.addColorStop(0.56, `rgba(0,0,0,${(0.97*k).toFixed(3)})`);
-  g0.addColorStop(1, `rgba(0,0,0,${(0.45*k).toFixed(3)})`);
+  const top = mode === 'moon' ? 0.3 : 0.97, low = mode === 'moon' ? 0.12 : 0.45;
+  g0.addColorStop(0, `rgba(0,0,0,${(top*k).toFixed(3)})`);
+  g0.addColorStop(0.56, `rgba(0,0,0,${(top*k).toFixed(3)})`);
+  g0.addColorStop(1, `rgba(0,0,0,${(low*k).toFixed(3)})`);
   dctx.fillStyle = g0;
   dctx.fillRect(0, 0, W, 196);
   dctx.globalCompositeOperation = 'destination-out';
@@ -762,7 +773,7 @@ function drawHud() {
   for (let i = 0; i < flares; i++) { rect(W - 10 - i*9, 6, 3, 7, C.orange); rect(W - 10 - i*9, 4, 3, 2, C.yellow); }
   rect(0, HUD + PH, W, FOOT, '#000');
   const rise = Math.round((TIDE0 - tide)/TIDE_STEP*10)/10;
-  text(footT > 0 ? footMsg : `TIDEWALL ${VERSION}   TIDE +${rise.toFixed(1)}   BUILDINGS ${buildingsLeft()}/6`, 4, HUD + PH + 2, C.gray);
+  text(footT > 0 ? footMsg : `${mode === 'moon' ? 'MOONLIT' : 'SEARCHLIGHT'}   TIDE +${rise.toFixed(1)}   BUILDINGS ${buildingsLeft()}/6`, 4, HUD + PH + 2, C.gray);
   /* Browsers start sound only after a key press or click, and a gamepad
      button may not count -- so say so rather than be silently quiet. */
   if (soundOn && !live()) text('PRESS ANY KEY FOR SOUND', W - 4, HUD + PH + 2, C.yellow, 'right');
@@ -799,11 +810,12 @@ function drawTitle() {
   const rows = [
     'Raiders cross the night sky, lower every pass.',
     'At the lowest band they dive and bomb.',
-    'You see them only in a searchlight.',
+    mode === 'moon' ? 'A clear moonlit night: you can see them all.' : 'You see them only in a searchlight.',
     'Every building lost, the sea climbs higher.',
   ];
-  rows.forEach((r, i) => text(r, W/2, 80 + i*11, C.white, 'center'));
-  drawControls(132);
+  rows.forEach((r, i) => text(r, W/2, 74 + i*10, C.white, 'center'));
+  text('LEFT/RIGHT:  < ' + (mode === 'moon' ? 'MOONLIT' : 'SEARCHLIGHT (HARD)') + ' >', W/2, 118, mode === 'moon' ? C.ltgreen : C.orange, 'center');
+  drawControls(134);
   if (Math.floor(time*2) % 2) text('PRESS START', W/2, 206, C.ltgreen, 'center', 12);
   text('HI ' + pad6(hi), 6, H - 12, C.yellow);
   if (!live()) text('PRESS ANY KEY FOR SOUND', W/2, 228, C.yellow, 'center');

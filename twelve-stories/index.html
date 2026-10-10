@@ -1,0 +1,1285 @@
+<!--
+  GENERATED FILE - DO NOT EDIT
+  Source:    ../twelve-stories/index.html
+  Rewritten: python3 sync-games.py
+  Edits made here are lost on the next sync. Fix the game in the
+  twelve-stories repo and re-run the script.
+-->
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Twelve Stories</title>
+<!-- One file, no build, no network. Open it straight from disk. -->
+<style>
+  html,body{margin:0;height:100%;background:#000;overflow:hidden}
+  /* Drawn at its native 400x272 and scaled up by CSS; pixelated keeps the
+     early-80s blocks sharp instead of smearing them. */
+  canvas{position:absolute;image-rendering:pixelated;image-rendering:crisp-edges}
+</style>
+<canvas id="c"></canvas>
+<script>
+"use strict";
+const VERSION = 'v0.1';
+
+/* ============================================================
+   Twelve Stories
+   A tall building, twelve floors, and every floor is its own
+   story: a different tenant behind the windows, and a different
+   thing coming down at you. Climb window to window to the roof,
+   where a cat is stranded. Shutters open and close on a rhythm;
+   you can only climb onto an open sill. By day you see it all.
+   By night the building goes dark: only the lit windows throw
+   things, but you can barely see where you're going.
+   ============================================================ */
+
+const HUD = 20, FOOT = 12, W = 400, PH = 240, H = HUD + PH + FOOT;   // 400 x 272
+const STEP = 1/60;
+const Q = new URLSearchParams(location.search);
+/* ?demo: invincible autopilot climber, so a headless browser can screenshot
+   real play. &warp=N runs N steps first. &night starts at night. &floor=N
+   starts on that floor. */
+const DEMO = Q.has('demo');
+
+/* Sixteen colours, Intellivision-ish. Day and night slide between ends. */
+const C = {
+  black: '#0c0a10', blue: '#2a3cff', red: '#e83a1c', tan: '#d8c89a', dkgreen: '#2f6b3a', green: '#20a850',
+  yellow: '#f6e050', white: '#fcfcfc', gray: '#a8a4b0', cyan: '#3cb8f0', orange: '#f8a830', brown: '#7a4a20',
+  pink: '#f4a090', violet: '#9a88f0', ylgreen: '#8ccc50', purple: '#a02860'
+};
+
+/* ---------------- the building ---------------- */
+/* Five columns of windows, three rows to a floor, twelve floors. Row 0 is
+   the street; the roof is the row above the last. Heights are in world
+   pixels from the pavement up. */
+const COLS = 5, STORIES = 12, PER = 3, ROWS = STORIES*PER, ROWH = 40;
+const BX0 = 36, BX1 = 364;
+const ROOF_ROW = ROWS + 1, ROOF_Y = ROOF_ROW*ROWH;
+const colX = c => 72 + c*64;
+const storyOf = r => r <= 0 ? 0 : Math.min(STORIES, Math.ceil(r/PER));
+
+/* Each floor is its own story: a tenant, a look in the windows, and the
+   thing they throw. */
+const TENANTS = [
+  {name: 'THE STREET', what: '', obj: null, inside: '#000000', cloth: C.gray, wall: '#8a4a34'},
+  {name: 'THE BAKERY',        what: 'ROLLING PINS',  obj: 'pin',    inside: '#f0a860', cloth: C.white,  wall: '#9a5038', hit: 'BONKED BY A ROLLING PIN'},
+  {name: 'THE FLORIST',       what: 'FLOWERPOTS',    obj: 'pot',    inside: '#9ad08a', cloth: C.green,  wall: '#8a5a40', hit: 'A FLOWERPOT, RIGHT ON TOP'},
+  {name: 'THE LAUNDRY',       what: 'WET SHEETS',    obj: 'sheet',  inside: '#8ab8e8', cloth: C.cyan,   wall: '#94523c', hit: 'TANGLED IN A WET SHEET'},
+  {name: 'THE LIBRARY',       what: 'BOOKS',         obj: 'book',   inside: '#6a4a2a', cloth: C.dkgreen,wall: '#7e4a36', hit: 'HIT BY AN OVERDUE BOOK'},
+  {name: 'THE PIGEON ROOST',  what: 'PIGEONS',       obj: 'pigeon', inside: '#5a5a6a', cloth: C.gray,   wall: '#8a5440', hit: 'MOBBED BY PIGEONS'},
+  {name: 'THE MUSIC TEACHER', what: 'METRONOMES',    obj: 'metro',  inside: '#c8a0e0', cloth: C.violet, wall: '#9a4c3c', hit: 'A METRONOME, RIGHT ON THE BEAT'},
+  {name: 'THE PAINTER',       what: 'PAINT CANS',    obj: 'paint',  inside: '#f4f0e0', cloth: C.orange, wall: '#865038', hit: 'SPLATTERED WITH PAINT'},
+  {name: 'THE TOY SHOP',      what: 'BOUNCING BALLS',obj: 'ball',   inside: '#f8d0e0', cloth: C.pink,   wall: '#904e3a', hit: 'BOUNCED OFF BY A BALL'},
+  {name: 'THE CLOCKMAKER',    what: 'ROLLING GEARS', obj: 'gear',   inside: '#d8c89a', cloth: C.brown,  wall: '#7a4834', hit: 'RUN OVER BY A GEAR'},
+  {name: 'THE GYM',           what: 'DUMBBELLS',     obj: 'bell',   inside: '#a0a8b0', cloth: C.red,    wall: '#8e5240', hit: 'A DUMBBELL. OOF.'},
+  {name: 'THE PIZZERIA',      what: 'PIZZA DOUGH',   obj: 'dough',  inside: '#f0e0c0', cloth: C.white,  wall: '#984e38', hit: 'SLAPPED BY PIZZA DOUGH'},
+  {name: 'THE BEEKEEPER',     what: 'BEES',          obj: 'bee',    inside: '#f8d860', cloth: C.yellow, wall: '#824c36', hit: 'STUNG BY A BEE'},
+];
+
+/* A small seeded generator, so each building is the same every time. */
+function rng(seed) {
+  return () => {
+    seed = (seed + 0x6D2B79F5) | 0;
+    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0)/4294967296;
+  };
+}
+
+/* WIN[r][c]: 'open' (always), 'cycle' (shutters on a rhythm) or 'board'
+   (boarded up: hop over it). GAP[r][i]: the ledge between column i and i+1
+   is broken. Each loop of the building is harder. */
+let WIN = [], GAP = [], loop = 0;
+function buildBuilding() {
+  const R = rng(0x12AB + loop*7919);
+  WIN = []; GAP = [];
+  for (let r = 0; r <= ROOF_ROW; r++) {
+    WIN.push([]); GAP.push([false, false, false, false]);
+    if (r === 0 || r === ROOF_ROW) { for (let c = 0; c < COLS; c++) WIN[r].push({kind: 'open', lit: false}); continue; }
+    const s = storyOf(r), hard = s + loop*4;
+    let boards = 0;
+    if (r > 1 && R() < 0.12 + hard*0.035) boards = (hard > 6 && R() < 0.35) ? 2 : 1;
+    const bc = new Set();
+    while (bc.size < boards) bc.add(Math.floor(R()*COLS));
+    for (let c = 0; c < COLS; c++) {
+      const kind = bc.has(c) ? 'board' : (R() < Math.max(0.04, 0.22 - hard*0.02) ? 'open' : 'cycle');
+      const per = Math.max(2.8, 4.6 - hard*0.1) + R()*1.6;
+      WIN[r].push({kind, per, ph: R()*per, frac: Math.max(0.42, 0.6 - hard*0.012),
+                   lit: kind !== 'board' && R() < 0.24 + s*0.012});
+    }
+    if (r > 1) for (let i = 0; i < 4; i++) GAP[r][i] = R() < Math.min(0.3, 0.03 + hard*0.022);
+  }
+}
+
+/* Where a window's shutters are right now. k: 0 folded back, 1 shut.
+   For WARN seconds before they close, they swing on their hinges: that is
+   the warning. A window is only somewhere to stand while it's open. */
+const WARN = 0.6;
+let bt = 0;          // building time: the shutters' clock
+function shut(r, c) {
+  const w = WIN[r] && WIN[r][c];
+  if (!w || w.kind === 'open') return {open: true, k: 0, warn: false};
+  if (w.kind === 'board') return {open: false, k: 1, warn: false, board: true};
+  const tt = (bt + w.ph) % w.per, openT = w.per*w.frac;
+  if (tt < openT) {
+    const left = openT - tt;
+    if (left < WARN) return {open: true, k: 0.45*(1 - left/WARN) + 0.05*Math.sin(bt*40), warn: true};
+    return {open: true, k: 0, warn: false};
+  }
+  const rem = w.per - tt;
+  return {open: false, k: rem < 0.18 ? rem/0.18 : 1, warn: false};
+}
+const inRange = (r, c) => r >= 0 && r <= ROOF_ROW && c >= 0 && c < COLS;
+const isOpen = (r, c) => inRange(r, c) && (r === 0 || r === ROOF_ROW || shut(r, c).open);
+const gapBetween = (r, c, c2) => r > 0 && r <= ROWS && GAP[r][Math.min(c, c2)];
+/* Is there ledge under world x on row r? (Broken ledges have a hole.) */
+function solidAt(r, x) {
+  if (r < 0 || r > ROWS) return false;
+  if (r === 0) return x > -20 && x < W + 20;
+  if (x < BX0 + 2 || x > BX1 - 2) return false;
+  for (let i = 0; i < 4; i++) if (GAP[r][i] && x > colX(i) + 15 && x < colX(i + 1) - 15) return false;
+  return true;
+}
+
+/* ---------------- canvas ---------------- */
+const cv = document.getElementById('c'), ctx = cv.getContext('2d');
+cv.width = W; cv.height = H;
+const dark = document.createElement('canvas'); dark.width = W; dark.height = PH;
+const dctx = dark.getContext('2d');
+function fit() {
+  const k = Math.max(1, Math.min(innerWidth / W, innerHeight / H));
+  cv.style.width = (W*k) + 'px'; cv.style.height = (H*k) + 'px';
+  cv.style.left = ((innerWidth - W*k)/2) + 'px'; cv.style.top = ((innerHeight - H*k)/2) + 'px';
+}
+addEventListener('resize', fit); fit();
+const rect = (x, y, w, h, c) => { ctx.fillStyle = c; ctx.fillRect(Math.round(x), Math.round(y), w, h); };
+function text(s, x, y, c = C.white, align = 'left', size = 8) {
+  ctx.font = `bold ${size}px monospace`; ctx.textAlign = align; ctx.textBaseline = 'top';
+  ctx.fillStyle = '#000'; ctx.fillText(s, x + 1, y + 1);
+  ctx.fillStyle = c; ctx.fillText(s, x, y);
+}
+/* Blend two #rrggbb colours: 0 gives a, 1 gives b. Night is 0, day is 1,
+   so dusk and dawn come for free. */
+const mixCache = new Map();
+function mix(a, b, t) {
+  t = Math.round(t*32)/32;
+  const key = a + b + t; let v = mixCache.get(key);
+  if (v) return v;
+  const p = s => [1, 3, 5].map(i => parseInt(s.slice(i, i + 2), 16));
+  const A = p(a), B = p(b);
+  v = '#' + A.map((x, i) => Math.round(x + (B[i] - x)*t).toString(16).padStart(2, '0')).join('');
+  if (mixCache.size > 4000) mixCache.clear();
+  mixCache.set(key, v); return v;
+}
+
+/* ---------------- sound ---------------- */
+/* Square, triangle and noise, AY-chip style, in the manner of Circuit
+   Breaker: effects and a small lookahead soundtrack that speeds up the
+   higher you climb and when the clock runs low, muffled at night. */
+const MASTER_VOL = 0.5;
+let actx = null, soundOn = true, noiseBuf = null, A = null;
+function ensureAudio() {
+  try {
+    if (!actx) { actx = new (window.AudioContext || window.webkitAudioContext)(); buildAudio(); }
+    if (actx.state === 'suspended' && !document.hidden) { const pr = actx.resume(); if (pr && pr.catch) pr.catch(() => {}); }
+  } catch (e) { console.warn('audio', e); actx = null; A = null; }
+}
+const audioLive = () => !!(A && actx && actx.state === 'running');
+function buildAudio() {
+  const c = actx;
+  noiseBuf = c.createBuffer(1, c.sampleRate, c.sampleRate);
+  const nd = noiseBuf.getChannelData(0);
+  for (let i = 0; i < nd.length; i++) nd[i] = Math.random()*2 - 1;
+  const gain = v => { const g = c.createGain(); g.gain.value = v; return g; };
+  A = {last: {}};
+  const lim = c.createDynamicsCompressor();
+  lim.threshold.value = -14; lim.knee.value = 8; lim.ratio.value = 6; lim.attack.value = 0.003; lim.release.value = 0.2;
+  lim.connect(c.destination);
+  A.master = gain(soundOn ? MASTER_VOL : 0); A.master.connect(lim);
+  A.sfx = gain(1); A.sfx.connect(A.master);
+  A.ui = gain(1); A.ui.connect(A.master);
+  A.musLP = c.createBiquadFilter(); A.musLP.type = 'lowpass'; A.musLP.frequency.value = 16000; A.musLP.connect(A.master);
+  A.seq = gain(0); A.seq.connect(A.musLP);
+}
+function lvl(k, param, v, tc = 0.05) {
+  const old = A.last[k];
+  if (old !== undefined && Math.abs(old - v) <= 1e-4*Math.max(1, Math.abs(v))) return;
+  A.last[k] = v; param.setTargetAtTime(v, actx.currentTime, tc);
+}
+const mtof = m => 440*Math.pow(2, (m - 69)/12);
+function tone(t, f, dur, o = {}) {
+  const os = actx.createOscillator(), g = actx.createGain();
+  const v = o.vol === undefined ? 0.05 : o.vol, a = Math.min(o.attack || 0.003, dur*0.5);
+  os.type = o.type || 'square';
+  os.frequency.setValueAtTime(f, t);
+  if (o.slide) os.frequency.exponentialRampToValueAtTime(o.slide, t + dur);
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(v, t + a);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  os.connect(g).connect(o.dest || A.sfx);
+  os.onended = () => g.disconnect();
+  os.start(t); os.stop(t + dur + 0.02);
+}
+function hiss(t, dur, o = {}) {
+  const s = actx.createBufferSource(), g = actx.createGain();
+  s.buffer = noiseBuf; s.loop = true;
+  let out = s;
+  if (o.filt) {
+    const b = actx.createBiquadFilter(); b.type = o.filt; b.Q.value = o.q || 0.8;
+    b.frequency.setValueAtTime(o.f || 1000, t);
+    if (o.fTo) b.frequency.exponentialRampToValueAtTime(o.fTo, t + dur);
+    s.connect(b); out = b;
+  }
+  const v = o.vol === undefined ? 0.05 : o.vol;
+  g.gain.setValueAtTime(v, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  out.connect(g).connect(o.dest || A.sfx);
+  s.onended = () => g.disconnect();
+  s.start(t, Math.random()*0.8); s.stop(t + dur + 0.02);
+}
+/* Silent when muted or locked, and a sound bug never takes the game down. */
+const fx = fn => (...args) => {
+  if (!soundOn || !audioLive()) return;
+  try { fn(actx.currentTime + 0.005, ...args); } catch (e) { console.warn('audio', e); }
+};
+const PENTA = [0, 2, 4, 7, 9];
+const SFX = {
+  /* each row up is a step up a pentatonic scale: you can hear the climb */
+  climb:  fx((t, r) => { const m = 60 + 12*Math.floor((r % 15)/5) + PENTA[r % 5];
+            tone(t, mtof(m), 0.07, {vol: 0.04}); hiss(t, 0.03, {filt: 'lowpass', f: 900, vol: 0.03}); }),
+  down:   fx(t => tone(t, 330, 0.08, {vol: 0.03, slide: 220})),
+  shuffle:fx(t => hiss(t, 0.035, {filt: 'lowpass', f: 700, vol: 0.04})),
+  jump:   fx(t => { tone(t, 300, 0.14, {vol: 0.045, slide: 760}); hiss(t, 0.06, {filt: 'bandpass', f: 1800, vol: 0.03}); }),
+  bump:   fx(t => tone(t, 110, 0.06, {vol: 0.04})),
+  creak:  fx(t => { tone(t, 190, 0.3, {type: 'sawtooth', vol: 0.02, slide: 150}); hiss(t, 0.25, {filt: 'bandpass', f: 1400, q: 4, vol: 0.03}); }),
+  slam:   fx(t => { hiss(t, 0.14, {filt: 'lowpass', f: 1200, vol: 0.16}); tone(t, 95, 0.12, {vol: 0.07, slide: 50}); }),
+  clack:  fx((t, v) => hiss(t, 0.05, {filt: 'bandpass', f: 1100, vol: v})),
+  fall:   fx(t => tone(t, 880, 0.45, {vol: 0.045, slide: 110})),
+  land:   fx(t => { hiss(t, 0.06, {filt: 'lowpass', f: 500, vol: 0.08}); tone(t, 80, 0.06, {type: 'triangle', vol: 0.06}); }),
+  whistle:fx(t => tone(t, 2400, 0.5, {type: 'triangle', vol: 0.025, slide: 700})),
+  throw:  fx(t => hiss(t, 0.12, {filt: 'bandpass', f: 900, fTo: 2400, vol: 0.04})),
+  grunt:  fx(t => tone(t, 140, 0.18, {type: 'sawtooth', vol: 0.03, slide: 90})),
+  coo:    fx(t => { tone(t, 420, 0.09, {type: 'triangle', vol: 0.03, slide: 380}); tone(t + 0.12, 380, 0.12, {type: 'triangle', vol: 0.03, slide: 330}); }),
+  tick:   fx((t, alt) => tone(t, alt ? 1500 : 1900, 0.02, {vol: 0.03})),
+  buzz:   fx(t => tone(t, 230, 0.25, {type: 'sawtooth', vol: 0.02, slide: 250})),
+  smash:  fx(t => hiss(t, 0.12, {filt: 'highpass', f: 2500, vol: 0.05})),
+  boing:  fx(t => tone(t, 200, 0.12, {type: 'triangle', vol: 0.05, slide: 500})),
+  flat:   fx(t => hiss(t, 0.09, {filt: 'lowpass', f: 600, vol: 0.06})),
+  gasp:   fx(t => { tone(t, 260, 0.1, {type: 'triangle', vol: 0.04, slide: 400}); hiss(t, 0.15, {filt: 'highpass', f: 2000, vol: 0.03}); }),
+  flutter:fx(t => { for (let i = 0; i < 3; i++) hiss(t + i*0.05, 0.025, {filt: 'bandpass', f: 2600, q: 1.5, vol: 0.03}); }),
+  hit:    fx(t => {
+    tone(t, 600, 0.7, {type: 'sawtooth', vol: 0.06, slide: 50});
+    hiss(t, 0.4, {filt: 'lowpass', f: 3000, fTo: 200, vol: 0.09});
+    [64, 63, 62, 61].forEach((m, i) => tone(t + 0.4 + i*0.14, mtof(m), 0.13, {type: 'triangle', vol: 0.04}));
+  }),
+  story:  fx((t, s) => [0, 4, 7, 12].forEach((d, i) => tone(t + i*0.07, mtof(60 + s + d), 0.1, {vol: 0.035}))),
+  meow:   fx(t => tone(t, 620, 0.35, {type: 'triangle', vol: 0.05, slide: 900})),
+  roof:   fx(t => {
+    [72, 76, 79, 84, 79, 84, 88].forEach((m, i) => { tone(t + i*0.11, mtof(m), 0.12, {vol: 0.04, dest: A.ui}); tone(t + i*0.11, mtof(m - 24), 0.12, {type: 'triangle', vol: 0.05, dest: A.ui}); });
+    tone(t + 0.9, 600, 0.4, {type: 'triangle', vol: 0.05, slide: 950, dest: A.ui});
+  }),
+  dusk:   fx(t => [784, 659, 523, 392].forEach((f, i) => tone(t + i*0.13, f, 0.18, {type: 'triangle', vol: 0.05}))),
+  dawn:   fx(t => [392, 523, 659, 784].forEach((f, i) => tone(t + i*0.13, f, 0.18, {type: 'triangle', vol: 0.05}))),
+  second: fx(t => tone(t, 1320, 0.05, {vol: 0.03})),
+  life:   fx(t => [72, 76, 79, 84, 88].forEach((m, i) => tone(t + i*0.07, mtof(m), 0.09, {vol: 0.04}))),
+  pause:  fx((t, on) => tone(t, on ? 300 : 600, 0.06, {vol: 0.05, dest: A.ui})),
+  gameover: fx(t => {
+    [69, 68, 67, 66].forEach((m, i) => { tone(t + i*0.32, mtof(m), 0.28, {vol: 0.04, dest: A.ui}); tone(t + i*0.32, mtof(m - 24), 0.28, {type: 'triangle', vol: 0.06, dest: A.ui}); });
+    tone(t + 1.3, mtof(33), 1.4, {type: 'triangle', vol: 0.08, dest: A.ui});
+  }),
+};
+function setSound(on) { soundOn = on; if (A) try { lvl('master', A.master.gain, on ? MASTER_VOL : 0, 0.03); } catch (e) {} }
+
+/* The soundtrack: a lookahead sequencer on the audio clock. A walking bass
+   and a sparse arpeggio; C major by day, A minor by night. It quickens with
+   every floor, and again when the clock is low. */
+const MUS = {mode: null, next: 0, step: 0, bar: 0, sps: 6};
+const DAY_PROG = [48, 53, 55, 48], NIGHT_PROG = [45, 41, 43, 40];
+const QUAL = {48: [0, 4, 7], 53: [0, 4, 7], 55: [0, 4, 7], 45: [0, 3, 7], 41: [0, 4, 7], 43: [0, 4, 7], 40: [0, 4, 7]};
+function playStep(t, s, bar) {
+  const d = 1/MUS.sps, sq = A.seq, night = light < 0.5;
+  const root = (night ? NIGHT_PROG : DAY_PROG)[bar % 4], ch = QUAL[root];
+  if (MUS.mode === 'title') {
+    if (s % 4 === 0) tone(t, mtof(root - 12 + [0, 7, 12, 7][s >> 2]), d*3, {type: 'triangle', vol: 0.07, dest: sq});
+    if (s % 4 === 2) tone(t, mtof(root + 24 + ch[(s >> 2) % 3]), d*1.5, {vol: 0.015, dest: sq});
+    return;
+  }
+  const st = storyOf(Math.max(1, P.r));
+  if (s % 2 === 0) tone(t, mtof(root - 12 + [0, 12, 7, 12, 0, 12, 7, 10][s >> 1]), d*1.6, {type: 'triangle', vol: 0.07, dest: sq});
+  if (s === 0 || s === 8) tone(t, 110, 0.12, {type: 'triangle', vol: 0.06, slide: 40, dest: sq});
+  if (s % 4 === 2) hiss(t, 0.03, {filt: 'highpass', f: 7000, vol: 0.018, dest: sq});
+  const arp = st >= 9 ? s % 2 === 1 : st >= 5 ? [3, 6, 10, 11, 14].includes(s) : (s === 6 || s === 14);
+  if (arp) tone(t, mtof(root + 24 + ch[(s + bar) % 3]), d*1.1, {vol: 0.02, dest: sq});
+  if (clock < 20 && s % 2 === 0) tone(t, 1760, 0.03, {vol: 0.01, dest: sq});
+}
+function scheduleMusic() {
+  const now = actx.currentTime;
+  if (MUS.next < now) MUS.next = now + 0.03;
+  while (MUS.next < now + 0.12) {
+    playStep(MUS.next, MUS.step, MUS.bar);
+    MUS.next += 1/MUS.sps;
+    if (++MUS.step === 16) { MUS.step = 0; MUS.bar++; }
+  }
+}
+function audioFrame() {
+  if (!A) return;
+  try {
+    const mode = state === 'title' ? 'title' : (state === 'play' || state === 'dying') ? 'play' : null;
+    if (mode !== MUS.mode) { MUS.step = 0; MUS.bar = 0; MUS.next = 0; MUS.mode = mode; }
+    MUS.sps = mode === 'title' ? 5 : 6 + 0.22*storyOf(Math.max(1, P.r)) + loop*0.5 + (clock < 20 ? 1.5 : 0);
+    lvl('seq', A.seq.gain, mode ? 1 : 0, 0.05);
+    lvl('lp', A.musLP.frequency, 1300 + 14700*light, 0.2);
+    if (mode && audioLive() && soundOn) scheduleMusic();
+  } catch (e) { console.warn('audio', e); }
+}
+
+/* ---------------- input ---------------- */
+/* Everything collapses onto the eight NES buttons. Keyboard and every
+   connected pad are OR-ed together, so either works at any moment. */
+const BTN = ['up','down','left','right','a','b','select','start'];
+const KEYMAP = {
+  ArrowUp:'up', KeyW:'up', ArrowDown:'down', KeyS:'down', ArrowLeft:'left', KeyA:'left',
+  ArrowRight:'right', KeyD:'right', KeyZ:'a', KeyK:'a', Space:'a', KeyX:'b', KeyJ:'b',
+  ShiftLeft:'select', ShiftRight:'select', Enter:'start', NumpadEnter:'start', KeyP:'start'
+};
+const key = {}, keyTap = {}, held = {}, prevHeld = {}, pressed = {};
+let footMsg = '', footT = 0;
+const footNote = m => { footMsg = m; footT = 3; };
+addEventListener('keydown', e => {
+  ensureAudio();
+  const b = KEYMAP[e.code]; if (!b) return;
+  e.preventDefault();
+  if (!e.repeat) keyTap[b] = true;
+  key[b] = true;
+});
+addEventListener('keyup', e => { const b = KEYMAP[e.code]; if (b) key[b] = false; });
+addEventListener('blur', () => { for (const b of BTN) key[b] = false; });
+for (const ev of ['mousedown', 'pointerdown', 'touchend']) addEventListener(ev, ensureAudio);
+addEventListener('gamepadconnected', () => footNote('CONTROLLER CONNECTED'));
+function pollInput() {
+  const pad = {};
+  for (const p of (navigator.getGamepads ? navigator.getGamepads() : [])) {
+    if (!p) continue;
+    const b = i => !!(p.buttons[i] && p.buttons[i].pressed);
+    const ax = p.axes[0] || 0, ay = p.axes[1] || 0;
+    /* Cheap NES-style pads often report the D-pad as axes 0/1. */
+    pad.up = pad.up || b(12) || ay < -0.5; pad.down = pad.down || b(13) || ay > 0.5;
+    pad.left = pad.left || b(14) || ax < -0.5; pad.right = pad.right || b(15) || ax > 0.5;
+    pad.a = pad.a || b(0); pad.b = pad.b || b(1);
+    pad.select = pad.select || b(8); pad.start = pad.start || b(9);
+  }
+  for (const b of BTN) {
+    held[b] = !!(key[b] || pad[b]);
+    pressed[b] = (held[b] && !prevHeld[b]) || !!keyTap[b];
+    if (pressed[b] && pad[b]) ensureAudio();
+    keyTap[b] = false; prevHeld[b] = held[b];
+  }
+  if (DEMO) demoInput();
+}
+
+/* The demo climber: up when it can, hop a shut window, shuffle toward a
+   way up, flatten when something is coming. Never steps onto a sill whose
+   shutters are already swinging. */
+function demoInput() {
+  for (const b of BTN) if (b !== 'start' && b !== 'select') { held[b] = false; pressed[b] = false; }
+  if (state !== 'play' || P.mode !== 'idle') return;
+  const pp = ppos();
+  const danger = objs.some(o => o.kind !== 'gear' && o.y > pp.y - 4 && o.y - pp.y < 75 && Math.abs(o.x - pp.x) < 16 + o.hw)
+    || bats.some(b => Math.abs(b.y - (pp.y + 9)) < 16 && Math.abs(b.x - pp.x) < 70);
+  if (danger && (P.flat || P.breath > 0.3)) { held.b = true; return; }
+  const ok = (r, c) => isOpen(r, c) && !(r > 0 && r <= ROWS && shut(r, c).warn);
+  if (ok(P.r + 1, P.c)) { held.up = true; return; }
+  if (P.r + 2 <= ROOF_ROW && ok(P.r + 2, P.c)) { pressed.a = true; return; }
+  const here = P.r > 0 && P.r <= ROWS && shut(P.r, P.c).warn;
+  for (const d of (P.c < 2 ? [1, -1] : [-1, 1])) {
+    const c2 = P.c + d, dir = d < 0 ? 'left' : 'right';
+    if (c2 < 0 || c2 >= COLS || !ok(P.r, c2)) continue;
+    if (ok(P.r + 1, c2) || ok(P.r + 2, c2) || here) {
+      held[dir] = true;
+      if (gapBetween(P.r, P.c, c2)) pressed.a = true;
+      return;
+    }
+  }
+  if (here && ok(P.r - 1, P.c)) held.down = true;
+}
+
+/* ---------------- game state ---------------- */
+let state = 'title', time = 0, score = 0, lives = 3, clock = 150, best = 0;
+let hi = 0;
+try { hi = +localStorage.getItem('twelve-stories-hi') || 0; } catch (e) {}
+function saveHi() { if (score > hi) { hi = score; try { localStorage.setItem('twelve-stories-hi', String(hi)); } catch (e) {} } }
+/* when: who is out. light: 0 = full night, 1 = full day. */
+let when = 'day', light = 1, turning = 0;
+let toast = '', toastT = 0, camB = -30, roofT = 0, bonus = 0, lastSec = 99;
+let objs = [], throwers = [], bats = [], throwT = 2.5, batT = 3, stars = [];
+const P = {r: 0, c: 2, fr: 0, fc: 2, t: 0, dur: 0, arc: 0, mode: 'idle', flat: false, breath: 1,
+           inv: 0, deadT: 0, cause: '', bumpT: 0, anim: 0};
+const isDay = () => light >= 0.5;
+const clockFor = () => Math.max(90, 120 - loop*8);
+function say(m, t = 2.5) { toast = m; toastT = t; }
+for (let i = 0; i < 40; i++) stars.push({x: (i*97 + 13) % W, y: (i*53 + 7) % 220, tw: i % 7});
+
+/* Dusk or dawn: a second and a half of the light sliding; halfway, the
+   building changes who is at the windows. */
+function turnTime() {
+  if (turning) return;
+  turning = when === 'night' ? 1 : -1;
+  if (turning > 0) SFX.dawn(); else SFX.dusk();
+  say(turning > 0 ? 'DAWN. THE SHUTTERS COME ALIVE' : 'DUSK. ONLY LIT WINDOWS THROW', 2);
+}
+
+/* ---------------- the player ---------------- */
+const CLIMB = 0.3;        // seconds to climb one window
+function startMove(r, c, dur, arc, mode = 'move') {
+  P.fr = P.r; P.fc = P.c; P.r = r; P.c = c; P.t = 0; P.dur = dur; P.arc = arc; P.mode = mode; P.flat = false;
+}
+function ppos() {
+  if (P.mode === 'move' || P.mode === 'fall') {
+    let k = Math.min(1, P.t/P.dur);
+    if (P.mode === 'fall') k = k*k;
+    return {x: colX(P.fc) + (colX(P.c) - colX(P.fc))*k,
+            y: (P.fr + (P.r - P.fr)*k)*ROWH + Math.sin(k*Math.PI)*P.arc};
+  }
+  return {x: colX(P.c), y: P.r*ROWH};
+}
+function bump(msg) {
+  if (P.bumpT > 0) return;
+  P.bumpT = 0.3; SFX.bump();
+  if (msg) footNote(msg);
+}
+/* A shutter closes on you: you fall to the first open sill below. */
+function knock() {
+  let d = P.r - 1;
+  while (d > 0 && !isOpen(d, P.c)) d--;
+  startMove(d, P.c, 0.14 + 0.07*(P.r - d), 0, 'fall');
+  SFX.slam(); SFX.fall();
+  say('SLAM! KNOCKED DOWN', 1.4);
+}
+function hurt(cause, force) {
+  if (state !== 'play') return;
+  if (!force && (DEMO || P.inv > 0)) return;
+  state = 'dying'; P.deadT = 1.5; P.cause = cause; P.flat = false; SFX.hit();
+}
+function respawn() {
+  let r = Math.min(P.r, ROWS);
+  while (r > 0 && !isOpen(r, P.c)) r--;
+  Object.assign(P, {r, fr: r, fc: P.c, mode: 'idle', flat: false, inv: 2, t: 0});
+  const pp = ppos();
+  objs = objs.filter(o => Math.abs(o.y - pp.y) > 120);
+  throwers = []; bats = []; throwT = 1.5;
+  if (clock <= 0) clock = 60;
+  state = 'play';
+}
+function arrive() {
+  P.mode = 'idle';
+  if (P.r === ROOF_ROW) { reachRoof(); return; }
+  if (!isOpen(P.r, P.c)) { knock(); return; }
+  if (P.r > best) {
+    for (let r = best + 1; r <= P.r && r <= ROWS; r++) {
+      score += 10*storyOf(r)*(loop + 1);
+      if ((r - 1) % PER === 0) {
+        const s = storyOf(r), T = TENANTS[s];
+        score += 100*s*(loop + 1);
+        say(`FLOOR ${s}: ${T.name}. ${T.what}!`, 2.6); SFX.story(s);
+      }
+    }
+    best = P.r;
+  }
+}
+function updatePlayer(dt) {
+  P.inv = Math.max(0, P.inv - dt); P.bumpT = Math.max(0, P.bumpT - dt);
+  if (P.mode === 'move' || P.mode === 'fall') {
+    P.t += dt; P.anim += dt;
+    if (P.t >= P.dur) {
+      if (P.mode === 'fall') { SFX.land(); P.inv = Math.max(P.inv, 0.6); }
+      arrive();
+    }
+    return;
+  }
+  /* B: flatten against the wall. Holding your breath only lasts so long. */
+  if (held.b && P.breath > (P.flat ? 0 : 0.3)) {
+    if (!P.flat) SFX.flat();
+    P.flat = true;
+    P.breath = Math.max(0, P.breath - dt/1.4);
+    if (P.breath <= 0) { P.flat = false; SFX.gasp(); footNote('OUT OF BREATH'); }
+  } else {
+    if (held.b && !P.flat && pressed.b) bump('CATCH YOUR BREATH FIRST');
+    P.flat = false;
+    P.breath = Math.min(1, P.breath + dt/3.5);
+  }
+  /* Standing on a sill when its shutters slam. */
+  if (P.r > 0 && P.r <= ROWS && !isOpen(P.r, P.c)) { knock(); return; }
+  if (P.flat) return;
+  const dx = (held.right ? 1 : 0) - (held.left ? 1 : 0);
+  if (pressed.a) {
+    if (dx) {                                    // leap sideways, gap or not
+      const c2 = P.c + dx;
+      if (inRange(P.r, c2) && isOpen(P.r, c2)) { startMove(P.r, c2, 0.36, 14); SFX.jump(); return; }
+    } else {                                     // hop over the window above
+      if (P.r + 2 <= ROOF_ROW && isOpen(P.r + 2, P.c)) { startMove(P.r + 2, P.c, 0.42, 10); SFX.jump(); return; }
+      if (isOpen(P.r + 1, P.c)) { startMove(P.r + 1, P.c, CLIMB, 0); SFX.climb(P.r + 1); return; }
+    }
+    bump(); return;
+  }
+  if (held.up) {
+    if (isOpen(P.r + 1, P.c)) { startMove(P.r + 1, P.c, CLIMB, 0); SFX.climb(P.r + 1); }
+    else bump(WIN[P.r + 1] && WIN[P.r + 1][P.c].kind === 'board' ? 'BOARDED UP: A HOPS OVER IT' : '');
+    return;
+  }
+  if (held.down) {
+    if (P.r > 0 && isOpen(P.r - 1, P.c)) { startMove(P.r - 1, P.c, 0.22, 0); SFX.down(); } else bump();
+    return;
+  }
+  if (dx) {
+    const c2 = P.c + dx;
+    if (!inRange(P.r, c2)) { bump(); return; }
+    if (gapBetween(P.r, P.c, c2)) { bump('BROKEN LEDGE: A + LEFT/RIGHT LEAPS IT'); return; }
+    if (!isOpen(P.r, c2)) { bump(); return; }
+    startMove(P.r, c2, 0.2, 0); SFX.shuffle();
+  }
+}
+
+/* ---------------- the tenants throw things ---------------- */
+function spawnObj(kind, x, y, r) {
+  const pp = ppos(), d = pp.x > x ? 1 : pp.x < x ? -1 : (Math.random() < 0.5 ? -1 : 1);
+  const o = {kind, x, y, x0: x, y0: y, vx: 0, vy: -50, g: 300, hw: 4, hh: 4, t: Math.random()*3, d, wh: false};
+  switch (kind) {
+    case 'pin':    Object.assign(o, {vy: -60, g: 330, hw: 6, hh: 3}); break;
+    case 'pot':    Object.assign(o, {vy: -80, g: 440, hw: 4, hh: 4}); break;
+    case 'sheet':  Object.assign(o, {vy: -38, g: 0, hw: 12, hh: 5}); break;
+    case 'book':   Object.assign(o, {vy: -55, g: 70, hw: 4, hh: 3}); break;
+    case 'pigeon': Object.assign(o, {vx: d*95, vy: -50, g: 0, hw: 5, hh: 3}); break;
+    case 'metro':  Object.assign(o, {vy: -55, g: 220, hw: 4, hh: 5}); break;
+    case 'paint':  Object.assign(o, {vy: -50, g: 300, hw: 3, hh: 4}); break;
+    case 'drop':   Object.assign(o, {g: 300, hw: 2, hh: 2}); break;
+    case 'ball':   Object.assign(o, {vx: d*45, vy: -40, g: 520, hw: 3, hh: 3, bounces: 3}); break;
+    case 'gear':   Object.assign(o, {vy: -40, g: 520, hw: 5, hh: 5, rolling: false, vx: d*75}); break;
+    case 'bell':   Object.assign(o, {vy: -150, g: 640, hw: 6, hh: 3}); break;
+    case 'dough':  Object.assign(o, {vx: d*85, vy: -70, g: 60, hw: 6, hh: 2}); break;
+    case 'bee':    Object.assign(o, {g: 0, hw: 2, hh: 2, life: 4.5 + Math.random()}); break;
+  }
+  objs.push(o);
+  return o;
+}
+function updateObjs(dt) {
+  const pp = ppos();
+  for (const o of objs) {
+    o.t += dt;
+    const prevY = o.y;
+    switch (o.kind) {
+      case 'metro': o.x = o.x0 + Math.sin(o.t*5)*14; if (Math.floor(o.t*5/Math.PI) !== Math.floor((o.t - dt)*5/Math.PI) && Math.abs(o.y - pp.y) < 120) SFX.tick(Math.floor(o.t*5/Math.PI) % 2); break;
+      case 'sheet': o.x = o.x0 + Math.sin(o.t*1.6)*18; break;
+      case 'book':  o.x += Math.sin(o.t*7)*30*dt; break;
+      case 'bee': {
+        o.life -= dt;
+        if (o.life > 0) {
+          const dx = pp.x - o.x, dy = pp.y + 10 - o.y, d = Math.hypot(dx, dy) || 1;
+          o.vx += (dx/d*44 - o.vx)*dt*2; o.vy += (dy/d*44 - o.vy)*dt*2;
+        } else o.vy += 200*dt;
+        o.x += (o.vx + Math.sin(o.t*17)*30)*dt; o.y += (o.vy + Math.cos(o.t*13)*30)*dt;
+        if (o.life < -2) o.dead = true;
+        continue;
+      }
+      case 'gear':
+        if (o.rolling) {
+          o.x += o.vx*dt;
+          if (o.r === 0 && (o.x < -10 || o.x > W + 10)) { o.dead = true; continue; }
+          if (o.r > 0 && (o.x < BX0 + 6 || o.x > BX1 - 6)) { o.vx = -o.vx; o.x = Math.max(BX0 + 6, Math.min(BX1 - 6, o.x)); o.rolling = false; o.y = o.r*ROWH - 1; o.vy = -30; }
+          else if (!solidAt(o.r, o.x)) { o.rolling = false; o.y = o.r*ROWH - 1; o.vy = -30; }
+          continue;
+        }
+        break;
+    }
+    o.vy = Math.max(-330, o.vy - o.g*dt);
+    o.x += o.vx*dt; o.y += o.vy*dt;
+    /* things that meet a ledge on the way down */
+    const lr = Math.floor(prevY/ROWH), ly = lr*ROWH;
+    if (o.vy < 0 && o.y <= ly && prevY > ly && solidAt(lr, o.x)) {
+      if (o.kind === 'gear') { o.rolling = true; o.r = lr; o.y = ly + 5; if (Math.abs(o.y - pp.y) < 150) SFX.clack(0.03); }
+      else if (o.kind === 'ball' && o.bounces > 0) { o.bounces--; o.vy = 190; o.y = ly; if (Math.random() < 0.4) o.vx = -o.vx; if (Math.abs(o.y - pp.y) < 120) SFX.boing(); }
+      else if (o.kind === 'paint' && lr > 0) {
+        /* the can bursts on the first ledge it meets: three drips */
+        o.dead = true;
+        for (const vx of [-60, 0, 60]) { const d = spawnObj('drop', o.x, ly + 2); d.vx = vx; d.vy = 40; }
+        if (Math.abs(o.y - pp.y) < 150) SFX.smash();
+      }
+    }
+    /* a whistle when something is coming down right on top of you */
+    if (!o.wh && o.y > pp.y && o.y - pp.y < 130 && Math.abs(o.x - pp.x) < 20 && o.vy < 0) { o.wh = true; SFX.whistle(); }
+    if (o.y < camB - 60 || o.y < -60 || o.x < -40 || o.x > W + 40) o.dead = true;
+  }
+  objs = objs.filter(o => !o.dead);
+}
+
+/* A tenant leans out of an open window -- or by night, a lit one -- above
+   you, holds it up for a moment (that's your warning), and lets go. */
+function updateThrowers(dt) {
+  const night = when === 'night';
+  throwT -= dt;
+  if (throwT <= 0) {
+    const hard = Math.max(1, storyOf(Math.max(1, P.r))) + loop*3;
+    throwT = (night ? 1.8 : 1)*Math.max(0.45, 1.85 - hard*0.085)*(0.7 + Math.random()*0.6);
+    const cand = []; let tot = 0;
+    /* only windows you can see: nothing is thrown from off the top of the screen */
+    const top = Math.floor((Math.round(camB) + PH - 34)/ROWH);
+    for (let r = Math.max(1, P.r + 1); r <= Math.min(ROWS, P.r + 5, top); r++) for (let c = 0; c < COLS; c++) {
+      const w = WIN[r][c];
+      if (w.kind === 'board' || (night && !w.lit) || !isOpen(r, c)) continue;
+      if (throwers.some(t => t.r === r && t.c === c)) continue;
+      const dc = Math.abs(c - P.c), wt = (dc === 0 ? 4 : dc === 1 ? 2 : 0.6)*(r - P.r <= 3 ? 1.3 : 1);
+      cand.push([r, c, wt]); tot += wt;
+    }
+    if (cand.length) {
+      let pick = Math.random()*tot, ch = cand[0];
+      for (const x of cand) { pick -= x[2]; if (pick <= 0) { ch = x; break; } }
+      const kind = TENANTS[storyOf(ch[0])].obj;
+      const tele = Math.max(0.42, (night ? 0.62 : 0.8) - hard*0.02) + (kind === 'bell' ? 0.25 : 0);
+      throwers.push({r: ch[0], c: ch[1], t: 0, tele, kind, thrown: false, after: 0});
+      if (kind === 'bell') SFX.grunt();
+      if (kind === 'pigeon') SFX.coo();
+      if (kind === 'bee') SFX.buzz();
+    }
+  }
+  for (const th of throwers) {
+    if (!th.thrown) {
+      th.t += dt;
+      if (!isOpen(th.r, th.c) || (night && !WIN[th.r][th.c].lit)) { th.dead = true; continue; }
+      if (th.t >= th.tele) {
+        th.thrown = true; th.after = 0.35;
+        const x = colX(th.c), y = th.r*ROWH + 14;
+        if (th.kind === 'bee') for (let i = 0; i < 3; i++) { const b = spawnObj('bee', x + (i - 1)*6, y + i*3); b.life -= i*0.5; }
+        else if (th.kind === 'pigeon') { spawnObj('pigeon', x, y); if (Math.random() < 0.5) { const p = spawnObj('pigeon', x, y + 8); p.vx = -p.vx; } }
+        else if (th.kind === 'gear') { const g = spawnObj('gear', x, th.r*ROWH + 2); g.vy = -60; }
+        else spawnObj(th.kind, x, y);
+        SFX.throw();
+      }
+    } else if ((th.after -= dt) <= 0) th.dead = true;
+  }
+  throwers = throwers.filter(t => !t.dead);
+}
+
+/* By night the bats come out: they cross the building near you. */
+function updateBats(dt) {
+  const pp = ppos();
+  if (when === 'night' && state === 'play') {
+    batT -= dt;
+    if (batT <= 0) {
+      const hard = storyOf(Math.max(1, P.r)) + loop*3;
+      batT = Math.max(2.2, 6.5 - hard*0.25) + Math.random()*3;
+      const left = Math.random() < 0.5;
+      bats.push({x: left ? -12 : W + 12, by: pp.y + 9 + Math.floor(Math.random()*3)*ROWH, vx: (left ? 1 : -1)*(72 + loop*12), t: 0, fl: 0});
+    }
+  }
+  for (const b of bats) {
+    b.t += dt; b.x += b.vx*dt; b.y = b.by + Math.sin(b.t*5)*9;
+    if (light > 0.5) b.by += 140*dt;          // daylight: off they go
+    if ((b.fl -= dt) <= 0 && Math.abs(b.x - pp.x) < 120 && Math.abs(b.y - pp.y) < 80) { b.fl = 0.35; SFX.flutter(); }
+  }
+  bats = bats.filter(b => b.x > -30 && b.x < W + 30 && b.by < camB + PH + 200);
+}
+
+function collide() {
+  if (state !== 'play' || P.inv > 0) return;
+  const pp = ppos(), pb = {x0: pp.x - 5, x1: pp.x + 5, y0: pp.y + 1, y1: pp.y + 17};
+  const over = (x, y, hw, hh) => x + hw > pb.x0 && x - hw < pb.x1 && y + hh > pb.y0 && y - hh < pb.y1;
+  for (const o of objs) {
+    if (!over(o.x, o.y, o.hw, o.hh)) continue;
+    if (P.flat && o.kind !== 'gear') continue;   // flat to the wall: it misses you. A gear rolls the ledge.
+    const s = {pin: 1, pot: 2, sheet: 3, book: 4, pigeon: 5, metro: 6, paint: 7, drop: 7, ball: 8, gear: 9, bell: 10, dough: 11, bee: 12}[o.kind];
+    hurt(TENANTS[s].hit); return;
+  }
+  if (!P.flat) for (const b of bats) if (over(b.x, b.y, 6, 3)) { hurt('A BAT IN YOUR HAIR'); return; }
+}
+
+/* ---------------- the roof ---------------- */
+const CAT_C = 3;
+function reachRoof() {
+  state = 'roof'; roofT = 0;
+  bonus = 2500*(loop + 1) + Math.floor(clock)*10;
+  score += bonus; lives = Math.min(5, lives + 1);
+  objs = []; throwers = []; bats = [];
+  saveHi(); SFX.roof();
+}
+function nextBuilding() {
+  loop++; buildBuilding();
+  Object.assign(P, {r: 0, c: 2, fr: 0, fc: 2, mode: 'idle', flat: false, inv: 1.5, breath: 1});
+  best = 0; clock = clockFor(); camB = -30; bt = 0; throwT = 2.5;
+  state = 'play';
+  say(`BUILDING ${loop + 1}. FASTER SHUTTERS, BUSIER TENANTS`, 3);
+}
+
+/* ---------------- update ---------------- */
+function update(dt) {
+  time += dt;
+  if (toastT > 0) toastT -= dt; if (footT > 0) footT -= dt;
+  if (state === 'title' || state === 'over') {
+    if (pressed.start) { ensureAudio(); newGame(); }
+    return;
+  }
+  if (state === 'pause') {
+    if (pressed.start) { state = 'play'; SFX.pause(false); }
+    if (pressed.a) { setSound(!soundOn); footNote(soundOn ? 'SOUND ON' : 'SOUND OFF'); }
+    return;
+  }
+  if (pressed.start && state === 'play') { state = 'pause'; SFX.pause(true); return; }
+  if (pressed.select && (state === 'play' || state === 'dying')) turnTime();
+
+  /* dusk and dawn */
+  if (turning) {
+    const before = light;
+    light = Math.max(0, Math.min(1, light + turning*dt/1.5));
+    if ((before < 0.5) !== (light < 0.5)) { when = light >= 0.5 ? 'day' : 'night'; batT = 1.5; }
+    if (light === 0 || light === 1) turning = 0;
+  }
+  bt += dt;
+
+  if (state === 'roof') {
+    roofT += dt;
+    if (roofT > 0.9 && roofT - dt <= 0.9) SFX.meow();
+    if (roofT > 5) nextBuilding();
+    camera(dt); return;
+  }
+  updateObjs(dt); updateBats(dt);
+  if (state === 'dying') {
+    P.deadT -= dt;
+    if (P.deadT <= 0) {
+      lives--;
+      if (lives <= 0) { state = 'over'; saveHi(); SFX.gameover(); }
+      else respawn();
+    }
+    camera(dt); return;
+  }
+  clock -= dt;
+  if (DEMO && clock < 30) clock = clockFor();
+  const sec = Math.ceil(clock);
+  if (sec !== lastSec && sec <= 10 && sec > 0) SFX.second();
+  lastSec = sec;
+  if (clock <= 0) { clock = 0; hurt('OUT OF TIME. THE CAT CAN\'T WAIT', true); camera(dt); return; }
+
+  /* a creak when the shutters you're on, or the ones above you, start to swing */
+  if (P.mode === 'idle') for (const r of [P.r, P.r + 1]) {
+    if (r < 1 || r > ROWS) continue;
+    const s = shut(r, P.c), k = r + ',' + P.c;
+    if (s.warn && P.creak !== k + Math.floor((bt + WIN[r][P.c].ph)/WIN[r][P.c].per)) { P.creak = k + Math.floor((bt + WIN[r][P.c].ph)/WIN[r][P.c].per); SFX.creak(); }
+  }
+  updatePlayer(dt);
+  updateThrowers(dt);
+  collide();
+  camera(dt);
+}
+const CAM_LOW = 58;      // world px of building shown below your feet
+function camera(dt) {
+  /* keep the climber low on the screen: what matters is above you */
+  const target = Math.max(-30, Math.min(ROOF_Y + 70 - PH, ppos().y - CAM_LOW));
+  camB += (target - camB)*Math.min(1, dt*7);
+}
+
+function newGame() {
+  score = 0; lives = 3; loop = 0; time = 0; bt = 0; best = 0;
+  buildBuilding(); clock = clockFor();
+  when = DEMO && Q.has('night') ? 'night' : 'day'; light = when === 'day' ? 1 : 0; turning = 0;
+  Object.assign(P, {r: 0, c: 2, fr: 0, fc: 2, mode: 'idle', flat: false, breath: 1, inv: 1, t: 0});
+  objs = []; throwers = []; bats = []; throwT = 2.5; batT = 3; camB = -30;
+  state = 'play';
+  say('CLIMB TO THE ROOF. THE CAT IS STRANDED', 3);
+}
+
+/* ---------------- drawing ---------------- */
+const sy = wy => HUD + PH - (wy - Math.round(camB));
+
+function drawSky() {
+  const k = light;
+  const g = ctx.createLinearGradient(0, HUD, 0, HUD + PH);
+  g.addColorStop(0, mix('#05071a', '#3c8cf0', k)); g.addColorStop(1, mix('#141a3a', '#a8d8f8', k));
+  ctx.fillStyle = g; ctx.fillRect(0, HUD, W, PH);
+  if (k < 0.5) for (const s of stars) {
+    const y = HUD + ((s.y - camB*0.05) % 230 + 230) % 230;
+    if ((time*1.5 + s.tw) % 6 > 0.3) rect(s.x, y, 1, 1, '#c8d0f0');
+  }
+  /* sun by day, moon by night, sinking slowly as you climb past them */
+  const by = HUD + 30 + Math.max(0, 200 - camB*0.1);
+  if (by < HUD + PH) {
+    if (k >= 0.5) { ctx.fillStyle = C.yellow; ctx.beginPath(); ctx.arc(340, by, 11, 0, 7); ctx.fill(); }
+    else { ctx.fillStyle = '#e8ecff'; ctx.beginPath(); ctx.arc(60, by, 9, 0, 7); ctx.fill(); ctx.fillStyle = mix('#05071a', '#3c8cf0', k); ctx.beginPath(); ctx.arc(64, by - 2, 8, 0, 7); ctx.fill(); }
+  }
+  if (k > 0.5) for (let i = 0; i < 4; i++) {         // chunky clouds
+    const x = ((i*131 + time*6) % (W + 80)) - 40, y = HUD + 20 + i*47 - camB*0.08 % 60;
+    rect(x, y, 34, 7, '#f0f8ff'); rect(x + 7, y - 4, 18, 4, '#f0f8ff');
+  }
+  /* the city behind, in two layers that slide down as you climb */
+  for (const [f, col, seed, hmax] of [[0.25, mix('#0c1028', '#7aa0c8', k), 3, 420], [0.5, mix('#10142c', '#5a7aa0', k), 7, 300]]) {
+    let x = -10, i = seed;
+    while (x < W) {
+      const w = 26 + (i*37 % 30), h = 60 + (i*71 % hmax);
+      const top = HUD + PH - (h - camB*f) + 0, base = HUD + PH - (0 - camB*f);
+      if (top < HUD + PH) {
+        rect(x, Math.max(HUD, top), w, Math.min(base, HUD + PH) - Math.max(HUD, top), col);
+        if (k < 0.5) for (let yy = top + 6; yy < Math.min(base, HUD + PH) - 4; yy += 9)
+          for (let xx = x + 4; xx < x + w - 3; xx += 7) if (((xx*7 + yy*3 + i) % 11) < 2) rect(xx, yy, 2, 2, '#c8a848');
+      }
+      x += w + 6; i++;
+    }
+  }
+}
+
+function brickRow(y0, y1, base) {
+  /* a band of brick from screen y0 down to y1 */
+  const top = Math.max(HUD, y0), bot = Math.min(HUD + PH, y1);
+  if (bot <= top) return;
+  rect(BX0, top, BX1 - BX0, bot - top, base);
+  const mortar = mix('#000000', base, 0.72);
+  for (let y = Math.ceil((y0)/8)*8 + (Math.round(camB) % 8); y < bot; y += 8) {
+    if (y < top) continue;
+    rect(BX0, y, BX1 - BX0, 1, mortar);
+    const off = (Math.floor((y + Math.round(camB))/8) % 2) ? 8 : 0;
+    for (let x = BX0 + off; x < BX1; x += 16) rect(x, y, 1, Math.min(8, bot - y), mortar);
+  }
+}
+
+function drawStreet() {
+  const k = light, s0 = sy(0);
+  if (s0 > HUD + PH + 40) return;
+  /* the road and the pavement */
+  rect(0, s0, W, HUD + PH - s0 + 60, mix('#16161c', '#4a4a52', k));
+  rect(0, s0, W, 6, mix('#2a2a30', '#8a8890', k));
+  for (let x = 6; x < W; x += 40) rect(x, s0 + 22, 18, 2, mix('#5a5020', C.yellow, k));
+  /* the shopfront on the ground floor, and a door */
+  const top = sy(36);
+  rect(BX0 + 6, top, BX1 - BX0 - 12, s0 - top, mix('#101018', '#304050', k));
+  for (let x = BX0 + 6; x < BX1 - 6; x += 12) rect(x, top - 6, 12, 6, (x/12) % 2 < 1 ? mix('#300c0c', C.red, k) : mix('#303030', C.white, k));
+  rect(colX(2) - 9, top + 6, 18, s0 - top - 6, mix('#200f05', C.brown, k));
+  rect(colX(2) + 5, top + 18, 2, 2, C.yellow);
+  text('12', colX(2), top - 15, mix('#806020', C.yellow, k), 'center');
+  /* street lamps */
+  for (const lx of [16, 384]) {
+    rect(lx - 1, sy(60), 2, s0 - sy(60), mix('#20202a', '#303040', k));
+    rect(lx - 4, sy(64), 8, 5, k < 0.5 ? '#ffe8a0' : '#606070');
+  }
+}
+
+function drawRoof() {
+  const k = light, y = sy(ROOF_Y);
+  if (y < HUD - 60 || y > HUD + PH + 40) return;
+  /* water tower, chimney, antenna */
+  const wt = mix('#2a1a10', '#8a5a30', k);
+  rect(BX0 + 18, y - 48, 34, 26, wt);
+  for (let i = 0; i < 4; i++) rect(BX0 + 20 + i*9, y - 48, 2, 26, mix('#1a1008', '#6a4020', k));
+  rect(BX0 + 14, y - 52, 42, 5, mix('#1a1008', '#5a3418', k));
+  rect(BX0 + 22, y - 22, 3, 22, wt); rect(BX0 + 46, y - 22, 3, 22, wt);
+  rect(BX0 + 62, y - 26, 14, 26, mix('#2a1210', '#9a4a34', k));
+  rect(BX1 - 22, y - 60, 2, 60, C.gray); rect(BX1 - 28, y - 50, 14, 1, C.gray); rect(BX1 - 26, y - 42, 10, 1, C.gray);
+  if (Math.floor(time*2) % 2) rect(BX1 - 22, y - 62, 2, 2, C.red);
+  /* the parapet */
+  rect(BX0 - 4, y - 2, BX1 - BX0 + 8, 8, mix('#3a3430', C.tan, k));
+  rect(BX0 - 4, y + 6, BX1 - BX0 + 8, 2, mix('#1a1410', '#8a7a5a', k));
+  drawCat(y);
+}
+function drawCat(y) {
+  let x = colX(CAT_C), cy = y - 2;
+  if (state === 'roof') {
+    /* it trots over to you, and hops */
+    const px = colX(P.c), k = Math.min(1, roofT/0.9);
+    x = x + (px + (px < colX(CAT_C) ? 12 : -12) - x)*k;
+    if (roofT > 0.9) cy -= Math.abs(Math.sin(roofT*6))*6;
+  }
+  const o = C.orange, d = C.brown;
+  rect(x - 6, cy - 7, 12, 6, o); rect(x - 6, cy - 2, 2, 2, o); rect(x + 4, cy - 2, 2, 2, o);
+  rect(x + 3, cy - 12, 7, 6, o); rect(x + 3, cy - 14, 2, 2, o); rect(x + 8, cy - 14, 2, 2, o);
+  rect(x + 5, cy - 10, 1, 1, '#000'); rect(x + 8, cy - 10, 1, 1, '#000');
+  rect(x - 4, cy - 6, 1, 4, d); rect(x - 1, cy - 6, 1, 4, d);
+  const sw = Math.round(Math.sin(time*3)*2);
+  rect(x - 8, cy - 9 + sw, 2, 6, o); rect(x - 10, cy - 11 + sw, 2, 3, o);
+  if (state === 'roof' && roofT > 1) for (let i = 0; i < 3; i++) {
+    const hy = cy - 20 - ((roofT*20 + i*12) % 36), hx = x + Math.sin(roofT*3 + i)*6 - 6 + i*6;
+    rect(hx, hy, 2, 2, C.pink); rect(hx + 3, hy, 2, 2, C.pink); rect(hx, hy + 2, 5, 1, C.pink); rect(hx + 1, hy + 3, 3, 1, C.pink);
+  }
+}
+
+/* What each tenant has in the window. */
+function drawDeco(s, wx, top, r, c, k) {
+  const L = col => mix('#000000', col, 0.25 + 0.75*k);
+  switch (s) {
+    case 1:   // bakery: striped awning, loaves on the shelf
+      for (let i = 0; i < 6; i++) rect(wx - 2 + i*4.33, top - 4, 5, 4, L(i % 2 ? C.white : C.red));
+      rect(wx + 2, top + 15, 18, 1, L(C.brown)); rect(wx + 3, top + 12, 6, 3, L('#c88a40')); rect(wx + 12, top + 12, 6, 3, L('#c88a40'));
+      break;
+    case 2:   // florist: a window box in bloom
+      rect(wx - 1, top + 20, 24, 4, L(C.brown));
+      for (let i = 0; i < 6; i++) { rect(wx + 1 + i*4, top + 16, 2, 4, L(C.green)); rect(wx + i*4, top + 15, 3, 2, L([C.red, C.yellow, C.pink][(i + r) % 3])); }
+      break;
+    case 3:   // laundry: a line of washing
+      rect(wx, top + 4, 22, 1, L(C.gray));
+      for (let i = 0; i < 4; i++) rect(wx + 1 + i*5, top + 5, 4, 7 + (i % 2)*2, L([C.white, C.pink, C.cyan, C.yellow][(i + c) % 4]));
+      break;
+    case 4:   // library: shelves of spines
+      for (let sh = 0; sh < 3; sh++) for (let i = 0; i < 10; i++) rect(wx + 1 + i*2, top + 3 + sh*7, 2, 5, L([C.red, C.blue, C.green, C.yellow, C.violet][(i*3 + sh + r) % 5]));
+      break;
+    case 5:   // pigeon roost: birds on the sill
+      for (const bx of [3, 13]) { rect(wx + bx, top + 19, 6, 4, L('#8a8a9a')); rect(wx + bx + 4, top + 17, 3, 3, L('#8a8a9a')); rect(wx + bx + 5, top + 18, 1, 1, L(C.green)); }
+      break;
+    case 6:   // music teacher: a piano and a note
+      rect(wx + 1, top + 16, 20, 7, L(C.white)); for (let i = 0; i < 6; i++) rect(wx + 3 + i*3, top + 16, 1, 4, L('#000000'));
+      rect(wx + 13, top + 6, 3, 2, L('#000000')); rect(wx + 15, top + 2, 1, 5, L('#000000'));
+      break;
+    case 7:   // painter: splashes of colour
+      for (let i = 0; i < 6; i++) rect(wx + 2 + ((i*7 + r*3) % 17), top + 3 + ((i*5 + c*7) % 17), 3, 3, L([C.red, C.blue, C.yellow, C.green, C.purple, C.orange][i]));
+      break;
+    case 8:   // toy shop: balls on the shelf
+      rect(wx + 1, top + 17, 20, 1, L(C.brown));
+      for (let i = 0; i < 4; i++) { ctx.fillStyle = L([C.red, C.blue, C.yellow, C.green][(i + c) % 4]); ctx.beginPath(); ctx.arc(wx + 4 + i*5, top + 14, 2.5, 0, 7); ctx.fill(); }
+      break;
+    case 9: { // clockmaker: a clock, really ticking
+      ctx.fillStyle = L(C.white); ctx.beginPath(); ctx.arc(wx + 11, top + 11, 7, 0, 7); ctx.fill();
+      const a = time*Math.PI/2 + r + c;
+      ctx.strokeStyle = L('#000000'); ctx.lineWidth = 1; ctx.beginPath();
+      ctx.moveTo(wx + 11, top + 11); ctx.lineTo(wx + 11 + Math.cos(a)*5, top + 11 + Math.sin(a)*5);
+      ctx.moveTo(wx + 11, top + 11); ctx.lineTo(wx + 11 + Math.cos(a/12)*3, top + 11 + Math.sin(a/12)*3); ctx.stroke();
+      break;
+    }
+    case 10:  // gym: a rack of dumbbells
+      for (let i = 0; i < 3; i++) { rect(wx + 4, top + 6 + i*6, 14, 2, L('#303030')); rect(wx + 3, top + 5 + i*6, 3, 4, L('#101010')); rect(wx + 16, top + 5 + i*6, 3, 4, L('#101010')); }
+      break;
+    case 11:  // pizzeria: a checked curtain
+      for (let i = 0; i < 6; i++) for (let j = 0; j < 2; j++) rect(wx + i*3.67, top + j*4, 4, 4, L((i + j) % 2 ? C.white : C.red));
+      break;
+    case 12:  // beekeeper: honeycomb
+      for (let j = 0; j < 4; j++) for (let i = 0; i < 4; i++) rect(wx + 2 + i*5 + (j % 2)*2, top + 3 + j*5, 3, 3, L('#c88a10'));
+      break;
+  }
+}
+
+/* A shutter is a panel hinged at the window's edge. k: 0 folded back flat
+   against the wall, 0.5 sticking straight out (a thin line, seen from the
+   front), 1 shut across the window. */
+function drawShutters(wx, top, k, col, slat) {
+  for (const side of [-1, 1]) {
+    const hinge = side < 0 ? wx : wx + 22;
+    const w = Math.max(1, Math.round(11*Math.abs(1 - 2*k)));
+    const x = k < 0.5 ? (side < 0 ? hinge - w : hinge) : (side < 0 ? hinge : hinge - w);
+    rect(x, top, w, 24, col);
+    if (w > 3) for (let y = top + 3; y < top + 23; y += 4) rect(x + 1, y, w - 2, 1, slat);
+  }
+}
+
+function drawFigure(x, y, s, lean, k) {
+  /* a tenant leaning out: apron in their colour */
+  const T = TENANTS[s], L = col => mix('#000000', col, 0.25 + 0.75*k);
+  if (s === 5) {          // pigeons come out by themselves
+    const fl = Math.floor(time*16) % 2;
+    rect(x - 4, y + 2 + lean*4, 8, 5, L('#8a8a9a')); rect(x - 8, y + 1 + lean*4 - fl*2, 4, 2, L('#8a8a9a')); rect(x + 4, y + 1 + lean*4 - fl*2, 4, 2, L('#8a8a9a'));
+    return;
+  }
+  if (s === 12) {         // the hive stirs
+    for (let i = 0; i < 6; i++) rect(x - 6 + ((i*5 + Math.floor(time*20)) % 13), y + 4 + ((i*3 + Math.floor(time*17)) % 9), 2, 2, i % 2 ? C.yellow : '#000');
+    return;
+  }
+  const yy = y + Math.round(lean*6);
+  rect(x - 4, yy + 8, 8, 9, L(T.cloth));
+  rect(x - 3, yy + 2, 6, 6, L(C.pink));
+  rect(x - 3, yy + 1, 6, 2, L(C.brown));
+  rect(x - 1, yy + 4, 1, 1, '#000'); rect(x + 1, yy + 4, 1, 1, '#000');
+  rect(x - 6, yy - 1, 2, 9, L(C.pink)); rect(x + 4, yy - 1, 2, 9, L(C.pink));
+  drawObj({kind: T.obj, x: x, y: 0, t: time, d: 1}, x, yy - 3, k);
+}
+
+function drawBuilding() {
+  const k = light;
+  const rLo = Math.max(0, Math.floor((camB - 10)/ROWH)), rHi = Math.min(ROWS, Math.ceil((camB + PH)/ROWH) + 1);
+  /* brick, a slightly different shade for each story */
+  for (let r = rLo; r <= rHi; r++) {
+    const s = storyOf(r), base = mix('#1c1018', TENANTS[s].wall, k);
+    brickRow(sy((r + 1)*ROWH), sy(r*ROWH), base);
+  }
+  /* the edges of the building */
+  const yT = Math.max(HUD, sy(ROOF_Y)), yB = Math.min(HUD + PH, sy(0));
+  if (yB > yT) { rect(BX0 - 4, yT, 4, yB - yT, mix('#140a10', '#5a3020', k)); rect(BX1, yT, 4, yB - yT, mix('#140a10', '#5a3020', k)); }
+  drawStreet();
+  for (let r = Math.max(1, rLo); r <= rHi; r++) {
+    const s = storyOf(r), T = TENANTS[s], ly = sy(r*ROWH);
+    if (ly < HUD - 40 || ly > HUD + PH + 30) continue;
+    /* the sign under each floor: number and tenant */
+    if ((r - 1) % PER === 0) {
+      /* it hangs in the strip of wall just under this floor's first ledge */
+      rect(BX0, ly + 2, BX1 - BX0, 9, mix('#100a0c', '#3a2418', k));
+      text(`${s}  ${T.name}`, W/2, ly + 3, mix('#5a5040', C.tan, k), 'center', 7);
+    }
+    for (let c = 0; c < COLS; c++) {
+      const x = colX(c), wx = x - 11, top = ly - 27, st = shut(r, c), w = WIN[r][c];
+      /* inside: the tenant's room by day; by night lit or dark */
+      const lit = w.lit && when === 'night';
+      const night = lit ? '#e8c050' : '#07060c';
+      rect(wx, top, 22, 24, mix(night, T.inside, k));
+      if (st.k < 1 && !st.board) {
+        drawDeco(s, wx, top, r, c, lit ? Math.max(k, 0.7) : k);
+        const th = throwers.find(t => t.r === r && t.c === c);
+        if (th && !th.thrown) drawFigure(x, top + 2, s, Math.min(1, th.t/th.tele), lit ? Math.max(k, 0.8) : k);
+        else if (th) drawFigure(x, top + 2, s, Math.max(0, th.after/0.35), lit ? Math.max(k, 0.8) : k);
+        else if (lit && (r*7 + c*3) % 4 === 0) { rect(x - 3, top + 8, 6, 14, '#3a2a10'); rect(x - 2, top + 4, 4, 4, '#3a2a10'); }  // a tenant at home
+      }
+      rect(wx - 2, top - 2, 26, 2, mix('#1a1410', '#c8b890', k));      // lintel
+      if (st.board) {
+        rect(wx, top, 22, 24, mix('#140c06', '#6a4426', k));
+        for (let i = 0; i < 4; i++) rect(wx, top + 2 + i*6, 22, 4, mix('#1c1008', '#8a5a30', k));
+        ctx.strokeStyle = mix('#0c0804', '#4a2c14', k); ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(wx, top); ctx.lineTo(wx + 22, top + 24); ctx.moveTo(wx + 22, top); ctx.lineTo(wx, top + 24); ctx.stroke();
+      } else {
+        const sc = st.warn ? mix('#3a1a10', '#d86a2a', k) : mix('#0c1a10', '#2f8a4a', k);
+        drawShutters(wx, top, st.k, sc, mix('#000000', '#1a4a28', k));
+      }
+    }
+    /* the ledge you walk on, broken where it's broken */
+    const lc = mix('#2a2420', '#d0c4a0', k), sh = mix('#0a0806', '#6a5a40', k);
+    const seg = (x0, x1) => { rect(x0, ly - 3, x1 - x0, 3, lc); rect(x0, ly, x1 - x0, 2, sh); };
+    seg(BX0 - 4, colX(0) - 15);
+    for (let c = 0; c < COLS; c++) seg(colX(c) - 15, colX(c) + 15);
+    for (let i = 0; i < 4; i++) {
+      if (!GAP[r][i]) seg(colX(i) + 15, colX(i + 1) - 15);
+      else { seg(colX(i) + 15, colX(i) + 19); seg(colX(i + 1) - 19, colX(i + 1) - 15); rect(colX(i) + 18, ly - 1, 2, 3, sh); }
+    }
+    seg(colX(4) + 15, BX1 + 4);
+  }
+  drawRoof();
+}
+
+function drawObj(o, x, y, k = 1, shadow = false) {
+  x = Math.round(x); y = Math.round(y);
+  /* shadow: the same shape in black, one pixel down-right, so it reads on brick */
+  const L = col => shadow ? '#000000' : k >= 1 ? col : mix('#000000', col, 0.3 + 0.7*k), t = o.t;
+  switch (o.kind) {
+    case 'pin': {
+      const v = Math.floor(t*8) % 2;
+      if (v) { rect(x - 5, y - 2, 10, 4, L('#d8a868')); rect(x - 7, y - 1, 2, 2, L(C.brown)); rect(x + 5, y - 1, 2, 2, L(C.brown)); }
+      else { rect(x - 2, y - 5, 4, 10, L('#d8a868')); rect(x - 1, y - 7, 2, 2, L(C.brown)); rect(x - 1, y + 5, 2, 2, L(C.brown)); }
+      break;
+    }
+    case 'pot':
+      rect(x - 4, y - 2, 8, 6, L('#c86030')); rect(x - 5, y - 3, 10, 2, L('#a84820'));
+      rect(x - 1, y - 7, 2, 4, L(C.green)); rect(x - 2, y - 9, 4, 3, L(C.red));
+      break;
+    case 'sheet': {
+      const wv = Math.round(Math.sin(t*6)*2);
+      rect(x - 12, y - 4 + wv, 24, 8, L('#e8f0f8')); rect(x - 12, y + 3 - wv, 24, 2, L(C.cyan));
+      break;
+    }
+    case 'book': {
+      const f = Math.floor(t*10) % 2;
+      if (f) { rect(x - 5, y - 1, 4, 3, L(C.red)); rect(x + 1, y - 1, 4, 3, L(C.red)); rect(x - 1, y, 2, 2, L(C.white)); }
+      else { rect(x - 4, y - 3, 8, 6, L(C.blue)); rect(x - 4, y - 3, 1, 6, L(C.yellow)); }
+      break;
+    }
+    case 'pigeon': {
+      const fl = Math.floor(t*14) % 2, d = o.vx < 0 ? -1 : 1;
+      rect(x - 4, y - 2, 8, 4, L('#8a8a9a')); rect(x + d*4 - (d < 0 ? 3 : 0), y - 4, 3, 3, L('#8a8a9a'));
+      rect(x - 3, y - 2 - fl*3, 5, 2, L('#b0b0c0'));
+      break;
+    }
+    case 'metro':
+      ctx.fillStyle = L('#8a5a30'); ctx.beginPath(); ctx.moveTo(x - 5, y + 5); ctx.lineTo(x + 5, y + 5); ctx.lineTo(x, y - 6); ctx.fill();
+      rect(x - 1 + Math.round(Math.sin(t*10)*3), y - 4, 1, 6, L(C.white));
+      break;
+    case 'paint':
+      rect(x - 3, y - 4, 7, 8, L(C.gray)); rect(x - 3, y - 4, 7, 2, L(C.blue)); rect(x - 3, y - 6, 7, 1, L('#606060'));
+      break;
+    case 'drop':
+      rect(x - 2, y - 2, 4, 4, L(C.blue));
+      break;
+    case 'ball':
+      ctx.fillStyle = L(C.red); ctx.beginPath(); ctx.arc(x, y, 3.5, 0, 7); ctx.fill(); rect(x - 3, y - 1, 6, 1, L(C.white));
+      break;
+    case 'gear': {
+      ctx.fillStyle = L(C.gray); ctx.beginPath(); ctx.arc(x, y, 4, 0, 7); ctx.fill();
+      const a = (o.x || 0)/5;
+      for (let i = 0; i < 6; i++) rect(x + Math.cos(a + i*1.047)*5 - 1, y + Math.sin(a + i*1.047)*5 - 1, 2, 2, L(C.gray));
+      rect(x - 1, y - 1, 2, 2, L('#303030'));
+      break;
+    }
+    case 'bell':
+      rect(x - 5, y - 1, 10, 2, L('#404040')); rect(x - 7, y - 3, 3, 6, L('#101010')); rect(x + 4, y - 3, 3, 6, L('#101010'));
+      break;
+    case 'dough': {
+      const w = Math.max(2, Math.round(Math.abs(Math.cos(t*8))*7));
+      rect(x - w, y - 2, w*2, 4, L('#f0dca0')); if (w > 3) rect(x - w + 2, y - 1, 2, 1, L(C.red));
+      break;
+    }
+    case 'bee':
+      rect(x - 2, y - 1, 4, 3, L(C.yellow)); rect(x, y - 1, 1, 3, L('#000')); rect(x - 1, y - 3 + (Math.floor(t*30) % 2), 2, 2, L(C.white));
+      break;
+  }
+}
+
+function drawPlayer() {
+  if (state === 'dying' && Math.floor(P.deadT*10) % 2) return;
+  if (P.inv > 0 && state === 'play' && Math.floor(P.inv*12) % 2) return;
+  const pp = ppos(), x = Math.round(pp.x), y = Math.round(sy(pp.y)), k = light;
+  const shirt = mix('#5a1810', C.red, Math.max(k, 0.5)), jeans = mix('#101848', C.blue, Math.max(k, 0.5));
+  const skin = mix('#5a3a30', C.pink, Math.max(k, 0.5)), hair = mix('#201008', '#4a2810', Math.max(k, 0.5));
+  if (P.flat) {
+    /* spread-eagle, flat against the wall, arms up the brick */
+    const dk = col => mix('#000000', col, 0.8);
+    rect(x - 6, y - 7, 3, 7, dk(jeans)); rect(x + 3, y - 7, 3, 7, dk(jeans));
+    rect(x - 4, y - 14, 8, 8, dk(shirt));
+    rect(x - 3, y - 19, 6, 5, dk(hair));
+    rect(x - 10, y - 21, 2, 7, dk(skin)); rect(x - 8, y - 15, 4, 2, dk(skin));
+    rect(x + 8, y - 21, 2, 7, dk(skin)); rect(x + 4, y - 15, 4, 2, dk(skin));
+    return;
+  }
+  const moving = P.mode === 'move' || P.mode === 'fall', alt = moving ? Math.floor(P.anim*14) % 2 : 0;
+  rect(x - 4, y - 7 + (alt ? 2 : 0), 3, 7 - (alt ? 2 : 0), jeans); rect(x + 1, y - 7 + (alt ? 0 : 0), 3, 7 - (alt ? 0 : 2), jeans);
+  rect(x - 4, y - 14, 8, 7, shirt);
+  rect(x - 3, y - 19, 6, 5, hair);                           // the back of your head: you face the wall
+  if (P.mode === 'fall') { rect(x - 7, y - 22, 2, 8, skin); rect(x + 5, y - 22, 2, 8, skin); }
+  else { rect(x - 6, y - 19 + (alt ? 3 : 0), 2, 7, skin); rect(x + 4, y - 19 + (alt ? 0 : 3), 2, 7, skin); }
+}
+
+function drawDarkness() {
+  const night = 1 - light;
+  if (night <= 0.001) return;
+  const pp = ppos(), lx = pp.x, ly = sy(pp.y + 12) - HUD;
+  dctx.globalCompositeOperation = 'source-over';
+  dctx.clearRect(0, 0, W, PH);
+  dctx.fillStyle = `rgba(0,0,8,${(0.93*night).toFixed(3)})`;
+  dctx.fillRect(0, 0, W, PH);
+  dctx.globalCompositeOperation = 'destination-out';
+  const hole = (x, y, rad, a = 1) => {
+    const g = dctx.createRadialGradient(x, y, 0, x, y, rad);
+    g.addColorStop(0, `rgba(0,0,0,${a})`); g.addColorStop(0.5, `rgba(0,0,0,${a*0.85})`); g.addColorStop(1, 'rgba(0,0,0,0)');
+    dctx.fillStyle = g; dctx.beginPath(); dctx.arc(x, y, rad, 0, 7); dctx.fill();
+  };
+  if (state !== 'dying' || P.deadT > 0.8) hole(lx, ly, 54 + Math.sin(time*3)*1.5);
+  /* lit windows glow */
+  const rLo = Math.max(1, Math.floor((camB - 10)/ROWH)), rHi = Math.min(ROWS, Math.ceil((camB + PH)/ROWH) + 1);
+  for (let r = rLo; r <= rHi; r++) for (let c = 0; c < COLS; c++) {
+    if (!WIN[r][c].lit) continue;
+    const st = shut(r, c), th = throwers.some(t => t.r === r && t.c === c && !t.thrown);
+    hole(colX(c), sy(r*ROWH + 14) - HUD, 24 + (th ? 4 : 0), (1 - st.k*0.75)*(th ? 1 : 0.9));
+  }
+  /* street lamps, and the moon on the roof */
+  for (const x of [16, 384]) hole(x, sy(50) - HUD, 46, 0.9);
+  hole(colX(CAT_C), sy(ROOF_Y + 6) - HUD, 30, 0.6);
+  dctx.globalCompositeOperation = 'source-over';
+  ctx.drawImage(dark, 0, HUD);
+}
+/* What still shows in the dark: the glint of something falling, bats' eyes. */
+function drawGlints() {
+  if (light >= 0.5) return;
+  for (const o of objs) if (Math.floor(time*12 + o.x) % 3) rect(o.x, sy(o.y) - 1, 2, 1, '#f0e8c0');
+  for (const b of bats) { rect(b.x - 2, sy(b.y) - 1, 1, 1, '#ff3020'); rect(b.x + 1, sy(b.y) - 1, 1, 1, '#ff3020'); }
+}
+function drawBat(b) {
+  const x = Math.round(b.x), y = Math.round(sy(b.y)), fl = Math.floor(b.t*14) % 2;
+  rect(x - 2, y - 2, 4, 4, '#2a1a2a');
+  rect(x - 8, y - (fl ? 3 : 0), 6, 2, '#2a1a2a'); rect(x + 2, y - (fl ? 3 : 0), 6, 2, '#2a1a2a');
+}
+
+function drawHud() {
+  rect(0, 0, W, HUD, '#000');
+  text('SCORE ' + String(score).padStart(6, '0'), 4, 6, C.white);
+  text('HI ' + String(Math.max(hi, score)).padStart(6, '0'), 104, 6, C.gray);
+  if (light >= 0.5) { ctx.fillStyle = C.yellow; ctx.beginPath(); ctx.arc(196, 10, 4, 0, 7); ctx.fill(); }
+  else { ctx.fillStyle = '#dfe6ff'; ctx.beginPath(); ctx.arc(196, 10, 4, 0, 7); ctx.fill(); ctx.fillStyle = '#000'; ctx.beginPath(); ctx.arc(198, 9, 3.5, 0, 7); ctx.fill(); }
+  const cs = Math.max(0, Math.ceil(clock));
+  text(Math.floor(cs/60) + ':' + String(cs % 60).padStart(2, '0'), 205, 6, clock < 20 ? C.red : C.yellow);
+  /* breath: how long you can stay flat */
+  text('B', 244, 6, C.gray);
+  rect(253, 8, 32, 5, '#303030'); rect(253, 8, Math.round(32*P.breath), 5, P.breath > 0.3 ? C.cyan : C.red);
+  for (let i = 0; i < lives; i++) { const lx = W - 10 - i*11; rect(lx - 3, 5, 6, 4, '#4a2810'); rect(lx - 3, 9, 6, 5, C.red); rect(lx - 3, 14, 2, 3, C.blue); rect(lx + 1, 14, 2, 3, C.blue); }
+  rect(0, HUD + PH, W, FOOT, '#000');
+  const s = storyOf(P.r), T = TENANTS[s];
+  const where = P.r === 0 ? `THE STREET` : P.r >= ROOF_ROW ? 'THE ROOF' : `FLOOR ${String(s).padStart(2, '0')} ${T.name}: ${T.what}`;
+  /* the footer: a hint if there is one, else the news, else where you are */
+  text(footT > 0 ? footMsg : toastT > 0 ? toast : `B${loop + 1}  ${where}`, 4, HUD + PH + 2, footT > 0 ? C.yellow : toastT > 0 ? C.white : C.tan);
+  if (soundOn && !audioLive()) text('PRESS ANY KEY FOR SOUND', W - 4, HUD + PH + 2, C.yellow, 'right');
+  else text(soundOn ? 'SND' : 'MUTE', W - 4, HUD + PH + 2, C.gray, 'right');
+}
+
+function panel(title, y0 = 40, h = 160) {
+  ctx.fillStyle = 'rgba(0,0,0,0.85)'; ctx.fillRect(30, HUD + y0, W - 60, h);
+  ctx.strokeStyle = C.tan; ctx.lineWidth = 1; ctx.strokeRect(30.5, HUD + y0 + 0.5, W - 61, h - 1);
+  text(title, W/2, HUD + y0 + 8, C.yellow, 'center', 12);
+}
+
+function drawTitle() {
+  /* the building at dusk, slowly panning up */
+  camB = (time*40) % (ROOF_Y + 70 - PH);
+  light = 0.5 + 0.5*Math.sin(time*0.3);
+  drawSky(); drawBuilding(); drawDarkness();
+  rect(0, 0, W, HUD, '#000'); rect(0, HUD + PH, W, FOOT, '#000');
+  ctx.fillStyle = 'rgba(0,0,0,0.45)'; ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(20, 26, W - 40, 222);
+  text('TWELVE STORIES', W/2, 34, C.yellow, 'center', 22);
+  text('A CLIMB TO THE ROOF, ONE TENANT AT A TIME', W/2, 62, C.tan, 'center');
+  const rows = [
+    'A cat is stranded on the roof. Climb up to it,',
+    'window by window, past twelve floors of tenants',
+    'who throw things. Only open sills hold you.',
+    '',
+    'D-PAD  climb, shuffle along the ledge',
+    'A      hop over a window / leap a gap',
+    'B      flatten against the wall (hold)',
+    'SELECT day / night     START  start, pause',
+  ];
+  rows.forEach((r, i) => text(r, W/2, 80 + i*12, C.white, 'center'));
+  text('HI ' + String(hi).padStart(6, '0'), W/2, 182, C.gray, 'center');
+  if (Math.floor(time*2) % 2) text('PRESS START', W/2, 200, C.ylgreen, 'center', 12);
+  if (!audioLive()) text('PRESS ANY KEY FOR SOUND', W/2, 228, C.yellow, 'center');
+  text(VERSION, W - 4, H - 12, C.gray, 'right');
+}
+
+function draw() {
+  if (state === 'title') { drawTitle(); return; }
+  drawSky();
+  drawBuilding();
+  for (const o of objs) { drawObj(o, o.x + 1, sy(o.y) + 1, 1, true); drawObj(o, o.x, sy(o.y)); }
+  for (const b of bats) drawBat(b);
+  drawPlayer();
+  drawDarkness();
+  drawGlints();
+  drawHud();
+  if (state === 'pause') {
+    panel('PAUSED');
+    ['START  GO ON', 'A      SOUND ' + (soundOn ? 'OFF' : 'ON'), '', 'D-PAD  climb, shuffle', 'A      hop / leap a gap', 'B      flatten (hold)', 'SELECT day / night']
+      .forEach((r, i) => text(r, W/2 - 70, HUD + 70 + i*12, C.white));
+  }
+  if (state === 'dying') text(P.cause, W/2, HUD + 100, C.red, 'center', 10);
+  if (state === 'roof') {
+    text('YOU REACHED THE ROOF!', W/2, HUD + 40, C.yellow, 'center', 14);
+    text('THE CAT IS SAFE.', W/2, HUD + 62, C.white, 'center');
+    if (roofT > 1.2) text('ROOF BONUS ' + bonus + '   EXTRA LIFE', W/2, HUD + 78, C.ylgreen, 'center');
+  }
+  if (state === 'over') {
+    panel('GAME OVER');
+    text(P.cause, W/2, HUD + 72, C.white, 'center');
+    text('HIGHEST: ' + (best > ROWS ? 'THE ROOF' : 'FLOOR ' + storyOf(best)) + (loop ? '  OF BUILDING ' + (loop + 1) : ''), W/2, HUD + 96, C.tan, 'center');
+    text('SCORE ' + score, W/2, HUD + 116, C.yellow, 'center', 10);
+    text('HI ' + hi, W/2, HUD + 134, C.gray, 'center');
+    text('PRESS START', W/2, HUD + 170, C.white, 'center');
+  }
+}
+
+/* ---------------- loop ---------------- */
+let last = performance.now(), acc = 0;
+let fitW = 0, fitH = 0;
+function frame(now) {
+  if (innerWidth !== fitW || innerHeight !== fitH) { fitW = innerWidth; fitH = innerHeight; fit(); }
+  acc += Math.min(0.1, (now - last)/1000); last = now;
+  while (acc >= STEP) { pollInput(); update(STEP); acc -= STEP; for (const b of BTN) pressed[b] = false; }
+  draw(); audioFrame();
+  requestAnimationFrame(frame);
+}
+document.addEventListener('visibilitychange', () => { if (document.hidden && state === 'play') state = 'pause'; });
+buildBuilding();
+if (DEMO) {
+  newGame();
+  /* &floor=N: start on that floor, at the first open window. */
+  const fl = parseInt(Q.get('floor'));
+  if (fl > 1 && fl <= STORIES) {
+    const r = (fl - 1)*PER + 1; let c = 0;
+    while (c < COLS - 1 && !isOpen(r, c)) c++;
+    Object.assign(P, {r, c, fr: r, fc: c}); best = r - 1; camB = r*ROWH - CAM_LOW;
+  }
+  /* ?demo&warp=N runs N simulation steps up front -- headless browsers barely
+     tick requestAnimationFrame, and this lets a screenshot show real play. */
+  const warp = Math.min(60*600, parseInt(Q.get('warp')) || 0);
+  /* &turn=N: dusk or dawn falls at step N. */
+  const turnAt = Q.has('turn') ? parseInt(Q.get('turn')) || 0 : -1;
+  for (let i = 0; i < warp; i++) { if (i === turnAt) turnTime(); pollInput(); update(STEP); for (const b of BTN) pressed[b] = false; }
+}
+requestAnimationFrame(frame);
+</script>

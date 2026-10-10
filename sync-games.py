@@ -33,6 +33,8 @@ GAMES = [
     ("circuit-breaker", "circuit-breaker"),
     ("vanishing-point", "vanishing-point"),
     ("lantern-run", "lantern-run"),
+    ("twelve-stories", "twelve-stories"),
+    ("tidewall", "tidewall"),
 ]
 
 BANNER = """<!--

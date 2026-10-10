@@ -1,0 +1,872 @@
+<!--
+  GENERATED FILE - DO NOT EDIT
+  Source:    ../tidewall/index.html
+  Rewritten: python3 sync-games.py
+  Edits made here are lost on the next sync. Fix the game in the
+  tidewall repo and re-run the script.
+-->
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Tidewall</title>
+<!-- One file, no build, no network. Open it straight from disk. -->
+<style>
+  html,body{margin:0;height:100%;background:#000;overflow:hidden}
+  /* Drawn at its native 400x272 and scaled up by CSS; pixelated keeps the
+     early-80s blocks sharp instead of smearing them. */
+  canvas{position:absolute;image-rendering:pixelated;image-rendering:crisp-edges}
+</style>
+<canvas id="c"></canvas>
+<script>
+"use strict";
+const VERSION = 'v0.1';
+
+/* ============================================================
+   Tidewall
+   A city on a sea wall, at night. Raiders cross the sky in
+   altitude bands, a little lower every pass, and at the lowest
+   band they dive and bomb. Three fixed cannons, and searchlights:
+   you see a raider only where a beam touches it. Every building
+   that falls lets the sea climb a little higher up the wall.
+   ============================================================ */
+
+const HUD = 20, FOOT = 12, W = 400, PH = 240, H = HUD + PH + FOOT;   // 400 x 272
+const STEP = 1/60;
+const Q = new URLSearchParams(location.search);
+/* ?demo: an autopilot plays, so a headless browser can screenshot real play.
+   &warp=N runs N steps first. &aim=P: the autopilot ignores each raider with
+   probability 1-P (aim=0 never fires, so the city falls). */
+const DEMO = Q.has('demo');
+/* In the demo, a seeded random (&seed=N), so a screenshot and a DOM dump of
+   the same URL show the same game. */
+if (DEMO) {
+  let a = (parseInt(Q.get('seed')) || 1) >>> 0;
+  Math.random = () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0)/4294967296; };
+}
+const DEMO_AIM = Q.has('aim') ? Math.max(0, Math.min(1, parseFloat(Q.get('aim')) || 0)) : 1;
+
+/* Sixteen colours, close to the Intellivision's own. */
+const C = {
+  black: '#0c0005', blue: '#002dff', red: '#ff3e00', tan: '#c9d464', dkgreen: '#00780f', green: '#00a720',
+  yellow: '#faea27', white: '#fffcff', gray: '#a7a8a8', cyan: '#5acbff', orange: '#ffa600', olive: '#3c5800',
+  pink: '#ff3276', violet: '#bd95ff', ltgreen: '#6ccd30', purple: '#c81a7d'
+};
+
+/* ---------------- the city ---------------- */
+/* The sea wall is low at the left end and high at the right, in 2-pixel
+   steps, so a rising sea floods it from the left. */
+const wallTop = x => 198 + 2*Math.floor((W - Math.max(0, Math.min(W - 1, x)))/80);
+const TIDE0 = 232, TIDE_STEP = 5;
+/* Nine structures, left to right: three cannon posts and six buildings.
+   Two buildings carry automatic searchlights; lose them and their beams go dark. */
+const LAYOUT = [
+  {kind: 'cannon', id: 'L', x: 34,  w: 26, h: 14},
+  {kind: 'bldg', x: 78,  w: 26, h: 30, c: C.tan},
+  {kind: 'bldg', x: 117, w: 24, h: 46, c: C.gray, lamp: true},
+  {kind: 'bldg', x: 156, w: 28, h: 24, c: C.violet},
+  {kind: 'cannon', id: 'C', x: 200, w: 30, h: 20},
+  {kind: 'bldg', x: 244, w: 28, h: 36, c: C.cyan},
+  {kind: 'bldg', x: 283, w: 24, h: 50, c: C.gray, lamp: true},
+  {kind: 'bldg', x: 322, w: 26, h: 28, c: C.tan},
+  {kind: 'cannon', id: 'R', x: 366, w: 26, h: 14},
+];
+const topOf = s => wallTop(s.x - s.w/2) - s.h;
+/* Each cannon: where its shots leave, and which way they go. */
+const SHOT_V = 330, S2 = Math.SQRT1_2;
+const GUN = {L: {dx: S2, dy: -S2}, C: {dx: 0, dy: -1}, R: {dx: -S2, dy: -S2}};
+
+/* ---------------- the raiders ---------------- */
+/* Four altitude bands. A raider crosses at one band, turns round off-screen
+   and comes back one band lower. At the lowest band it dives and bombs. */
+const BAND_Y = [30, 58, 86, 114];
+const SPR = {
+  skiff: ['......XXXX......',
+          '...XXXYYYYXXX...',
+          'XXXXXXXXXXXXXXXX',
+          '.XXZXXZXXZXXZXX.',
+          '....XXXXXXXX....'],
+  hawk:  ['XX............',
+          '.XXXX...YY....',
+          'XXXXXXXXXXXXXX',
+          '.XXXX.........',
+          'XX............'],
+  barge: ['....XXXXXXXXXXXXXX....',
+          '..XXYYXXYYXXYYXXYYXX..',
+          'XXXXXXXXXXXXXXXXXXXXXX',
+          'XXZZXXXXXXXXXXXXXXZZXX',
+          'XXXXXXXXXXXXXXXXXXXXXX',
+          '..XX..XX......XX..XX..'],
+  bandit:['....XXXX....',
+          '..XXYYYYXX..',
+          'XXXXXXXXXXXX',
+          'X.X.XXXX.X.X',
+          '....X..X....'],
+};
+const TYPES = {
+  skiff:  {speed: 58,  pts: 100,  hp: 1, col: {X: C.green,  Y: C.yellow, Z: C.white},  hum: 110, glint: C.ltgreen},
+  hawk:   {speed: 100, pts: 300,  hp: 1, col: {X: C.orange, Y: C.cyan,   Z: C.white},  hum: 165, glint: C.orange},
+  barge:  {speed: 36,  pts: 250,  hp: 2, col: {X: C.gray,   Y: C.blue,   Z: C.red},    hum: 73,  glint: C.red},
+  bandit: {speed: 84,  pts: 1000, hp: 1, col: {X: C.red,    Y: C.yellow, Z: C.white},  hum: 247, glint: C.pink},
+};
+for (const k in TYPES) { TYPES[k].w = SPR[k][0].length; TYPES[k].h = SPR[k].length; }
+
+/* ---------------- canvas ---------------- */
+const cv = document.getElementById('c'), ctx = cv.getContext('2d');
+cv.width = W; cv.height = H;
+const dark = document.createElement('canvas'); dark.width = W; dark.height = PH;
+const dctx = dark.getContext('2d');
+function fit() {
+  const k = Math.max(1, Math.min(innerWidth / W, innerHeight / H));
+  cv.style.width = (W*k) + 'px'; cv.style.height = (H*k) + 'px';
+  cv.style.left = ((innerWidth - W*k)/2) + 'px'; cv.style.top = ((innerHeight - H*k)/2) + 'px';
+}
+addEventListener('resize', fit); fit();
+const rect = (x, y, w, h, c) => { ctx.fillStyle = c; ctx.fillRect(Math.round(x), Math.round(y), w, h); };
+function text(s, x, y, c = C.white, align = 'left', size = 8) {
+  ctx.font = `bold ${size}px monospace`; ctx.textAlign = align; ctx.textBaseline = 'top';
+  ctx.fillStyle = '#000'; ctx.fillText(s, x + 1, y + 1);
+  ctx.fillStyle = c; ctx.fillText(s, x, y);
+}
+function sprite(rows, x, y, col, flip) {
+  const w = rows[0].length;
+  for (let j = 0; j < rows.length; j++) for (let i = 0; i < w; i++) {
+    const ch = rows[j][flip ? w - 1 - i : i];
+    if (ch !== '.') rect(x + i, y + j, 1, 1, col[ch]);
+  }
+}
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+
+/* ---------------- sound ---------------- */
+/* Square waves and filtered noise, in the spirit of the AY-3-8914. Every
+   raider throbs, panned to where it is and quicker the lower it flies, so
+   you can hear what you can't see. Under it all a heartbeat bass whose
+   tempo is the threat: the lower the raiders, the faster it goes. */
+let actx = null, soundOn = true, master = null, noiseBuf = null;
+function ensureAudio() {
+  try {
+    if (!actx) {
+      actx = new (window.AudioContext || window.webkitAudioContext)();
+      master = actx.createGain(); master.gain.value = soundOn ? 0.45 : 0; master.connect(actx.destination);
+      noiseBuf = actx.createBuffer(1, actx.sampleRate, actx.sampleRate);
+      const d = noiseBuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random()*2 - 1;
+    }
+    if (actx.state === 'suspended') { const p = actx.resume(); if (p && p.catch) p.catch(() => {}); }
+  } catch (e) { actx = null; }
+}
+const live = () => actx && actx.state === 'running';
+function setSound(on) { soundOn = on; if (master) master.gain.setTargetAtTime(on ? 0.45 : 0, actx.currentTime, 0.02); }
+function out(node, pan) {
+  if (pan && actx.createStereoPanner) { const p = actx.createStereoPanner(); p.pan.value = clamp(pan, -1, 1); node.connect(p).connect(master); }
+  else node.connect(master);
+}
+function beep(f, dur, {type = 'square', vol = 0.08, slide = 0, at = 0, pan = 0, when = null} = {}) {
+  if (!live()) return;
+  const t = when !== null ? when : actx.currentTime + at, o = actx.createOscillator(), g = actx.createGain();
+  o.type = type; o.frequency.setValueAtTime(f, t);
+  if (slide) o.frequency.exponentialRampToValueAtTime(Math.max(30, f + slide), t + dur);
+  g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  o.connect(g); out(g, pan); o.start(t); o.stop(t + dur + 0.02);
+}
+function hiss(dur, {vol = 0.1, f = 800, type = 'lowpass', at = 0, q = 0.7, pan = 0, when = null} = {}) {
+  if (!live()) return;
+  const t = when !== null ? when : actx.currentTime + at, s = actx.createBufferSource(), fl = actx.createBiquadFilter(), g = actx.createGain();
+  s.buffer = noiseBuf; s.loop = true; fl.type = type; fl.frequency.value = f; fl.Q.value = q;
+  g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  s.connect(fl).connect(g); out(g, pan); s.start(t); s.stop(t + dur + 0.05);
+}
+const panOf = x => clamp(x/W*2 - 1, -0.9, 0.9);
+const SFX = {
+  fire: (x) => beep(900, 0.09, {slide: -520, vol: 0.06, pan: panOf(x)}),
+  dry: () => beep(140, 0.04, {vol: 0.03}),
+  hit: (x) => { hiss(0.35, {f: 1800, vol: 0.14, pan: panOf(x)}); beep(520, 0.25, {slide: -420, vol: 0.06, pan: panOf(x)}); },
+  clang: (x) => { beep(1200, 0.05, {vol: 0.05, pan: panOf(x)}); beep(800, 0.07, {vol: 0.04, at: 0.04, pan: panOf(x)}); },
+  bombOff: (x, t) => beep(1500, Math.max(0.3, t), {slide: -1100, vol: 0.025, pan: panOf(x)}),
+  bombPop: (x) => { hiss(0.2, {f: 2600, vol: 0.08, pan: panOf(x)}); beep(1300, 0.08, {vol: 0.04, pan: panOf(x)}); },
+  fall: (x) => { hiss(1.6, {f: 260, vol: 0.32, pan: panOf(x)}); hiss(0.5, {f: 900, vol: 0.14, pan: panOf(x)});
+                 for (let i = 0; i < 5; i++) beep(196 - i*24, 0.16, {vol: 0.06, at: i*0.12, pan: panOf(x)}); },
+  swell: () => { hiss(2.4, {f: 420, type: 'bandpass', q: 1.5, vol: 0.12, at: 0.6}); beep(55, 2.2, {type: 'triangle', vol: 0.08, at: 0.6, slide: 10}); },
+  splash: (x) => hiss(0.4, {f: 1200, vol: 0.08, pan: panOf(x)}),
+  hum: (f, x, v) => beep(f, 0.07, {vol: v, pan: panOf(x)}),
+  flare: () => { hiss(0.5, {f: 4000, type: 'highpass', vol: 0.1}); beep(400, 0.5, {slide: 1400, vol: 0.04}); },
+  wave: () => [392, 523, 659, 784].forEach((f, i) => beep(f, 0.12, {vol: 0.06, at: i*0.09})),
+  clear: () => [523, 659, 784, 1047, 784, 1047].forEach((f, i) => beep(f, 0.1, {vol: 0.06, at: i*0.08})),
+  rebuild: () => [262, 330, 392, 523].forEach((f, i) => beep(f, 0.14, {type: 'triangle', vol: 0.08, at: i*0.1})),
+  over: () => [392, 349, 311, 262, 196].forEach((f, i) => beep(f, 0.3, {type: 'triangle', vol: 0.08, at: i*0.28})),
+  pause: (on) => beep(on ? 300 : 600, 0.06, {vol: 0.05}),
+};
+
+/* The heartbeat. A lookahead sequencer like Circuit Breaker's: sixteenth
+   steps scheduled on the audio clock, tempo set by the threat (how low the
+   lowest raider is), taken only on a beat and only half-way at a time. */
+const MUS = {next: 0, step: 0, bar: 0, sps: 5, target: 5};
+const PROG = [45, 45, 41, 40];          // A A F E
+const mtof = m => 440*Math.pow(2, (m - 69)/12);
+function playStep(t, s, bar, threat) {
+  const d = 1/MUS.sps, root = PROG[bar % 4];
+  if (s === 0 || s === 8) { beep(115, 0.14, {type: 'triangle', vol: 0.09 + 0.05*threat, slide: -77, when: t}); }
+  if (s === 2 || s === 10) { beep(115, 0.12, {type: 'triangle', vol: 0.05 + 0.03*threat, slide: -77, when: t}); }
+  if (s % 4 === 0) beep(mtof(root + [0, 0, 7, 12][(s >> 2)]), d*2.5, {type: 'triangle', vol: 0.05, when: t});
+  if (threat > 0.45 && s % 4 === 2) hiss(0.03, {type: 'highpass', f: 7000, vol: 0.02, when: t});
+  if (threat > 0.75 && (s === 4 || s === 12)) beep(mtof(root + 24), d*1.5, {vol: 0.014, when: t});
+  if (threat > 0.95 && s === 0 && bar % 2 === 0) { beep(mtof(root + 31), d*2, {vol: 0.014, when: t}); beep(mtof(root + 32), d*2, {vol: 0.014, when: t + d*2}); }
+}
+function scheduleMusic(threat) {
+  MUS.target = 4.5 + 6*threat;
+  const now = actx.currentTime;
+  if (MUS.next < now) MUS.next = now + 0.03;
+  while (MUS.next < now + 0.12) {
+    if (MUS.step % 4 === 0) MUS.sps += (MUS.target - MUS.sps)*0.5;
+    playStep(MUS.next, MUS.step, MUS.bar, threat);
+    MUS.next += 1/MUS.sps;
+    if (++MUS.step === 16) { MUS.step = 0; MUS.bar++; }
+  }
+}
+
+/* ---------------- input ---------------- */
+/* Everything collapses onto the eight NES buttons. Keyboard and every
+   connected pad are OR-ed together, so either works at any moment. */
+const BTN = ['up','down','left','right','a','b','select','start'];
+const KEYMAP = {
+  ArrowUp:'up', KeyW:'up', ArrowDown:'down', KeyS:'down', ArrowLeft:'left', KeyA:'left',
+  ArrowRight:'right', KeyD:'right', KeyZ:'a', KeyK:'a', Space:'a', KeyX:'b', KeyJ:'b',
+  ShiftLeft:'select', ShiftRight:'select', Enter:'start', NumpadEnter:'start', KeyP:'start'
+};
+const key = {}, keyTap = {}, held = {}, prevHeld = {}, pressed = {};
+let footMsg = '', footT = 0;
+const footNote = m => { footMsg = m; footT = 3; };
+addEventListener('keydown', e => {
+  ensureAudio();
+  if (e.code === 'KeyM') { setSound(!soundOn); footNote(soundOn ? 'SOUND ON' : 'SOUND OFF'); return; }
+  const b = KEYMAP[e.code]; if (!b) return;
+  e.preventDefault();
+  if (!e.repeat) keyTap[b] = true;
+  key[b] = true;
+});
+addEventListener('keyup', e => { const b = KEYMAP[e.code]; if (b) key[b] = false; });
+addEventListener('blur', () => { for (const b of BTN) key[b] = false; });
+for (const ev of ['mousedown', 'pointerdown', 'touchend']) addEventListener(ev, ensureAudio);
+addEventListener('gamepadconnected', () => footNote('CONTROLLER CONNECTED'));
+function pollInput() {
+  const pad = {};
+  for (const p of (navigator.getGamepads ? navigator.getGamepads() : [])) {
+    if (!p) continue;
+    const b = i => !!(p.buttons[i] && p.buttons[i].pressed);
+    const ax = p.axes[0] || 0, ay = p.axes[1] || 0;
+    /* Cheap NES-style pads often report the D-pad as axes 0/1. */
+    pad.up = pad.up || b(12) || ay < -0.5; pad.down = pad.down || b(13) || ay > 0.5;
+    pad.left = pad.left || b(14) || ax < -0.5; pad.right = pad.right || b(15) || ax > 0.5;
+    pad.a = pad.a || b(0); pad.b = pad.b || b(1);
+    pad.select = pad.select || b(8); pad.start = pad.start || b(9);
+  }
+  for (const b of BTN) {
+    held[b] = !!(key[b] || pad[b]);
+    pressed[b] = (held[b] && !prevHeld[b]) || !!keyTap[b];
+    if (pressed[b] && pad[b]) ensureAudio();
+    keyTap[b] = false; prevHeld[b] = held[b];
+  }
+  if (DEMO && state === 'play') demoPilot();
+}
+
+/* ---------------- game state ---------------- */
+let state = 'title', time = 0, score = 0, hi = 0, wave = 0, flares = 3;
+let city = [], raiders = [], shots = [], bombs = [], bits = [], booms = [];
+let queue = [], spawnT = 0, banner = '', bannerT = 0, breakT = 0, flareT = 0, flareY = 0;
+let tide = TIDE0, tideTarget = TIDE0, nextRebuild = 10000, aim = 0, overT = 0, overCause = '';
+let threat = 0, quake = 0;
+const cool = {L: 0, C: 0, R: 0};
+try { hi = parseInt(localStorage.getItem('tidewall-hi')) || 0; } catch (e) {}
+function saveHi() {
+  if (score <= hi) return;
+  hi = score;
+  if (!DEMO) try { localStorage.setItem('tidewall-hi', String(hi)); } catch (e) {}
+}
+
+const standing = () => city.filter(s => !s.down);
+const buildingsLeft = () => city.filter(s => s.kind === 'bldg' && !s.down).length;
+const cannon = id => city.find(s => s.kind === 'cannon' && s.id === id);
+const spd = () => Math.min(2.1, 1 + 0.11*(wave - 1));
+
+function say(m, t = 2.2) { banner = m; bannerT = t; }
+
+function newGame() {
+  score = 0; wave = 0; flares = 3; tide = tideTarget = TIDE0; nextRebuild = 10000; aim = 0; time = 0;
+  city = LAYOUT.map(s => ({...s, down: false, fallT: 0, flick: Math.random()*10}));
+  raiders = []; shots = []; bombs = []; bits = []; booms = []; flareT = 0; overT = 0;
+  for (const k in cool) cool[k] = 0;
+  state = 'play'; nextWave();
+}
+
+function nextWave() {
+  wave++;
+  const n = wave, q = [];
+  for (let i = 0; i < 3 + n; i++) q.push('skiff');
+  for (let i = 0; i < Math.min(6, n === 1 ? 1 : n - 1); i++) q.push('hawk');
+  for (let i = 0; i < Math.min(4, Math.floor(n/2)); i++) q.push('barge');
+  if (n >= 3) q.push('bandit');
+  if (n >= 6) q.push('bandit');
+  /* shuffle, but never open a wave with a bandit */
+  for (let i = q.length - 1; i > 0; i--) { const j = Math.floor(Math.random()*(i + 1)); [q[i], q[j]] = [q[j], q[i]]; }
+  if (q[0] === 'bandit') q.push(q.shift());
+  queue = q; spawnT = 2.2; breakT = 0;
+  if (wave > 1) flares = Math.min(5, flares + 1);
+  say('WAVE ' + wave, 2.2); SFX.wave();
+}
+const maxActive = () => Math.min(6, 2 + Math.ceil(wave/2));
+
+function spawn(type) {
+  const T = TYPES[type], fromLeft = Math.random() < 0.5;
+  raiders.push({type, T, hp: T.hp, band: 0, x: fromLeft ? -T.w - 4 : W + 4, y: BAND_Y[0], vx: (fromLeft ? 1 : -1)*T.speed*spd(), vy: 0,
+                state: 'pass', waitT: 0, target: null, throbT: Math.random(), glint: Math.random()*3, flash: 0, bombed: false,
+                ignored: DEMO && Math.random() > DEMO_AIM});
+}
+
+/* The structure a diving raider goes for: something still standing, ahead
+   of it on this pass. */
+function pickTarget(r) {
+  const dir = Math.sign(r.vx), ahead = standing().filter(s => (s.x - r.x)*dir > 70);
+  /* Buildings are what they came for; a cannon is half as likely a mark. */
+  let sum = 0; for (const s of ahead) sum += s.kind === 'bldg' ? 2 : 1;
+  let k = Math.random()*sum;
+  for (const s of ahead) { k -= s.kind === 'bldg' ? 2 : 1; if (k < 0) return s; }
+  return null;
+}
+
+function dropBomb(r, s) {
+  const g = 120, vy0 = 20, dy = topOf(s) - r.y;
+  const t = (-vy0 + Math.sqrt(vy0*vy0 + 2*g*dy))/g;
+  bombs.push({x: r.x, y: r.y + 4, vx: (s.x - r.x)/t, vy: vy0, g, from: r.type});
+  SFX.bombOff(r.x, t);
+}
+
+function updateRaider(r, dt) {
+  const T = r.T;
+  r.flash = Math.max(0, r.flash - dt); r.glint += dt;
+  if (r.state === 'wait') {
+    /* Off-screen, turning round. It comes back one band lower. */
+    r.waitT -= dt;
+    if (r.waitT <= 0) {
+      r.state = 'pass'; r.y = BAND_Y[r.band]; r.bombed = false;
+      r.target = (r.band === 3 && r.type !== 'bandit') ? pickTarget(r) : null;
+    }
+    return;
+  }
+  r.x += r.vx*dt; r.y += r.vy*dt;
+  if (r.state === 'pass') {
+    if (r.type === 'bandit') {
+      /* A bandit never comes down. It bombs from the top band, once a pass. */
+      if (!r.bombed && r.x > 20 && r.x < W - 20) {
+        if (!r.target || r.target.down) r.target = pickTarget(r);
+        if (r.target && Math.abs(r.target.x - r.x) < Math.abs(r.vx)*0.9 + 6) { r.bombed = true; dropBomb(r, r.target); r.target = null; }
+      }
+    } else if (r.band === 3) {
+      if (r.target && r.target.down) r.target = pickTarget(r);
+      if (r.target && (r.target.x - r.x)*Math.sign(r.vx) < 34 + Math.abs(r.vx)*0.35) { r.state = 'dive'; r.vy = 75*spd(); }
+    }
+  } else if (r.state === 'dive') {
+    if (r.y >= 132) {
+      if (r.target && !r.target.down) dropBomb(r, r.target);
+      r.state = 'climb'; r.vy = -120*spd();
+    }
+  }
+  const offSide = r.x < -T.w - 8 || r.x > W + 8, offTop = r.y < -12;
+  if (r.state === 'pass' && offSide) {
+    r.state = 'wait'; r.waitT = 0.4 + Math.random()*0.6; r.vx = -r.vx;
+    if (r.type !== 'bandit') r.band = Math.min(3, r.band + 1);
+  } else if (r.state === 'climb' && (offSide || offTop)) {
+    /* It got its bomb away; it goes round again from the top. */
+    r.state = 'wait'; r.band = 0; r.vy = 0; r.waitT = 1 + Math.random();
+    r.x = Math.random() < 0.5 ? -T.w - 4 : W + 4; r.vx = (r.x < 0 ? 1 : -1)*T.speed*spd();
+  }
+  /* The throb: quicker the lower it flies, panned to where it is. */
+  r.throbT -= dt;
+  if (r.throbT <= 0 && r.x > -10 && r.x < W + 10) {
+    r.throbT = r.state === 'pass' ? [1.1, 0.85, 0.6, 0.42][r.band] : 0.22;
+    SFX.hum(T.hum*(r.state === 'dive' ? 1.5 : 1), r.x, 0.012 + 0.006*r.band);
+  }
+}
+
+function rbox(r) { return {x0: r.x, x1: r.x + r.T.w, y0: r.y - r.T.h/2, y1: r.y + r.T.h/2}; }
+
+function fire(id) {
+  const s = cannon(id);
+  if (!s || s.down) { if (s) SFX.dry(); return; }
+  if (cool[id] > 0 || shots.filter(p => p.gun === id).length >= 2) return;
+  const g = GUN[id], y = topOf(s) - 2;
+  shots.push({gun: id, x: s.x + g.dx*8, y: y + g.dy*8, vx: g.dx*SHOT_V, vy: g.dy*SHOT_V});
+  cool[id] = 0.2; SFX.fire(s.x);
+}
+
+function boom(x, y, n, cols, power = 1) {
+  for (let i = 0; i < n; i++) {
+    const a = Math.random()*Math.PI*2, v = (20 + Math.random()*70)*power;
+    bits.push({x, y, vx: Math.cos(a)*v, vy: Math.sin(a)*v - 20, life: 0.5 + Math.random()*0.6, c: cols[i % cols.length]});
+  }
+  booms.push({x, y, r: 16*power, t: 0.35});
+}
+
+function fell(s) {
+  if (s.down) return;
+  s.down = true; s.fallT = 1.2; quake = 0.5;
+  boom(s.x, topOf(s) + s.h/2, 22, [C.orange, C.yellow, C.gray, C.red], 1.2);
+  SFX.fall(s.x);
+  if (s.kind === 'bldg') { tideTarget = Math.max(TIDE0 - 6*TIDE_STEP, tideTarget - TIDE_STEP); SFX.swell(); }
+  const lost = s.kind === 'bldg' ? (s.lamp ? 'A SEARCHLIGHT TOWER IS DOWN' : 'A BUILDING FALLS. THE TIDE RISES') : 'A CANNON IS LOST';
+  say(lost, 2);
+}
+
+function rebuild() {
+  /* Every 10,000 points one fallen structure rises again, and the sea
+     draws back a step if it was a building. */
+  const cannonsUp = city.some(s => s.kind === 'cannon' && !s.down);
+  const pick = (!cannonsUp && city.find(s => s.kind === 'cannon' && s.down)) || city.find(s => s.kind === 'bldg' && s.down) || city.find(s => s.down);
+  if (!pick) return;
+  pick.down = false; pick.fallT = 0; pick.rise = 1;
+  if (pick.kind === 'bldg') tideTarget = Math.min(TIDE0, tideTarget + TIDE_STEP);
+  say(pick.kind === 'bldg' ? 'REBUILT! THE SEA DRAWS BACK' : 'A CANNON IS REBUILT', 2.2); SFX.rebuild();
+}
+
+function addScore(n) {
+  score += n;
+  while (score >= nextRebuild) { nextRebuild += 10000; rebuild(); }
+}
+
+function gameOver(cause) {
+  state = 'over'; overT = 0; overCause = cause; saveHi(); SFX.over();
+}
+
+/* ---------------- searchlights ---------------- */
+/* The one you steer stands on the central post (it survives the post), and
+   two sweep by themselves from the lamp towers while those stand. */
+const LAMP = {x: 200, y: wallTop(200) - 21};
+function beams() {
+  const out = [{x: LAMP.x, y: LAMP.y, a: aim, hw: 0.09, len: 270, mine: true}];
+  city.forEach((s, i) => {
+    if (!s.lamp || s.down) return;
+    const ph = i < 4 ? 0 : 2.4;
+    out.push({x: s.x, y: topOf(s) - 6, a: (i < 4 ? 0.15 : -0.15) + 0.95*Math.sin(time*0.55 + ph), hw: 0.07, len: 260});
+  });
+  return out;
+}
+function inBeam(b, x, y, pad = 0) {
+  const dx = x - b.x, dy = b.y - y;
+  if (dy <= 2) return false;
+  const d = Math.hypot(dx, dy);
+  return d < b.len && Math.abs(Math.atan2(dx, dy) - b.a) < b.hw + pad/d;
+}
+const flareK = () => flareT > 0 ? Math.min(1, flareT/0.8) : 0;
+function lit(r, bs) {
+  if (flareK() > 0.3) return true;
+  const cx = r.x + r.T.w/2;
+  return bs.some(b => inBeam(b, cx, r.y, r.T.w/2));
+}
+
+/* ---------------- the demo autopilot ---------------- */
+/* It plays fair: it fires only at raiders it can see (in a beam, or under
+   a flare), and steers its beam toward the one it can hear lowest. */
+function demoPilot() {
+  for (const b of ['left', 'right', 'a', 'b', 'up', 'select']) { held[b] = false; pressed[b] = false; }
+  const bs = beams();
+  const active = raiders.filter(r => r.state !== 'wait' && r.x > -r.T.w && r.x < W && !r.ignored);
+  let worst = null, wv = -1;
+  for (const r of active) { const v = r.band + (r.state !== 'pass' ? 2 : 0) + (r.type === 'bandit' ? 2 : 0); if (v > wv) { wv = v; worst = r; } }
+  if (worst) {
+    const want = Math.atan2(worst.x + worst.T.w/2 + worst.vx*0.3 - LAMP.x, LAMP.y - worst.y);
+    if (want > aim + 0.04) held.right = true; else if (want < aim - 0.04) held.left = true;
+  }
+  for (const id of ['L', 'C', 'R']) {
+    const s = cannon(id); if (s.down || cool[id] > 0) continue;
+    const g = GUN[id], ox = s.x + g.dx*8, oy = topOf(s) - 2 + g.dy*8;
+    const go = (tx, ty, vx, vy, half) => {
+      const t = (oy - ty)/(SHOT_V*-g.dy); if (t <= 0) return false;
+      return Math.abs(ox + g.dx*SHOT_V*t - (tx + vx*t)) < half && Math.abs(vy*t) < 30;
+    };
+    let shoot = false;
+    for (const r of active) if (lit(r, bs) && go(r.x + r.T.w/2, r.y, r.vx, r.vy, r.T.w/2 - 1)) shoot = true;
+    for (const b of bombs) if (b.y < 150 && go(b.x, b.y + b.vy*0.3, b.vx, b.vy, 3)) shoot = true;
+    if (shoot) { if (id === 'L') pressed.b = true; if (id === 'R') pressed.a = true; if (id === 'C') pressed.up = true; }
+  }
+  const unseenLow = active.filter(r => r.band >= 2 && !lit(r, bs)).length;
+  if (flares > 0 && flareT <= 0 && unseenLow >= 2) pressed.select = true;
+}
+
+/* ---------------- update ---------------- */
+function update(dt) {
+  time += dt;
+  if (footT > 0) footT -= dt;
+  if (state === 'title') { if (pressed.start) newGame(); return; }
+  if (state === 'over') {
+    overT += dt;
+    if (overT > 1 && pressed.start) newGame();
+    for (const p of bits) { p.x += p.vx*dt; p.y += p.vy*dt; p.vy += 120*dt; p.life -= dt; }
+    bits = bits.filter(p => p.life > 0);
+    for (const b of booms) b.t -= dt;
+    booms = booms.filter(b => b.t > 0);
+    for (const s of city) if (s.fallT > 0) s.fallT = Math.max(0, s.fallT - dt);
+    tide += (tideTarget - tide)*Math.min(1, dt*0.8);
+    return;
+  }
+  if (pressed.start) { state = state === 'pause' ? 'play' : 'pause'; SFX.pause(state === 'pause'); return; }
+  if (state === 'pause') { if (pressed.select) { setSound(!soundOn); footNote(soundOn ? 'SOUND ON' : 'SOUND OFF'); } return; }
+
+  if (bannerT > 0) bannerT -= dt;
+  quake = Math.max(0, quake - dt);
+  /* Steer your beam. */
+  if (held.left) aim -= 1.7*dt;
+  if (held.right) aim += 1.7*dt;
+  aim = clamp(aim, -1.2, 1.2);
+  /* Fire: B the left cannon, A the right, Up the centre. */
+  for (const k in cool) cool[k] = Math.max(0, cool[k] - dt);
+  if (pressed.b) fire('L');
+  if (pressed.a) fire('R');
+  if (pressed.up) fire('C');
+  /* Select: a flare that lights the whole sky for a few seconds. */
+  if (pressed.select) {
+    if (flares > 0 && flareT <= 0) { flares--; flareT = 3.2; flareY = 10; SFX.flare(); }
+    else SFX.dry();
+  }
+  flareT = Math.max(0, flareT - dt); flareY += 14*dt;
+
+  /* Raiders arrive. */
+  spawnT -= dt;
+  if (queue.length && spawnT <= 0 && raiders.length < maxActive()) {
+    spawn(queue.shift()); spawnT = Math.max(0.5, 2.0 - 0.14*wave) + Math.random()*0.8;
+  }
+  for (const r of raiders) updateRaider(r, dt);
+
+  /* Shots. Each one checks the stretch it moved, so nothing slips between frames. */
+  for (const p of shots) {
+    const px = p.x, py = p.y;
+    p.x += p.vx*dt; p.y += p.vy*dt;
+    for (const r of raiders) {
+      if (r.state === 'wait' || p.dead) continue;
+      const b = rbox(r);
+      for (let k = 0; k <= 3; k++) {
+        const sx = px + (p.x - px)*k/3, sy = py + (p.y - py)*k/3;
+        if (sx > b.x0 - 1 && sx < b.x1 + 1 && sy > b.y0 - 2 && sy < b.y1 + 2) {
+          p.dead = true; r.hp--; r.flash = 0.15;
+          if (r.hp <= 0) {
+            r.dead = true; addScore(r.T.pts);
+            boom(r.x + r.T.w/2, r.y, 16, [r.T.col.X, r.T.col.Y, C.white, C.orange]); SFX.hit(r.x);
+          } else SFX.clang(r.x);
+          break;
+        }
+      }
+    }
+    for (const b of bombs) {
+      if (p.dead || b.dead) continue;
+      if (Math.hypot(p.x - b.x, p.y - b.y) < 6 || Math.hypot((px + p.x)/2 - b.x, (py + p.y)/2 - b.y) < 6) {
+        p.dead = b.dead = true; addScore(50); boom(b.x, b.y, 8, [C.yellow, C.white], 0.6); SFX.bombPop(b.x);
+      }
+    }
+    if (p.y < -6 || p.x < -6 || p.x > W + 6) p.dead = true;
+  }
+  shots = shots.filter(p => !p.dead);
+  raiders = raiders.filter(r => !r.dead);
+
+  /* Bombs. */
+  for (const b of bombs) {
+    b.vy += b.g*dt; b.x += b.vx*dt; b.y += b.vy*dt;
+    for (const s of city) {
+      if (s.down || b.dead) continue;
+      if (Math.abs(b.x - s.x) < s.w/2 + 1 && b.y >= topOf(s)) { b.dead = true; fell(s); }
+    }
+    if (!b.dead && b.y >= wallTop(b.x)) {
+      b.dead = true;
+      if (b.y >= tide - 1) SFX.splash(b.x); else boom(b.x, b.y, 6, [C.orange, C.gray], 0.5);
+    }
+  }
+  bombs = bombs.filter(b => !b.dead);
+
+  for (const p of bits) { p.x += p.vx*dt; p.y += p.vy*dt; p.vy += 120*dt; p.life -= dt; }
+  bits = bits.filter(p => p.life > 0);
+  for (const b of booms) b.t -= dt;
+  booms = booms.filter(b => b.t > 0);
+  for (const s of city) { if (s.fallT > 0) s.fallT = Math.max(0, s.fallT - dt); if (s.rise > 0) s.rise = Math.max(0, s.rise - dt); }
+  tide += (tideTarget - tide)*Math.min(1, dt*0.8);
+
+  /* How bad is it? 0 = everything high, 1 = something diving or bombing. */
+  let t = 0;
+  for (const r of raiders) if (r.state !== 'wait') t = Math.max(t, r.state === 'pass' ? r.band/3*0.85 : 1);
+  if (bombs.length) t = 1;
+  threat += (t - threat)*Math.min(1, dt*3);
+
+  if (buildingsLeft() === 0) { gameOver('THE SEA HAS TAKEN THE CITY'); return; }
+  if (!city.some(s => s.kind === 'cannon' && !s.down)) { gameOver('THE GUNS ARE SILENT. THE CITY FALLS'); return; }
+  saveHi();
+
+  /* Wave over: bonus for what still stands, then the next. */
+  if (!queue.length && !raiders.length && !bombs.length) {
+    if (breakT === 0) {
+      const bonus = 50*wave*standing().length;
+      breakT = 2.6; addScore(bonus); say('WAVE ' + wave + ' HELD   BONUS ' + bonus, 2.5); SFX.clear();
+    } else {
+      breakT -= dt;
+      if (breakT <= 0) nextWave();
+    }
+  }
+}
+
+/* ---------------- drawing ---------------- */
+const STARS = Array.from({length: 46}, (_, i) => ({x: (i*97 + 13) % W, y: (i*53 + 7) % 170, p: (i*1.7) % 6}));
+function drawSky() {
+  const g = ctx.createLinearGradient(0, HUD, 0, HUD + 200);
+  g.addColorStop(0, '#02020c'); g.addColorStop(1, '#0a0f2e');
+  ctx.fillStyle = g; ctx.fillRect(0, HUD, W, PH);
+  for (const s of STARS) if ((time*0.7 + s.p) % 6 > 0.3) rect(s.x, HUD + s.y, 1, 1, s.y < 90 ? '#5a6488' : '#3c4568');
+}
+function drawRaiders(bs) {
+  for (const r of raiders) {
+    if (r.state === 'wait') continue;
+    const col = r.flash > 0 ? {X: C.white, Y: C.white, Z: C.white} : r.T.col;
+    sprite(SPR[r.type], r.x, HUD + r.y - Math.floor(r.T.h/2), col, r.vx < 0);
+  }
+}
+/* Outside the beams the sky is black. Cut the beams out of the dark. */
+function drawDarkness(bs) {
+  const k = 1 - flareK()*0.85;
+  dctx.globalCompositeOperation = 'source-over';
+  dctx.clearRect(0, 0, W, PH);
+  /* The city's own glow thins the dark just above the rooftops, so a
+     raider diving at it shows dimly even outside the beams. */
+  const g0 = dctx.createLinearGradient(0, 0, 0, 196);
+  g0.addColorStop(0, `rgba(0,0,0,${(0.97*k).toFixed(3)})`);
+  g0.addColorStop(0.56, `rgba(0,0,0,${(0.97*k).toFixed(3)})`);
+  g0.addColorStop(1, `rgba(0,0,0,${(0.45*k).toFixed(3)})`);
+  dctx.fillStyle = g0;
+  dctx.fillRect(0, 0, W, 196);
+  dctx.globalCompositeOperation = 'destination-out';
+  for (const b of bs) {
+    const ex = b.x + Math.sin(b.a)*b.len, ey = b.y - Math.cos(b.a)*b.len;
+    const g = dctx.createLinearGradient(b.x, b.y, ex, ey);
+    g.addColorStop(0, 'rgba(0,0,0,1)'); g.addColorStop(0.75, 'rgba(0,0,0,0.9)'); g.addColorStop(1, 'rgba(0,0,0,0.55)');
+    dctx.fillStyle = g; dctx.beginPath(); dctx.moveTo(b.x, b.y);
+    dctx.lineTo(b.x + Math.sin(b.a - b.hw)*b.len, b.y - Math.cos(b.a - b.hw)*b.len);
+    dctx.lineTo(b.x + Math.sin(b.a + b.hw)*b.len, b.y - Math.cos(b.a + b.hw)*b.len);
+    dctx.closePath(); dctx.fill();
+  }
+  for (const e of booms) {
+    const g = dctx.createRadialGradient(e.x, e.y, 0, e.x, e.y, e.r*2);
+    g.addColorStop(0, 'rgba(0,0,0,0.9)'); g.addColorStop(1, 'rgba(0,0,0,0)');
+    dctx.fillStyle = g; dctx.beginPath(); dctx.arc(e.x, e.y, e.r*2, 0, 7); dctx.fill();
+  }
+  dctx.globalCompositeOperation = 'source-over';
+  ctx.drawImage(dark, 0, HUD);
+  /* the haze in each beam */
+  for (const b of bs) {
+    ctx.fillStyle = b.mine ? 'rgba(250,234,39,0.10)' : 'rgba(190,210,255,0.07)';
+    ctx.beginPath(); ctx.moveTo(b.x, HUD + b.y);
+    ctx.lineTo(b.x + Math.sin(b.a - b.hw)*b.len, HUD + b.y - Math.cos(b.a - b.hw)*b.len);
+    ctx.lineTo(b.x + Math.sin(b.a + b.hw)*b.len, HUD + b.y - Math.cos(b.a + b.hw)*b.len);
+    ctx.closePath(); ctx.fill();
+  }
+  if (flareT > 0) {
+    ctx.fillStyle = `rgba(255,240,200,${(0.08*flareK()).toFixed(3)})`; ctx.fillRect(0, HUD, W, 196);
+    const fx = 200 + Math.sin(time*2)*30;
+    rect(fx - 1, HUD + flareY, 3, 3, C.white); rect(fx, HUD + flareY - 3, 1, 3, C.yellow);
+  }
+}
+/* What you get when you can't see a raider: a running light that winks now
+   and then. Enough to know something's there, not enough to aim by. */
+function drawGlints(bs) {
+  for (const r of raiders) {
+    if (r.state === 'wait' || lit(r, bs)) continue;
+    const ph = r.glint % 1.3;
+    if (ph < 0.12) rect(r.x + (r.vx > 0 ? r.T.w - 1 : 0), HUD + r.y, 1, 1, r.T.glint);
+    if (r.state !== 'pass' && ph > 0.6 && ph < 0.7) rect(r.x + r.T.w/2, HUD + r.y + 2, 1, 1, C.red);
+  }
+}
+function drawCity() {
+  /* the wall, stepped low at the left end */
+  for (let x = 0; x < W; x += 2) {
+    const t = wallTop(x);
+    rect(x, HUD + t, 2, PH - t, '#3a3428');
+    if ((x >> 1) % 9 === 0) rect(x, HUD + t + 6, 1, PH - t, '#2a251c');
+  }
+  for (let x = 0; x < W; x += 2) rect(x, HUD + wallTop(x), 2, 2, '#6a6250');
+  for (let y = 214; y < PH; y += 8) for (let x = (y % 16 ? 0 : 10); x < W; x += 20) rect(x, HUD + y, 1, 8, '#2a251c');
+  for (const s of city) {
+    const base = wallTop(s.x - s.w/2), x0 = s.x - s.w/2;
+    if (s.down && s.fallT <= 0) {
+      /* rubble */
+      for (let i = 0; i < s.w; i += 3) rect(x0 + i, HUD + base - 2 - ((i*7) % 4), 3, 3 + ((i*7) % 4), i % 2 ? '#4a4438' : '#5c5446');
+      continue;
+    }
+    const k = s.down ? s.fallT/1.2 : 1 - (s.rise || 0);
+    const h = Math.max(2, Math.round(s.h*k)), top = base - h;
+    const jit = s.down ? (Math.random() - 0.5)*2 : 0;
+    if (s.kind === 'bldg') {
+      rect(x0 + jit, HUD + top, s.w, h, s.c);
+      rect(x0 + jit + s.w - 3, HUD + top, 3, h, '#00000055');
+      /* windows: most lit, a few flickering */
+      for (let wy = top + 4; wy < base - 4; wy += 6) for (let wx = x0 + 3; wx < x0 + s.w - 5; wx += 5) {
+        const n = (wx*13 + wy*7) % 11, on = n > 2 || ((time + s.flick + n) % 7 > 3.5);
+        rect(wx + jit, HUD + wy, 3, 3, on ? C.yellow : '#1a1a10');
+      }
+      if (s.lamp && !s.down) {
+        rect(s.x - 3, HUD + top - 6, 6, 6, C.gray); rect(s.x - 2, HUD + top - 5, 4, 3, C.white);
+      }
+    } else {
+      /* a cannon post: a stone block, a dome, a barrel pointing its way */
+      rect(x0 + jit, HUD + top + 6, s.w, h - 6, '#7a7468');
+      rect(x0 + 2 + jit, HUD + top + 8, s.w - 4, 2, '#5c574c');
+      ctx.fillStyle = s.id === 'C' ? C.cyan : C.green;
+      ctx.beginPath(); ctx.arc(s.x + jit, HUD + top + 6, 7, Math.PI, 0); ctx.fill();
+      if (!s.down) {
+        const g = GUN[s.id], bx = s.x, by = HUD + top + 2;
+        for (let i = 0; i < 9; i++) rect(bx + g.dx*i - 1, by + g.dy*i - 1, 2, 2, cool[s.id] > 0.1 ? C.orange : C.white);
+      }
+    }
+  }
+  /* your searchlight, on the central post */
+  rect(LAMP.x - 3, HUD + LAMP.y - 1, 6, 4, C.yellow);
+}
+function drawSea() {
+  const t = Math.round(tide);
+  ctx.fillStyle = 'rgba(0,45,255,0.55)';
+  ctx.fillRect(0, HUD + t, W, PH - t);
+  ctx.fillStyle = 'rgba(0,20,120,0.55)';
+  ctx.fillRect(0, HUD + t + 6, W, PH - t - 6);
+  for (let x = 0; x < W; x += 4) {
+    const y = t + Math.round(Math.sin(x*0.15 + time*2.2)*1.2);
+    rect(x, HUD + y, 3, 1, (x + Math.floor(time*8)) % 16 < 3 ? C.white : C.cyan);
+  }
+  /* where the sea comes over the wall, it spills */
+  for (let x = 0; x < W; x += 2) if (wallTop(x) > t + 1 && (x + Math.floor(time*20)) % 7 === 0) rect(x, HUD + t - 1, 1, 1, C.white);
+}
+function drawShots() {
+  for (const p of shots) {
+    const n = Math.hypot(p.vx, p.vy), ux = p.vx/n, uy = p.vy/n;
+    for (let i = 0; i < 5; i++) rect(p.x - ux*i, HUD + p.y - uy*i, 1, 1, i < 2 ? C.white : C.yellow);
+  }
+  for (const b of bombs) {
+    rect(b.x - 1, HUD + b.y - 1, 3, 3, C.red);
+    if (Math.floor(time*12) % 2) rect(b.x, HUD + b.y - 3, 1, 1, C.yellow);
+  }
+  for (const p of bits) rect(p.x, HUD + p.y, p.life > 0.3 ? 2 : 1, p.life > 0.3 ? 2 : 1, p.c);
+  /* a flash, then a ring blowing outward */
+  for (const e of booms) {
+    const k = 1 - e.t/0.35;
+    if (k < 0.3) { ctx.fillStyle = k < 0.15 ? C.white : C.yellow; ctx.beginPath(); ctx.arc(e.x, HUD + e.y, 3 + k*12, 0, 7); ctx.fill(); }
+    ctx.strokeStyle = k < 0.5 ? C.yellow : C.orange; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.arc(e.x, HUD + e.y, 2 + e.r*k, 0, 7); ctx.stroke();
+  }
+}
+
+const pad6 = n => String(n).padStart(6, '0');
+function drawHud() {
+  rect(0, 0, W, HUD, '#000');
+  text('SCORE ' + pad6(score), 4, 6, C.white);
+  text('WAVE ' + Math.max(1, wave), 134, 6, C.cyan);
+  text('HI ' + pad6(hi), 206, 6, C.yellow);
+  /* flares left */
+  for (let i = 0; i < flares; i++) { rect(W - 10 - i*9, 6, 3, 7, C.orange); rect(W - 10 - i*9, 4, 3, 2, C.yellow); }
+  rect(0, HUD + PH, W, FOOT, '#000');
+  const rise = Math.round((TIDE0 - tide)/TIDE_STEP*10)/10;
+  text(footT > 0 ? footMsg : `TIDEWALL ${VERSION}   TIDE +${rise.toFixed(1)}   BUILDINGS ${buildingsLeft()}/6`, 4, HUD + PH + 2, C.gray);
+  /* Browsers start sound only after a key press or click, and a gamepad
+     button may not count -- so say so rather than be silently quiet. */
+  if (soundOn && !live()) text('PRESS ANY KEY FOR SOUND', W - 4, HUD + PH + 2, C.yellow, 'right');
+  else text(soundOn ? 'SND' : 'MUTE', W - 4, HUD + PH + 2, C.gray, 'right');
+  if (bannerT > 0 && state === 'play') text(banner, W/2, HUD + 140, C.white, 'center');
+}
+
+function panel(title, y0 = 20, y1 = 200) {
+  ctx.fillStyle = 'rgba(0,0,0,0.86)'; ctx.fillRect(30, HUD + y0, W - 60, y1 - y0);
+  ctx.strokeStyle = C.cyan; ctx.lineWidth = 1; ctx.strokeRect(30.5, HUD + y0 + 0.5, W - 61, y1 - y0 - 1);
+  text(title, W/2, HUD + y0 + 8, C.yellow, 'center', 10);
+}
+const CONTROLS = [
+  ['B',      'X J',     'LEFT CANNON (FIRES UP-RIGHT)'],
+  ['A',      'Z K SPC', 'RIGHT CANNON (FIRES UP-LEFT)'],
+  ['UP',     'UP W',    'CENTRE CANNON (STRAIGHT UP)'],
+  ['L / R',  'ARROWS',  'STEER YOUR SEARCHLIGHT'],
+  ['SELECT', 'SHIFT',   'FLARE: LIGHTS THE WHOLE SKY'],
+  ['START',  'ENTER P', 'START / PAUSE'],
+];
+function drawControls(y) {
+  CONTROLS.forEach(([p, k, d], i) => {
+    text(p, 50, y + i*11, C.yellow); text(k, 104, y + i*11, C.gray); text(d, 160, y + i*11, C.white);
+  });
+}
+function drawTitle() {
+  drawSky();
+  const bs = [{x: LAMP.x, y: LAMP.y, a: Math.sin(time*0.6)*0.9, hw: 0.09, len: 270, mine: true}];
+  drawDarkness(bs);
+  drawCity(); drawSea();
+  ctx.fillStyle = 'rgba(0,0,0,0.72)'; ctx.fillRect(0, 0, W, H);
+  text('TIDEWALL', W/2, 26, C.cyan, 'center', 26);
+  text('HOLD THE CITY ON THE SEA WALL', W/2, 58, C.tan, 'center', 10);
+  const rows = [
+    'Raiders cross the night sky, lower every pass.',
+    'At the lowest band they dive and bomb.',
+    'You see them only in a searchlight.',
+    'Every building lost, the sea climbs higher.',
+  ];
+  rows.forEach((r, i) => text(r, W/2, 80 + i*11, C.white, 'center'));
+  drawControls(132);
+  if (Math.floor(time*2) % 2) text('PRESS START', W/2, 206, C.ltgreen, 'center', 12);
+  text('HI ' + pad6(hi), 6, H - 12, C.yellow);
+  if (!live()) text('PRESS ANY KEY FOR SOUND', W/2, 228, C.yellow, 'center');
+  text(VERSION, W - 4, H - 12, C.gray, 'right');
+}
+
+function draw() {
+  if (state === 'title') { drawTitle(); return; }
+  ctx.save();
+  if (quake > 0) ctx.translate(Math.round((Math.random() - 0.5)*3*quake*2), 0);
+  const bs = beams();
+  drawSky();
+  drawRaiders(bs);
+  drawDarkness(bs);
+  drawGlints(bs);
+  drawCity();
+  drawShots();
+  drawSea();
+  ctx.restore();
+  drawHud();
+  if (state === 'pause') {
+    panel('PAUSED', 20, 196);
+    drawControls(HUD + 44);
+    text('RAIDERS: SKIFF 100  BARGE 250 (2 HITS)', W/2, HUD + 118, C.white, 'center');
+    text('HAWK 300  BANDIT 1000  BOMB 50', W/2, HUD + 130, C.white, 'center');
+    text('A BUILDING IS REBUILT EVERY 10,000 POINTS', W/2, HUD + 146, C.ltgreen, 'center');
+    text('START: GO ON    SELECT: SOUND ' + (soundOn ? 'OFF' : 'ON'), W/2, HUD + 170, C.yellow, 'center');
+  }
+  if (state === 'over') {
+    panel('GAME OVER', 40, 170);
+    text(overCause, W/2, HUD + 68, C.white, 'center');
+    text('WAVE ' + wave + '   SCORE ' + score, W/2, HUD + 92, C.yellow, 'center', 10);
+    text(score >= hi && score > 0 ? 'A NEW HIGH SCORE!' : 'HIGH SCORE ' + hi, W/2, HUD + 112, C.ltgreen, 'center');
+    if (overT > 1) text('PRESS START', W/2, HUD + 142, C.white, 'center');
+  }
+}
+
+/* ---------------- loop ---------------- */
+let last = performance.now(), acc = 0;
+function frame(now) {
+  acc += Math.min(0.1, (now - last)/1000); last = now;
+  while (acc >= STEP) { pollInput(); update(STEP); acc -= STEP; for (const b of BTN) pressed[b] = false; }
+  if (live() && soundOn && state === 'play') scheduleMusic(threat);
+  draw();
+  requestAnimationFrame(frame);
+}
+document.addEventListener('visibilitychange', () => { if (document.hidden && state === 'play') { state = 'pause'; } });
+city = LAYOUT.map(s => ({...s, down: false, fallT: 0, flick: Math.random()*10}));
+if (DEMO) {
+  /* &sound starts audio without a key press (needs a browser that allows
+     autoplay), so headless runs exercise the sound code too. */
+  if (Q.has('sound')) ensureAudio();
+  newGame();
+  /* ?demo&warp=N runs N simulation steps up front -- headless browsers barely
+     tick requestAnimationFrame, and this lets a screenshot show real play. */
+  const warp = Math.min(60*900, parseInt(Q.get('warp')) || 0);
+  /* &flare=N fires a flare at step N, to check how it looks. */
+  const flareAt = Q.has('flare') ? parseInt(Q.get('flare')) || 0 : -1;
+  for (let i = 0; i < warp; i++) { pollInput(); if (i === flareAt) pressed.select = true; update(STEP); for (const b of BTN) pressed[b] = false; }
+  if (Q.has('pause')) state = 'pause';
+  /* For headless checks: what the warp left behind, readable with --dump-dom. */
+  document.body.dataset.demo = JSON.stringify({state, wave, score, buildings: buildingsLeft(),
+    cannons: city.filter(s => s.kind === 'cannon' && !s.down).length, tide: +(TIDE0 - tide).toFixed(1), raiders: raiders.length, queue: queue.length, bombs: bombs.length, flareT: +flareT.toFixed(2), diving: raiders.filter(r => r.state === "dive" || r.state === "climb").length, flares, audio: actx ? actx.state : "none"});
+}
+requestAnimationFrame(frame);
+</script>

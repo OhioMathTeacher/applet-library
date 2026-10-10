@@ -65,6 +65,12 @@ Draw a dungeon floor plan and it becomes a prism you can walk through. The edito
 ### 🏮 [Lantern Run](https://ohiomathteacher.github.io/applet-library/lantern-run/)
 *Under construction.* A zoologist in the Amazon. Climb through the four layers of the rainforest (floor, understory, canopy, emergent) to find and document twenty-four species, twelve nocturnal and twelve diurnal, each behaving as the real animal does. Switch night to day at any time and watch the cast change over.
 
+### 🏢 [Twelve Stories](https://ohiomathteacher.github.io/applet-library/twelve-stories/)
+*Under construction.* Climb a twelve-floor building window by window while the tenants throw things down: rolling pins, flowerpots, books, paint cans, bees. By day, shutters open and close and you can see everything coming. By night, only lit windows throw, and you can barely see where you're going. Switch at any time.
+
+### 🌊 [Tidewall](https://ohiomathteacher.github.io/applet-library/tidewall/)
+*Under construction.* A city on a sea wall, at night. Raiders pass lower and lower until they dive. Steer a searchlight to find them and fire three cannons to bring them down. Every building lost lets the tide rise.
+
 ---
 
 ## About

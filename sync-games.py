@@ -31,6 +31,8 @@ GAMES = [
     ("haunt", "haunt"),
     ("chomp-and-spell", "chomp-and-spell"),
     ("circuit-breaker", "circuit-breaker"),
+    ("vanishing-point", "vanishing-point"),
+    ("lantern-run", "lantern-run"),
 ]
 
 BANNER = """<!--

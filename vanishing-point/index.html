@@ -1,0 +1,1207 @@
+<!--
+  GENERATED FILE - DO NOT EDIT
+  Source:    ../vanishing-point/index.html
+  Rewritten: python3 sync-games.py
+  Edits made here are lost on the next sync. Fix the game in the
+  vanishing-point repo and re-run the script.
+-->
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Vanishing Point</title>
+<!-- One file, no build, no network. Open it straight from disk. -->
+<style>
+  html,body{margin:0;height:100%;background:#000;overflow:hidden}
+  /* The canvas is drawn at its native 384x256 and scaled up by CSS; pixelated
+     keeps the early-80s blocks sharp instead of smearing them. */
+  canvas{position:absolute;image-rendering:pixelated;image-rendering:crisp-edges}
+</style>
+<canvas id="c"></canvas>
+<script>
+"use strict";
+/* Shown quietly in the corner; bump with each release. */
+const VERSION = 'v0.1';
+
+/* ============================================================
+   Vanishing Point
+   Five beams, one horizon. A retro shooter for an NES-style controller.
+   Hop between five beams that run off to a single vanishing point,
+   clear fifteen saucers per sector, then try to torpedo the sector
+   ship as it crosses the far end of the field.
+   ============================================================ */
+
+const W = 384, H = 256, CX = W/2;
+const STEP = 1/60;
+const Q = new URLSearchParams(location.search);
+/* ?demo auto-starts with an invincible auto-pilot so a headless browser can
+   screenshot real play. &sector=N starts in sector N, &warp=N runs N
+   simulation steps before the first frame, &side opens the side view. */
+const DEMO = Q.has('demo');
+const MORTAL = Q.has('mortal');   // with ?demo: the auto-pilot can die, to test deaths
+/* In demo mode the dice are loaded the same way every run (a small seeded
+   generator), so a given ?warp always shows the same moment. */
+if (DEMO) {
+  let seed = (parseInt(Q.get('seed')) || 7) >>> 0;
+  Math.random = () => {
+    seed = (seed + 0x6D2B79F5) >>> 0;
+    let t = seed;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+const START_SECTOR = Math.max(1, Math.min(99, parseInt(Q.get('sector')) || 1));
+
+/* ---------------- the world and its projection ---------------- */
+/* World units: x is sideways (0 = straight ahead), z is depth away from the
+   eye, and the beams lie on a floor EYE_H below the eye. The ship sits at
+   depth Z_SHIP; things appear at Z_FAR and are gone once they pass Z_GONE. */
+const HOR = 40;            // screen row of the horizon (eye level) -- the vanishing point's height
+const F = 180;             // focal length in screen pixels: distance from eye to picture plane
+const EYE_H = 1;           // how far the eye is above the floor
+const Z_SHIP = 1, Z_FAR = 16, Z_GONE = 0.75;
+const LANE = 0.42;         // world distance between neighbouring beams
+const NB = 5;
+const laneX = l => (l - 2)*LANE;
+
+/* LINEAR PERSPECTIVE -- the one function the whole picture depends on.
+   The method is usually credited to Brunelleschi (c. 1415) and first written
+   down by Alberti (De pictura, 1435).
+
+   Put a pane of glass (the picture plane, i.e. the screen) a distance F in
+   front of the eye. A point at sideways offset x, height y below the eye, and
+   depth z is drawn where the straight line from it to the eye crosses the
+   glass. Similar triangles give the crossing point:
+        screen_x - CX  :  F   =   x  :  z
+        screen_y - HOR :  F   =  (EYE_H - alt)  :  z
+   So everything shrinks like 1/z: twice as far, half as big and half as far
+   below the horizon. As z grows every floor point slides up toward the
+   horizon, and every beam (constant x) runs into the same point (CX, HOR) --
+   the vanishing point. k = F/z is the scale factor for sizes at that depth. */
+function project(x, z, alt = 0) {
+  const k = F / z;
+  return {x: CX + k*x, y: HOR + k*(EYE_H - alt), k};
+}
+/* The same projection run backwards along a floor row: the depth a screen
+   row shows. Used to draw beams one pixel row at a time, so they stay crisp. */
+const zAtRow = y => F*EYE_H / (y - HOR);
+
+/* ---------------- canvas & scaling ---------------- */
+const cv = document.getElementById('c'), ctx = cv.getContext('2d');
+cv.width = W; cv.height = H;
+function fit() {
+  let s = Math.min(innerWidth / W, innerHeight / H);
+  if (s >= 1) s = Math.floor(s);            // whole-number scale = even pixels
+  cv.style.width = W*s + 'px'; cv.style.height = H*s + 'px';
+  cv.style.left = ((innerWidth - W*s) / 2) + 'px';
+  cv.style.top = ((innerHeight - H*s) / 2) + 'px';
+}
+addEventListener('resize', fit); fit();
+
+/* ---------------- 3x5 pixel font ---------------- */
+/* Canvas text at 5px is mush; a hand-made bitmap font is crisp at any scale
+   and needs no font download. */
+const FONT = {
+  A:'010101111101101',B:'110101110101110',C:'011100100100011',D:'110101101101110',
+  E:'111100110100111',F:'111100110100100',G:'011100101101011',H:'101101111101101',
+  I:'111010010010111',J:'001001001101010',K:'101101110101101',L:'100100100100111',
+  M:'101111111101101',N:'110101101101101',O:'010101101101010',P:'110101110100100',
+  Q:'010101101110011',R:'110101110101101',S:'011100010001110',T:'111010010010010',
+  U:'101101101101111',V:'101101101101010',W:'101101111111101',X:'101101010101101',
+  Y:'101101010010010',Z:'111001010100111',
+  '0':'111101101101111','1':'010110010010111','2':'110001010100111','3':'110001010001110',
+  '4':'101101111001001','5':'111100110001110','6':'011100111101111','7':'111001010010010',
+  '8':'111101111101111','9':'111101111001110',
+  '.':'000000000000010',':':'000010000010000','-':'000000111000000','!':'010010010000010',
+  '/':'001001010100100',"'":'010010000000000','?':'110001010000010','+':'000010111010000',
+  ',':'000000000010100','(':'001010010010001',')':'100010010010100','=':'000111000111000',
+  '*':'000101010101000','>':'100010001010100','<':'001010100010001'
+};
+function text(s, x, y, sc = 1, col = '#fff', align = 'left') {
+  s = String(s).toUpperCase();
+  const w = s.length*4*sc - sc;
+  if (align === 'center') x -= (w/2) | 0; else if (align === 'right') x -= w;
+  x = Math.round(x); y = Math.round(y);
+  ctx.fillStyle = col;
+  for (let i = 0; i < s.length; i++) {
+    const g = FONT[s[i]]; if (!g) continue;
+    for (let p = 0; p < 15; p++) if (g.charCodeAt(p) === 49)
+      ctx.fillRect(x + i*4*sc + (p%3)*sc, y + ((p/3)|0)*sc, sc, sc);
+  }
+}
+
+/* ---------------- sound ---------------- */
+/* Everything you hear is synthesized right here -- pulse, triangle, saw and
+   noise, the way an early-80s sound chip did it. No files, no network.
+   Browsers only allow audio after a user gesture, so the context is made (or
+   resumed) on the first key, click or pad press. A pad press may not count as
+   a gesture in every browser; any key or click always does.
+
+   Signal flow:
+     effects ------------------------------> sfx --\
+     music (a fresh bus per piece) --------> mus ---+--> master -> limiter -> out
+     jingles (a fresh bus per jingle) -----> mus --/
+     blocker hum (always running, level 0 unless a blocker is near) -> sfx
+
+   Each piece of music and each jingle gets its own gain node. Changing state
+   fades that node out and disconnects it, so whatever was already scheduled
+   is cut off: loops can't outlive the state that started them. Every note is
+   a one-shot that stops itself; the hum is the only long-lived oscillator. */
+const MASTER_VOL = 0.5;
+let actx = null, soundOn = true, noiseBuf = null, A = null;
+try { soundOn = localStorage.getItem('vanishingPoint.muted') !== '1'; } catch (e) {}
+function ensureAudio() {
+  try {
+    if (!actx) {
+      actx = new (window.AudioContext || window.webkitAudioContext)();
+      buildAudio();
+    }
+    if (actx.state === 'suspended' && !document.hidden) {
+      const pr = actx.resume(); if (pr && pr.catch) pr.catch(() => {});
+    }
+  } catch (e) { console.warn('audio', e); actx = null; A = null; }
+}
+const audioLive = () => !!(A && actx && actx.state === 'running');
+function buildAudio() {
+  const c = actx;
+  noiseBuf = c.createBuffer(1, c.sampleRate, c.sampleRate);
+  const nd = noiseBuf.getChannelData(0);
+  for (let i = 0; i < nd.length; i++) nd[i] = Math.random()*2 - 1;
+  const gain = v => { const g = c.createGain(); g.gain.value = v; return g; };
+  A = {last: {}};
+  // a gentle limiter so an explosion on top of the music never clips
+  const lim = c.createDynamicsCompressor();
+  lim.threshold.value = -14; lim.knee.value = 8; lim.ratio.value = 6; lim.attack.value = 0.003; lim.release.value = 0.2;
+  lim.connect(c.destination);
+  A.master = gain(soundOn ? MASTER_VOL : 0); A.master.connect(lim);
+  A.sfx = gain(1); A.sfx.connect(A.master);
+  A.mus = gain(0.9); A.mus.connect(A.master);
+  /* A 25% pulse wave -- the thin, nasal lead of the old chips. Built from its
+     Fourier series: a_n = sin(2 pi n d)/(n pi), b_n = (1 - cos(2 pi n d))/(n pi). */
+  const N = 32, re = new Float32Array(N), im = new Float32Array(N), d = 0.25;
+  for (let n = 1; n < N; n++) {
+    re[n] = Math.sin(2*Math.PI*n*d)/(n*Math.PI);
+    im[n] = (1 - Math.cos(2*Math.PI*n*d))/(n*Math.PI);
+  }
+  A.pulse = c.createPeriodicWave(re, im);
+  // blocker hum: two detuned low tones beating, through a lowpass, wobbling
+  A.hum = gain(0); A.hum.connect(A.sfx);
+  const lp = c.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 420; lp.Q.value = 4; lp.connect(A.hum);
+  const h1 = c.createOscillator(); h1.type = 'sawtooth'; h1.frequency.value = 62;
+  const h2 = c.createOscillator(); h2.type = 'square'; h2.frequency.value = 65.5;
+  const h2g = gain(0.4); h1.connect(lp); h2.connect(h2g).connect(lp);
+  const wob = c.createOscillator(); wob.frequency.value = 7; const wg = gain(160);
+  wob.connect(wg).connect(lp.frequency);
+  for (const o of [h1, h2, wob]) o.start();
+}
+/* Move a level smoothly; skips the call when nothing changed, so a value set
+   every frame doesn't pile events onto the parameter's timeline. */
+function lvl(k, param, v, tc = 0.05) {
+  const old = A.last[k];
+  if (old !== undefined && Math.abs(old - v) <= 1e-4*Math.max(1, Math.abs(v))) return;
+  A.last[k] = v; param.setTargetAtTime(v, actx.currentTime, tc);
+}
+const mtof = m => 440*Math.pow(2, (m - 69)/12);
+/* One note, at an absolute AudioContext time. */
+function tone(t, f, dur, o = {}) {
+  const os = actx.createOscillator(), g = actx.createGain();
+  const v = o.vol === undefined ? 0.05 : o.vol, a = Math.min(o.attack || 0.003, dur*0.5);
+  if (o.type === 'pulse') os.setPeriodicWave(A.pulse); else os.type = o.type || 'square';
+  os.frequency.setValueAtTime(f, t);
+  if (o.slide) os.frequency.exponentialRampToValueAtTime(o.slide, t + dur);
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(v, t + a);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  os.connect(g).connect(o.dest || A.sfx);
+  os.onended = () => g.disconnect();
+  os.start(t); os.stop(t + dur + 0.02);
+}
+/* A burst of filtered noise. */
+function hiss(t, dur, o = {}) {
+  const s = actx.createBufferSource(), g = actx.createGain();
+  s.buffer = noiseBuf; s.loop = true;
+  let out = s;
+  if (o.filt) {
+    const b = actx.createBiquadFilter(); b.type = o.filt; b.Q.value = o.q || 0.8;
+    b.frequency.setValueAtTime(o.f || 1000, t);
+    if (o.fTo) b.frequency.exponentialRampToValueAtTime(o.fTo, t + dur);
+    s.connect(b); out = b;
+  }
+  const v = o.vol === undefined ? 0.05 : o.vol;
+  g.gain.setValueAtTime(v, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  out.connect(g).connect(o.dest || A.sfx);
+  s.onended = () => g.disconnect();
+  s.start(t, Math.random()*0.8); s.stop(t + dur + 0.02);
+}
+/* Wrap an effect: silent when muted or locked, and a sound bug can never
+   take the game down with it. */
+const fx = fn => (...args) => {
+  if (!soundOn || !audioLive()) return;
+  try { fn(actx.currentTime + 0.005, ...args); } catch (e) { console.warn('audio', e); }
+};
+const SFX = {
+  hop:    fx(t => tone(t, 520, 0.035, {type: 'pulse', vol: 0.04, slide: 780})),
+  laser:  fx(t => {
+    tone(t, 1800, 0.12, {vol: 0.04, slide: 240});
+    tone(t, 3600, 0.05, {type: 'triangle', vol: 0.02, slide: 900});
+  }),
+  torp:   fx(t => {         // a whoosh with a falling motor under it
+    hiss(t, 0.45, {filt: 'bandpass', f: 600, fTo: 3800, q: 2, vol: 0.12});
+    tone(t, 220, 0.4, {type: 'sawtooth', vol: 0.035, slide: 70});
+  }),
+  empty:  fx(t => {
+    hiss(t, 0.012, {filt: 'highpass', f: 4000, vol: 0.07}); tone(t, 1900, 0.012, {vol: 0.02});
+    hiss(t + 0.07, 0.01, {filt: 'highpass', f: 2500, vol: 0.04});
+  }),
+  hit:    fx(t => {         // saucer struck: bright crunch and a falling chirp
+    hiss(t, 0.18, {filt: 'lowpass', f: 3000, fTo: 400, vol: 0.12});
+    tone(t, 900, 0.16, {type: 'pulse', vol: 0.04, slide: 120});
+  }),
+  boom:   fx((t, big) => {
+    hiss(t, big ? 1.2 : 0.6, {filt: 'lowpass', f: 2200, fTo: 90, vol: big ? 0.28 : 0.18});
+    tone(t, 110, big ? 1.0 : 0.5, {type: 'sawtooth', vol: 0.06, slide: 26});
+    tone(t, 70, big ? 1.1 : 0.55, {type: 'triangle', vol: 0.1, slide: 22});
+  }),
+  tink:   fx(t => { tone(t, 2400, 0.08, {type: 'triangle', vol: 0.05}); tone(t, 3300, 0.06, {type: 'triangle', vol: 0.03}); }),
+  chirp:  fx((t, v) => {
+    tone(t, 2000, 0.05, {type: 'pulse', vol: v, slide: 3400});
+    tone(t + 0.07, 2300, 0.05, {type: 'pulse', vol: v*0.8, slide: 3800});
+  }),
+  bonus:  fx(t => [76, 81, 88].forEach((m, i) => tone(t + i*0.05, mtof(m), 0.08, {type: 'pulse', vol: 0.04}))),
+  boing:  fx(t => tone(t, 180, 0.18, {type: 'triangle', vol: 0.06, slide: 520})),
+  spoil:  fx(t => {         // a rejuvenator shot to junk: sour falling pair
+    tone(t, 660, 0.25, {type: 'sawtooth', vol: 0.04, slide: 330});
+    tone(t, 698, 0.25, {type: 'sawtooth', vol: 0.03, slide: 349});
+  }),
+  pickup: fx(t => {
+    [72, 76, 79, 84].forEach((m, i) => tone(t + i*0.06, mtof(m), 0.1, {type: 'triangle', vol: 0.06}));
+    tone(t + 0.24, mtof(91), 0.3, {type: 'pulse', vol: 0.025});
+  }),
+  life:   fx(t => {
+    [72, 76, 79, 84, 88].forEach((m, i) => {
+      tone(t + i*0.07, mtof(m), 0.09, {type: 'pulse', vol: 0.04});
+      tone(t + i*0.07, mtof(m - 12), 0.09, {type: 'triangle', vol: 0.04});
+    });
+  }),
+  die:    fx(t => {
+    hiss(t, 1.0, {filt: 'lowpass', f: 4000, fTo: 100, vol: 0.25});
+    tone(t, 700, 1.0, {type: 'sawtooth', vol: 0.06, slide: 40});
+    tone(t, 90, 0.9, {type: 'triangle', vol: 0.1, slide: 30});
+  }),
+  pause:  fx((t, on) => tone(t, on ? 300 : 600, 0.06, {vol: 0.05})),
+};
+function setSound(on) {
+  soundOn = on;
+  try { localStorage.setItem('vanishingPoint.muted', on ? '0' : '1'); } catch (e) {}
+  if (A) try { lvl('master', A.master.gain, on ? MASTER_VOL : 0, 0.03); } catch (e) {}
+}
+/* A fresh gain node for one piece of music or one jingle; returns the node.
+   The previous one in the same slot is faded and dropped. */
+function freshBus(slot) {
+  const old = A[slot];
+  if (old) {
+    try { old.gain.setTargetAtTime(0, actx.currentTime, 0.015); } catch (e) {}
+    setTimeout(() => { try { old.disconnect(); } catch (e) {} }, 300);
+  }
+  const g = actx.createGain(); g.gain.value = 1; g.connect(A.mus);
+  A[slot] = g;
+  return g;
+}
+function dropBus(slot) {
+  if (!A || !A[slot]) return;
+  const old = A[slot]; A[slot] = null;
+  try { old.gain.setTargetAtTime(0, actx.currentTime, 0.015); } catch (e) {}
+  setTimeout(() => { try { old.disconnect(); } catch (e) {} }, 300);
+}
+
+/* ---------------- jingles ---------------- */
+/* Short fixed pieces for the moments between sectors. They go on their own
+   bus, so starting a new game in the middle of the game-over theme cuts it. */
+const JINGLES = {
+  intro(t, b) {            // a rising E-minor run that lands on a held chord
+    [52, 55, 59, 64, 67, 71, 76, 79].forEach((m, i) => tone(t + i*0.08, mtof(m), 0.1, {type: 'pulse', vol: 0.04, dest: b}));
+    tone(t, mtof(40), 0.62, {type: 'triangle', vol: 0.1, dest: b});
+    for (const m of [64, 67, 71]) tone(t + 0.68, mtof(m), 0.9, {type: 'pulse', vol: 0.025, attack: 0.02, dest: b});
+    tone(t + 0.68, mtof(40), 0.9, {type: 'triangle', vol: 0.11, dest: b});
+    hiss(t + 0.68, 0.2, {filt: 'highpass', f: 5000, vol: 0.05, dest: b});
+  },
+  fanfare(t, b) {          // E major, bright, twice up and a long top note
+    const run = [[64, 0], [68, 0.1], [71, 0.2], [76, 0.3], [74, 0.6], [78, 0.7], [81, 0.8], [86, 0.9]];
+    for (const [m, at] of run) tone(t + at, mtof(m), 0.11, {type: 'pulse', vol: 0.045, dest: b});
+    tone(t + 1.1, mtof(88), 0.9, {type: 'pulse', vol: 0.045, attack: 0.01, dest: b});
+    tone(t + 1.1, mtof(80), 0.9, {type: 'pulse', vol: 0.025, dest: b});
+    [40, 40, 45, 47, 52].forEach((m, i) => tone(t + i*0.25, mtof(m), 0.22, {type: 'triangle', vol: 0.11, dest: b}));
+    tone(t + 1.25, mtof(40), 0.9, {type: 'triangle', vol: 0.12, dest: b});
+  },
+  gameover(t, b) {         // slow descending minor line, then one low note and silence
+    [71, 70, 69, 67, 66].forEach((m, i) => {
+      tone(t + i*0.32, mtof(m), 0.28, {type: 'pulse', vol: 0.045, dest: b});
+      tone(t + i*0.32, mtof(m - 24), 0.28, {type: 'triangle', vol: 0.08, dest: b});
+    });
+    tone(t + 1.6, mtof(64), 1.5, {type: 'pulse', vol: 0.04, dest: b});
+    tone(t + 1.6, mtof(40), 1.7, {type: 'triangle', vol: 0.11, dest: b});
+    tone(t + 1.6, mtof(28), 1.7, {type: 'triangle', vol: 0.08, dest: b});
+  },
+};
+function jingle(name) {
+  if (!soundOn || !audioLive()) return;
+  try { JINGLES[name](actx.currentTime + 0.02, freshBus('jbus')); } catch (e) { console.warn('audio', e); }
+}
+
+/* ---------------- music ---------------- */
+/* A lookahead sequencer: each frame, every sixteenth-note step that falls in
+   the next 0.12 s is scheduled on the AudioContext clock, so timing never
+   depends on when the frame happened to run.
+
+   In play the tempo comes from the enemies: sixteenths per second =
+   4 + 1.8 x the approach speed (depth units per second). Sector 1 runs about
+   110 bpm, and every sector and every saucer you destroy pushes it up. A new
+   tempo is taken only on a beat, and only half-way at a time, so it surges
+   rather than jumps. */
+const MUS = {mode: null, next: 0, step: 0, bar: 0, sps: 6, target: 6};
+const tempoFor = speed => 4 + 1.8*speed;
+const GAME_PROG = [40, 36, 38, 35];               // E  C  D  B  (bass octave)
+const GAME_QUAL = {40: [0, 3, 7], 36: [0, 4, 7], 38: [0, 4, 7], 35: [0, 4, 7]};
+const GAME_BASS = [0, 0, 12, 0, 7, 0, 12, 7];      // per eighth note, over the root
+const GAME_LEAD = [                                // per eighth note; 0 = rest
+  [64, 0, 67, 71, 0, 69, 67, 64],
+  [64, 0, 67, 72, 0, 71, 67, 0],
+  [66, 0, 69, 74, 0, 72, 71, 69],
+  [71, 0, 66, 63, 0, 66, 71, 0]];
+const TITLE_PROG = [45, 41, 43, 40];               // A  F  G  E
+const TITLE_QUAL = {45: [0, 3, 7], 41: [0, 4, 7], 43: [0, 4, 7], 40: [0, 4, 7]};
+const TITLE_LEAD = [
+  [69, 0, 72, 0, 76, 0, 74, 72],
+  [69, 0, 0, 0, 65, 0, 67, 69],
+  [71, 0, 74, 0, 79, 0, 77, 74],
+  [71, 0, 0, 0, 68, 0, 71, 0]];
+function playStep(t, s, bar) {
+  const d = 1/MUS.sps, b = A.mbus;
+  if (MUS.mode === 'title') {
+    const root = TITLE_PROG[bar % 4], ch = TITLE_QUAL[root];
+    if (s % 4 === 0) tone(t, mtof(root - 12 + (s === 8 ? 7 : 0)), d*3.5, {type: 'triangle', vol: 0.09, dest: b});
+    if (s % 2 === 0) tone(t, mtof(root + 12 + ch[(s >> 1) % 3]), d*1.6, {type: 'triangle', vol: 0.035, dest: b});
+    if (bar % 8 >= 4 && s % 2 === 0) {
+      const m = TITLE_LEAD[bar % 4][s >> 1];
+      if (m) tone(t, mtof(m), d*1.8, {type: 'pulse', vol: 0.03, dest: b});
+    }
+    if (s === 4 || s === 12) hiss(t, 0.03, {filt: 'highpass', f: 6000, vol: 0.02, dest: b});
+    return;
+  }
+  // 'game'
+  const root = GAME_PROG[bar % 4], ch = GAME_QUAL[root], sector = G.sector || 1;
+  if (s % 8 === 0) tone(t, 150, 0.12, {type: 'triangle', vol: 0.13, slide: 40, dest: b});   // kick
+  if (s % 8 === 4 && sector >= 2) hiss(t, 0.09, {filt: 'bandpass', f: 1800, vol: 0.05, dest: b});  // snare
+  if (s % 4 === 2) hiss(t, 0.025, {filt: 'highpass', f: 7000, vol: 0.025, dest: b});        // hat
+  if (s % 2 === 0) {        // the driving bass, triangle like the old chips
+    const m = root + GAME_BASS[s >> 1];
+    tone(t, mtof(m), d*1.7, {type: 'triangle', vol: 0.1, dest: b});
+    tone(t, mtof(m + 12), d*0.9, {type: 'pulse', vol: 0.012, dest: b});
+  }
+  const lead = bar % 8 >= 4;
+  // the arpeggio: every sixteenth on its own, every other one under the lead
+  if (!lead || s % 2 === 1) {
+    const i = [0, 1, 2, 1][s % 4] + (s >= 8 ? 1 : 0);
+    const m = root + 24 + (i >= 3 ? 12 : ch[i]);
+    tone(t, mtof(m), d*0.9, {type: 'pulse', vol: lead ? 0.012 : 0.02, dest: b});
+  }
+  if (lead && s % 2 === 0) {
+    const m = GAME_LEAD[bar % 4][s >> 1];
+    if (m) tone(t, mtof(m), d*1.8, {type: 'pulse', vol: 0.035, dest: b});
+  }
+  if (G.boss && s % 8 === 0)          // the sector ship's siren, over the top
+    tone(t, s ? 1050 : 520, d*8, {type: 'sawtooth', vol: 0.03, slide: s ? 520 : 1050, dest: b});
+}
+function scheduleMusic() {
+  const now = actx.currentTime;
+  if (MUS.next < now) MUS.next = now + 0.04;    // first run, or the page stalled
+  while (MUS.next < now + 0.12) {
+    if (MUS.step % 4 === 0) MUS.sps += (MUS.target - MUS.sps)*0.5;
+    playStep(MUS.next, MUS.step, MUS.bar);
+    MUS.next += 1/MUS.sps;
+    if (++MUS.step === 16) { MUS.step = 0; MUS.bar++; }
+  }
+}
+/* Which piece should be playing right now. null = silence (apart from
+   jingles and effects). */
+function musicMode() {
+  if (paused || document.hidden) return null;
+  if (state === 'title') return 'title';
+  if (state === 'play' || state === 'boss' || state === 'dead') return 'game';
+  return null;
+}
+function audioFrame() {
+  if (!A || !actx) return;
+  try {
+    const want = soundOn ? musicMode() : null;
+    MUS.target = want === 'game' ? tempoFor(G.speed) : 6;
+    if (want !== MUS.mode) {
+      MUS.mode = want;
+      if (want) { freshBus('mbus'); MUS.step = 0; MUS.bar = 0; MUS.next = 0; MUS.sps = MUS.target; }
+      else dropBus('mbus');
+    }
+    if (MUS.mode && audioLive()) scheduleMusic();
+    // blocker hum: louder the closer a blocker is to your beam
+    let near = 0;
+    if (!paused && (state === 'play' || state === 'boss') && G.ents) for (const e of G.ents) if (e.type === 'blocker') {
+      const v = e.mode === 'bottom' ? 1 - Math.abs(e.lane - P.lane)/4 : 0.45*(1 - e.z/Z_FAR);
+      near = Math.max(near, v);
+    }
+    lvl('hum', A.hum.gain, soundOn ? 0.07*near*near : 0, 0.08);
+  } catch (e) { console.warn('audio', e); }
+}
+function audioVisibility() {
+  if (!actx) return;
+  try {
+    if (document.hidden) actx.suspend().catch(() => {});
+    else ensureAudio();
+  } catch (e) {}
+}
+
+/* ---------------- input ---------------- */
+/* Everything collapses onto the eight NES buttons. Keyboard and every
+   connected pad are OR-ed together, so either works at any moment. */
+const BTN = ['up','down','left','right','a','b','select','start'];
+const KEYMAP = {
+  ArrowUp:'up', KeyW:'up', ArrowDown:'down', KeyS:'down', ArrowLeft:'left', KeyA:'left',
+  ArrowRight:'right', KeyD:'right', KeyZ:'a', KeyK:'a', KeyX:'b', KeyJ:'b',
+  ShiftLeft:'select', ShiftRight:'select', Enter:'start', NumpadEnter:'start'
+};
+const key = {}, keyTap = {}, held = {}, prevHeld = {}, pressed = {};
+let padCount = 0, pauseKey = false, note = '', noteT = 0;
+function footNote(s) { note = s; noteT = 3; }
+addEventListener('keydown', e => {
+  ensureAudio();                       // any key unlocks sound
+  if (e.code === 'KeyM' && !e.repeat) { setSound(!soundOn); return; }
+  if (e.code === 'KeyP' && !e.repeat) { pauseKey = true; return; }
+  const b = KEYMAP[e.code]; if (!b) return;
+  e.preventDefault();
+  if (!e.repeat) keyTap[b] = true;     // catches taps shorter than one frame
+  key[b] = true;
+});
+addEventListener('keyup', e => { const b = KEYMAP[e.code]; if (b) key[b] = false; });
+addEventListener('blur', () => { for (const b of BTN) key[b] = false; });
+for (const ev of ['mousedown', 'pointerdown', 'touchend']) addEventListener(ev, ensureAudio);
+addEventListener('gamepadconnected', () => footNote('CONTROLLER CONNECTED'));
+addEventListener('gamepaddisconnected', () => footNote('CONTROLLER DISCONNECTED'));
+
+function pollInput() {
+  const pad = {};
+  let n = 0;
+  const pads = navigator.getGamepads ? navigator.getGamepads() : [];
+  for (const p of pads) {
+    if (!p) continue; n++;
+    const b = i => !!(p.buttons[i] && p.buttons[i].pressed);
+    const ax = p.axes[0] || 0, ay = p.axes[1] || 0;
+    /* Cheap NES-style USB pads often report the D-pad as axes 0/1 instead of
+       buttons 12-15, so both count. */
+    pad.up    = pad.up    || b(12) || ay < -0.5;
+    pad.down  = pad.down  || b(13) || ay >  0.5;
+    pad.left  = pad.left  || b(14) || ax < -0.5;
+    pad.right = pad.right || b(15) || ax >  0.5;
+    pad.a = pad.a || b(0); pad.b = pad.b || b(1);
+    pad.select = pad.select || b(8); pad.start = pad.start || b(9);
+  }
+  if (n > padCount) footNote('CONTROLLER CONNECTED');
+  padCount = n;
+  for (const b of BTN) {
+    held[b] = !!(key[b] || pad[b]);
+    if ((held[b] && !prevHeld[b]) || keyTap[b]) {
+      pressed[b] = true;
+      if (pad[b]) ensureAudio();      // may not count as a gesture in every browser
+    }
+    keyTap[b] = false;
+    prevHeld[b] = held[b];
+  }
+  if (pauseKey) { pressed.pause = true; pauseKey = false; }
+}
+
+/* ---------------- sprites ---------------- */
+/* Tiny bitmaps, one character per pixel, drawn at the size the projection
+   asks for. Sizes snap to whole pixels, so things grow in visible steps as
+   they approach -- that stepping is part of the look. */
+const SPR = {
+  ship: {w: 0.26, map: [
+    '......a......',
+    '.....aca.....',
+    '....abbba....',
+    'b..aabcbaa..b',
+    'bbaaabbbaaabb',
+    'bb.aaaaaaa.bb',
+    'b...r...r...b'], col: {a: '#ffd23a', b: '#29c6ff', c: '#ffffff', r: '#ff5a20'}},
+  saucer: {w: 0.28, alt: 0.05, map: [
+    '...wwwww...',
+    '.wwwwwwwww.',
+    'wwgwwgwwgww',
+    '.wwwwwwwww.',
+    '..w.....w..'], col: {w: '#f4f4ff', g: '#5070ff'}},
+  chirper: {w: 0.2, alt: 0.12, map: [
+    'y.......y',
+    'yy.....yy',
+    '.yyyoyyy.',
+    '..yyyyy..',
+    '...y.y...'], col: {y: '#ffe23a', o: '#ff7a1a'}},
+  blocker: {w: 0.27, map: [
+    '..ggggg..',
+    '.gGGGGGg.',
+    'ggGkGkGgg',
+    'ggGGGGGgg',
+    '.ggggggg.',
+    'g.g...g.g'], col: {g: '#1fbf3a', G: '#7dff6a', k: '#000'}},
+  bouncer: {w: 0.2, map: [
+    '..mmm..',
+    '.mMMMm.',
+    'mMMwMMm',
+    'mMwwwMm',
+    'mMMwMMm',
+    '.mMMMm.',
+    '..mmm..'], col: {m: '#c02ad0', M: '#ff6af0', w: '#fff'}},
+  rejuv: {w: 0.2, alt: 0.05, map: [
+    '...c...',
+    '..cwc..',
+    '.ccwcc.',
+    'cwwwwwc',
+    '.ccwcc.',
+    '..cwc..',
+    '...c...'], col: {c: '#29e6ff', w: '#ffffff'}},
+  debris: {w: 0.2, map: [
+    'r..r..r',
+    '.rRr.r.',
+    'rRRRRr.',
+    '.rRrRrr',
+    'r.r..r.'], col: {r: '#c01818', R: '#ff5040'}},
+  spark: {w: 0.09, alt: 0.05, map: ['.o.', 'ooo', '.o.'], col: {o: '#ff9a2a'}},
+  boss: {w: 0.95, alt: 0.25, map: [
+    '.......rrrrr.......',
+    '....rrrRRRRRrrr....',
+    '..rrRRRyRRRyRRRrr..',
+    'rrRRRRRRRRRRRRRRRrr',
+    'oooooooooooooooooo.',
+    '..o..o..o..o..o..o.',
+    '.o..o..o..o..o..o..'], col: {r: '#d02020', R: '#ff6a3a', y: '#ffe23a', o: '#ff9a2a'}},
+};
+function drawSprite(sp, x, z, alt, flash) {
+  const pr = project(x, z, alt === undefined ? (sp.alt || 0) : alt);
+  const bw = sp.map[0].length, bh = sp.map.length;
+  const p = pr.k*sp.w/bw;
+  if (p < 0.55) {                 // too far to have a shape: one pixel blob
+    ctx.fillStyle = flash || Object.values(sp.col)[0];
+    ctx.fillRect(Math.round(pr.x) - 1, Math.round(pr.y) - 1, 2, 1);
+    return;
+  }
+  const q = Math.max(1, Math.round(p));
+  const x0 = Math.round(pr.x - bw*q/2), y0 = Math.round(pr.y - bh*q);
+  for (let r = 0; r < bh; r++) for (let c = 0; c < bw; c++) {
+    const ch = sp.map[r][c]; if (ch === '.') continue;
+    ctx.fillStyle = flash || sp.col[ch];
+    ctx.fillRect(x0 + c*q, y0 + r*q, q, q);
+  }
+}
+
+/* ---------------- game state ---------------- */
+let state = 'title', paused = false, stateT = 0, showSide = DEMO && Q.has('side'), hi = 0, t0 = 0;
+try { hi = +localStorage.getItem('vanishingPoint.hi') || 0; } catch (e) {}
+const G = {speed: 1.9, scroll: 0, ents: [], sector: 1};
+const P = {lane: 2, beam: 2, rep: 0, inv: 0};
+let parts = [], pops = [];
+const rnd = (a, b) => a + Math.random()*(b - a);
+const clampB = b => Math.max(0, Math.min(NB - 1, b));
+/* Enemies close in faster each sector, and a little faster with every saucer
+   you destroy in this one. The music's tempo is read from this same number. */
+const baseSpeed = s => Math.min(4.2, 1.9 + 0.3*(s - 1));
+const LASER_V = 22, TORP_V = 14;
+
+function setState(s) { state = s; stateT = 0; }
+function newGame() {
+  Object.assign(G, {score: 0, lives: 3, sector: START_SECTOR, nextLife: 10000});
+  P.lane = P.beam = 2; P.inv = 0;
+  parts = []; pops = [];
+  startSector();
+}
+function startSector() {
+  Object.assign(G, {left: 15, torps: 3, ents: [], laser: null, torp: null, boss: null, bossKilled: false,
+    spawnT: 0.8, chirpT: rnd(4, 8), rejT: rnd(10, 18), blockT: rnd(5, 8), bounceT: rnd(7, 11)});
+  setState('intro');
+  jingle('intro');
+}
+function addScore(n) {
+  G.score += n;
+  if (G.score >= G.nextLife) { G.nextLife += 10000; G.lives = Math.min(9, G.lives + 1); SFX.life(); }
+}
+function pop(x, z, s, col) { const p = project(laneX(x), z, 0.3); pops.push({x: p.x, y: p.y, s, col, t: 1}); }
+function boomAt(lane, z, col, n = 18, alt = 0.05) {
+  const p = project(laneX(lane), z, alt);
+  const sc = Math.min(3, p.k/90);
+  for (let i = 0; i < n; i++) {
+    const a = Math.random()*Math.PI*2, v = rnd(20, 90)*sc;
+    parts.push({x: p.x, y: p.y - 3*sc, vx: Math.cos(a)*v, vy: Math.sin(a)*v*0.6, t: rnd(0.4, 0.9), col: Math.random() < 0.5 ? col : '#fff'});
+  }
+}
+
+/* ---------------- spawning ---------------- */
+function count(type) { let n = 0; for (const e of G.ents) if (e.type === type && !e.flee) n++; return n; }
+function mk(type, lane, z, extra) {
+  const e = Object.assign({type, lane, tgt: lane, beam: lane, z, t: 0}, extra);
+  G.ents.push(e); return e;
+}
+function pickTurn(e) {
+  /* Most passes stop short and pull back; some dive all the way down the
+     beam through your row. More of them dive in later sectors. */
+  const dive = Math.random() < Math.min(0.55, 0.15 + 0.06*G.sector);
+  e.turnZ = dive ? 0 : rnd(1.7, 5);
+  e.mode = 'in';
+}
+function spawn(dt) {
+  const s = G.sector;
+  G.spawnT -= dt;
+  const maxS = Math.min(6, 2 + Math.ceil(s/2), G.left);
+  if (G.spawnT <= 0 && count('saucer') < maxS) {
+    const e = mk('saucer', (Math.random()*NB) | 0, Z_FAR, {hopT: rnd(0.5, 1.5), fireT: rnd(1.5, 4)});
+    pickTurn(e);
+    G.spawnT = rnd(0.5, 1.3)/(1 + 0.1*s);
+  }
+  if (s >= 2 && (G.chirpT -= dt) <= 0) {
+    const dir = Math.random() < 0.5 ? 1 : -1;
+    mk('chirper', dir > 0 ? -0.9 : 4.9, rnd(2.5, 7), {dir, chirpT: 0});
+    G.chirpT = rnd(6, 11);
+  }
+  if (s >= 2 && (G.rejT -= dt) <= 0) {
+    if (!count('rejuv')) mk('rejuv', (Math.random()*NB) | 0, Z_FAR);
+    G.rejT = rnd(18, 30);
+  }
+  if (s >= 3 && (G.blockT -= dt) <= 0) {
+    if (count('blocker') < (s >= 6 ? 2 : 1)) {
+      let b; do b = (Math.random()*NB) | 0; while (b === P.beam);
+      mk('blocker', b, Z_FAR, {mode: 'down', slideT: 0});
+    }
+    G.blockT = rnd(7, 11);
+  }
+  if (s >= 4 && (G.bounceT -= dt) <= 0) {
+    if (count('bouncer') < (s >= 7 ? 2 : 1)) mk('bouncer', (Math.random()*NB) | 0, Z_FAR, {mode: 'in', hopT: 0.4, bounces: 0});
+    G.bounceT = rnd(9, 13);
+  }
+}
+
+/* ---------------- enemy behaviour ---------------- */
+/* Every enemy has a lane (a float, 0..4, for drawing a hop in progress) and
+   a beam (the whole-number beam it counts as being on). All hit tests use
+   beam + depth only -- never pixels -- so they behave the same at any size. */
+function hopToward(e, dt, rate) {
+  if (e.lane < e.tgt) e.lane = Math.min(e.tgt, e.lane + rate*dt);
+  else if (e.lane > e.tgt) e.lane = Math.max(e.tgt, e.lane - rate*dt);
+  e.beam = Math.round(e.lane);
+}
+function updateEnt(e, dt) {
+  const sp = G.speed;
+  e.t += dt;
+  if (e.flee) {                       // the sector is over: everything pulls back
+    e.z += sp*2.2*dt; hopToward(e, dt, 6);
+    return e.z < Z_FAR + 1;
+  }
+  switch (e.type) {
+    case 'saucer':
+      if (e.mode === 'in') {
+        e.z -= sp*(e.z > 8 ? 2.2 : 1)*dt;     // rush the far stretch, where they're specks
+        if (e.z <= e.turnZ) { e.mode = 'out'; e.backZ = rnd(6, 10); }
+      } else {
+        e.z += sp*0.8*dt;
+        if (e.z >= e.backZ) pickTurn(e);
+      }
+      if (e.z > 2 && (e.hopT -= dt) <= 0) {
+        e.tgt = clampB(e.tgt + (Math.random() < 0.5 ? -1 : 1));
+        e.hopT = rnd(0.6, 1.7)/(1 + 0.08*G.sector);
+      }
+      hopToward(e, dt, 6);
+      // from sector 2, saucers drop sparks straight down their beam
+      if (G.sector >= 2 && e.mode === 'in' && e.z > 3 && e.z < 11 && (e.fireT -= dt) <= 0) {
+        mk('spark', e.beam, e.z);
+        e.fireT = rnd(2.5, 5)/(1 + 0.1*G.sector);
+      }
+      return e.z > Z_GONE;
+    case 'spark':   e.z -= sp*2.2*dt; return e.z > Z_GONE;
+    case 'debris':  e.z -= sp*1.4*dt; return e.z > Z_GONE;
+    case 'rejuv':   e.z -= sp*0.5*dt; return e.z > Z_GONE;
+    case 'chirper':
+      e.lane += e.dir*1.7*(1 + 0.05*G.sector)*dt;
+      e.beam = (e.lane > -0.5 && e.lane < 4.5) ? Math.round(e.lane) : -9;
+      if ((e.chirpT -= dt) <= 0) { SFX.chirp(0.015 + 0.02*(1 - e.z/8)); e.chirpT = 0.5; }
+      return e.lane > -1.2 && e.lane < 5.2;
+    case 'blocker':
+      /* Comes down a beam to your row, then slides one beam at a time toward
+         you. Lasers bounce off; only a torpedo or getting out of the way works. */
+      if (e.mode === 'down') {
+        e.z -= sp*1.3*dt;
+        if (e.z <= Z_SHIP) { e.z = Z_SHIP; e.mode = 'bottom'; e.t = 0; }
+      } else if (e.mode === 'bottom') {
+        if ((e.slideT -= dt) <= 0 && e.lane === e.tgt) {
+          if (P.beam !== e.beam) e.tgt = e.beam + Math.sign(P.beam - e.beam);
+          e.slideT = 0.75/(1 + 0.07*G.sector);
+        }
+        if (e.t > 6) e.mode = 'up';
+      } else { e.z += sp*dt; if (e.z > Z_FAR) return false; }
+      hopToward(e, dt, 4);
+      return true;
+    case 'bouncer':
+      /* Zig-zags down, bounces off your row, and goes back up for another
+         try. Lasers glance off it. */
+      if (e.mode === 'in') {
+        e.z -= sp*1.25*dt;
+        if (e.z <= Z_SHIP + 0.12) { e.mode = 'out'; e.bounces++; e.backZ = rnd(4, 7); SFX.boing(); }
+      } else {
+        e.z += sp*1.6*dt;
+        if (e.z >= e.backZ) { if (e.bounces >= 3) e.flee = true; else e.mode = 'in'; }
+      }
+      if ((e.hopT -= dt) <= 0) {
+        const toward = Math.sign(P.beam - e.tgt) || (Math.random() < 0.5 ? -1 : 1);
+        e.tgt = clampB(e.tgt + (Math.random() < 0.6 ? toward : -toward));
+        e.hopT = 0.45/(1 + 0.05*G.sector);
+      }
+      hopToward(e, dt, 7);
+      return true;
+  }
+  return false;
+}
+
+/* What each weapon does to each thing it meets. 'kill' destroys it,
+   'deflect' stops the shot, 'spoil' turns a rejuvenator into debris,
+   'pass' lets the shot fly on. Torpedoes destroy anything. */
+const LASER_ON = {saucer: 'kill', chirper: 'kill', rejuv: 'spoil', blocker: 'deflect', bouncer: 'deflect', spark: 'pass', debris: 'pass'};
+const POINTS = {saucer: 40, chirper: 200, blocker: 300, bouncer: 400, spark: 20, debris: 50};
+const BOOM_COL = {saucer: '#c8d0ff', chirper: '#ffe23a', blocker: '#7dff6a', bouncer: '#ff6af0', spark: '#ff9a2a', debris: '#ff5040', rejuv: '#29e6ff'};
+
+function strike(e, weapon) {
+  const what = weapon === 'torp' ? (e.type === 'rejuv' ? 'spoil' : 'kill') : LASER_ON[e.type];
+  if (what === 'pass') return false;
+  if (what === 'deflect') { SFX.tink(); return true; }
+  if (what === 'spoil') {
+    e.type = 'debris'; SFX.spoil(); boomAt(e.lane, e.z, '#29e6ff', 8);
+    return true;
+  }
+  e.dead = true;
+  const pts = POINTS[e.type]*(e.type === 'saucer' ? G.sector : 1);
+  addScore(pts);
+  boomAt(e.lane, e.z, BOOM_COL[e.type]);
+  if (e.type === 'saucer') { G.left = Math.max(0, G.left - 1); SFX.hit(); }
+  else if (e.type === 'chirper') { SFX.hit(); SFX.bonus(); pop(e.lane, e.z, pts, '#ffe23a'); }
+  else { SFX.boom(false); pop(e.lane, e.z, pts, '#fff'); }
+  return true;
+}
+/* Move a shot up its beam and test what it swept past this step: anything on
+   the same beam whose depth lies between where the shot was and where it is
+   now (padded a little for things coming the other way). */
+function moveShot(s, v, weapon, dt) {
+  const z0 = s.z; s.z += v*dt;
+  for (const e of G.ents) {
+    if (e.dead || e.flee || e.beam !== s.beam) continue;
+    if (e.z >= z0 - 0.3 && e.z <= s.z + 0.1 && strike(e, weapon)) return false;
+  }
+  const b = G.boss;
+  if (b && b.beam === s.beam && b.z >= z0 - 0.3 && b.z <= s.z + 0.1) {
+    if (weapon === 'laser') { SFX.tink(); return false; }
+    // the sector ship goes down: a big bonus
+    const pts = 1000 + 500*G.sector;
+    addScore(pts); G.bossKilled = pts;
+    boomAt(b.lane, b.z, '#ff6a3a', 60, 0.25); boomAt(b.lane, b.z, '#ffe23a', 30, 0.25);
+    SFX.boom(true); pop(b.lane, b.z, pts, '#ffe23a');
+    G.boss = null;
+    return false;
+  }
+  return s.z < Z_FAR;
+}
+
+const DANGER = {saucer: 1, spark: 1, blocker: 1, bouncer: 1, debris: 1};
+function hitsShip(e) { return e.beam === P.beam && Math.abs(e.z - Z_SHIP) < 0.16; }
+function checkShip() {
+  for (const e of G.ents) {
+    if (e.dead || !hitsShip(e)) continue;
+    if (e.type === 'rejuv') {
+      e.dead = true; G.lives = Math.min(9, G.lives + 1); SFX.pickup();
+      pop(e.lane, e.z, '1UP', '#29e6ff');
+    } else if (DANGER[e.type] && (!DEMO || MORTAL) && P.inv <= 0) { die(); return; }
+  }
+}
+function die() {
+  boomAt(P.lane, Z_SHIP, '#ffd23a', 40); boomAt(P.lane, Z_SHIP, '#29c6ff', 20);
+  SFX.die();
+  G.lives--; G.laser = G.torp = null;
+  setState('dead');
+}
+function startBoss() {
+  setState('boss');
+  const dir = Math.random() < 0.5 ? 1 : -1;
+  G.boss = {lane: dir > 0 ? -1.6 : 5.6, dir, z: 8, beam: -9};
+  for (const e of G.ents) if (e.type !== 'spark' && e.type !== 'debris') e.flee = true;
+}
+function startClear() {
+  setState('clear');
+  G.boss = null;
+  for (const e of G.ents) if (e.type !== 'spark' && e.type !== 'debris') e.flee = true;
+  jingle('fanfare');
+}
+function gameOver() {
+  setState('over');
+  if (G.score > hi) { hi = G.score; try { localStorage.setItem('vanishingPoint.hi', hi); } catch (e) {} }
+  jingle('gameover');
+}
+
+/* ---------------- the ship ---------------- */
+function hop(d) {
+  const b = clampB(P.beam + d);
+  if (b !== P.beam) { P.beam = b; SFX.hop(); }
+}
+function control(dt, armed, pr) {
+  /* One press = one hop. Holding the direction repeats after a short delay,
+     like a keyboard does, so you can cross the field without hammering. */
+  for (const [k, d] of [['left', -1], ['right', 1]]) {
+    if (pr[k]) { hop(d); P.rep = 0.26; }
+    else if (held[k] && (P.rep -= dt) <= 0) { hop(d); P.rep = 0.11; }
+  }
+  if (P.lane < P.beam) P.lane = Math.min(P.beam, P.lane + 14*dt);
+  if (P.lane > P.beam) P.lane = Math.max(P.beam, P.lane - 14*dt);
+  if (!armed) return;
+  if (pr.a && !G.laser) { G.laser = {beam: P.beam, z: Z_SHIP + 0.05}; SFX.laser(); }
+  if (pr.b && !G.torp) {
+    if (G.torps > 0) { G.torps--; G.torp = {beam: P.beam, z: Z_SHIP + 0.05}; SFX.torp(); }
+    else SFX.empty();
+  }
+}
+
+/* ?demo's auto-pilot: line up under the nearest target and shoot; save
+   torpedoes for blockers, bouncers and the sector ship. It is invincible,
+   so it only has to look busy, not be good. */
+const BOT = {t: 0};
+function bot(dt) {
+  const out = {};
+  if ((BOT.t -= dt) > 0) return out;
+  let want = -1, weapon = 'a';
+  const b = G.boss;
+  if (b && G.torps > 0) {
+    const lead = b.lane + b.dir*1.25*((b.z - Z_SHIP)/TORP_V);
+    want = Math.round(lead); weapon = 'b';
+    if (want < 0 || want > 4) want = -1;
+  }
+  if (want < 0) {
+    let best = null;
+    for (const e of G.ents) {
+      if (e.flee || e.dead || e.z > 8) continue;
+      if (e.type === 'saucer' || e.type === 'chirper' ||
+          (G.torps > 0 && (e.type === 'blocker' || e.type === 'bouncer') && e.z < 4)) {
+        if (!best || e.z < best.z) best = e;
+      }
+    }
+    if (best) { want = best.beam; weapon = LASER_ON[best.type] === 'kill' ? 'a' : 'b'; }
+  }
+  if (want < 0 || want === P.beam) {
+    if (want === P.beam) out[weapon] = true;
+    BOT.t = 0.1;
+  } else { out[want < P.beam ? 'left' : 'right'] = true; BOT.t = 0.13; }
+  return out;
+}
+
+/* ---------------- update ---------------- */
+function update(dt) {
+  if (pressed.select) showSide = !showSide;
+  const inPlay = state === 'play' || state === 'boss';
+  if (pressed.start || pressed.pause) {
+    if (state === 'title' && pressed.start) newGame();
+    else if (state === 'over' && pressed.start && stateT > 1.2) setState('title');
+    else if (inPlay || state === 'intro' || state === 'dead' || state === 'clear') {
+      paused = !paused; SFX.pause(paused);
+    }
+  }
+  if (paused) return;
+  stateT += dt; t0 += dt;
+  if (noteT > 0) noteT -= dt;
+  if (G.lives !== undefined) G.speed = baseSpeed(G.sector) + 0.02*(15 - (G.left || 15));
+  G.scroll += (state === 'title' || state === 'over' ? 1.6 : G.speed*1.1)*dt;
+  for (const p of parts) { p.x += p.vx*dt; p.y += p.vy*dt; p.vy += 40*dt; p.t -= dt; }
+  parts = parts.filter(p => p.t > 0);
+  for (const p of pops) { p.t -= dt*0.8; p.y -= 12*dt; }
+  pops = pops.filter(p => p.t > 0);
+
+  const pr = DEMO && state !== 'title' ? Object.assign({}, pressed, bot(dt)) : pressed;
+  switch (state) {
+    case 'intro':
+      control(dt, false, pr);
+      if (stateT > 2.0) setState('play');
+      break;
+    case 'play': case 'boss':
+      if (P.inv > 0) P.inv -= dt;
+      control(dt, true, pr);
+      if (state === 'play') spawn(dt);
+      G.ents = G.ents.filter(e => !e.dead && updateEnt(e, dt));
+      if (G.laser && !moveShot(G.laser, LASER_V, 'laser', dt)) G.laser = null;
+      if (G.torp && !moveShot(G.torp, TORP_V, 'torp', dt)) G.torp = null;
+      G.ents = G.ents.filter(e => !e.dead);
+      checkShip();
+      if (state === 'play' && G.left <= 0) startBoss();
+      if (state === 'boss') {
+        const b = G.boss;
+        if (b) {
+          b.lane += b.dir*1.25*dt;
+          b.beam = (b.lane > -0.5 && b.lane < 4.5) ? Math.round(b.lane) : -9;
+          if (b.lane < -1.8 || b.lane > 5.8) G.boss = null;
+        }
+        if (!G.boss && stateT > 0.5) startClear();
+      }
+      break;
+    case 'clear':
+      G.ents = G.ents.filter(e => updateEnt(e, dt));
+      control(dt, false, pr);
+      if (stateT > 2.8) { G.sector++; startSector(); }
+      break;
+    case 'dead':
+      G.ents = G.ents.filter(e => updateEnt(e, dt));
+      if (stateT > 2.2) {
+        if (G.lives <= 0) { gameOver(); break; }
+        // the field is wiped and you come back blinking, safe for a moment
+        G.ents = []; G.boss = null; P.inv = 1.5;
+        if (G.left <= 0) startClear(); else setState('play');
+      }
+      break;
+  }
+}
+
+/* ---------------- drawing ---------------- */
+const STARS = [];
+for (let i = 0; i < 40; i++) STARS.push({x: (Math.random()*W) | 0, y: (Math.random()*(HOR - 22) + 20) | 0, p: Math.random()*6});
+function drawField() {
+  ctx.fillStyle = '#000006'; ctx.fillRect(0, 0, W, H);
+  for (const s of STARS) {
+    const b = 0.4 + 0.6*Math.abs(Math.sin(t0*0.8 + s.p));
+    ctx.fillStyle = `rgba(160,180,255,${b.toFixed(2)})`; ctx.fillRect(s.x, s.y, 1, 1);
+  }
+  // a faint glow band at the horizon, where everything is born
+  ctx.fillStyle = '#0a1240'; ctx.fillRect(0, HOR - 1, W, 1);
+  ctx.fillStyle = '#060a28'; ctx.fillRect(0, HOR - 3, W, 2);
+  /* Grid lines: evenly spaced in depth (z = 1, 2, 3...), scrolling toward
+     you. Evenly spaced in z means NOT evenly spaced on screen: y - HOR is
+     F/z, so they bunch up toward the horizon -- that bunching is what reads
+     as distance. */
+  const off = G.scroll % 1;
+  for (let k = 0; k <= Z_FAR + 1; k++) {
+    const z = k + 1 - off;
+    if (z < zAtRow(H) || z > Z_FAR) continue;
+    const y = Math.round(HOR + F*EYE_H/z);
+    const xl = project(laneX(-0.5), z).x, xr = project(laneX(4.5), z).x;
+    const b = Math.max(0.15, 1 - z/Z_FAR);
+    ctx.fillStyle = `rgba(40,220,110,${(0.25 + 0.6*b).toFixed(2)})`;
+    ctx.fillRect(Math.round(xl), y, Math.round(xr - xl), 1);
+  }
+  // the beams, one pixel per screen row, all meeting at the vanishing point
+  for (let y = HOR + 1; y < H; y++) {
+    const z = zAtRow(y), b = Math.max(0.12, Math.min(1, 1.15 - z/Z_FAR));
+    for (let i = 0; i < NB; i++) {
+      const x = Math.round(CX + F*laneX(i)/z);
+      ctx.fillStyle = i === P.beam && state !== 'title' && state !== 'over'
+        ? `rgba(120,190,255,${b.toFixed(2)})` : `rgba(50,100,255,${(b*0.85).toFixed(2)})`;
+      ctx.fillRect(x, y, 1, 1);
+    }
+  }
+  // the vanishing point itself
+  ctx.fillStyle = '#9fc0ff'; ctx.fillRect(CX - 1, HOR, 3, 1); ctx.fillRect(CX, HOR - 1, 1, 3);
+}
+/* A shot drawn as a short streak along its beam, from depth z to z + len. */
+function streak(beam, z, len, col, w) {
+  const a = project(laneX(beam), z, 0.08), b = project(laneX(beam), z + len, 0.08);
+  ctx.fillStyle = col;
+  for (let y = Math.round(b.y); y <= Math.round(a.y); y++) {
+    const f = (y - b.y)/Math.max(1, a.y - b.y), x = b.x + (a.x - b.x)*f;
+    ctx.fillRect(Math.round(x) - (w >> 1), y, w, 1);
+  }
+}
+function drawThings() {
+  const list = G.ents.slice().sort((a, b) => b.z - a.z);
+  const b = G.boss;
+  if (b) drawSprite(SPR.boss, laneX(b.lane), b.z, 0.25 + 0.03*Math.sin(t0*6));
+  for (const e of list) {
+    if (e.z > Z_FAR + 0.5) continue;
+    let flash = null;
+    if (e.type === 'debris' && (t0*12 | 0) % 2) flash = '#ff9a2a';
+    if (e.type === 'rejuv' && (t0*8 | 0) % 2) flash = '#ffffff';
+    if (e.type === 'spark' && (t0*20 | 0) % 2) flash = '#ffe23a';
+    const sp = SPR[e.type];
+    const alt = e.type === 'chirper' ? sp.alt + 0.04*Math.sin(e.t*9) : undefined;
+    drawSprite(sp, laneX(e.lane), e.z, alt, flash);
+  }
+  if (G.laser) streak(G.laser.beam, G.laser.z, 0.25 + G.laser.z*0.08, (t0*30 | 0) % 2 ? '#fff' : '#ffe23a', G.laser.z < 2.5 ? 2 : 1);
+  if (G.torp) {
+    const p = project(laneX(G.torp.beam), G.torp.z, 0.08), r = Math.max(1, Math.round(p.k/60));
+    streak(G.torp.beam, Math.max(Z_SHIP, G.torp.z - 0.5), 0.5, '#a02010', 1);
+    ctx.fillStyle = (t0*24 | 0) % 2 ? '#ff5a20' : '#ffe23a';
+    ctx.fillRect(Math.round(p.x) - r, Math.round(p.y) - 2*r, 2*r + 1, 2*r + 1);
+  }
+  const alive = state !== 'dead' && state !== 'over' && state !== 'title';
+  if (alive && !(P.inv > 0 && (t0*12 | 0) % 2)) drawSprite(SPR.ship, laneX(P.lane), Z_SHIP, 0);
+  for (const p of parts) { ctx.fillStyle = p.col; ctx.fillRect(Math.round(p.x), Math.round(p.y), 1, 1); }
+  for (const p of pops) text(p.s, p.x, p.y, 1, p.col, 'center');
+}
+function miniShip(x, y) {
+  ctx.fillStyle = '#ffd23a'; ctx.fillRect(x + 2, y, 1, 1); ctx.fillRect(x + 1, y + 1, 3, 1); ctx.fillRect(x, y + 2, 5, 1);
+  ctx.fillStyle = '#29c6ff'; ctx.fillRect(x + 2, y + 1, 1, 1);
+}
+function drawHUD() {
+  // enemies left in this sector, counting down
+  text(G.left, 4, 3, 2, '#f4f4ff');
+  text('LEFT', 4 + String(G.left).length*8 + 2, 7, 1, '#7d8cc8');
+  text(String(G.score).padStart(6, '0'), CX, 3, 2, '#fff', 'center');
+  text('SECTOR ' + G.sector, W - 4, 3, 1, '#9fc0ff', 'right');
+  // torpedo icons, top right
+  for (let i = 0; i < 3; i++) {
+    const x = W - 8 - i*8, y = 11;
+    ctx.fillStyle = i < G.torps ? '#ff5a20' : '#301010';
+    ctx.fillRect(x, y + 1, 5, 2); ctx.fillRect(x + 1, y, 3, 4);
+    if (i < G.torps) { ctx.fillStyle = '#ffe23a'; ctx.fillRect(x + 2, y + 1, 1, 2); }
+  }
+  for (let i = 0; i < Math.min(8, G.lives - (state === 'dead' ? 0 : 1)); i++) miniShip(4 + i*8, H - 7);
+}
+/* SIDE VIEW: the same scene seen from the side, to show where the picture
+   comes from. The eye is at the left, the floor runs off to the right, and
+   the picture plane (the screen) stands at the ship's depth. A sight line
+   runs from the eye to the top and bottom of each object; where those lines
+   cross the plane is where the object is drawn. Farther objects make
+   flatter sight lines, which cross the plane closer to eye level (higher on
+   the screen) and closer together (smaller) -- similar triangles, the same
+   ratio project() uses.
+   Depth is squeezed much more than height so the whole field fits in the
+   inset. Stretching one axis keeps straight lines straight and keeps every
+   crossing on the plane in the same order, so the picture stays honest. */
+function pline(x0, y0, x1, y1, col) {
+  x0 = Math.round(x0); y0 = Math.round(y0); x1 = Math.round(x1); y1 = Math.round(y1);
+  const dx = Math.abs(x1 - x0), dy = -Math.abs(y1 - y0), sx = x0 < x1 ? 1 : -1, sy = y0 < y1 ? 1 : -1;
+  let err = dx + dy;
+  ctx.fillStyle = col;
+  for (let n = 0; n < 600; n++) {
+    ctx.fillRect(x0, y0, 1, 1);
+    if (x0 === x1 && y0 === y1) break;
+    const e2 = 2*err;
+    if (e2 >= dy) { err += dy; x0 += sx; }
+    if (e2 <= dx) { err += dx; y0 += sy; }
+  }
+}
+function drawSideView() {
+  const pw = 184, ph = 122, x0 = W - pw - 3, y0 = 22;
+  ctx.fillStyle = 'rgba(0,0,22,0.9)'; ctx.fillRect(x0, y0, pw, ph);
+  ctx.fillStyle = '#3050c0';
+  ctx.fillRect(x0, y0, pw, 1); ctx.fillRect(x0, y0 + ph - 1, pw, 1);
+  ctx.fillRect(x0, y0, 1, ph); ctx.fillRect(x0 + pw - 1, y0, 1, ph);
+  text('SIDE VIEW', x0 + 4, y0 + 4, 1, '#9fc0ff');
+  text('SELECT', x0 + pw - 4, y0 + 4, 1, '#3a4a80', 'right');
+  const ex = x0 + 16, gy = y0 + 92, hp = 58;            // eye x, floor y, eye height in px
+  const zs = (pw - 22)/Z_FAR;                            // px per unit of depth
+  const ey = gy - hp*EYE_H;
+  const X = z => ex + z*zs, Y = alt => gy - alt*hp;
+  const px = X(Z_SHIP);
+  // floor and eye level (the horizon is the eye's own height)
+  ctx.fillStyle = '#1fa84a'; ctx.fillRect(ex - 6, gy, X(Z_FAR) - ex + 8, 1);
+  for (let x = ex; x < X(Z_FAR) + 2; x += 3) { ctx.fillStyle = '#28408a'; ctx.fillRect(x, ey, 1, 1); }
+  text('EYE LEVEL', X(Z_FAR), ey - 7, 1, '#3a5aa8', 'right');
+  text('FLOOR', X(Z_FAR), gy + 3, 1, '#1a7a3a', 'right');
+  // sight lines and the objects they reach
+  const objs = [];
+  for (const e of G.ents) if (e.z <= Z_FAR && !e.dead) objs.push([e.z, (SPR[e.type].alt || 0), 0.18, BOOM_COL[e.type]]);
+  if (G.boss) objs.push([G.boss.z, 0.25, 0.3, '#ff6a3a']);
+  for (const [z, alt, oh, col] of objs) {
+    if (z <= Z_SHIP) continue;
+    pline(ex, ey, X(z), Y(alt), 'rgba(140,150,200,0.35)');
+    pline(ex, ey, X(z), Y(alt + oh), 'rgba(140,150,200,0.35)');
+  }
+  // the picture plane: the screen, standing at the ship's depth
+  ctx.fillStyle = '#e0e8ff'; ctx.fillRect(px, ey - 6, 1, gy - ey + 8);
+  for (const [z, alt, oh, col] of objs) {
+    if (z <= Z_SHIP) continue;
+    ctx.fillStyle = col;
+    ctx.fillRect(Math.round(X(z)) - 1, Math.round(Y(alt + oh)), 2, Math.max(1, Math.round(oh*hp)));
+    // where the sight lines cross the plane: Y on plane = H + (alt - H)*Z_SHIP/z
+    const yb = Y(EYE_H + (alt - EYE_H)*Z_SHIP/z), yt = Y(EYE_H + (alt + oh - EYE_H)*Z_SHIP/z);
+    ctx.fillRect(px - 2, Math.round(yt), 5, Math.max(1, Math.round(yb - yt)));
+  }
+  // your ship stands right at the plane, so it is drawn at full size, lowest of all
+  ctx.fillStyle = '#ffd23a'; ctx.fillRect(px - 2, Math.round(Y(0.15)), 5, Math.round(0.15*hp));
+  ctx.fillStyle = '#fff'; ctx.fillRect(ex - 1, ey - 1, 3, 3);
+  text('EYE', ex - 10, ey - 8, 1, '#fff');
+  text('SCREEN', px + 3, ey - 13, 1, '#e0e8ff');
+  text('Y-HORIZON = F*H/Z', x0 + 4, gy + 10, 1, '#ffe23a');
+  text('FARTHER: HIGHER + SMALLER', x0 + 4, gy + 18, 1, '#9fc0ff');
+}
+function drawTitle() {
+  text('VANISHING', CX, 62, 4, '#ffe23a', 'center');
+  text('POINT', CX, 86, 4, '#29c6ff', 'center');
+  text('FIVE BEAMS. ONE HORIZON.', CX, 112, 1, '#9fc0ff', 'center');
+  const rows = [['D-PAD', 'HOP BEAMS'], ['A', 'LASER'], ['B', 'TORPEDO (3 PER SECTOR)'],
+    ['SELECT', 'SIDE VIEW'], ['START', 'PLAY / PAUSE']];
+  rows.forEach(([k, v], i) => { text(k, CX - 10, 128 + i*9, 1, '#fff', 'right'); text(v, CX - 2, 128 + i*9, 1, '#7d8cc8'); });
+  text('KEYS: ARROWS  Z=A  X=B  SHIFT=SELECT  ENTER=START  M=MUTE', CX, 180, 1, '#4a5a90', 'center');
+  if ((t0*2 | 0) % 2) text('PRESS START', CX, 196, 2, '#fff', 'center');
+  if (hi) text('HI ' + hi, CX, 216, 1, '#ffd23a', 'center');
+}
+function render() {
+  drawField();
+  if (state !== 'title') { drawThings(); drawHUD(); }
+  const mid = 100;
+  if (state === 'title') drawTitle();
+  else if (state === 'intro') {
+    text('SECTOR ' + G.sector, CX, mid, 3, '#ffe23a', 'center');
+    const tips = {1: 'SHOOT 15 WHITE SAUCERS', 2: 'YELLOW CHIRPERS: BONUS. DODGE SPARKS', 3: 'GREEN BLOCKERS: TORPEDO OR DODGE',
+      4: 'BOUNCERS SHRUG OFF LASERS'};
+    if (tips[G.sector]) text(tips[G.sector], CX, mid + 20, 1, '#9fc0ff', 'center');
+  } else if (state === 'boss' && stateT < 1.6) text('SECTOR SHIP! USE A TORPEDO', CX, mid, 1, '#ff6a3a', 'center');
+  else if (state === 'clear') {
+    text('SECTOR ' + G.sector + ' CLEAR', CX, mid, 2, '#7dff6a', 'center');
+    if (G.bossKilled) text('SECTOR SHIP BONUS ' + G.bossKilled, CX, mid + 16, 1, '#ffe23a', 'center');
+  } else if (state === 'dead' && G.lives <= 0 && stateT > 0.8) text('LAST SHIP LOST', CX, mid, 2, '#ff5040', 'center');
+  else if (state === 'over') {
+    text('GAME OVER', CX, mid - 10, 3, '#ff5040', 'center');
+    text('SCORE ' + G.score + '   SECTOR ' + G.sector, CX, mid + 14, 1, '#e0f4ff', 'center');
+    if (G.score >= hi && G.score > 0) text('NEW HIGH SCORE', CX, mid + 24, 1, '#ffd23a', 'center');
+    if (stateT > 1.2 && (t0*2 | 0) % 2) text('PRESS START', CX, mid + 40, 2, '#fff', 'center');
+  }
+  if (showSide) drawSideView();
+  if (paused) {
+    ctx.fillStyle = 'rgba(0,0,0,0.55)'; ctx.fillRect(0, mid - 8, W, 28);
+    text('PAUSED', CX, mid, 3, '#fff', 'center');
+  }
+  // footer
+  text(VERSION, W - 3, H - 7, 1, '#2a3460', 'right');
+  if (!soundOn) text('MUTED (M)', W - 24, H - 7, 1, '#7d8cc8', 'right');
+  else if (!audioLive()) text('PRESS ANY KEY FOR SOUND', CX, H - 7, 1, '#7d8cc8', 'center');
+  if (noteT > 0) text(note, CX, H - 15, 1, '#7dff6a', 'center');
+  if (DEMO) {
+    text('DEMO', 4, H - 15, 1, '#3a4a80');
+    document.title = `VP ${state} s${G.sector} left${G.left} lives${G.lives} score${G.score} torps${G.torps} ents${(G.ents || []).map(e => e.type[0]).join('')}`;
+  }
+}
+
+/* ---------------- loop ---------------- */
+/* Fixed 60 Hz simulation, decoupled from the display's refresh rate, so a
+   144 Hz monitor doesn't make the enemies faster. Button presses are latched
+   until a simulation step has seen them. */
+let last = performance.now(), acc = 0;
+function frame(now) {
+  const dt = Math.min(0.25, Math.max(0, (now - last) / 1000)); last = now;
+  pollInput();
+  acc += dt;
+  let n = 0;
+  while (acc >= STEP && n < 8) {
+    update(STEP); acc -= STEP; n++;
+    for (const k in pressed) pressed[k] = false;
+  }
+  if (n >= 8) acc = 0;
+  render();
+  audioFrame();
+  requestAnimationFrame(frame);
+}
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden && (state === 'play' || state === 'boss')) paused = true;
+  audioVisibility();
+});
+if (DEMO) {
+  ensureAudio();   // only actually plays if the browser allows autoplay
+  newGame();
+  /* ?demo&warp=N runs N simulation steps up front -- headless browsers barely
+     tick requestAnimationFrame, and this lets a screenshot show real play. */
+  const warp = Math.min(60*600, parseInt(Q.get('warp')) || 0);
+  for (let i = 0; i < warp; i++) update(STEP);
+}
+requestAnimationFrame(frame);
+</script>

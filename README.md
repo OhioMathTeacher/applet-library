@@ -59,6 +59,12 @@ Draw a dungeon floor plan and it becomes a prism you can walk through. The edito
 ### 🔦 [Circuit Breaker](https://ohiomathteacher.github.io/applet-library/circuit-breaker/)
 *Under construction.* Lights out. Robots in the maze. Six bullets. You see only what your light reaches; find the gun, shoot what hunts you, and survive one endless, escalating night.
 
+### 🛸 [Vanishing Point](https://ohiomathteacher.github.io/applet-library/vanishing-point/)
+*Under construction.* Five beams, one horizon. Hop between beams that run off to a single vanishing point, clear fifteen saucers a sector, then torpedo the sector ship. Select flips to a side view of the same scene, showing how linear perspective draws it.
+
+### 🏮 [Lantern Run](https://ohiomathteacher.github.io/applet-library/lantern-run/)
+*Under construction.* A zoologist, a lantern, one night in the Amazon. Climb through the four layers of the rainforest (floor, understory, canopy, emergent) to find and document twelve nocturnal species, each behaving as the real animal does, before dawn.
+
 ---
 
 ## About

@@ -1,0 +1,881 @@
+<!--
+  GENERATED FILE - DO NOT EDIT
+  Source:    ../lantern-run/index.html
+  Rewritten: python3 sync-games.py
+  Edits made here are lost on the next sync. Fix the game in the
+  lantern-run repo and re-run the script.
+-->
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Lantern Run</title>
+<!-- One file, no build, no network. Open it straight from disk. -->
+<style>
+  html,body{margin:0;height:100%;background:#000;overflow:hidden}
+  /* Drawn at its native 400x272 and scaled up by CSS; pixelated keeps the
+     early-80s blocks sharp instead of smearing them. */
+  canvas{position:absolute;image-rendering:pixelated;image-rendering:crisp-edges}
+</style>
+<canvas id="c"></canvas>
+<script>
+"use strict";
+const VERSION = 'v0.1';
+
+/* ============================================================
+   Lantern Run
+   A night in the Amazon. Twelve species. Twenty minutes.
+   You are a zoologist with a lantern. The forest has four
+   layers -- floor, understory, canopy, emergent treetops --
+   and each species lives in its own. Find them, get close,
+   and hold still long enough to write them down.
+   ============================================================ */
+
+const HUD = 20, FOOT = 12, W = 400, PH = 240, H = HUD + PH + FOOT;   // 400 x 272
+const STEP = 1/60;
+const Q = new URLSearchParams(location.search);
+/* ?demo: invincible and lit, auto-running, so a headless browser can
+   screenshot real play. */
+const DEMO = Q.has('demo');
+
+/* The four layers of a rainforest, as the y of the surface you stand on. */
+const FLOOR = 200, UNDER = 152, CANOPY = 104, EMERGENT = 56;
+const TIER_NAME = {[FLOOR]: 'FOREST FLOOR', [UNDER]: 'UNDERSTORY', [CANOPY]: 'CANOPY', [EMERGENT]: 'EMERGENT LAYER'};
+const TIER_RANK = {[FLOOR]: 0, [UNDER]: 1, [CANOPY]: 2, [EMERGENT]: 3};
+
+/* Sixteen colours, Intellivision-ish. */
+const C = {
+  black: '#000', night: '#08132a', navy: '#0e2348', dkgreen: '#174d1f', green: '#2f8a34',
+  ltgreen: '#7ccf4f', brown: '#5c3417', bark: '#7a4a24', tan: '#c8a165', khaki: '#b5a36a',
+  water: '#1b4a9a', blue: '#3d7be0', red: '#e0302a', yellow: '#f6e05e', white: '#f4f4f4',
+  gray: '#8a8a8a', orange: '#f08a24', pink: '#f2b49a', purple: '#7e3fbf', cyan: '#45c6d8'
+};
+
+/* ---------------- the species ---------------- */
+/* Every behaviour here is meant to be true to the animal. The one-line facts
+   show in the field journal (Select) once a species is documented. */
+const SPECIES = [
+  {id: 'caiman',   name: 'SPECTACLED CAIMAN',     tier: FLOOR,    fact: 'Its eyes glow red in your light: a mirror layer behind the eye bounces it back.'},
+  {id: 'anaconda', name: 'GREEN ANACONDA',        tier: FLOOR,    fact: 'The heaviest snake on Earth. It hunts from the water\'s edge.'},
+  {id: 'viper',    name: 'FER-DE-LANCE',          tier: FLOOR,    fact: 'A pit viper: heat-sensing pits let it strike in total darkness.'},
+  {id: 'jaguar',   name: 'JAGUAR',                tier: FLOOR,    fact: 'The strongest bite of any big cat for its size, and a strong swimmer.'},
+  {id: 'armadillo',name: 'NINE-BANDED ARMADILLO', tier: FLOOR,    fact: 'Startle it and it leaps straight up. It can hold its breath for six minutes.'},
+  {id: 'bat',      name: 'COMMON VAMPIRE BAT',    tier: UNDER,    fact: 'Senses body heat to find blood vessels, and laps blood rather than sucking it.'},
+  {id: 'firefly',  name: 'FIREFLIES',             tier: UNDER,    fact: 'Each species flashes its own code to find a mate.'},
+  {id: 'kinkajou', name: 'KINKAJOU',              tier: UNDER,    fact: 'A raccoon relative with a grasping tail. It pollinates the flowers it feeds on.'},
+  {id: 'owl',      name: 'SPECTACLED OWL',        tier: CANOPY,   fact: 'Named for the white rings around its eyes, like spectacles.'},
+  {id: 'sloth',    name: 'TWO-TOED SLOTH',        tier: CANOPY,   fact: 'Moves so slowly that algae grow in its fur.'},
+  {id: 'monkey',   name: 'NIGHT MONKEY',          tier: CANOPY,   fact: 'The only truly nocturnal monkey in the world.'},
+  {id: 'harpy',    name: 'HARPY EAGLE',           tier: EMERGENT, fact: 'Its talons are as long as a grizzly bear\'s claws. It roosts in the tallest trees.'},
+];
+const SPEC = Object.fromEntries(SPECIES.map(s => [s.id, s]));
+
+/* ---------------- the jungle ---------------- */
+/* A loop of screens: walk off either edge and the next one flips in, and
+   far enough the same way brings you back where you began. Each screen is
+   one byte from an 8-bit linear-feedback shift register -- the same trick
+   the 1982 original used to fit a whole jungle in 4K. The jungle is a
+   sequence, and the sequence has a rule. */
+const NSCREENS = 32;
+function lfsrNext(x) { return ((x << 1) | (((x >> 7) ^ (x >> 5) ^ (x >> 4) ^ (x >> 3)) & 1)) & 0xFF; }
+const BYTES = [];
+{ let b = 0xC4; for (let i = 0; i < NSCREENS; i++) { BYTES.push(b); b = lfsrNext(b); } }
+
+/* Branch layouts. Every layout has all four layers, so any species can live
+   on any screen. [y, x0, x1] are one-way branches: jump up through them from
+   below, land on them from above. Lianas [x, top, bottom] are climbable. */
+const LAYOUTS = [
+  {plat: [[UNDER, 20, 130], [UNDER, 270, 380], [CANOPY, 110, 290], [EMERGENT, 170, 230]],
+   lianas: [[70, UNDER, FLOOR], [330, UNDER, FLOOR], [150, CANOPY, FLOOR]], trunks: [60, 200, 340]},
+  {plat: [[UNDER, 140, 260], [CANOPY, 20, 120], [CANOPY, 280, 380], [EMERGENT, 60, 110], [EMERGENT, 300, 350]],
+   lianas: [[200, UNDER, FLOOR], [70, CANOPY, FLOOR], [330, CANOPY, FLOOR]], trunks: [85, 200, 325]},
+  {plat: [[UNDER, 60, 200], [UNDER, 240, 340], [CANOPY, 150, 300], [EMERGENT, 30, 90], [EMERGENT, 220, 270]],
+   lianas: [[100, UNDER, FLOOR], [280, CANOPY, UNDER], [60, EMERGENT, FLOOR]], trunks: [60, 245, 290]},
+  {plat: [[UNDER, 30, 110], [UNDER, 180, 370], [CANOPY, 40, 160], [CANOPY, 250, 330], [EMERGENT, 120, 280]],
+   lianas: [[70, UNDER, FLOOR], [300, CANOPY, UNDER], [200, EMERGENT, UNDER]], trunks: [70, 200, 290]},
+];
+const POND = {x0: 150, x1: 250};
+
+/* Each species lives on two or three screens, spread round the loop. */
+const ORDER = (() => {
+  const ids = SPECIES.map(s => s.id), out = [];
+  let b = 0x5A;
+  while (ids.length) { b = lfsrNext(b); out.push(ids.splice(b % ids.length, 1)[0]); }
+  return out;
+})();
+
+function screenSpec(s) {
+  const b = BYTES[s];
+  let floor = s === 0 ? 0 : (b & 3);              // 0,3 solid; 1 caiman creek; 2 creek with a swinging vine
+  const resident = ORDER[s % ORDER.length];
+  /* Screen 1 is a calm place to start: no creek, nothing living there. */
+  if (s === 0) return {s, floor: 0, layout: LAYOUTS[(b >> 2) & 3], resident: '', extra: '', bats: 0};
+  if (resident === 'caiman') floor = 1;
+  if (floor === 1 && resident !== 'caiman' && (s % 3)) floor = 2;   // caiman creeks are the caiman's
+  const layout = LAYOUTS[(b >> 2) & 3];
+  const extra = (floor === 0 || floor === 3) ? ['', '', '', 'viper', 'anaconda', 'jaguar', '', ''][(b >> 5) & 7] : '';
+  return {s, floor, layout, resident, extra: extra === resident ? '' : extra, bats: (b >> 4) & 1};
+}
+
+/* ---------------- canvas ---------------- */
+const cv = document.getElementById('c'), ctx = cv.getContext('2d');
+cv.width = W; cv.height = H;
+const dark = document.createElement('canvas'); dark.width = W; dark.height = PH;
+const dctx = dark.getContext('2d');
+function fit() {
+  const k = Math.max(1, Math.min(innerWidth / W, innerHeight / H));
+  cv.style.width = (W*k) + 'px'; cv.style.height = (H*k) + 'px';
+  cv.style.left = ((innerWidth - W*k)/2) + 'px'; cv.style.top = ((innerHeight - H*k)/2) + 'px';
+}
+addEventListener('resize', fit); fit();
+const rect = (x, y, w, h, c) => { ctx.fillStyle = c; ctx.fillRect(Math.round(x), Math.round(y), w, h); };
+function text(s, x, y, c = C.white, align = 'left', size = 8) {
+  ctx.font = `bold ${size}px monospace`; ctx.textAlign = align; ctx.textBaseline = 'top';
+  ctx.fillStyle = '#000'; ctx.fillText(s, x + 1, y + 1);
+  ctx.fillStyle = c; ctx.fillText(s, x, y);
+}
+
+/* ---------------- sound ---------------- */
+/* Square waves and filtered noise, in the spirit of a General Instrument
+   sound chip, plus the night itself: crickets and frogs, always. */
+let actx = null, soundOn = true, master = null, noiseBuf = null;
+function ensureAudio() {
+  try {
+    if (!actx) {
+      actx = new (window.AudioContext || window.webkitAudioContext)();
+      master = actx.createGain(); master.gain.value = soundOn ? 0.45 : 0; master.connect(actx.destination);
+      noiseBuf = actx.createBuffer(1, actx.sampleRate, actx.sampleRate);
+      const d = noiseBuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random()*2 - 1;
+    }
+    if (actx.state === 'suspended') { const p = actx.resume(); if (p && p.catch) p.catch(() => {}); }
+  } catch (e) { actx = null; }
+}
+const live = () => actx && actx.state === 'running';
+function setSound(on) { soundOn = on; if (master) master.gain.setTargetAtTime(on ? 0.45 : 0, actx.currentTime, 0.02); }
+function beep(f, dur, {type = 'square', vol = 0.08, slide = 0, at = 0} = {}) {
+  if (!live()) return;
+  const t = actx.currentTime + at, o = actx.createOscillator(), g = actx.createGain();
+  o.type = type; o.frequency.setValueAtTime(f, t);
+  if (slide) o.frequency.exponentialRampToValueAtTime(Math.max(30, f + slide), t + dur);
+  g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  o.connect(g).connect(master); o.start(t); o.stop(t + dur + 0.02);
+}
+function hiss(dur, {vol = 0.1, f = 800, type = 'lowpass', at = 0, q = 0.7} = {}) {
+  if (!live()) return;
+  const t = actx.currentTime + at, s = actx.createBufferSource(), fl = actx.createBiquadFilter(), g = actx.createGain();
+  s.buffer = noiseBuf; s.loop = true; fl.type = type; fl.frequency.value = f; fl.Q.value = q;
+  g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  s.connect(fl).connect(g).connect(master); s.start(t); s.stop(t + dur + 0.05);
+}
+const SFX = {
+  jump: () => beep(330, 0.12, {slide: 330, vol: 0.06}),
+  land: () => beep(110, 0.05, {vol: 0.05}),
+  grab: () => hiss(0.18, {f: 2200, type: 'bandpass', vol: 0.07}),
+  bite: () => { beep(220, 0.08, {vol: 0.07}); beep(160, 0.12, {vol: 0.07, at: 0.08}); },
+  die: () => { for (let i = 0; i < 6; i++) beep(440 - i*55, 0.1, {vol: 0.08, at: i*0.09}); },
+  splash: () => hiss(0.5, {f: 1200, vol: 0.12}),
+  doc: () => [523, 659, 784, 1047].forEach((f, i) => beep(f, 0.12, {vol: 0.07, at: i*0.08})),
+  tick: () => beep(1200, 0.03, {vol: 0.03}),
+  thunder: (at) => { hiss(1.6, {f: 220, vol: 0.35, at}); hiss(0.4, {f: 600, vol: 0.15, at}); },
+  cricket: () => { for (let i = 0; i < 3; i++) beep(4300, 0.025, {vol: 0.012, at: i*0.05}); },
+  frog: () => { beep(170, 0.07, {vol: 0.03}); beep(150, 0.09, {vol: 0.03, at: 0.1}); },
+};
+
+/* ---------------- input ---------------- */
+/* Everything collapses onto the eight NES buttons. Keyboard and every
+   connected pad are OR-ed together, so either works at any moment. */
+const BTN = ['up','down','left','right','a','b','select','start'];
+const KEYMAP = {
+  ArrowUp:'up', KeyW:'up', ArrowDown:'down', KeyS:'down', ArrowLeft:'left', KeyA:'left',
+  ArrowRight:'right', KeyD:'right', KeyZ:'a', KeyK:'a', Space:'a', KeyX:'b', KeyJ:'b',
+  ShiftLeft:'select', ShiftRight:'select', Enter:'start', NumpadEnter:'start', KeyP:'start'
+};
+const key = {}, keyTap = {}, held = {}, prevHeld = {}, pressed = {};
+let footMsg = '', footT = 0;
+const footNote = m => { footMsg = m; footT = 3; };
+addEventListener('keydown', e => {
+  ensureAudio();
+  const b = KEYMAP[e.code]; if (!b) return;
+  e.preventDefault();
+  if (!e.repeat) keyTap[b] = true;
+  key[b] = true;
+});
+addEventListener('keyup', e => { const b = KEYMAP[e.code]; if (b) key[b] = false; });
+addEventListener('blur', () => { for (const b of BTN) key[b] = false; });
+for (const ev of ['mousedown', 'pointerdown', 'touchend']) addEventListener(ev, ensureAudio);
+addEventListener('gamepadconnected', () => footNote('CONTROLLER CONNECTED'));
+function pollInput() {
+  const pad = {};
+  for (const p of (navigator.getGamepads ? navigator.getGamepads() : [])) {
+    if (!p) continue;
+    const b = i => !!(p.buttons[i] && p.buttons[i].pressed);
+    const ax = p.axes[0] || 0, ay = p.axes[1] || 0;
+    /* Cheap NES-style pads often report the D-pad as axes 0/1. */
+    pad.up = pad.up || b(12) || ay < -0.5; pad.down = pad.down || b(13) || ay > 0.5;
+    pad.left = pad.left || b(14) || ax < -0.5; pad.right = pad.right || b(15) || ax > 0.5;
+    pad.a = pad.a || b(0); pad.b = pad.b || b(1);
+    pad.select = pad.select || b(8); pad.start = pad.start || b(9);
+  }
+  for (const b of BTN) {
+    held[b] = !!(key[b] || pad[b]);
+    pressed[b] = (held[b] && !prevHeld[b]) || !!keyTap[b];
+    if (pressed[b] && pad[b]) ensureAudio();
+    keyTap[b] = false; prevHeld[b] = held[b];
+  }
+  if (DEMO) {
+    /* The demo runs right and hops the creeks. */
+    held.right = true; held.left = false;
+    const creekAhead = scr && overCreek(P.x + 28) && !overCreek(P.x);
+    held.a = creekAhead || (!P.ground && P.vy < 0); pressed.a = creekAhead && P.ground;
+  }
+}
+
+/* ---------------- game state ---------------- */
+let state = 'title', time = 0, clock = 1200, score = 0, lives = 3;
+let screen = 0, scr = null, animals = [], fireflies = [];
+let flash = 0, nextBolt = 8, thunderAt = -1;
+let toast = '', toastT = 0, journalSel = 0, nightT = 0;
+const documented = new Set();
+const P = {x: 30, y: FLOOR, vx: 0, vy: 0, ground: true, face: 1, climb: null, swing: false, swingCd: 0,
+           drop: 0, stun: 0, inv: 0, deadT: 0, cause: '', run: 0, obs: 0, obsTarget: null};
+
+function say(m, t = 2.5) { toast = m; toastT = t; }
+
+/* ---------------- the creek, the vine ---------------- */
+const VINE = {ax: 200, ay: CANOPY, len: 78, amp: 0.85, period: 2.8};
+function vineAngle(t) { return VINE.amp * Math.sin(2*Math.PI*t/VINE.period); }
+function vineTip(t) {
+  const a = vineAngle(t);
+  return {x: VINE.ax + VINE.len*Math.sin(a), y: VINE.ay + VINE.len*Math.cos(a)};
+}
+function caimanHeads() {
+  /* Three caimans across the creek, jaws on a slow rhythm, each out of step
+     with the next. Stand on a closed head; an open one eats you. */
+  return [172, 200, 228].map((x, i) => {
+    const ph = ((time + i*1.07) % 3.2) / 3.2;
+    return {x, open: ph > 0.6, ph};
+  });
+}
+function overCreek(x) { return scr && scr.floor !== 0 && scr.floor !== 3 && x > POND.x0 && x < POND.x1; }
+
+/* ---------------- animals ---------------- */
+/* Only the screen you're on is alive, like the original: every animal is
+   made fresh when its screen flips in. */
+function platformsAt(y) { return scr.layout.plat.filter(p => p[0] === y); }
+function home(tier) {
+  if (tier === FLOOR) return {x: 300, y: FLOOR, x0: 40, x1: 380};
+  const ps = platformsAt(tier); const p = ps[ps.length - 1];
+  return {x: (p[1] + p[2])/2, y: tier, x0: p[1] + 6, x1: p[2] - 6};
+}
+function makeAnimal(id) {
+  const h = home(SPEC[id].tier);
+  const a = {id, x: h.x, y: h.y, x0: h.x0, x1: h.x1, dir: 1, t: Math.random()*5, gone: 0, state: 'calm'};
+  if (id === 'caiman') { a.x = 200; a.y = FLOOR + 6; }
+  if (id === 'anaconda' || id === 'jaguar' || id === 'armadillo' || id === 'viper') {
+    /* Floor animals keep clear of the creek. */
+    if (scr.floor === 1 || scr.floor === 2) { a.x0 = 262; a.x1 = 380; a.x = 320; }
+    if (id === 'viper') a.x = scr.floor === 0 || scr.floor === 3 ? 250 : 320;
+    if (id === 'jaguar') a.x = a.x1 - 20;
+  }
+  if (id === 'bat') { a.y = UNDER - 26; a.ph = 1.6; a.x = 365; }
+  if (id === 'sloth') { a.y = h.y + 4; }
+  if (id === 'firefly') { a.x = h.x; a.y = h.y - 30; }
+  return a;
+}
+function spawnScreen() {
+  scr = screenSpec(screen);
+  animals = [];
+  if (scr.resident) animals.push(makeAnimal(scr.resident));
+  if (scr.extra) animals.push(makeAnimal(scr.extra));
+  if (scr.bats && scr.resident !== 'bat') { const b = makeAnimal('bat'); b.ph = -1.6; b.x = 35; b.y = FLOOR - 40; animals.push(b); }
+  fireflies = [];
+  const nf = scr.resident === 'firefly' ? 9 : (BYTES[screen] % 3);
+  const fh = scr.resident === 'firefly' ? animals[0] : {x: 80 + (BYTES[screen] % 240), y: UNDER - 30};
+  for (let i = 0; i < nf; i++) fireflies.push({cx: fh.x, cy: fh.y, r: 14 + Math.random()*22, a: Math.random()*6.3, w: 0.6 + Math.random(), blink: Math.random()*4});
+}
+
+const pbox = () => ({x0: P.x - 4, x1: P.x + 4, y0: P.y - 18, y1: P.y});
+const hit = (a, b) => a.x0 < b.x1 && a.x1 > b.x0 && a.y0 < b.y1 && a.y1 > b.y0;
+
+function updateAnimal(a, dt) {
+  a.t += dt;
+  const px = P.x, near = Math.abs(px - a.x), sameFloor = P.ground && Math.abs(P.y - FLOOR) < 2;
+  const running = Math.abs(P.vx) > 60;
+  switch (a.id) {
+    case 'anaconda':
+      a.x += a.dir * 14 * dt;
+      if (a.x < a.x0 + 20) a.dir = 1; if (a.x > a.x1 - 20) a.dir = -1;
+      a.box = {x0: a.x - 20, x1: a.x + 20, y0: a.y - 6, y1: a.y}; a.kill = 'CRUSHED BY AN ANACONDA';
+      break;
+    case 'jaguar':
+      if (a.pause > 0) a.pause -= dt;
+      else {
+        a.x += a.dir * 115 * dt;
+        if (a.x < a.x0 + 14) { a.dir = 1; a.pause = 1.2; } if (a.x > a.x1 - 14) { a.dir = -1; a.pause = 1.2; }
+      }
+      a.box = {x0: a.x - 13, x1: a.x + 13, y0: a.y - 12, y1: a.y}; a.kill = 'TAKEN BY A JAGUAR';
+      break;
+    case 'viper': {
+      /* It feels your warmth before it could ever see you. */
+      a.cd = Math.max(0, (a.cd || 0) - dt); a.strike = Math.max(0, (a.strike || 0) - dt);
+      if (sameFloor && near < 34 && a.cd <= 0) { a.strike = 0.28; a.cd = 1.3; a.dir = px < a.x ? -1 : 1; }
+      const reach = a.strike > 0 ? 20 : 0;
+      a.box = {x0: a.x - 7 + Math.min(0, a.dir*reach), x1: a.x + 7 + Math.max(0, a.dir*reach), y0: a.y - 8, y1: a.y};
+      a.kill = 'BITTEN BY A FER-DE-LANCE';
+      break;
+    }
+    case 'armadillo':
+      /* Startled, it leaps straight up -- then trots off to calm down. */
+      if (a.state === 'calm') {
+        a.x += a.dir * 18 * dt; if (a.x < a.x0) a.dir = 1; if (a.x > a.x1) a.dir = -1;
+        if (sameFloor && near < 60 && running) { a.state = 'leap'; a.vy = -170; a.ay = 0; }
+      } else if (a.state === 'leap') {
+        a.vy += 600*dt; a.ay += a.vy*dt;
+        if (a.ay >= 0) { a.ay = 0; a.state = 'wary'; a.wary = 4; a.dir = px < a.x ? 1 : -1; }
+      } else {
+        a.wary -= dt; a.x += a.dir * 50 * dt;
+        if (a.x < a.x0) a.dir = 1; if (a.x > a.x1) a.dir = -1;
+        if (a.wary <= 0) a.state = 'calm';
+      }
+      a.box = {x0: a.x - 8, x1: a.x + 8, y0: a.y + (a.ay || 0) - 9, y1: a.y + (a.ay || 0)};
+      a.knock = a.state === 'leap';
+      a.shy = a.state !== 'calm';
+      break;
+    case 'bat': {
+      /* Loops back and forth across the screen, slowing at each turn --
+         which is where you can hold it in your light long enough. */
+      if (a.gone > 0) { a.gone -= dt; a.box = null; break; }
+      const nx = 200 + 165*Math.sin(a.t*0.45 + (a.ph || 0));
+      a.dir = nx >= a.x ? 1 : -1; a.x = nx;
+      a.dy = Math.sin(a.t * 3) * 14;
+      a.box = {x0: a.x - 6, x1: a.x + 6, y0: a.y + a.dy - 4, y1: a.y + a.dy + 4};
+      a.bite = true;
+      break;
+    }
+    case 'owl':
+      if (a.state === 'calm' && Math.abs(P.y - a.y) < 60 && near < 70 && running) { a.state = 'away'; a.away = 8; }
+      if (a.state === 'away') { a.away -= dt; if (a.away <= 0) a.state = 'calm'; }
+      a.shy = a.state !== 'calm';
+      break;
+    case 'kinkajou':
+      a.x += a.dir * 26 * dt; if (a.x < a.x0) a.dir = 1; if (a.x > a.x1) a.dir = -1;
+      break;
+    case 'sloth':
+      a.x += a.dir * 3 * dt; if (a.x < a.x0) a.dir = 1; if (a.x > a.x1) a.dir = -1;
+      break;
+    case 'monkey': {
+      /* Hops from branch to branch in the canopy and treetops. */
+      if (!a.hop) { a.wait = (a.wait || 2) - dt; if (a.wait <= 0) {
+        const ps = scr.layout.plat.filter(p => p[0] === CANOPY || p[0] === EMERGENT);
+        const p = ps[Math.floor(Math.random()*ps.length)];
+        a.hop = {x0: a.x, y0: a.y, x1: p[1] + 8 + Math.random()*(p[2] - p[1] - 16), y1: p[0], t: 0};
+      } } else {
+        a.hop.t += dt/0.8; const k = Math.min(1, a.hop.t);
+        a.x = a.hop.x0 + (a.hop.x1 - a.hop.x0)*k; a.y = a.hop.y0 + (a.hop.y1 - a.hop.y0)*k - Math.sin(k*Math.PI)*30;
+        a.dir = a.hop.x1 > a.hop.x0 ? 1 : -1;
+        if (k >= 1) { a.hop = null; a.wait = 2 + Math.random()*2; }
+      }
+      break;
+    }
+  }
+}
+
+/* What the lantern lets you see, and what counts as "in view" to observe. */
+function lightR() { return (DEMO ? 140 : (held.b ? 92 : 58)) + Math.sin(time*23)*1.5 + Math.sin(time*7)*1; }
+function lanternPos() { return {x: P.x + P.face*5, y: P.y - 11}; }
+function animalCenter(a) {
+  if (a.id === 'firefly') return {x: a.x, y: a.y};
+  if (a.id === 'bat') return {x: a.x, y: a.y + (a.dy || 0)};
+  if (a.id === 'sloth') return {x: a.x, y: a.y + 6};
+  return {x: a.x, y: a.y - 6 + (a.ay || 0)};
+}
+
+/* ---------------- player ---------------- */
+function kill(cause) {
+  if (P.inv > 0 || DEMO || state !== 'play') return;
+  P.deadT = 1.6; P.cause = cause; P.swing = false; P.climb = null;
+  if (cause.includes('CREEK')) SFX.splash(); else SFX.die();
+  state = 'dying';
+}
+function respawn() {
+  P.x = 24; P.y = 0; P.vx = 0; P.vy = 0; P.ground = false; P.inv = 2; P.stun = 0; P.obs = 0;
+  state = 'play';
+}
+
+function updatePlayer(dt) {
+  P.inv = Math.max(0, P.inv - dt); P.stun = Math.max(0, P.stun - dt);
+  P.swingCd = Math.max(0, P.swingCd - dt); P.drop = Math.max(0, P.drop - dt);
+  const sneaking = held.b;
+
+  /* On the vine: you go where it goes until you let go. */
+  if (P.swing) {
+    const tip = vineTip(time);
+    P.x = tip.x; P.y = tip.y + 16;
+    if (pressed.a || pressed.down) {
+      const a = vineAngle(time), w = VINE.amp*2*Math.PI/VINE.period*Math.cos(2*Math.PI*time/VINE.period);
+      P.vx = VINE.len*w*Math.cos(a); P.vy = -VINE.len*w*Math.sin(a) - 80;
+      P.swing = false; P.swingCd = 0.4; SFX.jump();
+    }
+    return;
+  }
+  /* On a liana: climb, or jump off sideways. */
+  if (P.climb) {
+    const l = P.climb;
+    if (held.up) P.y -= 70*dt; if (held.down) P.y += 70*dt;
+    if (P.y < l[1]) { P.y = l[1]; P.climb = null; P.ground = true; P.vy = 0; return; }
+    if (P.y > l[2]) { P.y = l[2]; P.climb = null; P.ground = l[2] === FLOOR; return; }
+    if (pressed.a && (held.left || held.right)) {
+      P.climb = null; P.vx = held.left ? -95 : 95; P.vy = -200; P.face = held.left ? -1 : 1; SFX.jump();
+    }
+    return;
+  }
+
+  const dirx = (held.right ? 1 : 0) - (held.left ? 1 : 0);
+  const target = P.stun > 0 ? 0 : dirx * (sneaking ? 34 : 98);
+  const accel = P.ground ? 900 : 420;
+  if (P.vx < target) P.vx = Math.min(target, P.vx + accel*dt); else P.vx = Math.max(target, P.vx - accel*dt);
+  if (dirx && P.stun <= 0) P.face = dirx;
+
+  /* Grab a liana: press up beside one, or down standing at its top. */
+  if ((held.up || (held.down && !held.a && P.ground)) && P.stun <= 0) {
+    for (const l of scr.layout.lianas) {
+      const up = held.up && P.y >= l[1] - 1 && P.y <= l[2] + 1;
+      const down = held.down && Math.abs(P.y - l[1]) < 1;
+      if (Math.abs(P.x - l[0]) < 6 && (up || down)) {
+        P.climb = l; P.x = l[0]; P.vx = 0; P.vy = 0; P.ground = false; if (down) P.y += 1; return;
+      }
+    }
+  }
+  /* Jump: hold A to go higher. Down + A drops through a branch. */
+  if (pressed.a && P.ground && P.stun <= 0) {
+    if (held.down && P.y < FLOOR - 1) { P.drop = 0.25; P.ground = false; P.y += 1; }
+    else { P.vy = -262; P.ground = false; SFX.jump(); }
+  }
+  const g = (P.vy < 0 && held.a) ? 610 : 1500;
+  P.vy = Math.min(480, P.vy + g*dt);
+  P.x += P.vx*dt;
+
+  /* Off the edge of the screen: the next one flips in. */
+  if (P.x < 0 || P.x >= W) {
+    screen = (screen + (P.x < 0 ? -1 : 1) + NSCREENS) % NSCREENS;
+    P.x = P.x < 0 ? P.x + W : P.x - W;
+    spawnScreen(); P.obs = 0; P.obsTarget = null;
+  }
+
+  const prevY = P.y, wasGround = P.ground;
+  P.y += P.vy*dt; P.ground = false;
+  if (P.vy >= 0) {
+    /* Branches are one-way: land from above, never bump from below. */
+    if (P.drop <= 0) for (const p of scr.layout.plat) {
+      if (prevY <= p[0] + 0.5 && P.y >= p[0] && P.x > p[1] - 3 && P.x < p[2] + 3) { P.y = p[0]; P.ground = true; break; }
+    }
+    if (!P.ground && scr.floor === 1) for (const h of caimanHeads()) {
+      if (prevY <= FLOOR + 2.5 && P.y >= FLOOR + 2 && Math.abs(P.x - h.x) < 9) {
+        if (h.open) kill('EATEN BY A CAIMAN'); else { P.y = FLOOR + 2; P.ground = true; }
+        break;
+      }
+    }
+    if (!P.ground && P.y >= FLOOR && !overCreek(P.x)) { P.y = FLOOR; P.ground = true; }
+  }
+  if (P.ground && !wasGround && P.vy > 120) SFX.land();
+  if (P.ground) P.vy = 0;
+  /* Standing on a caiman when its jaws open. */
+  if (P.ground && scr.floor === 1 && P.y > FLOOR + 1) {
+    for (const h of caimanHeads()) if (Math.abs(P.x - h.x) < 9 && h.open) kill('EATEN BY A CAIMAN');
+  }
+  if (P.y > FLOOR + 14) {
+    if (DEMO) { P.y = FLOOR; P.vy = 0; P.ground = true; P.x = POND.x1 + 2; }
+    else kill(scr.floor === 1 ? 'EATEN BY A CAIMAN' : 'SWEPT AWAY IN THE CREEK');
+  }
+
+  /* Catch the swinging vine in mid-air. */
+  if (scr.floor === 2 && !P.ground && P.swingCd <= 0) {
+    const tip = vineTip(time);
+    if (Math.abs(P.x - tip.x) < 9 && Math.abs((P.y - 16) - tip.y) < 10) { P.swing = true; P.vx = 0; P.vy = 0; SFX.grab(); }
+  }
+
+  if (P.ground && Math.abs(P.vx) > 20) { P.run += dt*Math.abs(P.vx)/12; }
+}
+
+/* Stand still, lantern raised, with an undocumented species in the light. */
+function updateObserve(dt) {
+  const lp = lanternPos(), r = lightR();
+  let best = null, bd = 1e9;
+  if (held.b && P.ground && Math.abs(P.vx) < 6 && P.stun <= 0) {
+    for (const a of animals) {
+      if (documented.has(a.id) || a.shy || a.gone > 0) continue;
+      const c = animalCenter(a), d = Math.hypot(c.x - lp.x, c.y - lp.y);
+      if (d < Math.min(r, 96) && d < bd) { best = a; bd = d; }
+    }
+  }
+  if (best && best === P.obsTarget) {
+    P.obs += dt;
+    if (Math.floor(P.obs*4) !== Math.floor((P.obs - dt)*4)) SFX.tick();
+    if (P.obs >= 2) {
+      documented.add(best.id);
+      const sp = SPEC[best.id];
+      score += 500 * (1 + TIER_RANK[sp.tier]);
+      say('DOCUMENTED: ' + sp.name, 3.5); SFX.doc();
+      P.obs = 0; P.obsTarget = null;
+      if (documented.size === SPECIES.length) { score += Math.floor(clock)*5; state = 'won'; }
+    }
+  } else {
+    P.obsTarget = best; P.obs = 0;
+  }
+}
+
+function update(dt) {
+  time += dt; nightT += dt;
+  if (toastT > 0) toastT -= dt; if (footT > 0) footT -= dt;
+  if (pressed.select && (state === 'play' || state === 'journal')) { state = state === 'journal' ? 'play' : 'journal'; return; }
+  if (state === 'journal') {
+    if (pressed.up) journalSel = (journalSel + SPECIES.length - 1) % SPECIES.length;
+    if (pressed.down) journalSel = (journalSel + 1) % SPECIES.length;
+    if (pressed.a) { setSound(!soundOn); footNote(soundOn ? 'SOUND ON' : 'SOUND OFF'); }
+    if (pressed.start) state = 'play';
+    return;
+  }
+  if (state === 'title' || state === 'over' || state === 'won') {
+    if (pressed.start) newGame();
+    return;
+  }
+  if (pressed.start) { state = state === 'pause' ? 'play' : (state === 'play' ? 'pause' : state); return; }
+  if (state === 'pause') return;
+
+  /* The night: crickets, frogs, and now and then a storm. */
+  if (Math.random() < dt*2.2) SFX.cricket();
+  if (Math.random() < dt*0.25) SFX.frog();
+  flash = Math.max(0, flash - dt*1.4);
+  nextBolt -= dt;
+  if (nextBolt <= 0) { flash = 1; nextBolt = 9 + Math.random()*14; SFX.thunder(0.4 + Math.random()*1.2); }
+
+  if (state === 'dying') {
+    P.deadT -= dt;
+    if (P.deadT <= 0) { lives--; if (lives <= 0) state = 'over'; else respawn(); }
+    return;
+  }
+  clock -= dt;
+  if (clock <= 0) { clock = 0; state = 'over'; P.cause = 'DAWN. THE NIGHT IS OVER.'; return; }
+
+  updatePlayer(dt);
+  for (const a of animals) updateAnimal(a, dt);
+  for (const f of fireflies) { f.a += f.w*dt; f.blink += dt; }
+
+  /* Contact. */
+  if (state === 'play' && P.inv <= 0 && !P.swing) {
+    const pb = pbox();
+    for (const a of animals) {
+      if (!a.box || !hit(pb, a.box)) continue;
+      if (a.kill) { kill(a.kill); break; }
+      if (a.knock && P.stun <= 0) { P.stun = 0.7; P.vx = (P.x < a.x ? -1 : 1)*120; P.vy = -120; P.ground = false; SFX.bite(); say('KNOCKED OVER BY A LEAPING ARMADILLO'); }
+      if (a.bite && P.stun <= 0) {
+        P.stun = 0.8; clock = Math.max(0, clock - 15); a.gone = 4; SFX.bite();
+        say('BITTEN BY A VAMPIRE BAT  -15 SEC');
+      }
+    }
+  }
+  updateObserve(dt);
+}
+
+function newGame() {
+  score = 0; lives = 3; clock = 1200; time = 0; screen = 0; documented.clear();
+  Object.assign(P, {x: 30, y: FLOOR, vx: 0, vy: 0, ground: true, face: 1, climb: null, swing: false, stun: 0, inv: 1, obs: 0, obsTarget: null});
+  spawnScreen(); state = 'play'; nextBolt = 3; say('FIND AND DOCUMENT 12 SPECIES BEFORE DAWN', 4);
+}
+
+/* ---------------- drawing ---------------- */
+function drawScene() {
+  const L = scr.layout;
+  /* sky and the far forest */
+  const g = ctx.createLinearGradient(0, HUD, 0, HUD + PH);
+  g.addColorStop(0, C.night); g.addColorStop(1, '#0a1d14');
+  ctx.fillStyle = g; ctx.fillRect(0, HUD, W, PH);
+  for (let i = 0; i < 9; i++) {           // stars through gaps in the canopy
+    const sx = (BYTES[(screen + i) % NSCREENS]*37 + i*53) % W, sy = HUD + 4 + (i*29 % 40);
+    if ((time*2 + i) % 7 > 0.4) rect(sx, sy, 1, 1, '#9fb4d8');
+  }
+  for (const tx of L.trunks) {            // trunks, floor to treetops
+    rect(tx - 5, HUD + EMERGENT - 20, 10, FLOOR - EMERGENT + 20, C.brown);
+    rect(tx - 2, HUD + EMERGENT - 20, 2, FLOOR - EMERGENT + 20, C.bark);
+  }
+  /* foliage clumps behind each branch */
+  for (const p of L.plat) {
+    const [y, x0, x1] = p;
+    ctx.fillStyle = C.dkgreen;
+    for (let x = x0 - 6; x < x1 + 6; x += 14) {
+      ctx.beginPath(); ctx.ellipse(x + 7, HUD + y - 9, 11, 9, 0, 0, 7); ctx.fill();
+    }
+  }
+  for (const p of L.plat) {               // the branches you stand on
+    const [y, x0, x1] = p;
+    rect(x0, HUD + y, x1 - x0, 4, C.bark); rect(x0, HUD + y + 4, x1 - x0, 2, C.brown);
+    for (let x = x0; x < x1; x += 9) rect(x, HUD + y - 2, 4, 2, C.green);
+  }
+  for (const l of L.lianas) {             // lianas
+    for (let y = l[1]; y < l[2]; y += 4) rect(l[0] + Math.round(Math.sin((y + l[0])*0.3)), HUD + y, 1, 3, C.ltgreen);
+  }
+  /* the forest floor, and the creek */
+  rect(0, HUD + FLOOR, W, PH - FLOOR, C.brown);
+  rect(0, HUD + FLOOR, W, 3, C.green);
+  for (let x = 4; x < W; x += 13) rect(x, HUD + FLOOR - 3, 2, 3, C.ltgreen);
+  if (scr.floor === 1 || scr.floor === 2) {
+    rect(POND.x0, HUD + FLOOR, POND.x1 - POND.x0, PH - FLOOR, C.water);
+    for (let x = POND.x0; x < POND.x1; x += 6) rect(x + Math.round(Math.sin(time*2 + x)*2), HUD + FLOOR + 6 + (x % 3)*4, 3, 1, C.blue);
+  }
+  if (scr.floor === 2) {                  // the vine, hung from the canopy
+    const tip = vineTip(time);
+    ctx.strokeStyle = C.ltgreen; ctx.lineWidth = 1.5; ctx.beginPath();
+    ctx.moveTo(VINE.ax, HUD + VINE.ay); ctx.lineTo(tip.x, HUD + tip.y); ctx.stroke();
+  }
+  if (scr.floor === 1) for (const h of caimanHeads()) {
+    const y = HUD + FLOOR + 2;
+    rect(h.x - 8, y, 16, 5, '#3e5a2a');
+    rect(h.x - 8, y - 1, 5, 2, '#557a38');
+    if (h.open) { rect(h.x - 1, y - 5, 9, 4, '#3e5a2a'); rect(h.x, y - 4, 7, 2, C.red); }
+  }
+}
+
+function drawAnimal(a) {
+  const x = Math.round(a.x), y = HUD + Math.round(a.y + (a.ay || 0)), d = a.dir;
+  switch (a.id) {
+    case 'anaconda':
+      for (let i = -20; i < 20; i += 2) rect(x + i, y - 5 + Math.round(Math.sin((i + a.t*30)*0.25)*1.5), 2, 4, i % 6 ? '#4f6b2a' : '#2d3d17');
+      rect(x + d*20 - (d < 0 ? 4 : 0), y - 6, 4, 4, '#4f6b2a');
+      break;
+    case 'jaguar':
+      rect(x - 12, y - 11, 24, 8, '#c98a2c');
+      for (let i = -10; i < 10; i += 5) rect(x + i, y - 9, 2, 2, '#3a250f');
+      rect(x + d*12 - (d < 0 ? 6 : 0), y - 13, 6, 6, '#c98a2c');
+      const step = Math.floor(a.t*10) % 2;
+      rect(x - 10, y - 3, 3, 3 - step, '#c98a2c'); rect(x + 7, y - 3, 3, 2 + step, '#c98a2c');
+      rect(x - d*12 - (d > 0 ? 6 : 0), y - 10, 6, 2, '#c98a2c');
+      break;
+    case 'viper': {
+      const reach = (a.strike || 0) > 0 ? 18 : 0;
+      ctx.fillStyle = '#8a6a3a'; ctx.beginPath(); ctx.ellipse(x, y - 3, 7, 3, 0, 0, 7); ctx.fill();
+      rect(x - 4, y - 5, 2, 1, '#3a2a14'); rect(x + 2, y - 4, 2, 1, '#3a2a14');
+      rect(x + (d > 0 ? 3 : -3 - reach), y - 8, reach + 1, 2, '#8a6a3a');
+      rect(x + d*(4 + reach) - 1, y - 9, 3, 3, '#8a6a3a');
+      break;
+    }
+    case 'armadillo':
+      rect(x - 7, y - 7, 14, 6, '#9a8a7a');
+      for (let i = -6; i < 7; i += 3) rect(x + i, y - 7, 1, 6, '#6e6256');
+      rect(x + d*7 - (d < 0 ? 3 : 0), y - 5, 3, 3, '#b8a898');
+      rect(x - d*7 - (d > 0 ? 3 : 0), y - 3, 3, 1, '#9a8a7a');
+      break;
+    case 'bat': {
+      if (a.gone > 0) break;
+      const by = y + Math.round(a.dy || 0), flap = Math.floor(a.t*14) % 2;
+      rect(x - 2, by - 2, 4, 4, '#3a2a2a');
+      rect(x - 8, by - (flap ? 3 : 0), 6, 2, '#3a2a2a'); rect(x + 2, by - (flap ? 3 : 0), 6, 2, '#3a2a2a');
+      break;
+    }
+    case 'owl':
+      if (a.state === 'away') break;
+      rect(x - 5, y - 14, 10, 13, '#5a3a20'); rect(x - 4, y - 8, 8, 6, '#d8c49a');
+      rect(x - 4, y - 13, 3, 3, C.white); rect(x + 1, y - 13, 3, 3, C.white);
+      break;
+    case 'kinkajou':
+      rect(x - 6, y - 7, 12, 6, '#a86a2a'); rect(x + d*6 - (d < 0 ? 4 : 0), y - 9, 4, 4, '#a86a2a');
+      for (let i = 0; i < 8; i++) rect(x - d*(6 + i) , y - 4 + Math.round(Math.sin(i*0.8 + a.t*3)), 1, 1, '#a86a2a');
+      break;
+    case 'sloth':
+      rect(x - 7, y, 14, 7, '#7a6a4a'); rect(x - 7, y - 3, 2, 3, '#4a3a2a'); rect(x + 5, y - 3, 2, 3, '#4a3a2a');
+      rect(x + d*5 - 2, y + 2, 4, 4, '#a89a7a');
+      if (Math.floor(a.t*0.5) % 2) rect(x - 3, y + 3, 2, 1, '#4c8a3a');   // algae
+      break;
+    case 'monkey':
+      rect(x - 4, y - 10, 8, 8, '#8a7a5a'); rect(x - 3, y - 14, 6, 5, '#8a7a5a');
+      rect(x - 2, y - 13, 1, 1, C.white); rect(x + 1, y - 13, 1, 1, C.white);
+      for (let i = 0; i < 9; i++) rect(x - d*(4 + i), y - 4 + (i > 5 ? i - 5 : 0), 1, 1, '#8a7a5a');
+      break;
+    case 'harpy':
+      rect(x - 6, y - 15, 12, 14, '#6a6a6a'); rect(x - 5, y - 9, 10, 7, C.white);
+      rect(x - 3, y - 18, 6, 4, '#9a9a9a'); rect(x - 4, y - 19, 2, 2, '#3a3a3a'); rect(x + 2, y - 19, 2, 2, '#3a3a3a');
+      rect(x - 3, y - 1, 2, 1, C.yellow); rect(x + 1, y - 1, 2, 1, C.yellow);
+      break;
+    case 'firefly': break;               // the swarm is drawn as light
+    case 'caiman': break;                // drawn with the creek
+  }
+}
+
+/* Eyes that catch the lantern: shown even in the dark, which is the point. */
+function drawEyeshine(a) {
+  const x = Math.round(a.x), y = HUD + Math.round(a.y + (a.ay || 0)), d = a.dir;
+  const eye = (ex, ey, c) => { rect(ex, ey, 2, 1, c); };
+  switch (a.id) {
+    case 'jaguar': eye(x + d*14 - 1, y - 12, '#7dff6a'); break;
+    case 'owl': if (a.state !== 'away') { eye(x - 3, y - 12, C.orange); eye(x + 2, y - 12, C.orange); } break;
+    case 'kinkajou': eye(x + d*7 - 1, y - 8, C.yellow); break;
+    case 'monkey': eye(x - 2, y - 12, C.orange); eye(x + 1, y - 12, C.orange); break;
+    case 'armadillo': eye(x + d*8 - 1, y - 4, '#ff9a6a'); break;
+  }
+}
+function drawCaimanEyes() {
+  if (scr.floor !== 1) return;
+  for (const h of caimanHeads()) { rect(h.x - 7, HUD + FLOOR + 1, 2, 1, '#ff3020'); rect(h.x - 3, HUD + FLOOR + 1, 2, 1, '#ff3020'); }
+}
+
+function drawPlayer() {
+  if (state === 'dying' && Math.floor(P.deadT*10) % 2) return;
+  if (P.inv > 0 && Math.floor(P.inv*12) % 2) return;
+  const x = Math.round(P.x), y = HUD + Math.round(P.y), f = P.face;
+  const leg = P.ground && Math.abs(P.vx) > 20 ? Math.floor(P.run) % 2 : (P.ground ? 0 : 1);
+  rect(x - 3, y - 6, 2, 6 - leg*2, C.brown); rect(x + 1, y - 6 + leg*2, 2, 6 - leg*2, C.brown);  // legs
+  rect(x - 4, y - 13, 8, 7, C.khaki);                                                            // shirt
+  rect(x - 3, y - 17, 6, 4, C.pink);                                                             // face
+  rect(x - 5, y - 19, 10, 2, C.tan); rect(x - 3, y - 21, 6, 2, C.tan);                           // hat
+  rect(x + f*2 - (f < 0 ? 1 : 0), y - 16, 1, 1, '#000');                                         // eye
+  /* the lantern, raised when you hold B */
+  const ly = held.b ? y - 19 : y - 11;
+  rect(x + f*5 - 1, ly, 3, 4, C.yellow); rect(x + f*5 - 1, ly - 1, 3, 1, C.gray);
+}
+
+function drawDarkness() {
+  const lp = lanternPos(), r = lightR();
+  dctx.globalCompositeOperation = 'source-over';
+  dctx.clearRect(0, 0, W, PH);
+  dctx.fillStyle = `rgba(0,0,6,${(0.96*(1 - Math.min(1, flash*1.6))).toFixed(3)})`;
+  dctx.fillRect(0, 0, W, PH);
+  dctx.globalCompositeOperation = 'destination-out';
+  const hole = (x, y, rad, k = 1) => {
+    const g = dctx.createRadialGradient(x, y, 0, x, y, rad);
+    g.addColorStop(0, `rgba(0,0,0,${k})`); g.addColorStop(0.55, `rgba(0,0,0,${k*0.9})`); g.addColorStop(1, 'rgba(0,0,0,0)');
+    dctx.fillStyle = g; dctx.beginPath(); dctx.arc(x, y, rad, 0, 7); dctx.fill();
+  };
+  if (state !== 'dying' || P.deadT > 0.8) hole(lp.x, lp.y, r);
+  for (const f of fireflies) {
+    const on = (f.blink % 2.2) < 0.9;
+    if (on) hole(f.cx + Math.cos(f.a)*f.r, f.cy + Math.sin(f.a*1.3)*f.r*0.6, 13, 0.75);
+  }
+  dctx.globalCompositeOperation = 'source-over';
+  ctx.drawImage(dark, 0, HUD);
+  /* a warm tint inside the lantern's reach */
+  const g = ctx.createRadialGradient(lp.x, HUD + lp.y, 0, lp.x, HUD + lp.y, r);
+  g.addColorStop(0, 'rgba(255,200,90,0.16)'); g.addColorStop(1, 'rgba(255,200,90,0)');
+  ctx.fillStyle = g; ctx.fillRect(0, HUD, W, PH);
+  if (flash > 0.5) { ctx.fillStyle = `rgba(200,210,255,${((flash - 0.5)*0.5).toFixed(3)})`; ctx.fillRect(0, HUD, W, PH); }
+}
+function drawFireflies() {
+  for (const f of fireflies) {
+    if ((f.blink % 2.2) >= 0.9) continue;
+    rect(f.cx + Math.cos(f.a)*f.r, HUD + f.cy + Math.sin(f.a*1.3)*f.r*0.6, 2, 2, '#e8ff7a');
+  }
+}
+
+function drawObserve() {
+  if (!P.obsTarget || P.obs <= 0) return;
+  const c = animalCenter(P.obsTarget), k = Math.min(1, P.obs/2);
+  ctx.strokeStyle = C.yellow; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.arc(c.x, HUD + c.y, 13, -Math.PI/2, -Math.PI/2 + k*Math.PI*2); ctx.stroke();
+  text('OBSERVING...', W/2, HUD + 4, C.yellow, 'center');
+}
+
+function drawHud() {
+  rect(0, 0, W, HUD, '#000');
+  const mm = Math.floor(clock/60), ss = Math.floor(clock % 60);
+  text('SCORE ' + String(score).padStart(6, '0'), 4, 6, C.white);
+  text('SPECIES ' + documented.size + '/' + SPECIES.length, 118, 6, C.ltgreen);
+  text(String(mm).padStart(2, '0') + ':' + String(ss).padStart(2, '0'), 238, 6, clock < 120 ? C.red : C.yellow);
+  for (let i = 0; i < lives; i++) rect(W - 12 - i*10, 7, 6, 7, C.tan);
+  rect(0, HUD + PH, W, FOOT, '#000');
+  const tier = TIER_NAME[P.y >= FLOOR - 1 ? FLOOR : (P.y >= UNDER - 1 ? UNDER : (P.y >= CANOPY - 1 ? CANOPY : EMERGENT))] || '';
+  text(footT > 0 ? footMsg : `LANTERN RUN ${VERSION}   SCREEN ${String(screen + 1).padStart(2, '0')}   ${tier}`, 4, HUD + PH + 2, C.gray);
+  /* Browsers start sound only after a key press or click, and a gamepad
+     button may not count -- so say so rather than be silently quiet. */
+  if (soundOn && !live()) text('PRESS ANY KEY FOR SOUND', W - 4, HUD + PH + 2, C.yellow, 'right');
+  else text(soundOn ? 'SND' : 'MUTE', W - 4, HUD + PH + 2, C.gray, 'right');
+  if (toastT > 0) text(toast, W/2, HUD + 16, C.white, 'center');
+}
+
+function panel(title) {
+  ctx.fillStyle = 'rgba(0,0,0,0.82)'; ctx.fillRect(16, HUD + 10, W - 32, PH - 20);
+  ctx.strokeStyle = C.tan; ctx.lineWidth = 1; ctx.strokeRect(16.5, HUD + 10.5, W - 33, PH - 21);
+  text(title, W/2, HUD + 18, C.yellow, 'center', 10);
+}
+function wrap(s, n) {
+  const out = []; let line = '';
+  for (const w of s.split(' ')) { if ((line + ' ' + w).trim().length > n) { out.push(line); line = w; } else line = (line + ' ' + w).trim(); }
+  if (line) out.push(line); return out;
+}
+function drawJournal() {
+  panel('FIELD JOURNAL');
+  SPECIES.forEach((s, i) => {
+    const got = documented.has(s.id), y = HUD + 36 + i*12, sel = i === journalSel;
+    if (sel) rect(26, y - 2, W - 52, 11, '#2a2a10');
+    text(got ? s.name : '? ? ?', 32, y, got ? C.ltgreen : C.gray);
+    text(TIER_NAME[s.tier], W - 32, y, got ? C.tan : '#555', 'right');
+  });
+  const s = SPECIES[journalSel], fy = HUD + 36 + SPECIES.length*12 + 6;
+  const lines = documented.has(s.id) ? wrap(s.fact, 52) : ['NOT YET DOCUMENTED. LOOK IN THE ' + TIER_NAME[s.tier] + '.'];
+  lines.forEach((l, i) => text(l, W/2, fy + i*10, C.white, 'center'));
+  text('UP/DOWN: BROWSE   A: SOUND ' + (soundOn ? 'OFF' : 'ON') + '   SELECT: BACK', W/2, HUD + PH - 22, C.gray, 'center');
+}
+function drawTitle() {
+  ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
+  text('LANTERN RUN', W/2, 40, C.yellow, 'center', 22);
+  text('A NIGHT IN THE AMAZON', W/2, 72, C.tan, 'center', 10);
+  const rows = [
+    'You are a zoologist with one lantern and one night.',
+    'Find 12 species across the four layers of the forest.',
+    'Hold B near one, stand still in your light: documented.',
+    '',
+    'D-PAD  run, climb lianas     A  jump (hold = higher)',
+    'DOWN+A  drop through a branch   B  raise lantern, creep',
+    'SELECT  field journal          START  pause',
+  ];
+  rows.forEach((r, i) => text(r, W/2, 100 + i*13, C.white, 'center'));
+  if (Math.floor(nightT*2) % 2) text('PRESS START', W/2, 210, C.ltgreen, 'center', 12);
+  if (!live()) text('PRESS ANY KEY FOR SOUND', W/2, 236, C.yellow, 'center');
+  text(VERSION, W - 4, H - 12, C.gray, 'right');
+}
+
+function draw() {
+  if (state === 'title') { drawTitle(); return; }
+  drawScene();
+  for (const a of animals) drawAnimal(a);
+  drawPlayer();
+  drawDarkness();
+  drawFireflies();
+  drawCaimanEyes();
+  for (const a of animals) drawEyeshine(a);
+  drawObserve();
+  drawHud();
+  if (state === 'journal') drawJournal();
+  if (state === 'pause') { panel('PAUSED'); text('START TO GO ON   SELECT FOR THE JOURNAL', W/2, HUD + 110, C.white, 'center'); }
+  if (state === 'dying') text(P.cause, W/2, HUD + 100, C.red, 'center', 10);
+  if (state === 'over') {
+    panel(P.cause.startsWith('DAWN') ? 'DAWN' : 'EXPEDITION OVER');
+    text(P.cause, W/2, HUD + 60, C.white, 'center');
+    text('SPECIES DOCUMENTED: ' + documented.size + ' OF ' + SPECIES.length, W/2, HUD + 90, C.ltgreen, 'center');
+    text('SCORE ' + score, W/2, HUD + 110, C.yellow, 'center', 10);
+    text('PRESS START', W/2, HUD + 160, C.white, 'center');
+  }
+  if (state === 'won') {
+    panel('EXPEDITION COMPLETE');
+    text('ALL 12 SPECIES DOCUMENTED BEFORE DAWN.', W/2, HUD + 60, C.ltgreen, 'center');
+    text('TIME BONUS ' + Math.floor(clock)*5, W/2, HUD + 90, C.white, 'center');
+    text('SCORE ' + score, W/2, HUD + 110, C.yellow, 'center', 10);
+    text('PRESS START', W/2, HUD + 160, C.white, 'center');
+  }
+}
+
+/* ---------------- loop ---------------- */
+let last = performance.now(), acc = 0;
+function frame(now) {
+  acc += Math.min(0.1, (now - last)/1000); last = now;
+  while (acc >= STEP) { pollInput(); update(STEP); acc -= STEP; for (const b of BTN) pressed[b] = false; }
+  draw();
+  requestAnimationFrame(frame);
+}
+document.addEventListener('visibilitychange', () => { if (document.hidden && state === 'play') state = 'pause'; });
+spawnScreen();
+if (DEMO) {
+  newGame();
+  /* ?demo&warp=N runs N simulation steps up front -- headless browsers barely
+     tick requestAnimationFrame, and this lets a screenshot show real play. */
+  const warp = Math.min(60*600, parseInt(Q.get('warp')) || 0);
+  for (let i = 0; i < warp; i++) { pollInput(); update(STEP); for (const b of BTN) pressed[b] = false; }
+}
+requestAnimationFrame(frame);
+</script>

@@ -54,7 +54,7 @@ Draw a dungeon floor plan and it becomes a prism you can walk through. The edito
 *Under construction.* You are the ghosts. The computer plays the hero; you steer one ghost at a time and switch among all four. Only the ghost you are steering is fast enough to catch him, so the other three can only herd. Built for an NES-style controller; the keyboard works too.
 
 ### 🔤 [Chomp & Spell](https://ohiomathteacher.github.io/applet-library/chomp-and-spell/)
-*Under construction.* Eat the letters, then spell the words. Letters take the place of power pellets, and each cleared maze ends in a spelling round scored by Scrabble letter values. The word list is filtered for the classroom.
+*Under construction.* Eat the letters, then spell the words. Letters take the place of power pellets, and the blue ghosts carry letters too. Get caught and you can spin a category wheel and solve a word, Wheel of Fortune style, to save your life. Each cleared maze ends in a spelling round scored by Scrabble letter values. The word list is filtered for the classroom.
 
 ### 🔦 [Circuit Breaker](https://ohiomathteacher.github.io/applet-library/circuit-breaker/)
 *Under construction.* Lights out. Robots in the maze. Six bullets. You see only what your light reaches; find the gun, shoot what hunts you, and survive one endless, escalating night.

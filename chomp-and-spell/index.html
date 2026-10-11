@@ -21,7 +21,7 @@
 <canvas id="screen" width="336" height="392"></canvas>
 <script>
 /* Shown quietly in the corner; bump with each release. */
-const VERSION = 'v0.2';
+const VERSION = 'v0.3';
 
 /* ============================================================
    Chomp & Spell
@@ -33,8 +33,9 @@ const IS_BROWSER = typeof window !== 'undefined' && typeof document !== 'undefin
 
 /* Hidden test switches: ?demo lets the computer play (for screenshots and
    soak tests), ?spell jumps straight to a spelling round with a sample rack,
-   ?ticks=N fast-forwards (see boot). */
-const FLAGS = { demo:false, spell:false };
+   ?rescue opens the rescue wheel with a sample rack, ?ticks=N fast-forwards
+   (see boot). */
+const FLAGS = { demo:false, spell:false, rescue:false };
 
 /* the palette — early-80s arcade, everything drawn comes from here */
 const PAL = {
@@ -112,6 +113,7 @@ const VALUES = {A:1,B:3,C:3,D:2,E:1,F:4,G:2,H:4,I:1,J:8,K:5,L:1,M:3,N:1,O:1,P:3,
 const BAG = [];
 for (const [ch, n] of Object.entries(BAG_COUNTS)) for (let i = 0; i < n; i++) BAG.push(ch);
 const isVowel = ch => 'AEIOU'.includes(ch);
+const VOWEL_BAG = BAG.filter(isVowel);
 
 /* A pure random draw makes vowel droughts common, and a rack of nine
    consonants is no fun. So look at what the player has and what's on the
@@ -162,12 +164,46 @@ function bestWord(letters) {
   return best;
 }
 
+/* ---------- rescue puzzles ----------
+   When a ghost catches you (once per level), you spin a wheel for a category
+   and solve a word from it Wheel of Fortune style, guessing with your rack
+   tiles. Short names are what fits on a wheel wedge. Every word is 3-8
+   letters so the board fits the screen. */
+const CATEGORIES = [
+  {name:'ANIMALS', color:'#FF3276', words:'TIGER ZEBRA RABBIT TURTLE MONKEY GIRAFFE PENGUIN DOLPHIN SPIDER BEAVER PARROT KOALA LIZARD WALRUS CAMEL HORSE SHARK WHALE SQUIRREL OCTOPUS CHICKEN DONKEY BADGER OTTER HAMSTER'},
+  {name:'FOOD', color:'#00FFFF', words:'PIZZA BANANA CARROT COOKIE PANCAKE NOODLES CHEESE ORANGE APPLE BURGER MUFFIN PICKLE PEANUT TOMATO POPCORN SANDWICH PRETZEL WAFFLE YOGURT CELERY LEMON GRAPES BROCCOLI CEREAL TACO'},
+  {name:'SPORTS', color:'#FFA600', words:'SOCCER TENNIS HOCKEY BASEBALL SWIMMING BOWLING KARATE SKIING GOLF RUGBY CRICKET ARCHERY DIVING ROWING SURFING BOXING CYCLING FENCING LACROSSE SKATING FOOTBALL SLEDDING JUDO'},
+  {name:'SCHOOL', color:'#6CCD30', words:'PENCIL ERASER CRAYON RULER BACKPACK NOTEBOOK TEACHER RECESS LIBRARY MARKER SCISSORS GLOBE PAPER LUNCHBOX HOMEWORK SPELLING MATH READING SCIENCE DESK CHALK BINDER FOLDER'},
+  {name:'NATURE', color:'#FFB8FF', words:'RIVER MOUNTAIN FOREST FLOWER CLOUD RAINBOW VOLCANO ISLAND DESERT OCEAN MEADOW CANYON PEBBLE ACORN THUNDER SUNSHINE BREEZE PUDDLE GLACIER BLOSSOM PINECONE LAKE'},
+  {name:'HOME', color:'#FFFF00', words:'KITCHEN PILLOW BLANKET WINDOW LADDER TOASTER BATHTUB SOFA CARPET MIRROR CLOSET GARAGE LAMP TABLE CHAIR CURTAIN DOORBELL FRIDGE OVEN STAIRS BASEMENT ATTIC FAUCET TEAPOT BLENDER'},
+].map(c => ({...c, words:c.words.split(' ')}));
+const RESCUE_STRIKES = 3;
+
+function shuffle(a) {
+  for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
+  return a;
+}
+
+/* A puzzle is only fair if every letter it hides is in the rack, so letters
+   the rack can't cover are always shown. Of the rest, hide a share that grows
+   with the level: about 40% of the word's letters at level 1, up to 70%.
+   Null when fewer than two letters could be hidden; that word is too easy. */
+function makePuzzle(word, rack) {
+  const have = new Set(rack), distinct = [...new Set(word)];
+  const hideable = shuffle(distinct.filter(ch => have.has(ch)));
+  const share = Math.min(0.7, 0.4 + 0.05 * (G.level - 1));
+  const n = Math.min(hideable.length, Math.max(2, Math.round(distinct.length * share)));
+  if (n < 2) return null;
+  return {word, hidden:new Set(hideable.slice(0, n))};
+}
+
 /* ---------- game state ---------- */
 const G = {
   state:'title', frame:0, score:0, hi:0, lives:3, level:1, rack:[],
   player:null, ghosts:[], dots:null, dotsLeft:0, letters:[], pending:[],
   tick:0, modeIdx:0, modeT:0, frightT:0, frightMax:1, chain:0, freeze:0, popup:null,
-  timer:0, paused:false, toast:null, spell:null, extraGiven:false, muted:false
+  timer:0, paused:false, toast:null, spell:null, extraGiven:false, muted:false,
+  rescue:null, rescueUsed:false
 };
 /* Scatter/chase alternation in ticks (60 per second); even index = scatter. */
 const MODES = [420, 1200, 420, 1200, 300, 1200, 300, Infinity];
@@ -207,6 +243,7 @@ function setupLevel() {
   for (const s of POWER_SPOTS)
     G.letters.push({c:s.c, r:s.r, ch:drawLetter(boardContext()), power:true, ttl:Infinity});
   G.pending = [];
+  G.rescueUsed = false;
   /* Gentle ramp: everyone a little quicker each level, fright a little shorter. */
   const L = G.level - 1;
   G.playerSpeed = Math.min(1.33 + L*0.03, 1.55);
@@ -349,7 +386,7 @@ function stepPlay() {
   if (FLAGS.demo) demoSteer(); else readDirInput();
 
   if (G.frightT > 0) {
-    if (--G.frightT === 0) for (const g of G.ghosts) g.frightened = false;
+    if (--G.frightT === 0) for (const g of G.ghosts) { g.frightened = false; g.ch = null; }
   } else if (--G.modeT <= 0) {
     G.modeIdx++; G.modeT = MODES[G.modeIdx];
     for (const g of G.ghosts) if (g.state === 'active') g.dir = OPP[g.dir];
@@ -391,10 +428,28 @@ function eatAt({c, r}) {
       g.frightened = true;
       if (g.state === 'active') g.dir = OPP[g.dir];
     }
+    ghostLetters();
   }
   /* Bonus-fruit style: every letter eaten seeds another one somewhere else
      shortly after, so the supply only lasts as long as you keep chasing it. */
   G.pending.push({t:150});
+}
+
+/* Frightened ghosts each carry a letter, and eating one puts it in the rack.
+   A ghost still blue from the last letter keeps the one it has. The draw
+   leans on the rack like any other, makes J, Q, X and Z rarer still, and
+   makes sure at least one ghost carries a vowel. */
+function ghostLetters() {
+  const seen = boardContext().concat(G.ghosts.filter(g => g.ch).map(g => g.ch));
+  for (const g of G.ghosts) {
+    if (!g.frightened || g.ch) continue;
+    let ch = drawLetter(seen);
+    if (VALUES[ch] >= 8 && Math.random() < 0.5) ch = drawLetter(seen);
+    g.ch = ch; seen.push(ch);
+  }
+  const carriers = G.ghosts.filter(g => g.ch);
+  if (carriers.length && !carriers.some(g => isVowel(g.ch)))
+    carriers[Math.floor(Math.random() * carriers.length)].ch = VOWEL_BAG[Math.floor(Math.random() * VOWEL_BAG.length)];
 }
 
 /* Bonus letters are letter-only (no power-up) and expire, so the four corner
@@ -421,12 +476,20 @@ function collide() {
     if (g.state !== 'active') continue;
     if (Math.abs(g.x - p.x) + Math.abs(g.y - p.y) > 10) continue;
     if (g.frightened) {
-      g.frightened = false; g.state = 'eyes';
+      const ch = g.ch;
+      g.frightened = false; g.ch = null; g.state = 'eyes';
       const pts = 200 * 2 ** Math.min(G.chain++, 3);
       addScore(pts);
-      G.popup = {x:g.x, y:g.y, text:String(pts)}; G.freeze = 40;
+      let text = String(pts);
+      if (ch && G.rack.length < RACK_MAX) { G.rack.push(ch); text = ch + ' ' + pts; }
+      else if (ch) say('RACK FULL');
+      G.popup = {x:g.x, y:g.y, text}; G.freeze = 40;
       sfx('ghost', G.chain);
     } else if (G.state === 'play') {
+      if (!G.rescueUsed) {
+        if (startRescue()) return;
+        say('NOT ENOUGH TILES FOR A RESCUE');
+      }
       G.state = 'dying'; G.timer = 100; sfx('die');
       return;
     }
@@ -437,6 +500,125 @@ function afterDeath() {
   G.lives--;
   if (G.lives <= 0) { G.state = 'over'; G.timer = 60; saveHi(); return; }
   resetActors();
+}
+
+/* ---------- rescue round ----------
+   caught -> wheel -> puzzle. The wheel only carries categories that have a
+   word the rack can solve (repeated to fill at least six wedges), and the
+   landing wedge is picked before the spin; the spin just shows it. Every
+   tile guessed is spent, right or wrong, so a rescue costs spelling points. */
+function startRescue() {
+  const cats = CATEGORIES.filter(cat => cat.words.some(w => makePuzzle(w, G.rack)));
+  if (!cats.length) return false;
+  const wedges = [];
+  while (wedges.length < 6) wedges.push(...cats);
+  const s = Math.PI * 2 / wedges.length, target = Math.floor(Math.random() * wedges.length);
+  G.rescue = {wedges, angle:0, final:Math.PI * 8 - (target + 0.5) * s, t:-1, dur:150, under:0, hold:0, wait:0};
+  G.state = 'caught'; G.timer = 70; sfx('caught');
+  return true;
+}
+
+/* Which wedge sits under the pointer at the top of the wheel. */
+function wedgeUnder(R) {
+  const s = Math.PI * 2 / R.wedges.length, a = ((-R.angle) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2);
+  return Math.floor(a / s) % R.wedges.length;
+}
+
+function updateWheel() {
+  const R = G.rescue;
+  if (R.t < 0) {
+    if (pressed.a || pressed.start || (FLAGS.demo && ++R.wait > 40)) { R.t = 0; sfx('spin'); }
+    return;
+  }
+  if (R.t < R.dur) {
+    if (pressed.a || pressed.start) R.t = R.dur; else R.t++;   // a second press skips to the landing
+    const u = R.t / R.dur;
+    R.angle = R.final * (1 - (1 - u) ** 3);
+    const k = wedgeUnder(R);
+    if (k !== R.under) { R.under = k; sfx('click'); }
+    if (R.t >= R.dur) { R.hold = 70; sfx('land'); }
+    return;
+  }
+  if (--R.hold <= 0) startPuzzle(R.wedges[R.under]);
+}
+
+function startPuzzle(cat) {
+  const options = cat.words.map(w => makePuzzle(w, G.rack)).filter(Boolean);
+  const pz = options[Math.floor(Math.random() * options.length)];
+  G.rescue = {cat, word:pz.word, hidden:pz.hidden,
+              shown:new Set([...pz.word].filter(ch => !pz.hidden.has(ch))),
+              tiles:G.rack.map(ch => ({ch, used:false})), cursor:0, strikes:0,
+              msg:'', msgColor:PAL.white, msgT:0, result:null, timer:0, demoT:0};
+  G.state = 'puzzle';
+  typedQueue.length = 0;
+}
+
+function rescueMsg(text, color = PAL.white) { const R = G.rescue; R.msg = text; R.msgColor = color; R.msgT = 150; }
+
+function guessTile(i) {
+  const R = G.rescue, t = R.tiles[i];
+  if (!t || R.result) return;
+  if (t.used) { sfx('nope'); return rescueMsg('THAT TILE IS SPENT', PAL.grey); }
+  if (R.shown.has(t.ch)) { sfx('nope'); return rescueMsg(t.ch + ' IS ALREADY UP THERE', PAL.grey); }
+  t.used = true;
+  if (R.hidden.has(t.ch)) {
+    R.shown.add(t.ch);
+    const n = [...R.word].filter(c => c === t.ch).length;
+    sfx('reveal', n);
+    rescueMsg(n > 1 ? 'THERE ARE ' + n + ' ' + t.ch + "'S!" : 'YES! ONE ' + t.ch, PAL.good);
+    if ([...R.hidden].every(c => R.shown.has(c))) { R.result = 'win'; R.timer = 120; sfx('saved'); }
+  } else {
+    R.strikes++; sfx('bad');
+    if (R.strikes >= RESCUE_STRIKES) {
+      for (const c of R.hidden) R.shown.add(c);
+      R.result = 'lose'; R.timer = 150;
+      rescueMsg('OUT OF MISSES', PAL.bad);
+    } else rescueMsg('NO ' + t.ch + ' IN THIS WORD', PAL.bad);
+  }
+  const nextFree = R.tiles.findIndex(x => !x.used);
+  if (R.tiles[R.cursor].used && nextFree >= 0) R.cursor = nextFree;
+}
+
+function typeGuess(ch) {
+  const R = G.rescue;
+  const free = i => R.tiles[i].ch === ch && !R.tiles[i].used;
+  const i = free(R.cursor) ? R.cursor : R.tiles.findIndex((_, k) => free(k));
+  if (i >= 0) { R.cursor = i; return guessTile(i); }
+  sfx('nope');
+  rescueMsg(R.shown.has(ch) ? ch + ' IS ALREADY UP THERE' : 'NO FREE ' + ch + ' TILE', PAL.grey);
+}
+
+function updatePuzzle() {
+  const R = G.rescue, n = R.tiles.length;
+  if (R.msgT > 0) R.msgT--;
+  if (R.result) { typedQueue.length = 0; if (--R.timer <= 0) endRescue(); return; }
+  if (FLAGS.demo) return demoPuzzle();
+  const was = R.cursor;
+  if (pressed.left)  R.cursor = (R.cursor + n - 1) % n;
+  if (pressed.right) R.cursor = (R.cursor + 1) % n;
+  if (pressed.up   && R.cursor >= 8)    R.cursor -= 8;
+  if (pressed.down && R.cursor + 8 < n) R.cursor += 8;
+  if (R.cursor !== was) sfx('move');
+  if (pressed.a) guessTile(R.cursor);
+  while (typedQueue.length && !R.result) typeGuess(typedQueue.shift());
+}
+
+/* Solved: back to the maze with the same dots and lives, from the start
+   positions. Not solved: the death you were owed. Either way the rescue is
+   used up for this level and spent tiles leave the rack. */
+function endRescue() {
+  const R = G.rescue;
+  G.rack = R.tiles.filter(t => !t.used).map(t => t.ch);
+  G.rescueUsed = true; G.rescue = null;
+  if (R.result === 'win') { resetActors(); say('SAVED!'); }
+  else { G.state = 'dying'; G.timer = 100; sfx('die'); }
+}
+
+function demoPuzzle() {
+  const R = G.rescue;
+  if (++R.demoT % 40) return;
+  const i = R.tiles.findIndex(t => !t.used && R.hidden.has(t.ch) && !R.shown.has(t.ch));
+  if (i >= 0) { R.cursor = i; guessTile(i); }
 }
 
 /* ---------- spelling round ---------- */
@@ -627,7 +809,7 @@ function pollInput() {
 let shiftClean = false;   // Shift fires Select on release, and only if nothing was typed with it
 function onKeyDown(e) {
   audioInit();
-  const spelling = G.state === 'spell';
+  const spelling = G.state === 'spell' || G.state === 'puzzle';   // letter keys type letters
   if (e.key !== 'Shift') shiftClean = false;
   if (spelling && /^[a-zA-Z]$/.test(e.key) && !e.ctrlKey && !e.metaKey && !e.altKey) {
     typedQueue.push(e.key.toUpperCase()); e.preventDefault(); return;
@@ -804,6 +986,22 @@ function sfx(kind, arg) {
         if (pts >= 300) for (let i = 0; i < 6; i++) tone(hz(103 + (i % 3) * 2), 0.05, 'triangle', 0.02, hz(103 + (i % 3) * 2), at + i*0.06);
         break;
       }
+      /* rescue round */
+      case 'caught':
+        seq([84, 80, 77, 73], 0.06, 'square', 0.05, 0.1);
+        hiss(SFX, now, 0.2, 0.04, 2000);
+        break;
+      case 'spin': tone(150, 0.35, 'triangle', 0.08, 500); hiss(SFX, now, 0.3, 0.03, 3000); break;
+      case 'click': tone(1800, 0.015, 'square', 0.03); hiss(SFX, now, 0.015, 0.03, 4000); break;
+      case 'land': seq([76, 79, 84], 0.08, 'triangle', 0.08, 0.2); break;
+      /* one ding for each place the letter shows up, like the show's board */
+      case 'reveal':
+        for (let k = 0; k < (arg || 1); k++) { tone(hz(88), 0.3, 'triangle', 0.09, hz(88), k * 0.18); tone(hz(100), 0.08, 'square', 0.02, hz(100), k * 0.18); }
+        break;
+      case 'saved':
+        seq([72, 76, 79, 84, 0, 79, 84, 88], 0.07, 'square', 0.04, 0.12);
+        seq([0, 0, 0, 0, 0, 0, 0, 0, 84, 88, 91], 0.07, 'triangle', 0.07, 0.4);
+        break;
       /* round-end tally: a rising tick per count, then a closing cadence */
       case 'tally': tone(hz(72 + Math.round(24 * (arg || 0))), 0.03, 'square', 0.025); break;
       case 'tallyEnd':
@@ -911,7 +1109,7 @@ function wantedScene() {
     case 'title': return 'title';
     case 'ready': return 'ready';
     case 'play': return G.paused ? null : 'maze';
-    case 'spell': case 'spelldone': return 'spell';
+    case 'spell': case 'spelldone': case 'puzzle': return 'spell';
     default: return null;   // dying and clear have their own effect; game over is quiet
   }
 }
@@ -981,6 +1179,15 @@ function update() {
       break;
     case 'spell':
       updateSpell();
+      break;
+    case 'caught':
+      if (--G.timer <= 0) G.state = 'wheel';
+      break;
+    case 'wheel':
+      updateWheel();
+      break;
+    case 'puzzle':
+      updatePuzzle();
       break;
     case 'spelldone':
       tallyUp();
@@ -1088,6 +1295,11 @@ function drawGhost(g) {
     for (let i = 0; i < 4; i++) ctx.fillRect(x - 7 + i*4 + off, y + 5, 2, 2);
     if (g.frightened) {
       ctx.fillStyle = flashing ? PAL.blinky : PAL.scaredFace;
+      if (g.ch) {   // small eyes up top, the letter where the mouth was
+        ctx.fillRect(x - 4, y - 6, 2, 2); ctx.fillRect(x + 2, y - 6, 2, 2);
+        drawText(g.ch, x - 2, y - 2, flashing ? PAL.blinky : PAL.tile);
+        return;
+      }
       ctx.fillRect(x - 3, y - 3, 2, 2); ctx.fillRect(x + 1, y - 3, 2, 2);
       for (let i = 0; i < 5; i++) ctx.fillRect(x - 5 + i*2, y + 1 + (i % 2), 2, 1);
       return;
@@ -1123,6 +1335,7 @@ function drawHud() {
     ctx.fillStyle = PAL.chomp; ctx.beginPath();
     ctx.moveTo(8 + i*12, 17); ctx.arc(8 + i*12, 17, 4, Math.PI + 0.6, Math.PI - 0.6 + Math.PI*2); ctx.fill();
   }
+  if (!G.rescueUsed) drawText('RESCUE', 8 + Math.min(G.lives - 1, 6) * 12, 14, PAL.gold);
   drawText(VERSION, W - 4, 14, PAL.dim, 1, 'right');
   if (FLAGS.demo) drawText('DEMO', W/2, 14, PAL.grey, 1, 'center');
 }
@@ -1164,6 +1377,11 @@ function drawPlay() {
   const midY = HUD_H + 11*T + 4;
   if (G.state === 'ready') drawText('READY!', W/2, midY, PAL.chomp, 1, 'center');
   if (G.state === 'clear') drawText('LEVEL CLEAR!', W/2, midY, PAL.chomp, 1, 'center');
+  if (G.state === 'caught') {
+    ctx.fillStyle = '#000'; ctx.fillRect(W/2 - 90, midY - 26, 180, 44);
+    drawText('CAUGHT!', W/2, midY - 20, PAL.blinky, 2, 'center');
+    drawText('SPIN TO SAVE YOUR LIFE', W/2, midY + 4, PAL.white, 1, 'center');
+  }
   if (G.state === 'over') {
     ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(0, HUD_H, W, ROWS*T);
     drawText('GAME OVER', W/2, HUD_H + 130, PAL.blinky, 3, 'center');
@@ -1190,11 +1408,11 @@ function drawTitle() {
   }
   drawPlayer({x:px, y:176 - HUD_H, dir:RIGHT}, 0.05 + 0.6 * Math.abs(Math.sin(G.frame * 0.25)));
   const lines = [
-    ['EAT THE DOTS. LETTERS ARE POWER', PAL.white],
-    ['PELLETS - AND GO IN YOUR RACK.', PAL.white],
-    ['CLEAR THE MAZE, THEN SPELL WORDS', PAL.white],
-    ['WITH YOUR LETTERS FOR POINTS.', PAL.white],
-    ['', PAL.white],
+    ['LETTERS ARE POWER PELLETS. EAT ONE', PAL.white],
+    ['AND THE GHOSTS TURN BLUE AND CARRY', PAL.white],
+    ['LETTERS TOO. CAUGHT? SPIN THE WHEEL', PAL.white],
+    ['AND SOLVE A WORD TO SAVE YOUR LIFE.', PAL.white],
+    ['CLEAR THE MAZE, THEN SPELL WORDS.', PAL.white],
     ['MAZE: D-PAD/ARROWS/WASD  START: PAUSE', PAL.grey],
     ['SPELL: <> PICK  A ADD  B BACK', PAL.grey],
     ['START SUBMIT  SELECT X2 DONE', PAL.grey],
@@ -1254,10 +1472,83 @@ function drawSpell() {
   }
 }
 
+/* A flat-colour wheel with the category names written upright, a peg at
+   every wedge line and the chomper in the hub. */
+function drawWheel() {
+  const R = G.rescue, N = R.wedges.length, s = Math.PI * 2 / N, cx = W/2, cy = 180, r = 112;
+  drawText('CAUGHT!', W/2, 8, PAL.blinky, 3, 'center');
+  drawText('SPIN FOR A CATEGORY', W/2, 38, PAL.white, 1, 'center');
+  for (let i = 0; i < N; i++) {
+    const a = -Math.PI/2 + R.angle + i*s;
+    ctx.fillStyle = R.wedges[i].color;
+    ctx.beginPath(); ctx.moveTo(cx, cy); ctx.arc(cx, cy, r, a, a + s); ctx.closePath(); ctx.fill();
+  }
+  ctx.strokeStyle = '#000'; ctx.lineWidth = 2;
+  for (let i = 0; i < N; i++) {
+    const a = -Math.PI/2 + R.angle + i*s;
+    ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx + Math.cos(a)*r, cy + Math.sin(a)*r); ctx.stroke();
+  }
+  for (let i = 0; i < N; i++) {
+    const m = -Math.PI/2 + R.angle + (i + 0.5)*s;
+    drawText(R.wedges[i].name, Math.round(cx + Math.cos(m)*r*0.66), Math.round(cy + Math.sin(m)*r*0.66) - 3, '#000', 1, 'center');
+    const a = m - s/2;
+    ctx.fillStyle = PAL.white; ctx.fillRect(Math.round(cx + Math.cos(a)*(r - 5)) - 2, Math.round(cy + Math.sin(a)*(r - 5)) - 2, 4, 4);
+  }
+  ctx.strokeStyle = PAL.white; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.arc(cx, cy, r + 1, 0, Math.PI*2); ctx.stroke();
+  ctx.fillStyle = '#000'; ctx.beginPath(); ctx.arc(cx, cy, 14, 0, Math.PI*2); ctx.fill();
+  drawPlayer({x:cx, y:cy - HUD_H, dir:UP}, 0.05 + 0.6 * Math.abs(Math.sin(G.frame * 0.25)));
+  ctx.fillStyle = PAL.white;
+  ctx.beginPath(); ctx.moveTo(cx - 9, cy - r - 14); ctx.lineTo(cx + 9, cy - r - 14); ctx.lineTo(cx, cy - r + 6); ctx.closePath(); ctx.fill();
+  const landed = R.t >= R.dur, cat = R.wedges[R.under];
+  if (!landed || Math.floor(G.frame / 8) % 2) drawText(cat.name, W/2, 312, cat.color, 3, 'center');
+  if (R.t < 0) { if (Math.floor(G.frame / 30) % 2 === 0) drawText('PRESS A TO SPIN', W/2, 350, PAL.chomp, 2, 'center'); }
+  else if (!landed) drawText('A TO SKIP', W/2, 356, PAL.grey, 1, 'center');
+}
+
+function puzzleTilePos(i) { return {x:8 + (i & 7) * 40, y:178 + (i >> 3) * 42}; }
+
+/* The board: white blanks for hidden letters, like the show, and the rack
+   underneath to guess with. */
+function drawPuzzle() {
+  const R = G.rescue, n = R.word.length, x0 = Math.floor((W - (n*40 - 4)) / 2);
+  drawText('SAVE YOUR LIFE!', W/2, 8, PAL.chomp, 2, 'center');
+  drawText(R.cat.name, W/2, 32, R.cat.color, 2, 'center');
+  for (let i = 0; i < n; i++) {
+    const ch = R.word[i], x = x0 + i*40;
+    if (R.shown.has(ch)) drawTile(x, 58, 36, ch, {scale:3});
+    else drawTile(x, 58, 36, ' ', {face:PAL.white});
+  }
+  drawText('MISSES', W/2 - 42, 118, PAL.grey, 1, 'right');
+  for (let k = 0; k < RESCUE_STRIKES; k++) {
+    const x = W/2 - 32 + k*24;
+    ctx.fillStyle = '#222'; ctx.fillRect(x, 112, 18, 18);
+    if (k < R.strikes) drawText('X', x + 4, 114, PAL.bad, 2);
+  }
+  if (R.msgT > 0) drawText(R.msg, W/2, 144, R.msgColor, 1, 'center');
+  drawText('YOUR TILES', 8, 166, PAL.grey);
+  R.tiles.forEach((t, i) => {
+    const {x, y} = puzzleTilePos(i);
+    if (t.used) drawTile(x, y, 36, t.ch, {scale:3, face:PAL.tileUsed, border:'#222', ink:'#666'});
+    else drawTile(x, y, 36, t.ch, {scale:3});
+    if (!R.result && i === R.cursor && Math.floor(G.frame / 10) % 3) {
+      ctx.strokeStyle = PAL.chomp; ctx.lineWidth = 2; ctx.strokeRect(x - 2, y - 2, 40, 40);
+    }
+  });
+  if (R.result === 'win') drawText('SAVED!', W/2, 300, PAL.good, 3, 'center');
+  else if (R.result === 'lose') drawText('THE WORD WAS ' + R.word, W/2, 306, PAL.white, 1, 'center');
+  else {
+    drawText('<> PICK  A GUESS  OR TYPE A LETTER', W/2, 356, PAL.grey, 1, 'center');
+    drawText('EVERY TILE YOU GUESS IS USED UP', W/2, 370, PAL.dim, 1, 'center');
+  }
+}
+
 function draw() {
   ctx.fillStyle = PAL.bg; ctx.fillRect(0, 0, W, H);
   if (G.state === 'title') drawTitle();
   else if (G.state === 'spell' || G.state === 'spelldone') drawSpell();
+  else if (G.state === 'wheel') drawWheel();
+  else if (G.state === 'puzzle') drawPuzzle();
   else drawPlay();
   drawToast();
   drawMute();
@@ -1267,7 +1558,7 @@ function draw() {
    mute state stays on screen wherever you are. */
 function drawMute() {
   if (!G.muted) return;
-  const inMaze = G.state !== 'title' && G.state !== 'spell' && G.state !== 'spelldone';
+  const inMaze = !['title', 'spell', 'spelldone', 'wheel', 'puzzle'].includes(G.state);
   if (inMaze) drawText('MUTE', W - 10 - textWidth(VERSION), 14, PAL.grey, 1, 'right');
   else drawText('MUTE', W - 4, 4, PAL.grey, 1, 'right');
 }
@@ -1289,7 +1580,7 @@ function boot() {
   wallFlash = bakeWalls(PAL.white);
   G.hi = loadHi();
   const q = new URLSearchParams(location.search);
-  FLAGS.demo = q.has('demo'); FLAGS.spell = q.has('spell');
+  FLAGS.demo = q.has('demo'); FLAGS.spell = q.has('spell'); FLAGS.rescue = q.has('rescue');
   addEventListener('keydown', onKeyDown);
   addEventListener('keyup', onKeyUp);
   addEventListener('pointerdown', audioInit);
@@ -1303,6 +1594,11 @@ function boot() {
     newGame();
     G.rack = 'QUIZEATRSNOLDE'.split('');
     startSpelling();
+  }
+  if (FLAGS.rescue) {
+    newGame();
+    G.rack = 'TIGERSANOLKDC'.split('');
+    startRescue();
   }
   /* ?ticks=N fast-forwards N game ticks before the first frame — headless
      browsers barely run requestAnimationFrame, so this is how screenshots

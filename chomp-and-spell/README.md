@@ -5,10 +5,20 @@ Eat the letters, then spell the words. A retro maze game for an NES-style contro
 ## How to play
 
 Clear every dot in the maze while four ghosts chase you. The power pellets are
-**letters**: eating one turns the ghosts blue (eat them for points) and puts
-that letter in your **rack** at the bottom of the screen. Each letter you eat
+**letters**: eating one puts that letter in your **rack** at the bottom of the
+screen and turns the ghosts blue. Blue ghosts carry letters too; eat one for
+points and its letter. Each letter you eat
 makes a new bonus letter pop up somewhere else a moment later. Bonus letters
 don't scare the ghosts and vanish if you leave them too long.
+
+**Caught by a ghost?** Once per level you get a rescue (RESCUE shows in the
+corner while you still have it). Spin the wheel for a category, then solve a
+word from it Wheel of Fortune style: pick a tile from your rack, and if that
+letter is in the word it fills in everywhere. Solve it and you keep your life;
+three misses and you lose it. Every tile you guess is used up, right or wrong.
+Move over your tiles with the D-pad and press A to guess, or just type the
+letter.
+If no word can be solved with your tiles, there's no rescue.
 
 When the dots are gone, the **spelling round** begins:
 

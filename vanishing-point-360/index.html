@@ -7,19 +7,46 @@
 -->
 <!doctype html>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<!-- On an iPhone, "Add to Home Screen" opens it full screen, without Safari's bars. -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="theme-color" content="#000000">
 <title>Vanishing Point 360</title>
 <!-- One file, no build, no network. Open it straight from disk. -->
 <style>
   html,body{margin:0;height:100%;background:#000;overflow:hidden}
   canvas{position:absolute;display:block}
-  /* Phosphor settings. A DOM button in the corner, like Chomp & Spell's size
-     control: faint until you reach for it, never drawn into the game. */
-  #fx{position:fixed;right:10px;bottom:8px;z-index:5;font:12px/1 system-ui,sans-serif;
-      letter-spacing:.08em;color:#6b7280;background:#111;border:1px solid #333;
-      border-radius:5px;padding:6px 9px;cursor:pointer;opacity:.45;transition:opacity .15s}
-  #fx:hover,#fx:focus-visible,#fx[aria-expanded="true"]{opacity:1;color:#e5e7eb;border-color:#666}
-  #fxp{position:fixed;right:10px;bottom:40px;z-index:5;font:13px/1.4 system-ui,sans-serif;color:#d1d5db;
+  /* Size and phosphor buttons. DOM buttons in the corner, like Chomp & Spell's
+     size control: faint until you reach for it, never drawn into the game. */
+  :root{--sat:env(safe-area-inset-top,0px);--sar:env(safe-area-inset-right,0px);
+        --sab:env(safe-area-inset-bottom,0px);--sal:env(safe-area-inset-left,0px)}
+  #corner{position:fixed;right:10px;bottom:8px;z-index:5;display:flex;gap:6px}
+  #corner button{font:12px/1 system-ui,sans-serif;letter-spacing:.08em;color:#6b7280;background:#111;
+      border:1px solid #333;border-radius:5px;padding:6px 9px;cursor:pointer;opacity:.45;transition:opacity .15s;
+      -webkit-tap-highlight-color:transparent}
+  #corner button:hover,#corner button:focus-visible,#fx[aria-expanded="true"]{opacity:1;color:#e5e7eb;border-color:#666}
+  /* The touch controller, shown only on phones and tablets: a D-pad, B and A,
+     Select and Start, laid out by fit() below the screen (upright) or in the
+     margins beside it (sideways). */
+  #pad{position:fixed;inset:0;pointer-events:none;z-index:4;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+  #pad[hidden]{display:none}
+  #pad>*{position:absolute;pointer-events:auto;touch-action:none;-webkit-tap-highlight-color:transparent;transform:translate(-50%,-50%);margin:0;padding:0}
+  #dpad{width:var(--d,140px);height:var(--d,140px)}
+  #dpad i{position:absolute;background:#14161b;border:1px solid #3a4258;border-radius:7px}
+  #dpad .h{left:0;right:0;top:33.3%;bottom:33.3%}
+  #dpad .v{top:0;bottom:0;left:33.3%;right:33.3%}
+  #dpad span{position:absolute;width:33.4%;height:33.4%;border-radius:6px}
+  #dpad .l{left:0;top:33.3%}#dpad .r{right:0;top:33.3%}#dpad .u{top:0;left:33.3%}#dpad .d{bottom:0;left:33.3%}
+  #dpad[data-dir=left] .l,#dpad[data-dir=right] .r,#dpad[data-dir=up] .u,#dpad[data-dir=down] .d{background:rgba(74,107,255,.5);box-shadow:0 0 14px rgba(74,107,255,.8)}
+  .pb{width:var(--ab,70px);height:var(--ab,70px);border-radius:50%;font:700 22px/1 system-ui,sans-serif;background:#120c08;border:2px solid currentColor}
+  .pb::after{content:attr(data-l);position:absolute;left:50%;top:calc(100% + 6px);transform:translateX(-50%);font:600 10px/1 system-ui,sans-serif;letter-spacing:.12em;color:#6b7280}
+  #pbA{color:#ffd23a}#pbB{color:#ff6a30}
+  #pbA.on{background:#ffd23a;color:#120c08;box-shadow:0 0 18px #ffd23a}#pbB.on{background:#ff6a30;color:#120c08;box-shadow:0 0 18px #ff6a30}
+  .pp{width:78px;height:28px;border-radius:14px;font:600 11px/1 system-ui,sans-serif;letter-spacing:.12em;color:#8b93a1;background:#14161b;border:1px solid #3a4258}
+  .pp.on{color:#fff;border-color:#8a96b8;box-shadow:0 0 10px rgba(138,150,184,.6)}
+  #fxp{position:fixed;right:10px;bottom:40px;max-width:calc(100vw - 20px);box-sizing:border-box;z-index:5;font:13px/1.4 system-ui,sans-serif;color:#d1d5db;
        background:rgba(10,11,14,.94);border:1px solid #333;border-radius:8px;padding:12px 14px;
        display:grid;gap:10px;min-width:230px}
   #fxp[hidden]{display:none}
@@ -30,7 +57,17 @@
   #fxp .k{color:#6b7280;font-size:11px;letter-spacing:.04em;max-width:230px}
 </style>
 <canvas id="c"></canvas>
-<button id="fx" type="button" aria-expanded="false" aria-controls="fxp" title="How the vector screen glows: phosphor persistence, glow and beam flicker">&#9881; PHOSPHOR</button>
+<div id="corner">
+  <button id="size" type="button" title="How big the screen is drawn. FIT shows the whole picture; FILL widens the world to your window; FULL also hides the browser.">&#9974; FIT</button>
+  <button id="fx" type="button" aria-expanded="false" aria-controls="fxp" title="How the vector screen glows: phosphor persistence, glow and beam flicker">&#9881; PHOSPHOR</button>
+</div>
+<div id="pad" hidden>
+  <div id="dpad" data-dir=""><i class="h"></i><i class="v"></i><span class="l"></span><span class="r"></span><span class="u"></span><span class="d"></span></div>
+  <button class="pb" id="pbB" type="button" data-b="b" data-l="TORPEDO">B</button>
+  <button class="pb" id="pbA" type="button" data-b="a" data-l="LASER">A</button>
+  <button class="pp" id="pbSel" type="button" data-b="select">SELECT</button>
+  <button class="pp" id="pbStart" type="button" data-b="start">START</button>
+</div>
 <div id="fxp" hidden>
   <label>Persistence <span class="v" id="pv"></span><input type="range" id="persist" min="0" max="0.9" step="0.01"></label>
   <label>Glow <span class="v" id="gv"></span><input type="range" id="glow" min="0" max="1.6" step="0.05"></label>
@@ -41,7 +78,7 @@
 <script>
 "use strict";
 /* Shown quietly in the corner; bump with each release. */
-const VERSION = 'v0.3';
+const VERSION = 'v0.4';
 
 /* ============================================================
    Vanishing Point 360
@@ -52,7 +89,10 @@ const VERSION = 'v0.3';
    Same saucers, chirpers, blockers, bouncers and sector ship in all three.
    ============================================================ */
 
-const W = 960, H = 640, CX = W/2;
+/* The world is 640 units tall. It is 960 wide in FIT; in FILL it widens to
+   match the window, so a wide window shows more field instead of black bars. */
+const W0 = 960, H = 640;
+let W = W0, CX = W0/2;
 const STEP = 1/60;
 const Q = new URLSearchParams(location.search);
 /* ?demo auto-starts with an invincible auto-pilot so a headless browser can
@@ -230,15 +270,43 @@ const cv = document.getElementById('c'), ctx = cv.getContext('2d');
 const acc = document.createElement('canvas'), ax = acc.getContext('2d');
 const bloom = document.createElement('canvas'), bx = bloom.getContext('2d');
 let S = 1;
+/* SIZE: FIT shows the whole 960 x 640 picture; FILL widens the world to the
+   window's shape (vector lines need no whole-number scaling, so nothing is
+   lost); FULL is FILL with the browser hidden. One button cycles them, like
+   Chomp & Spell's. iPhones refuse fullscreen for web pages, so there it is
+   FIT and FILL only. */
+const TOUCH = Q.has('touch') || !!(window.matchMedia && matchMedia('(pointer: coarse)').matches);
+const SIZE_MODES = document.fullscreenEnabled ? ['fit', 'fill', 'full'] : ['fit', 'fill'];
+let sizeMode = 'fit';
+try { const m = localStorage.getItem('vanishingPoint360.size'); if (m === 'fill' || m === 'full') sizeMode = 'fill'; } catch (e) {}
+if (['fit', 'fill'].includes(Q.get('size'))) sizeMode = Q.get('size');
+function insets() {
+  const st = getComputedStyle(document.documentElement), g = k => parseFloat(st.getPropertyValue(k)) || 0;
+  return {t: g('--sat'), r: g('--sar'), b: g('--sab'), l: g('--sal')};
+}
 function fit() {
-  const s = Math.min(innerWidth/W, innerHeight/H);
-  cv.style.width = W*s + 'px'; cv.style.height = H*s + 'px';
-  cv.style.left = ((innerWidth - W*s)/2) + 'px';
-  cv.style.top = ((innerHeight - H*s)/2) + 'px';
+  const vw = innerWidth, vh = innerHeight, ins = insets();
+  let ax0 = ins.l, ay0 = ins.t, aw = vw - ins.l - ins.r, ah = vh - ins.t - ins.b, L = null;
+  if (TOUCH) {
+    if (vh > vw) {            // upright: the screen on top, the controller under it
+      const padH = Math.min(300, Math.max(210, ah*0.36));
+      ah -= padH; L = {portrait: true, padH};
+    } else {                  // sideways: the controls in the margins beside the screen
+      const side = Math.max(110, Math.min(170, aw*0.15));
+      ax0 += side; aw -= 2*side; L = {portrait: false, side};
+    }
+  }
+  W = sizeMode === 'fit' ? W0 : Math.max(W0, Math.min(W0*2, H*aw/ah));
+  CX = W/2;
+  const s = Math.min(aw/W, ah/H), cw = W*s, ch = H*s;
+  const left = ax0 + (aw - cw)/2;
+  const top = L && L.portrait ? ay0 + Math.max(0, (vh - ins.t - ins.b - L.padH - ch)/2) : ay0 + (ah - ch)/2;
+  cv.style.width = cw + 'px'; cv.style.height = ch + 'px';
+  cv.style.left = left + 'px'; cv.style.top = top + 'px';
   S = Math.max(0.5, Math.min(2.2, s*Math.min(2, window.devicePixelRatio || 1)));
   cv.width = acc.width = Math.round(W*S); cv.height = acc.height = Math.round(H*S);
+  layoutPad(L, top + ch, vw, vh, ins);
 }
-addEventListener('resize', fit); fit();
 const hasFilter = typeof ctx.filter === 'string';
 
 const OPT = {persist: 0.62, glow: 1, flicker: !reduced};
@@ -1247,7 +1315,7 @@ function update(dt) {
 
 /* ---------------- drawing ---------------- */
 const STARS = [];
-for (let i = 0; i < 60; i++) STARS.push({x: Math.random()*W, y: 20 + Math.random()*(HOR - 30), p: Math.random()*6});
+for (let i = 0; i < 60; i++) STARS.push({fx: Math.random(), y: 20 + Math.random()*(HOR - 30), p: Math.random()*6});
 function outline(z, col, i, hot) {
   const pts = CUR.B.map(([X, Y]) => { const q = proj(X, Y, z); return [q.x, q.y]; });
   poly(pts, col, false, i, false);
@@ -1259,7 +1327,7 @@ function drawField() {
   const off = G.scroll % 1, bA = CUR.beamsA, mA = CUR.meshA;
   const live = state !== 'title' && state !== 'over' && !morphing();
   if (bA > 0.01) {
-    for (const s of STARS) dot(s.x, s.y, '#a0b4ff', bA*(0.2 + 0.45*Math.abs(Math.sin(t0*0.8 + s.p))));
+    for (const s of STARS) dot(s.fx*W, s.y, '#a0b4ff', bA*(0.2 + 0.45*Math.abs(Math.sin(t0*0.8 + s.p))));
     line(0, CUR.vpy, W, CUR.vpy, '#2040b0', 0.7*bA);         // the horizon, where everything is born
     /* Grid lines evenly spaced in depth, scrolling toward you. Even in z
        means NOT even on screen: they bunch up toward the horizon, and that
@@ -1429,13 +1497,13 @@ function drawTitle() {
   text('360', xs + 6*6*6.4, 88, 6.4, '#ff3a3a', 'left', 1.1);
   MODES.forEach((m, i) => {
     const y = 186 + i*66, on = m === MODE;
-    if (on) text('>', 214, y, 3.2, '#ffe23a', 'left', 1 - 0.4*((t0*3 | 0) % 2));
-    text(MODE_NAME[m], 252, y, 3.2, on ? '#ffe23a' : '#6070a8', 'left', on ? 1.1 : 0.8);
-    text(MODE_DESC[m], 252, y + 28, 1.5, on ? '#9fc0ff' : '#4a5a90', 'left', on ? 1 : 0.7);
+    if (on) text('>', CX - 266, y, 3.2, '#ffe23a', 'left', 1 - 0.4*((t0*3 | 0) % 2));
+    text(MODE_NAME[m], CX - 228, y, 3.2, on ? '#ffe23a' : '#6070a8', 'left', on ? 1.1 : 0.8);
+    text(MODE_DESC[m], CX - 228, y + 28, 1.5, on ? '#9fc0ff' : '#4a5a90', 'left', on ? 1 : 0.7);
   });
   text('UP / DOWN CHOOSES A GAME', CX, 392, 1.5, '#7d8cc8', 'center');
   text('D-PAD HOP   A LASER   B TORPEDO   SELECT SIDE VIEW   START PLAY', CX, 428, 1.5, '#ffffff', 'center', 0.85);
-  text('KEYS: ARROWS  Z=A  X=B  SHIFT=SELECT  ENTER=START  M=MUTE', CX, 452, 1.3, '#4a5a90', 'center');
+  if (!TOUCH) text('KEYS: ARROWS  Z=A  X=B  SHIFT=SELECT  ENTER=START  M=MUTE', CX, 452, 1.3, '#4a5a90', 'center');
   if ((t0*2 | 0) % 2) text('PRESS START', CX, 498, 3.4, '#ffffff', 'center');
   if (HI[MODE]) text('HI ' + HI[MODE], CX, 548, 1.8, '#ffd23a', 'center');
 }
@@ -1476,9 +1544,9 @@ function render(dt) {
     newLayer(null);
   }
   // footer
-  text(VERSION, W - 120, H - 16, 1.3, '#2a3460', 'right');
+  text(VERSION, W - 12, H - 44, 1.3, '#2a3460', 'right');
   if (!soundOn) text('MUTED (M)', CX, H - 16, 1.4, '#7d8cc8', 'center');
-  else if (!audioLive()) text('PRESS ANY KEY FOR SOUND', CX, H - 16, 1.4, '#7d8cc8', 'center');
+  else if (!audioLive()) text(TOUCH ? 'TAP A BUTTON FOR SOUND' : 'PRESS ANY KEY FOR SOUND', CX, H - 16, 1.4, '#7d8cc8', 'center');
   if (noteT > 0) text(note, CX, H - 38, 1.6, '#7dff6a', 'center');
   if (DEMO) {
     text('DEMO', 12, H - 40, 1.4, '#3a4a80');
@@ -1486,6 +1554,91 @@ function render(dt) {
   }
   paint(dt);
 }
+
+/* ---------------- the touch controller ---------------- */
+/* Each pad button holds its NES button down for as long as a finger is on
+   it, through the same key/keyTap tables the keyboard uses, so the game
+   cannot tell a thumb from a key. The D-pad is one surface: whichever arm the
+   finger is over is pressed, so a thumb can rock left and right without
+   lifting. */
+const pad = document.getElementById('pad'), dpad = document.getElementById('dpad');
+const cornerEl = document.getElementById('corner');
+function place(el, x, y) { el.style.left = x + 'px'; el.style.top = y + 'px'; }
+function layoutPad(L, screenBottom, vw, vh, ins) {
+  if (!L) { pad.hidden = true; return; }
+  pad.hidden = false;
+  const A = document.getElementById('pbA'), B = document.getElementById('pbB');
+  const sel = document.getElementById('pbSel'), st = document.getElementById('pbStart');
+  cornerEl.style.right = 'auto'; cornerEl.style.bottom = 'auto';
+  if (L.portrait) {
+    const top = screenBottom, ph = L.padH;
+    const d = Math.min(150, vw*0.38, ph*0.6), ab = Math.min(74, vw*0.18);
+    pad.style.setProperty('--d', d + 'px'); pad.style.setProperty('--ab', ab + 'px');
+    place(dpad, Math.max(ins.l + d/2 + 14, vw*0.24), top + ph*0.44);
+    const ax_ = vw - ins.r - ab/2 - 16;
+    place(A, ax_, top + ph*0.34); place(B, ax_ - ab*1.2, top + ph*0.5);
+    place(sel, vw*0.36, top + ph*0.86); place(st, vw*0.62, top + ph*0.86);
+    cornerEl.style.flexDirection = 'row';
+    cornerEl.style.left = Math.max(8, vw - ins.r - cornerEl.offsetWidth - 10) + 'px';
+    cornerEl.style.top = (top + 6) + 'px';
+  } else {
+    const sd = L.side, d = Math.min(150, sd - 16), ab = Math.min(66, sd*0.45);
+    pad.style.setProperty('--d', d + 'px'); pad.style.setProperty('--ab', ab + 'px');
+    place(dpad, ins.l + sd/2, vh*0.5);
+    place(A, vw - ins.r - sd*0.3, vh*0.4); place(B, vw - ins.r - sd*0.72, vh*0.6);
+    place(sel, ins.l + sd/2, vh - ins.b - 24); place(st, vw - ins.r - sd/2, vh - ins.b - 24);
+    cornerEl.style.flexDirection = 'column';           // stacked in the right margin, clear of the score
+    cornerEl.style.left = (vw - ins.r - sd/2 - cornerEl.offsetWidth/2) + 'px';
+    cornerEl.style.top = (ins.t + 8) + 'px';
+  }
+}
+function holdButton(el, b) {
+  const down = e => { e.preventDefault(); try { el.setPointerCapture(e.pointerId); } catch (x) {} key[b] = true; keyTap[b] = true; el.classList.add('on'); ensureAudio(); };
+  const up = () => { key[b] = false; el.classList.remove('on'); };
+  el.addEventListener('pointerdown', down);
+  for (const ev of ['pointerup', 'pointercancel', 'lostpointercapture']) el.addEventListener(ev, up);
+  el.addEventListener('contextmenu', e => e.preventDefault());
+}
+for (const el of pad.querySelectorAll('button[data-b]')) holdButton(el, el.dataset.b);
+function dpadSet(dir) {
+  for (const d of ['up', 'down', 'left', 'right']) {
+    const on = d === dir;
+    if (on && !key[d]) keyTap[d] = true;
+    key[d] = on;
+  }
+  dpad.dataset.dir = dir || '';
+}
+function dpadAt(e) {
+  const r = dpad.getBoundingClientRect(), dx = e.clientX - (r.left + r.width/2), dy = e.clientY - (r.top + r.height/2);
+  if (Math.hypot(dx, dy) < r.width*0.1) return null;
+  return Math.abs(dx) >= Math.abs(dy) ? (dx < 0 ? 'left' : 'right') : (dy < 0 ? 'up' : 'down');
+}
+let dpadPtr = null;
+dpad.addEventListener('pointerdown', e => { e.preventDefault(); dpadPtr = e.pointerId; try { dpad.setPointerCapture(e.pointerId); } catch (x) {} dpadSet(dpadAt(e)); ensureAudio(); });
+dpad.addEventListener('pointermove', e => { if (e.pointerId === dpadPtr) dpadSet(dpadAt(e)); });
+for (const ev of ['pointerup', 'pointercancel', 'lostpointercapture']) dpad.addEventListener(ev, e => { if (e.pointerId === dpadPtr) { dpadPtr = null; dpadSet(null); } });
+cv.style.touchAction = 'none';
+
+/* ---------------- the size button ---------------- */
+const sizeBtn = document.getElementById('size');
+function paintSize() { sizeBtn.innerHTML = '&#9974; ' + sizeMode.toUpperCase(); }
+function applySize(next) {
+  sizeMode = next;
+  try { localStorage.setItem('vanishingPoint360.size', next); } catch (e) {}
+  if (next === 'full' && !document.fullscreenElement) {
+    const pr = document.documentElement.requestFullscreen && document.documentElement.requestFullscreen();
+    if (pr && pr.catch) pr.catch(() => { sizeMode = 'fill'; fit(); paintSize(); });   // refused: say so honestly
+  } else if (next !== 'full' && document.fullscreenElement) document.exitFullscreen().catch(() => {});
+  fit(); paintSize();
+}
+sizeBtn.addEventListener('click', () => applySize(SIZE_MODES[(SIZE_MODES.indexOf(sizeMode) + 1) % SIZE_MODES.length]));
+// Esc leaves fullscreen without touching the button, so follow the browser.
+document.addEventListener('fullscreenchange', () => {
+  if (!document.fullscreenElement && sizeMode === 'full') sizeMode = 'fill';
+  fit(); paintSize();
+});
+addEventListener('resize', fit);
+fit(); paintSize();
 
 /* ---------------- phosphor settings ---------------- */
 const fxBtn = document.getElementById('fx'), fxPanel = document.getElementById('fxp');
@@ -1504,20 +1657,23 @@ document.getElementById('glow').addEventListener('input', e => { OPT.glow = +e.t
 document.getElementById('flicker').addEventListener('change', e => { OPT.flicker = e.target.checked; saveFx(); });
 function showFx(on) {
   fxPanel.hidden = !on; fxBtn.setAttribute('aria-expanded', String(on));
+  if (on) {                 // open beside the button: above it if there is room, else below
+    const r = cornerEl.getBoundingClientRect(), pw = fxPanel.offsetWidth, ph = fxPanel.offsetHeight;
+    fxPanel.style.right = 'auto'; fxPanel.style.bottom = 'auto';
+    fxPanel.style.left = Math.max(8, Math.min(innerWidth - pw - 8, r.right - pw)) + 'px';
+    fxPanel.style.top = (r.top - ph - 8 >= 8 ? r.top - ph - 8 : Math.min(innerHeight - ph - 8, r.bottom + 8)) + 'px';
+  }
   if (!on && fxPanel.contains(document.activeElement)) fxBtn.focus();
 }
 fxBtn.addEventListener('click', () => showFx(fxPanel.hidden));
-addEventListener('pointerdown', e => { if (!fxPanel.hidden && !fxPanel.contains(e.target) && e.target !== fxBtn) showFx(false); });
+addEventListener('pointerdown', e => { if (!fxPanel.hidden && !fxPanel.contains(e.target) && !fxBtn.contains(e.target)) showFx(false); });
 saveFx();
 /* Extra keys beyond the eight NES buttons. Returns true when it used the key. */
 let pickMode = null;
 function extraKey(code) {
   if (code === 'KeyV') { const [v, n] = nextStep(OPT.persist, PERSIST_STEPS); OPT.persist = v; saveFx(); footNote('PHOSPHOR ' + n); return true; }
   if (code === 'KeyG') { const [v, n] = nextStep(OPT.glow, GLOW_STEPS); OPT.glow = v; saveFx(); footNote('GLOW ' + n); return true; }
-  if (code === 'KeyF') {
-    try { if (document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen().catch(() => {}); } catch (e) {}
-    return true;
-  }
+  if (code === 'KeyF') { if (SIZE_MODES.includes('full')) applySize(document.fullscreenElement ? 'fill' : 'full'); return true; }
   if (code === 'Escape' && !fxPanel.hidden) { showFx(false); return true; }
   if (state === 'title' && /^Digit[123]$/.test(code)) { pickMode = MODES[+code.slice(5) - 1]; return true; }
   return false;

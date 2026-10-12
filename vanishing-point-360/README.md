@@ -20,9 +20,11 @@ Choose a game on the title screen with Up and Down, then press Start.
 
 M mutes the sound. A standard USB gamepad works too.
 
+On a phone or tablet a touch controller appears: a D-pad, B and A, Select and Start. Held upright, it sits under the screen like a Game Boy; turned sideways, the D-pad and buttons move into the margins beside the screen. On an iPhone, Share → Add to Home Screen opens it without Safari's bars.
+
 Later sectors bring new things down the beams: yellow chirpers are a bonus, sparks are to dodge, and green blockers can only be torpedoed or avoided.
 
-The screen is drawn the way a 1981 vector monitor drew it: lines of light on phosphor that glow and fade, brighter at the corners where the beam turned. The **PHOSPHOR** button in the bottom corner sets how long the glow lasts, how much it blooms, and whether the beam flickers. V and G step through the same settings from the keyboard, and F toggles fullscreen.
+The screen is drawn the way a 1981 vector monitor drew it: lines of light on phosphor that glow and fade, brighter at the corners where the beam turned. The **size** button in the corner cycles FIT (the whole picture), FILL (the world widens to your window's shape, no black bars) and FULL (FILL with the browser hidden; not offered on iPhone, which doesn't allow it). The **PHOSPHOR** button next to it sets how long the glow lasts, how much it blooms, and whether the beam flickers. V and G step through the same settings from the keyboard, and F toggles fullscreen.
 
 High scores are kept for each game separately, in this browser on this computer.
 

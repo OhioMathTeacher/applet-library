@@ -7,7 +7,7 @@ Vanishing Point on a vector monitor, with three ways to play. A retro shooter fo
 Choose a game on the title screen with Up and Down, then press Start.
 
 - **Classic.** Five beams run off to a single vanishing point on the horizon. Hop between them, shoot fifteen white saucers to clear each sector, then try to torpedo the sector ship as it crosses the far end of the field.
-- **360.** The beams wrap into a tube, and you ride its rim as a claw. Every sector changes the tube's shape (circle, square, star, U, steps, compass) and its colors. The sector ship circles the far end once.
+- **360.** The beams wrap into a tube, and you ride its rim as a claw. Every sector changes the tube's shape (octagon, square, star, U, steps, diamond) and its colors. The sector ship circles the far end once.
 - **Curl.** Flat sectors, and every third one the beams curl up into a tube, then lay flat again.
 
 | Button | Keyboard | Does |

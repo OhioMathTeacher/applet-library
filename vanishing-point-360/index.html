@@ -27,7 +27,7 @@
   #fxp input[type=range]{grid-column:1 / -1;width:100%;accent-color:#ffd23a}
   #fxp input[type=checkbox]{accent-color:#ffd23a;width:16px;height:16px}
   #fxp .v{color:#8b93a1;font-size:12px}
-  #fxp .k{color:#6b7280;font-size:11px;letter-spacing:.04em}
+  #fxp .k{color:#6b7280;font-size:11px;letter-spacing:.04em;max-width:230px}
 </style>
 <canvas id="c"></canvas>
 <button id="fx" type="button" aria-expanded="false" aria-controls="fxp" title="How the vector screen glows: phosphor persistence, glow and beam flicker">&#9881; PHOSPHOR</button>
@@ -35,12 +35,13 @@
   <label>Persistence <span class="v" id="pv"></span><input type="range" id="persist" min="0" max="0.9" step="0.01"></label>
   <label>Glow <span class="v" id="gv"></span><input type="range" id="glow" min="0" max="1.6" step="0.05"></label>
   <label>Beam flicker <input type="checkbox" id="flicker"></label>
+  <span class="k">Inside the tube the glow fades twice as fast, so moving things stay sharp.</span>
   <span class="k">Keys: V persistence, G glow, F fullscreen</span>
 </div>
 <script>
 "use strict";
 /* Shown quietly in the corner; bump with each release. */
-const VERSION = 'v0.1';
+const VERSION = 'v0.2';
 
 /* ============================================================
    Vanishing Point 360
@@ -99,7 +100,7 @@ const EYE_H = 1;
 const Z_SHIP = 1, Z_FAR = 16, Z_GONE = 0.75;
 const LANE = 0.42;         // classic: world distance between neighbouring beams
 const laneX = l => (l - 2)*LANE;
-const TUBE_F = 600, TUBE_C = 1.5, TUBE_VPY = 334;
+const TUBE_F = 890, TUBE_C = 2.5, TUBE_VPY = 334;
 
 /* LINEAR PERSPECTIVE -- the one function the whole picture depends on.
    The method is usually credited to Brunelleschi (c. 1415) and first written
@@ -116,9 +117,11 @@ const TUBE_F = 600, TUBE_C = 1.5, TUBE_VPY = 334;
    vanishing point.
 
    c is how far the eye stands behind depth 0. Classic stands at 0, which is
-   the original game exactly. Inside the tube the eye backs off by 1.5, so
-   the far end of the tube is a 7th the size of the rim rather than a 16th:
-   still true perspective, from a step further back. During a curl F, c and
+   the original game exactly. Inside the tube the eye backs off by 2.5, so
+   the far end of the tube is about a 5th the size of the rim rather than a
+   16th, and an enemy half-way down is already a decent size: still true
+   perspective, from a step further back. (v0.1 stood at 1.5, and everything
+   bunched into a small knot at the centre, hard to read.) During a curl F, c and
    VPY slide from one set to the other along with the outline. */
 const CUR = {B: [], F: F_FLAT, c: 0, vpy: HOR, closeA: 0, beamsA: 1, meshA: 0};
 function proj(x, y, z) {
@@ -127,41 +130,36 @@ function proj(x, y, z) {
 }
 
 /* ---------------- tube outlines ---------------- */
-/* Every outline has 16 points, starting at the left and running down,
-   across the bottom and up the right, so any outline can morph into any
-   other without twisting. Closed outlines have 16 lanes; open ones 15. */
+/* A tube has 8 lanes (7 if it is open), each a straight edge between two
+   corners. v0.1 had 16 narrow lanes: half the tube took 8 hops, targets were
+   thin, and the game felt sluggish and imprecise. 8 wide lanes keep a hop
+   decisive, as it is with Classic's 5 beams.
+   Every outline is stored as 16 points, each lane's corner plus its midpoint,
+   starting at the left and running down, across the bottom and up the right,
+   so any outline can morph into any other without twisting. An open outline
+   has 7 lanes = 15 points, and its 16th point repeats the last. */
 const NP = 16;
-const ang = k => Math.PI - 2*Math.PI*k/NP;
-function resample(verts, closed) {
-  const pts = closed ? [...verts, verts[0]] : verts;
-  const segL = []; let L = 0;
-  for (let i = 0; i < pts.length - 1; i++) { const l = Math.hypot(pts[i+1][0] - pts[i][0], pts[i+1][1] - pts[i][1]); segL.push(l); L += l; }
-  const step = closed ? L/NP : L/(NP - 1), out = [];
-  for (let k = 0; k < NP; k++) {
-    let s = k*step, i = 0;
-    while (i < segL.length - 1 && s > segL[i] + 1e-9) { s -= segL[i]; i++; }
-    const t = Math.min(1, s/segL[i]);
-    out.push([pts[i][0] + (pts[i+1][0] - pts[i][0])*t, pts[i][1] + (pts[i+1][1] - pts[i][1])*t]);
-  }
+function laneOutline(V, closed) {
+  const out = [], n = closed ? V.length : V.length - 1;
+  for (let i = 0; i < n; i++) { const a = V[i], b = V[(i + 1) % V.length]; out.push(a, [(a[0] + b[0])/2, (a[1] + b[1])/2]); }
+  if (!closed) out.push(V[V.length - 1], V[V.length - 1]);
   return out;
 }
-/* A stepped valley below eye level: three steps down, a flat floor, three up.
-   It must not pass through the axis, or its lanes would collapse into the
-   vanishing point. */
-const STEPS = (() => { let x = -1.215, y = -0.35; const p = [[x, y]];
-  for (const m of 'hdhdhdhhhuhuhuh') { if (m === 'h') x += 0.27; else y += m === 'd' ? 0.35 : -0.35; p.push([x, y]); } return p; })();
-const tube = (name, B, closed) => ({kind: 'tube', name, B, closed, F: TUBE_F, c: TUBE_C, vpy: TUBE_VPY});
+const around = (r) => Array.from({length: 8}, (_, k) => { const a = Math.PI - Math.PI*k/4, q = r(k); return [q*Math.cos(a), q*Math.sin(a)]; });
+const tube = (name, V, closed) => ({kind: 'tube', name, B: laneOutline(V, closed), closed, last: closed ? NP - 1 : NP - 2, F: TUBE_F, c: TUBE_C, vpy: TUBE_VPY});
 /* The classic floor also carries a 16-point outline: a wide flat fan on the
    floor. It is invisible in classic play and is what curls up into a tube. */
-const FLATG = {kind: 'beams', name: 'CLASSIC', closed: false, F: F_FLAT, c: 0, vpy: HOR,
+const FLATG = {kind: 'beams', name: 'CLASSIC', closed: false, last: NP - 1, F: F_FLAT, c: 0, vpy: HOR,
   B: Array.from({length: NP}, (_, k) => [-1.26 + 2.52*k/(NP - 1), EYE_H])};
+/* Open outlines must not pass through the axis, or their lanes would
+   collapse into the vanishing point. */
 const TUBES = [
-  tube('CIRCLE', Array.from({length: NP}, (_, k) => [Math.cos(ang(k)), Math.sin(ang(k))]), true),
-  tube('SQUARE', resample([[-1,0],[-1,1],[1,1],[1,-1],[-1,-1]].map(([x, y]) => [x*.92, y*.92]), true), true),
-  tube('STAR', Array.from({length: NP}, (_, k) => { const r = k % 2 ? 0.52 : 1.06; return [r*Math.cos(ang(k)), r*Math.sin(ang(k))]; }), true),
-  tube('U', resample([[-0.88,-0.92],[-0.88,0.82],[0.88,0.82],[0.88,-0.92]], false), false),
-  tube('STEPS', STEPS, false),
-  tube('COMPASS', Array.from({length: NP}, (_, k) => { const r = 0.74 + 0.28*Math.cos(4*ang(k)); return [r*Math.cos(ang(k)), r*Math.sin(ang(k))]; }), true),
+  tube('OCTAGON', Array.from({length: 8}, (_, k) => { const a = Math.PI - Math.PI/8 - Math.PI*k/4; return [Math.cos(a), Math.sin(a)]; }), true),
+  tube('SQUARE', [[-1,0],[-1,1],[0,1],[1,1],[1,0],[1,-1],[0,-1],[-1,-1]].map(([x, y]) => [x*.92, y*.92]), true),
+  tube('STAR', around(k => k % 2 ? 0.42 : 1.08), true),
+  tube('U', [[-0.87,-0.46],[-0.87,0.12],[-0.87,0.7],[-0.29,0.7],[0.29,0.7],[0.87,0.7],[0.87,0.12],[0.87,-0.46]], false),
+  tube('STEPS', [[-0.9,-0.2],[-0.9,0.4],[-0.3,0.4],[-0.3,1.0],[0.3,1.0],[0.3,0.4],[0.9,0.4],[0.9,-0.2]], false),   // treads well below eye level, or you see them edge-on
+  tube('DIAMOND', around(k => k % 2 ? Math.SQRT1_2 : 1), true),
 ];
 const CLASSIC_PAL = {line: '#3a6bff', claw: '#ffd23a'};
 const PAL = [
@@ -176,7 +174,7 @@ const ease = t => t < .5 ? 2*t*t : 1 - Math.pow(-2*t + 2, 2)/2;
 function setGeometry(g, p, animate) {
   MOR.from = {B: CUR.B.map(q => q.slice()), F: CUR.F, c: CUR.c, vpy: CUR.vpy, closeA: CUR.closeA, beamsA: CUR.beamsA, meshA: CUR.meshA};
   geo = g; pal = p || (g.kind === 'beams' ? CLASSIC_PAL : PAL[0]);
-  NB = g.kind === 'beams' ? 5 : (g.closed ? NP : NP - 1);
+  NB = g.kind === 'beams' ? 5 : (g.closed ? NP/2 : NP/2 - 1);
   WRAP = g.kind === 'tube' && g.closed;
   MOR.t = animate ? 0 : 1;
   stepMorph(0);
@@ -196,24 +194,27 @@ function stepMorph(dt) {
 }
 const morphing = () => MOR.t < 1;
 
-/* A point on the outline at parameter u (point i at u = i), with the edge's
-   direction and the normal that points inward, toward the tube's axis. */
+/* A point on the outline at parameter u (point i at u = i, so lane L's
+   corners are at u = 2L and 2L + 2), with the edge's direction, the normal
+   that points inward toward the tube's axis, and the lane's width. Past the
+   ends of an open outline it carries straight on, for things crossing in
+   from off the field. */
 function edgeAt(u) {
   const B = CUR.B;
   let i, a, b;
   if (geo.closed) { u = mod(u, NP); i = Math.floor(u); a = B[i]; b = B[(i + 1) % NP]; }
-  else { i = Math.max(0, Math.min(NP - 2, Math.floor(u))); a = B[i]; b = B[i + 1]; }
+  else { i = Math.max(0, Math.min(geo.last - 1, Math.floor(u))); a = B[i]; b = B[i + 1]; }
   const f = u - i, dx = b[0] - a[0], dy = b[1] - a[1], L = Math.hypot(dx, dy) || 1;
   const X = a[0] + dx*f, Y = a[1] + dy*f, tx = dx/L, ty = dy/L;
   let nx = -ty, ny = tx;
   if (nx*X + ny*Y > 0) { nx = -nx; ny = -ny; }
-  return {X, Y, tx, ty, nx, ny, w: L};
+  return {X, Y, tx, ty, nx, ny, w: 2*L};
 }
 /* Where lane `lane` runs: a beam on the floor, or the middle of a tube edge.
    Lanes are floats, so a hop in progress draws between two. */
 function track(lane) {
   if (geo.kind === 'beams') return {X: laneX(lane), Y: EYE_H, tx: 1, ty: 0, nx: 0, ny: -1, w: LANE};
-  return edgeAt(lane + 0.5);
+  return edgeAt(2*lane + 1);
 }
 function tpt(lane, z, alt = 0) { const t = track(lane); return proj(t.X + alt*t.nx, t.Y + alt*t.ny, z); }
 /* The short way round from lane b to lane a: inside a closed tube, 15 -> 0 is one hop. */
@@ -227,6 +228,7 @@ const wrapDelta = (a, b) => WRAP ? mod(a - b + NB/2, NB) - NB/2 : a - b;
    phosphor is copied to the screen with a blurred copy on top for the bloom. */
 const cv = document.getElementById('c'), ctx = cv.getContext('2d');
 const acc = document.createElement('canvas'), ax = acc.getContext('2d');
+const bloom = document.createElement('canvas'), bx = bloom.getContext('2d');
 let S = 1;
 function fit() {
   const s = Math.min(innerWidth/W, innerHeight/H);
@@ -269,7 +271,10 @@ function hotter(c) {
   return hotCache[c] = `rgb(${m(r)},${m(g)},${m(b)})`;
 }
 function paint(dt) {
-  const fade = OPT.persist > 0 ? Math.max(0.085, 1 - Math.pow(OPT.persist, dt*60)) : 1;
+  /* Inside the tube things move across the screen, not just down it, and long
+     trails smear them; the glow fades about twice as fast there. */
+  const pers = OPT.persist*(CUR.meshA > 0.5 ? 0.55 : 1);
+  const fade = pers > 0 ? Math.max(0.085, 1 - Math.pow(pers, dt*60)) : 1;
   ax.setTransform(1, 0, 0, 1, 0, 0);
   ax.globalCompositeOperation = 'source-over'; ax.globalAlpha = 1;
   ax.fillStyle = `rgba(0,0,0,${fade})`; ax.fillRect(0, 0, acc.width, acc.height);
@@ -307,10 +312,16 @@ function paint(dt) {
   ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
   ctx.fillStyle = '#000'; ctx.fillRect(0, 0, cv.width, cv.height);
   ctx.drawImage(acc, 0, 0);
+  /* The bloom is blurred at half resolution, a quarter of the pixels, then
+     stretched back up: it is a soft glow, so nothing is lost, and the frame
+     costs much less. */
   if (hasFilter && glow > 0) {
-    ctx.filter = `blur(${7*S}px)`; ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = Math.min(1, 0.6*glow);
-    ctx.drawImage(acc, 0, 0);
-    ctx.filter = 'none'; ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
+    if (bloom.width !== acc.width >> 1 || bloom.height !== acc.height >> 1) { bloom.width = acc.width >> 1; bloom.height = acc.height >> 1; }
+    bx.setTransform(1, 0, 0, 1, 0, 0); bx.filter = 'none'; bx.globalCompositeOperation = 'copy';
+    bx.filter = `blur(${3.5*S}px)`; bx.drawImage(acc, 0, 0, bloom.width, bloom.height); bx.filter = 'none';
+    ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = Math.min(1, 0.6*glow);
+    ctx.drawImage(bloom, 0, 0, cv.width, cv.height);
+    ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
   }
 }
 
@@ -770,9 +781,9 @@ const VSPR = {
     P_('#ff9a2a', false, [-0.42,0.12],[-0.34,0.04],[-0.26,0.12],[-0.18,0.04],[-0.1,0.12],[-0.02,0.04],[0.06,0.12],[0.14,0.04],[0.22,0.12],[0.3,0.04],[0.38,0.12]),
   ]},
 };
-/* Tube lanes are a little narrower than the floor's beams, and a star's
-   short edges narrower still, so sprites shrink to fit their lane. */
-function spriteScale(t) { return geo.kind === 'tube' ? Math.max(0.5, Math.min(1.15, t.w/LANE)) : 1; }
+/* Tube lanes are wider than the floor's beams, so sprites grow to fill
+   most of their lane: big targets, read at a glance. */
+function spriteScale(t) { return geo.kind === 'tube' ? Math.max(0.6, Math.min(1.6, 0.85*t.w/LANE)) : 1; }
 function drawSprite(sp, lane, z, alt, flash, inten = 1) {
   const t = track(lane), s = sp.w*spriteScale(t), al = alt === undefined ? (sp.alt || 0) : alt;
   const p0 = proj(t.X + al*t.nx, t.Y + al*t.ny, z);
@@ -791,7 +802,7 @@ function icon(sp, x, y, size, inten = 0.9) {
 }
 /* Inside the tube you are a claw on the rim, spanning your lane. */
 function drawClaw(lane, inten) {
-  const at = (u, z) => { const e = edgeAt(u), q = proj(e.X, e.Y, z); return [q.x, q.y]; };
+  const at = (u, z) => { const e = edgeAt(2*u), q = proj(e.X, e.Y, z); return [q.x, q.y]; };
   poly([at(lane, Z_SHIP), at(lane + 0.5, Z_SHIP - 0.22), at(lane + 1, Z_SHIP),
         at(lane + 0.78, Z_SHIP + 0.28), at(lane + 0.5, Z_SHIP + 0.1), at(lane + 0.22, Z_SHIP + 0.28)], pal.claw, true, inten);
 }
@@ -1093,13 +1104,13 @@ function hop(d) {
 function control(dt, armed, pr) {
   /* One press = one hop. Holding the direction repeats after a short delay,
      like a keyboard does, so you can cross the field without hammering. The
-     tube has three times the lanes, so it repeats faster there. */
+     tube has a few more lanes, so it repeats a little faster there. */
   const tubeR = geo.kind === 'tube';
   for (const [k, d] of [['left', -1], ['right', 1]]) {
-    if (pr[k]) { hop(d); P.rep = tubeR ? 0.2 : 0.26; }
-    else if (held[k] && (P.rep -= dt) <= 0) { hop(d); P.rep = tubeR ? 0.065 : 0.11; }
+    if (pr[k]) { hop(d); P.rep = tubeR ? 0.22 : 0.26; }
+    else if (held[k] && (P.rep -= dt) <= 0) { hop(d); P.rep = tubeR ? 0.09 : 0.11; }
   }
-  const v = tubeR ? 20 : 14;
+  const v = tubeR ? 16 : 14;
   if (P.lane < P.beamU) P.lane = Math.min(P.beamU, P.lane + v*dt);
   if (P.lane > P.beamU) P.lane = Math.max(P.beamU, P.lane - v*dt);
   if (WRAP && P.lane === P.beamU) P.lane = P.beamU = P.beam;
@@ -1139,7 +1150,7 @@ function bot(dt) {
   if (want < 0 || want === P.beam) {
     if (want === P.beam) out[weapon] = true;
     BOT.t = 0.1;
-  } else { out[wrapDelta(want, P.beam) < 0 ? 'left' : 'right'] = true; BOT.t = geo.kind === 'tube' ? 0.07 : 0.13; }
+  } else { out[wrapDelta(want, P.beam) < 0 ? 'left' : 'right'] = true; BOT.t = geo.kind === 'tube' ? 0.1 : 0.13; }
   return out;
 }
 
@@ -1223,7 +1234,8 @@ const STARS = [];
 for (let i = 0; i < 60; i++) STARS.push({x: Math.random()*W, y: 20 + Math.random()*(HOR - 30), p: Math.random()*6});
 function outline(z, col, i, hot) {
   const pts = CUR.B.map(([X, Y]) => { const q = proj(X, Y, z); return [q.x, q.y]; });
-  poly(pts, col, false, i, hot);
+  poly(pts, col, false, i, false);
+  if (hot) for (let k = 0; k < NP; k += 2) dot(pts[k][0], pts[k][1], col, i);   // corners only, not lane midpoints
   if (CUR.closeA > 0.02) line(pts[NP-1][0], pts[NP-1][1], pts[0][0], pts[0][1], col, i*CUR.closeA);
   return pts;
 }
@@ -1259,18 +1271,14 @@ function drawField() {
   }
   if (mA > 0.01) {
     const col = pal.line;
-    const near = outline(Z_SHIP, col, mA, true), far = outline(Z_FAR, col, 0.6*mA, true);
-    for (let k = 0; k < NP; k++) line(near[k][0], near[k][1], far[k][0], far[k][1], col, 0.7*mA);
-    // faint rings scrolling up the tube, for speed
-    for (let k = 1; k <= Z_FAR; k++) {
-      const z = k + 1 - off;
-      if (z <= Z_SHIP + 0.05 || z >= Z_FAR) continue;
-      outline(z, col, mA*(0.06 + 0.2*(1 - z/Z_FAR)), false);
-    }
+    /* Kept quiet on purpose: the rim bright, the spokes and far end dim, and
+       no scrolling rings (v0.1 had them, and they buried the enemies). */
+    const near = outline(Z_SHIP, col, 0.85*mA, true), far = outline(Z_FAR, col, 0.4*mA, true);
+    for (let k = 0; k < NP; k += 2) line(near[k][0], near[k][1], far[k][0], far[k][1], col, 0.45*mA);
     if (live && geo.kind === 'tube') {      // your lane lights up
       for (const u of [P.lane, P.lane + 1]) {
-        const e = edgeAt(u), a = proj(e.X, e.Y, Z_SHIP), b = proj(e.X, e.Y, Z_FAR);
-        line(a.x, a.y, b.x, b.y, pal.claw, 0.5);
+        const e = edgeAt(2*u), a = proj(e.X, e.Y, Z_SHIP), b = proj(e.X, e.Y, Z_FAR);
+        line(a.x, a.y, b.x, b.y, pal.claw, 0.4);
       }
     }
   }

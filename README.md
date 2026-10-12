@@ -62,6 +62,9 @@ Draw a dungeon floor plan and it becomes a prism you can walk through. The edito
 ### 🛸 [Vanishing Point](https://ohiomathteacher.github.io/applet-library/vanishing-point/)
 *Under construction.* Five beams, one horizon. Hop between beams that run off to a single vanishing point, clear fifteen saucers a sector, then torpedo the sector ship. Select flips to a side view of the same scene, showing how linear perspective draws it.
 
+### 🌀 [Vanishing Point 360](https://ohiomathteacher.github.io/applet-library/vanishing-point-360/)
+*Under construction.* Vanishing Point redrawn on a vector monitor, with three ways to play. Classic keeps the five beams. 360 wraps them into a tube you ride from the rim, Tempest-style, in a new shape every sector. Curl plays flat and curls the beams into a tube every third sector. A settings button controls the phosphor's glow and fade.
+
 ### 🏮 [Lantern Run](https://ohiomathteacher.github.io/applet-library/lantern-run/)
 *Under construction.* A zoologist in the Amazon. Climb through the four layers of the rainforest (floor, understory, canopy, emergent) to find and document twenty-four species, twelve nocturnal and twelve diurnal, each behaving as the real animal does. Switch night to day at any time and watch the cast change over.
 

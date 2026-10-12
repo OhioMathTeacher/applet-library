@@ -32,6 +32,7 @@ GAMES = [
     ("chomp-and-spell", "chomp-and-spell"),
     ("circuit-breaker", "circuit-breaker"),
     ("vanishing-point", "vanishing-point"),
+    ("vanishing-point-360", "vanishing-point-360"),
     ("lantern-run", "lantern-run"),
     ("twelve-stories", "twelve-stories"),
     ("tidewall", "tidewall"),

@@ -1,0 +1,1535 @@
+<!--
+  GENERATED FILE - DO NOT EDIT
+  Source:    ../vanishing-point-360/index.html
+  Rewritten: python3 sync-games.py
+  Edits made here are lost on the next sync. Fix the game in the
+  vanishing-point-360 repo and re-run the script.
+-->
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Vanishing Point 360</title>
+<!-- One file, no build, no network. Open it straight from disk. -->
+<style>
+  html,body{margin:0;height:100%;background:#000;overflow:hidden}
+  canvas{position:absolute;display:block}
+  /* Phosphor settings. A DOM button in the corner, like Chomp & Spell's size
+     control: faint until you reach for it, never drawn into the game. */
+  #fx{position:fixed;right:10px;bottom:8px;z-index:5;font:12px/1 system-ui,sans-serif;
+      letter-spacing:.08em;color:#6b7280;background:#111;border:1px solid #333;
+      border-radius:5px;padding:6px 9px;cursor:pointer;opacity:.45;transition:opacity .15s}
+  #fx:hover,#fx:focus-visible,#fx[aria-expanded="true"]{opacity:1;color:#e5e7eb;border-color:#666}
+  #fxp{position:fixed;right:10px;bottom:40px;z-index:5;font:13px/1.4 system-ui,sans-serif;color:#d1d5db;
+       background:rgba(10,11,14,.94);border:1px solid #333;border-radius:8px;padding:12px 14px;
+       display:grid;gap:10px;min-width:230px}
+  #fxp[hidden]{display:none}
+  #fxp label{display:grid;grid-template-columns:1fr auto;align-items:center;gap:4px 12px}
+  #fxp input[type=range]{grid-column:1 / -1;width:100%;accent-color:#ffd23a}
+  #fxp input[type=checkbox]{accent-color:#ffd23a;width:16px;height:16px}
+  #fxp .v{color:#8b93a1;font-size:12px}
+  #fxp .k{color:#6b7280;font-size:11px;letter-spacing:.04em}
+</style>
+<canvas id="c"></canvas>
+<button id="fx" type="button" aria-expanded="false" aria-controls="fxp" title="How the vector screen glows: phosphor persistence, glow and beam flicker">&#9881; PHOSPHOR</button>
+<div id="fxp" hidden>
+  <label>Persistence <span class="v" id="pv"></span><input type="range" id="persist" min="0" max="0.9" step="0.01"></label>
+  <label>Glow <span class="v" id="gv"></span><input type="range" id="glow" min="0" max="1.6" step="0.05"></label>
+  <label>Beam flicker <input type="checkbox" id="flicker"></label>
+  <span class="k">Keys: V persistence, G glow, F fullscreen</span>
+</div>
+<script>
+"use strict";
+/* Shown quietly in the corner; bump with each release. */
+const VERSION = 'v0.1';
+
+/* ============================================================
+   Vanishing Point 360
+   Vanishing Point, redrawn on a vector monitor, with three ways to play:
+     CLASSIC  five beams on a floor, running to one vanishing point
+     360      the beams wrap into a tube, Tempest-style; a new shape every sector
+     CURL     flat sectors, and every third one the beams curl into a tube
+   Same saucers, chirpers, blockers, bouncers and sector ship in all three.
+   ============================================================ */
+
+const W = 960, H = 640, CX = W/2;
+const STEP = 1/60;
+const Q = new URLSearchParams(location.search);
+/* ?demo auto-starts with an invincible auto-pilot so a headless browser can
+   screenshot real play. &mode=classic|360|curl picks the game, &sector=N
+   starts in sector N, &warp=N runs N simulation steps before the first frame,
+   &side opens the side view. */
+const DEMO = Q.has('demo');
+const MORTAL = Q.has('mortal');   // with ?demo: the auto-pilot can die, to test deaths
+if (DEMO) {
+  let seed = (parseInt(Q.get('seed')) || 7) >>> 0;
+  Math.random = () => {
+    seed = (seed + 0x6D2B79F5) >>> 0;
+    let t = seed;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+const START_SECTOR = Math.max(1, Math.min(99, parseInt(Q.get('sector')) || 1));
+const MODES = ['classic', '360', 'curl'];
+const MODE_NAME = {classic: 'CLASSIC', '360': '360', curl: 'CURL'};
+const MODE_DESC = {
+  classic: 'FIVE BEAMS. ONE HORIZON.',
+  '360': 'INSIDE THE TUBE. A NEW SHAPE EVERY SECTOR.',
+  curl: 'FLAT SECTORS. EVERY THIRD ONE CURLS INTO A TUBE.'};
+let MODE = 'classic';
+try { const m = localStorage.getItem('vanishingPoint360.mode'); if (MODES.includes(m)) MODE = m; } catch (e) {}
+if (MODES.includes(Q.get('mode'))) MODE = Q.get('mode');
+const reduced = !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
+const mod = (a, n) => ((a % n) + n) % n;
+const clamp01 = v => Math.max(0, Math.min(1, v));
+
+/* ---------------- the world and its projection ---------------- */
+/* World units: x is sideways, y is downward, z is depth away from the eye.
+   The ship sits at depth Z_SHIP; things appear at Z_FAR and are gone once
+   they pass Z_GONE.
+
+   CLASSIC: five beams lie on a floor EYE_H below the eye.
+   360: the beams are the lanes of a tube whose axis runs straight away from
+   the eye. Each lane is one edge of the tube's cross-section, a 16-point
+   outline (circle, square, star...), pushed back to every depth. */
+const HOR = 100;           // classic: screen row of the horizon (eye level)
+const F_FLAT = 450;        // classic: focal length in screen pixels
+const EYE_H = 1;
+const Z_SHIP = 1, Z_FAR = 16, Z_GONE = 0.75;
+const LANE = 0.42;         // classic: world distance between neighbouring beams
+const laneX = l => (l - 2)*LANE;
+const TUBE_F = 600, TUBE_C = 1.5, TUBE_VPY = 334;
+
+/* LINEAR PERSPECTIVE -- the one function the whole picture depends on.
+   The method is usually credited to Brunelleschi (c. 1415) and first written
+   down by Alberti (De pictura, 1435).
+
+   Put a pane of glass (the picture plane, i.e. the screen) in front of the
+   eye. A point at sideways offset x, downward offset y and depth z is drawn
+   where the straight line from it to the eye crosses the glass. Similar
+   triangles give the crossing point:
+        screen_x - CX  :  F   =   x  :  (z + c)
+        screen_y - VPY :  F   =   y  :  (z + c)
+   So everything shrinks like 1/(z + c), and every line that runs straight
+   away from you (constant x and y) meets every other at (CX, VPY): the
+   vanishing point.
+
+   c is how far the eye stands behind depth 0. Classic stands at 0, which is
+   the original game exactly. Inside the tube the eye backs off by 1.5, so
+   the far end of the tube is a 7th the size of the rim rather than a 16th:
+   still true perspective, from a step further back. During a curl F, c and
+   VPY slide from one set to the other along with the outline. */
+const CUR = {B: [], F: F_FLAT, c: 0, vpy: HOR, closeA: 0, beamsA: 1, meshA: 0};
+function proj(x, y, z) {
+  const k = CUR.F / (z + CUR.c);
+  return {x: CX + k*x, y: CUR.vpy + k*y, k};
+}
+
+/* ---------------- tube outlines ---------------- */
+/* Every outline has 16 points, starting at the left and running down,
+   across the bottom and up the right, so any outline can morph into any
+   other without twisting. Closed outlines have 16 lanes; open ones 15. */
+const NP = 16;
+const ang = k => Math.PI - 2*Math.PI*k/NP;
+function resample(verts, closed) {
+  const pts = closed ? [...verts, verts[0]] : verts;
+  const segL = []; let L = 0;
+  for (let i = 0; i < pts.length - 1; i++) { const l = Math.hypot(pts[i+1][0] - pts[i][0], pts[i+1][1] - pts[i][1]); segL.push(l); L += l; }
+  const step = closed ? L/NP : L/(NP - 1), out = [];
+  for (let k = 0; k < NP; k++) {
+    let s = k*step, i = 0;
+    while (i < segL.length - 1 && s > segL[i] + 1e-9) { s -= segL[i]; i++; }
+    const t = Math.min(1, s/segL[i]);
+    out.push([pts[i][0] + (pts[i+1][0] - pts[i][0])*t, pts[i][1] + (pts[i+1][1] - pts[i][1])*t]);
+  }
+  return out;
+}
+/* A stepped valley below eye level: three steps down, a flat floor, three up.
+   It must not pass through the axis, or its lanes would collapse into the
+   vanishing point. */
+const STEPS = (() => { let x = -1.215, y = -0.35; const p = [[x, y]];
+  for (const m of 'hdhdhdhhhuhuhuh') { if (m === 'h') x += 0.27; else y += m === 'd' ? 0.35 : -0.35; p.push([x, y]); } return p; })();
+const tube = (name, B, closed) => ({kind: 'tube', name, B, closed, F: TUBE_F, c: TUBE_C, vpy: TUBE_VPY});
+/* The classic floor also carries a 16-point outline: a wide flat fan on the
+   floor. It is invisible in classic play and is what curls up into a tube. */
+const FLATG = {kind: 'beams', name: 'CLASSIC', closed: false, F: F_FLAT, c: 0, vpy: HOR,
+  B: Array.from({length: NP}, (_, k) => [-1.26 + 2.52*k/(NP - 1), EYE_H])};
+const TUBES = [
+  tube('CIRCLE', Array.from({length: NP}, (_, k) => [Math.cos(ang(k)), Math.sin(ang(k))]), true),
+  tube('SQUARE', resample([[-1,0],[-1,1],[1,1],[1,-1],[-1,-1]].map(([x, y]) => [x*.92, y*.92]), true), true),
+  tube('STAR', Array.from({length: NP}, (_, k) => { const r = k % 2 ? 0.52 : 1.06; return [r*Math.cos(ang(k)), r*Math.sin(ang(k))]; }), true),
+  tube('U', resample([[-0.88,-0.92],[-0.88,0.82],[0.88,0.82],[0.88,-0.92]], false), false),
+  tube('STEPS', STEPS, false),
+  tube('COMPASS', Array.from({length: NP}, (_, k) => { const r = 0.74 + 0.28*Math.cos(4*ang(k)); return [r*Math.cos(ang(k)), r*Math.sin(ang(k))]; }), true),
+];
+const CLASSIC_PAL = {line: '#3a6bff', claw: '#ffd23a'};
+const PAL = [
+  {line: '#4a6bff', claw: '#ffe81f'}, {line: '#ff3a3a', claw: '#ffe81f'}, {line: '#ffd21f', claw: '#22e0ea'},
+  {line: '#22e0ea', claw: '#ffe81f'}, {line: '#c056ff', claw: '#ffe81f'}, {line: '#2fe864', claw: '#ffe81f'}];
+
+/* ---------------- the current geometry, and the curl between two ---------------- */
+let geo = FLATG, pal = CLASSIC_PAL, NB = 5, WRAP = false;
+CUR.B = FLATG.B.map(p => p.slice());
+const MOR = {from: {B: FLATG.B, F: F_FLAT, c: 0, vpy: HOR, closeA: 0, beamsA: 1, meshA: 0}, t: 1, dur: 1.6};
+const ease = t => t < .5 ? 2*t*t : 1 - Math.pow(-2*t + 2, 2)/2;
+function setGeometry(g, p, animate) {
+  MOR.from = {B: CUR.B.map(q => q.slice()), F: CUR.F, c: CUR.c, vpy: CUR.vpy, closeA: CUR.closeA, beamsA: CUR.beamsA, meshA: CUR.meshA};
+  geo = g; pal = p || (g.kind === 'beams' ? CLASSIC_PAL : PAL[0]);
+  NB = g.kind === 'beams' ? 5 : (g.closed ? NP : NP - 1);
+  WRAP = g.kind === 'tube' && g.closed;
+  MOR.t = animate ? 0 : 1;
+  stepMorph(0);
+  placeShip();
+}
+/* The beams fade out early in a curl, while the fan is still flat and looks
+   like them; on the way back the fan uncurls first and the beams return last. */
+function stepMorph(dt) {
+  if (MOR.t < 1) MOR.t = Math.min(1, MOR.t + dt/MOR.dur);
+  const e = ease(MOR.t), A = MOR.from, g = geo;
+  for (let i = 0; i < NP; i++) for (let j = 0; j < 2; j++) CUR.B[i][j] = A.B[i][j] + (g.B[i][j] - A.B[i][j])*e;
+  CUR.F = A.F + (g.F - A.F)*e; CUR.c = A.c + (g.c - A.c)*e; CUR.vpy = A.vpy + (g.vpy - A.vpy)*e;
+  CUR.closeA = A.closeA + ((g.closed ? 1 : 0) - A.closeA)*e;
+  const early = clamp01(MOR.t/0.35), late = clamp01((MOR.t - 0.65)/0.35);
+  CUR.meshA = g.kind === 'tube' ? A.meshA + (1 - A.meshA)*early : A.meshA*(1 - late);
+  CUR.beamsA = g.kind === 'beams' ? A.beamsA + (1 - A.beamsA)*late : A.beamsA*(1 - early);
+}
+const morphing = () => MOR.t < 1;
+
+/* A point on the outline at parameter u (point i at u = i), with the edge's
+   direction and the normal that points inward, toward the tube's axis. */
+function edgeAt(u) {
+  const B = CUR.B;
+  let i, a, b;
+  if (geo.closed) { u = mod(u, NP); i = Math.floor(u); a = B[i]; b = B[(i + 1) % NP]; }
+  else { i = Math.max(0, Math.min(NP - 2, Math.floor(u))); a = B[i]; b = B[i + 1]; }
+  const f = u - i, dx = b[0] - a[0], dy = b[1] - a[1], L = Math.hypot(dx, dy) || 1;
+  const X = a[0] + dx*f, Y = a[1] + dy*f, tx = dx/L, ty = dy/L;
+  let nx = -ty, ny = tx;
+  if (nx*X + ny*Y > 0) { nx = -nx; ny = -ny; }
+  return {X, Y, tx, ty, nx, ny, w: L};
+}
+/* Where lane `lane` runs: a beam on the floor, or the middle of a tube edge.
+   Lanes are floats, so a hop in progress draws between two. */
+function track(lane) {
+  if (geo.kind === 'beams') return {X: laneX(lane), Y: EYE_H, tx: 1, ty: 0, nx: 0, ny: -1, w: LANE};
+  return edgeAt(lane + 0.5);
+}
+function tpt(lane, z, alt = 0) { const t = track(lane); return proj(t.X + alt*t.nx, t.Y + alt*t.ny, z); }
+/* The short way round from lane b to lane a: inside a closed tube, 15 -> 0 is one hop. */
+const wrapDelta = (a, b) => WRAP ? mod(a - b + NB/2, NB) - NB/2 : a - b;
+
+/* ---------------- canvas, phosphor and scaling ---------------- */
+/* A vector monitor steers its electron beam from point to point, like a pen,
+   and the phosphor glows where it passed and then fades. So the picture is a
+   list of lines each frame. They are drawn additively onto `acc`, the
+   phosphor, which is dimmed a little each frame instead of cleared; then the
+   phosphor is copied to the screen with a blurred copy on top for the bloom. */
+const cv = document.getElementById('c'), ctx = cv.getContext('2d');
+const acc = document.createElement('canvas'), ax = acc.getContext('2d');
+let S = 1;
+function fit() {
+  const s = Math.min(innerWidth/W, innerHeight/H);
+  cv.style.width = W*s + 'px'; cv.style.height = H*s + 'px';
+  cv.style.left = ((innerWidth - W*s)/2) + 'px';
+  cv.style.top = ((innerHeight - H*s)/2) + 'px';
+  S = Math.max(0.5, Math.min(2.2, s*Math.min(2, window.devicePixelRatio || 1)));
+  cv.width = acc.width = Math.round(W*S); cv.height = acc.height = Math.round(H*S);
+}
+addEventListener('resize', fit); fit();
+const hasFilter = typeof ctx.filter === 'string';
+
+const OPT = {persist: 0.62, glow: 1, flicker: !reduced};
+try {
+  const o = JSON.parse(localStorage.getItem('vanishingPoint360.fx') || '{}');
+  if (typeof o.persist === 'number') OPT.persist = Math.max(0, Math.min(0.9, o.persist));
+  if (typeof o.glow === 'number') OPT.glow = Math.max(0, Math.min(1.6, o.glow));
+  if (typeof o.flicker === 'boolean') OPT.flicker = o.flicker;
+} catch (e) {}
+
+let layers = [], LY = null, INT = 1, jx = 0, jy = 0;
+function newLayer(clear) { LY = {segs: [], dots: [], clear}; layers.push(LY); }
+function line(x1, y1, x2, y2, c, i = 1) {
+  i *= INT; if (i <= 0.01) return;
+  LY.segs.push([x1 + jx, y1 + jy, x2 + jx, y2 + jy, c, i]);
+}
+function dot(x, y, c, i = 1) { i *= INT; if (i > 0.01) LY.dots.push([x + jx, y + jy, c, i]); }
+/* The beam dwells where it turns, so a shape's corners burn brighter. */
+function poly(pts, c, closed, i = 1, hot = true) {
+  for (let k = 0; k < pts.length - (closed ? 0 : 1); k++) {
+    const a = pts[k], b = pts[(k + 1) % pts.length];
+    line(a[0], a[1], b[0], b[1], c, i);
+  }
+  if (hot) for (const p of pts) dot(p[0], p[1], c, i);
+}
+const hotCache = {};
+function hotter(c) {
+  if (hotCache[c]) return hotCache[c];
+  const n = parseInt(c.slice(1), 16), r = n >> 16, g = (n >> 8) & 255, b = n & 255, m = v => Math.round(v + (255 - v)*0.55);
+  return hotCache[c] = `rgb(${m(r)},${m(g)},${m(b)})`;
+}
+function paint(dt) {
+  const fade = OPT.persist > 0 ? Math.max(0.085, 1 - Math.pow(OPT.persist, dt*60)) : 1;
+  ax.setTransform(1, 0, 0, 1, 0, 0);
+  ax.globalCompositeOperation = 'source-over'; ax.globalAlpha = 1;
+  ax.fillStyle = `rgba(0,0,0,${fade})`; ax.fillRect(0, 0, acc.width, acc.height);
+  const flick = OPT.flicker ? 0.9 + Math.random()*0.1 : 1, glow = OPT.glow;
+  for (const ly of layers) {
+    ax.setTransform(S, 0, 0, S, 0, 0);
+    if (ly.clear) {        // an inset panel: wipe its patch of phosphor first
+      ax.globalCompositeOperation = 'source-over'; ax.globalAlpha = 0.9; ax.fillStyle = '#000';
+      ax.fillRect(ly.clear.x, ly.clear.y, ly.clear.w, ly.clear.h);
+    }
+    ax.globalCompositeOperation = 'lighter'; ax.lineCap = 'round'; ax.lineJoin = 'round';
+    const groups = new Map();
+    for (const s of ly.segs) {
+      const key = s[4] + '|' + Math.round(s[5]*20);
+      let g = groups.get(key);
+      if (!g) groups.set(key, g = {c: s[4], i: Math.round(s[5]*20)/20, p: new Path2D()});
+      g.p.moveTo(s[0], s[1]); g.p.lineTo(s[2], s[3]);
+    }
+    for (const g of groups.values()) {
+      const k = g.i*flick;
+      if (glow > 0) {
+        ax.strokeStyle = g.c;
+        ax.globalAlpha = Math.min(1, 0.07*glow*k); ax.lineWidth = 10; ax.stroke(g.p);
+        ax.globalAlpha = Math.min(1, 0.22*Math.min(1, glow)*k); ax.lineWidth = 3.4; ax.stroke(g.p);
+      }
+      ax.strokeStyle = hotter(g.c); ax.globalAlpha = Math.min(1, 0.92*k); ax.lineWidth = 1.5; ax.stroke(g.p);
+    }
+    for (const [x, y, c, i] of ly.dots) {
+      ax.fillStyle = hotter(c); ax.globalAlpha = Math.min(1, 0.55*i*flick);
+      ax.beginPath(); ax.arc(x, y, 2.3, 0, Math.PI*2); ax.fill();
+    }
+  }
+  ax.globalAlpha = 1;
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
+  ctx.fillStyle = '#000'; ctx.fillRect(0, 0, cv.width, cv.height);
+  ctx.drawImage(acc, 0, 0);
+  if (hasFilter && glow > 0) {
+    ctx.filter = `blur(${7*S}px)`; ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = Math.min(1, 0.6*glow);
+    ctx.drawImage(acc, 0, 0);
+    ctx.filter = 'none'; ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
+  }
+}
+
+/* ---------------- vector lettering ---------------- */
+/* Strokes on a 4x6 grid, the way the vector boards drew their characters. */
+const FONT = {
+  '0':'0,0 4,0 4,6 0,6 0,0|4,0 0,6','1':'2,0 2,6|1,1 2,0','2':'0,0 4,0 4,3 0,3 0,6 4,6','3':'0,0 4,0 4,6 0,6|0,3 4,3','4':'0,0 0,3 4,3|4,0 4,6',
+  '5':'4,0 0,0 0,3 4,3 4,6 0,6','6':'4,0 0,0 0,6 4,6 4,3 0,3','7':'0,0 4,0 4,6','8':'0,0 4,0 4,6 0,6 0,0|0,3 4,3','9':'4,3 0,3 0,0 4,0 4,6 0,6',
+  A:'0,6 0,2 2,0 4,2 4,6|0,3 4,3',B:'0,0 0,6 3,6 4,5 4,4 3,3 0,3|0,0 3,0 4,1 4,2 3,3',C:'4,0 0,0 0,6 4,6',D:'0,0 0,6 2,6 4,4 4,2 2,0 0,0',
+  E:'4,0 0,0 0,6 4,6|0,3 3,3',F:'4,0 0,0 0,6|0,3 3,3',G:'4,1 4,0 0,0 0,6 4,6 4,3 2,3',H:'0,0 0,6|4,0 4,6|0,3 4,3',I:'0,0 4,0|2,0 2,6|0,6 4,6',
+  J:'4,0 4,6 1,6 0,5',K:'0,0 0,6|4,0 0,3 4,6',L:'0,0 0,6 4,6',M:'0,6 0,0 2,2 4,0 4,6',N:'0,6 0,0 4,6 4,0',O:'0,0 4,0 4,6 0,6 0,0',
+  P:'0,6 0,0 4,0 4,3 0,3',Q:'0,0 4,0 4,6 0,6 0,0|2,4 4,6.5',R:'0,6 0,0 4,0 4,3 0,3 4,6',S:'4,0 0,0 0,3 4,3 4,6 0,6',T:'0,0 4,0|2,0 2,6',
+  U:'0,0 0,6 4,6 4,0',V:'0,0 2,6 4,0',W:'0,0 1,6 2,3 3,6 4,0',X:'0,0 4,6|4,0 0,6',Y:'0,0 2,3 4,0|2,3 2,6',Z:'0,0 4,0 0,6 4,6',
+  '.':'1.7,5.4 2.3,5.4 2.3,6 1.7,6 1.7,5.4',':':'2,1.4 2,2|2,4.4 2,5','-':'1,3 3,3','!':'2,0 2,4|2,5.4 2,6','/':'4,0 0,6',"'":'2,0 2,1.6',
+  '?':'0,1 1,0 3,0 4,1 4,2 2,3.5 2,4.4|2,5.4 2,6','+':'2,1.5 2,4.5|0.5,3 3.5,3',',':'2,5 1.4,6.8','(':'3,0 1.5,1.5 1.5,4.5 3,6',
+  ')':'1,0 2.5,1.5 2.5,4.5 1,6','=':'0.5,2 3.5,2|0.5,4 3.5,4','*':'2,1 2,5|0.5,2 3.5,4|3.5,2 0.5,4','>':'0.5,1 3.5,3 0.5,5','<':'3.5,1 0.5,3 3.5,5'
+};
+const GLYPH = {};
+for (const k in FONT) GLYPH[k] = FONT[k].split('|').map(s => s.split(' ').map(p => p.split(',').map(Number)));
+const textW = (s, sc) => String(s).length*6*sc - 2*sc;
+function text(s, x, y, sc = 2, col = '#fff', align = 'left', i = 1) {
+  s = String(s).toUpperCase();
+  if (align === 'center') x -= textW(s, sc)/2; else if (align === 'right') x -= textW(s, sc);
+  for (const ch of s) {
+    const g = GLYPH[ch];
+    if (g) for (const pl of g) poly(pl.map(([u, v]) => [x + u*sc, y + v*sc]), col, false, i, false);
+    x += 6*sc;
+  }
+}
+
+/* ---------------- sound ---------------- */
+/* Everything you hear is synthesized right here -- pulse, triangle, saw and
+   noise, the way an early-80s sound chip did it. No files, no network.
+   Browsers only allow audio after a user gesture, so the context is made (or
+   resumed) on the first key, click or pad press. A pad press may not count as
+   a gesture in every browser; any key or click always does.
+
+   Signal flow:
+     effects ------------------------------> sfx --\
+     music (a fresh bus per piece) --------> mus ---+--> master -> limiter -> out
+     jingles (a fresh bus per jingle) -----> mus --/
+     blocker hum (always running, level 0 unless a blocker is near) -> sfx
+
+   Each piece of music and each jingle gets its own gain node. Changing state
+   fades that node out and disconnects it, so whatever was already scheduled
+   is cut off: loops can't outlive the state that started them. Every note is
+   a one-shot that stops itself; the hum is the only long-lived oscillator. */
+const MASTER_VOL = 0.5;
+let actx = null, soundOn = true, noiseBuf = null, A = null;
+try { soundOn = localStorage.getItem('vanishingPoint360.muted') !== '1'; } catch (e) {}
+function ensureAudio() {
+  try {
+    if (!actx) {
+      actx = new (window.AudioContext || window.webkitAudioContext)();
+      buildAudio();
+    }
+    if (actx.state === 'suspended' && !document.hidden) {
+      const pr = actx.resume(); if (pr && pr.catch) pr.catch(() => {});
+    }
+  } catch (e) { console.warn('audio', e); actx = null; A = null; }
+}
+const audioLive = () => !!(A && actx && actx.state === 'running');
+function buildAudio() {
+  const c = actx;
+  noiseBuf = c.createBuffer(1, c.sampleRate, c.sampleRate);
+  const nd = noiseBuf.getChannelData(0);
+  for (let i = 0; i < nd.length; i++) nd[i] = Math.random()*2 - 1;
+  const gain = v => { const g = c.createGain(); g.gain.value = v; return g; };
+  A = {last: {}};
+  // a gentle limiter so an explosion on top of the music never clips
+  const lim = c.createDynamicsCompressor();
+  lim.threshold.value = -14; lim.knee.value = 8; lim.ratio.value = 6; lim.attack.value = 0.003; lim.release.value = 0.2;
+  lim.connect(c.destination);
+  A.master = gain(soundOn ? MASTER_VOL : 0); A.master.connect(lim);
+  A.sfx = gain(1); A.sfx.connect(A.master);
+  A.mus = gain(0.9); A.mus.connect(A.master);
+  /* A 25% pulse wave -- the thin, nasal lead of the old chips. Built from its
+     Fourier series: a_n = sin(2 pi n d)/(n pi), b_n = (1 - cos(2 pi n d))/(n pi). */
+  const N = 32, re = new Float32Array(N), im = new Float32Array(N), d = 0.25;
+  for (let n = 1; n < N; n++) {
+    re[n] = Math.sin(2*Math.PI*n*d)/(n*Math.PI);
+    im[n] = (1 - Math.cos(2*Math.PI*n*d))/(n*Math.PI);
+  }
+  A.pulse = c.createPeriodicWave(re, im);
+  // blocker hum: two detuned low tones beating, through a lowpass, wobbling
+  A.hum = gain(0); A.hum.connect(A.sfx);
+  const lp = c.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 420; lp.Q.value = 4; lp.connect(A.hum);
+  const h1 = c.createOscillator(); h1.type = 'sawtooth'; h1.frequency.value = 62;
+  const h2 = c.createOscillator(); h2.type = 'square'; h2.frequency.value = 65.5;
+  const h2g = gain(0.4); h1.connect(lp); h2.connect(h2g).connect(lp);
+  const wob = c.createOscillator(); wob.frequency.value = 7; const wg = gain(160);
+  wob.connect(wg).connect(lp.frequency);
+  for (const o of [h1, h2, wob]) o.start();
+}
+/* Move a level smoothly; skips the call when nothing changed, so a value set
+   every frame doesn't pile events onto the parameter's timeline. */
+function lvl(k, param, v, tc = 0.05) {
+  const old = A.last[k];
+  if (old !== undefined && Math.abs(old - v) <= 1e-4*Math.max(1, Math.abs(v))) return;
+  A.last[k] = v; param.setTargetAtTime(v, actx.currentTime, tc);
+}
+const mtof = m => 440*Math.pow(2, (m - 69)/12);
+/* One note, at an absolute AudioContext time. */
+function tone(t, f, dur, o = {}) {
+  const os = actx.createOscillator(), g = actx.createGain();
+  const v = o.vol === undefined ? 0.05 : o.vol, a = Math.min(o.attack || 0.003, dur*0.5);
+  if (o.type === 'pulse') os.setPeriodicWave(A.pulse); else os.type = o.type || 'square';
+  os.frequency.setValueAtTime(f, t);
+  if (o.slide) os.frequency.exponentialRampToValueAtTime(o.slide, t + dur);
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(v, t + a);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  os.connect(g).connect(o.dest || A.sfx);
+  os.onended = () => g.disconnect();
+  os.start(t); os.stop(t + dur + 0.02);
+}
+/* A burst of filtered noise. */
+function hiss(t, dur, o = {}) {
+  const s = actx.createBufferSource(), g = actx.createGain();
+  s.buffer = noiseBuf; s.loop = true;
+  let out = s;
+  if (o.filt) {
+    const b = actx.createBiquadFilter(); b.type = o.filt; b.Q.value = o.q || 0.8;
+    b.frequency.setValueAtTime(o.f || 1000, t);
+    if (o.fTo) b.frequency.exponentialRampToValueAtTime(o.fTo, t + dur);
+    s.connect(b); out = b;
+  }
+  const v = o.vol === undefined ? 0.05 : o.vol;
+  g.gain.setValueAtTime(v, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  out.connect(g).connect(o.dest || A.sfx);
+  s.onended = () => g.disconnect();
+  s.start(t, Math.random()*0.8); s.stop(t + dur + 0.02);
+}
+/* Wrap an effect: silent when muted or locked, and a sound bug can never
+   take the game down with it. */
+const fx = fn => (...args) => {
+  if (!soundOn || !audioLive()) return;
+  try { fn(actx.currentTime + 0.005, ...args); } catch (e) { console.warn('audio', e); }
+};
+const SFX = {
+  hop:    fx(t => tone(t, 520, 0.035, {type: 'pulse', vol: 0.04, slide: 780})),
+  laser:  fx(t => {
+    tone(t, 1800, 0.12, {vol: 0.04, slide: 240});
+    tone(t, 3600, 0.05, {type: 'triangle', vol: 0.02, slide: 900});
+  }),
+  torp:   fx(t => {         // a whoosh with a falling motor under it
+    hiss(t, 0.45, {filt: 'bandpass', f: 600, fTo: 3800, q: 2, vol: 0.12});
+    tone(t, 220, 0.4, {type: 'sawtooth', vol: 0.035, slide: 70});
+  }),
+  empty:  fx(t => {
+    hiss(t, 0.012, {filt: 'highpass', f: 4000, vol: 0.07}); tone(t, 1900, 0.012, {vol: 0.02});
+    hiss(t + 0.07, 0.01, {filt: 'highpass', f: 2500, vol: 0.04});
+  }),
+  hit:    fx(t => {         // saucer struck: bright crunch and a falling chirp
+    hiss(t, 0.18, {filt: 'lowpass', f: 3000, fTo: 400, vol: 0.12});
+    tone(t, 900, 0.16, {type: 'pulse', vol: 0.04, slide: 120});
+  }),
+  boom:   fx((t, big) => {
+    hiss(t, big ? 1.2 : 0.6, {filt: 'lowpass', f: 2200, fTo: 90, vol: big ? 0.28 : 0.18});
+    tone(t, 110, big ? 1.0 : 0.5, {type: 'sawtooth', vol: 0.06, slide: 26});
+    tone(t, 70, big ? 1.1 : 0.55, {type: 'triangle', vol: 0.1, slide: 22});
+  }),
+  tink:   fx(t => { tone(t, 2400, 0.08, {type: 'triangle', vol: 0.05}); tone(t, 3300, 0.06, {type: 'triangle', vol: 0.03}); }),
+  chirp:  fx((t, v) => {
+    tone(t, 2000, 0.05, {type: 'pulse', vol: v, slide: 3400});
+    tone(t + 0.07, 2300, 0.05, {type: 'pulse', vol: v*0.8, slide: 3800});
+  }),
+  bonus:  fx(t => [76, 81, 88].forEach((m, i) => tone(t + i*0.05, mtof(m), 0.08, {type: 'pulse', vol: 0.04}))),
+  boing:  fx(t => tone(t, 180, 0.18, {type: 'triangle', vol: 0.06, slide: 520})),
+  spoil:  fx(t => {         // a rejuvenator shot to junk: sour falling pair
+    tone(t, 660, 0.25, {type: 'sawtooth', vol: 0.04, slide: 330});
+    tone(t, 698, 0.25, {type: 'sawtooth', vol: 0.03, slide: 349});
+  }),
+  pickup: fx(t => {
+    [72, 76, 79, 84].forEach((m, i) => tone(t + i*0.06, mtof(m), 0.1, {type: 'triangle', vol: 0.06}));
+    tone(t + 0.24, mtof(91), 0.3, {type: 'pulse', vol: 0.025});
+  }),
+  life:   fx(t => {
+    [72, 76, 79, 84, 88].forEach((m, i) => {
+      tone(t + i*0.07, mtof(m), 0.09, {type: 'pulse', vol: 0.04});
+      tone(t + i*0.07, mtof(m - 12), 0.09, {type: 'triangle', vol: 0.04});
+    });
+  }),
+  die:    fx(t => {
+    hiss(t, 1.0, {filt: 'lowpass', f: 4000, fTo: 100, vol: 0.25});
+    tone(t, 700, 1.0, {type: 'sawtooth', vol: 0.06, slide: 40});
+    tone(t, 90, 0.9, {type: 'triangle', vol: 0.1, slide: 30});
+  }),
+  pause:  fx((t, on) => tone(t, on ? 300 : 600, 0.06, {vol: 0.05})),
+};
+function setSound(on) {
+  soundOn = on;
+  try { localStorage.setItem('vanishingPoint360.muted', on ? '0' : '1'); } catch (e) {}
+  if (A) try { lvl('master', A.master.gain, on ? MASTER_VOL : 0, 0.03); } catch (e) {}
+}
+/* A fresh gain node for one piece of music or one jingle; returns the node.
+   The previous one in the same slot is faded and dropped. */
+function freshBus(slot) {
+  const old = A[slot];
+  if (old) {
+    try { old.gain.setTargetAtTime(0, actx.currentTime, 0.015); } catch (e) {}
+    setTimeout(() => { try { old.disconnect(); } catch (e) {} }, 300);
+  }
+  const g = actx.createGain(); g.gain.value = 1; g.connect(A.mus);
+  A[slot] = g;
+  return g;
+}
+function dropBus(slot) {
+  if (!A || !A[slot]) return;
+  const old = A[slot]; A[slot] = null;
+  try { old.gain.setTargetAtTime(0, actx.currentTime, 0.015); } catch (e) {}
+  setTimeout(() => { try { old.disconnect(); } catch (e) {} }, 300);
+}
+
+/* ---------------- jingles ---------------- */
+/* Short fixed pieces for the moments between sectors. They go on their own
+   bus, so starting a new game in the middle of the game-over theme cuts it. */
+const JINGLES = {
+  intro(t, b) {            // a rising E-minor run that lands on a held chord
+    [52, 55, 59, 64, 67, 71, 76, 79].forEach((m, i) => tone(t + i*0.08, mtof(m), 0.1, {type: 'pulse', vol: 0.04, dest: b}));
+    tone(t, mtof(40), 0.62, {type: 'triangle', vol: 0.1, dest: b});
+    for (const m of [64, 67, 71]) tone(t + 0.68, mtof(m), 0.9, {type: 'pulse', vol: 0.025, attack: 0.02, dest: b});
+    tone(t + 0.68, mtof(40), 0.9, {type: 'triangle', vol: 0.11, dest: b});
+    hiss(t + 0.68, 0.2, {filt: 'highpass', f: 5000, vol: 0.05, dest: b});
+  },
+  fanfare(t, b) {          // E major, bright, twice up and a long top note
+    const run = [[64, 0], [68, 0.1], [71, 0.2], [76, 0.3], [74, 0.6], [78, 0.7], [81, 0.8], [86, 0.9]];
+    for (const [m, at] of run) tone(t + at, mtof(m), 0.11, {type: 'pulse', vol: 0.045, dest: b});
+    tone(t + 1.1, mtof(88), 0.9, {type: 'pulse', vol: 0.045, attack: 0.01, dest: b});
+    tone(t + 1.1, mtof(80), 0.9, {type: 'pulse', vol: 0.025, dest: b});
+    [40, 40, 45, 47, 52].forEach((m, i) => tone(t + i*0.25, mtof(m), 0.22, {type: 'triangle', vol: 0.11, dest: b}));
+    tone(t + 1.25, mtof(40), 0.9, {type: 'triangle', vol: 0.12, dest: b});
+  },
+  gameover(t, b) {         // slow descending minor line, then one low note and silence
+    [71, 70, 69, 67, 66].forEach((m, i) => {
+      tone(t + i*0.32, mtof(m), 0.28, {type: 'pulse', vol: 0.045, dest: b});
+      tone(t + i*0.32, mtof(m - 24), 0.28, {type: 'triangle', vol: 0.08, dest: b});
+    });
+    tone(t + 1.6, mtof(64), 1.5, {type: 'pulse', vol: 0.04, dest: b});
+    tone(t + 1.6, mtof(40), 1.7, {type: 'triangle', vol: 0.11, dest: b});
+    tone(t + 1.6, mtof(28), 1.7, {type: 'triangle', vol: 0.08, dest: b});
+  },
+};
+function jingle(name) {
+  if (!soundOn || !audioLive()) return;
+  try { JINGLES[name](actx.currentTime + 0.02, freshBus('jbus')); } catch (e) { console.warn('audio', e); }
+}
+
+/* ---------------- music ---------------- */
+/* A lookahead sequencer: each frame, every sixteenth-note step that falls in
+   the next 0.12 s is scheduled on the AudioContext clock, so timing never
+   depends on when the frame happened to run.
+
+   In play the tempo comes from the enemies: sixteenths per second =
+   4 + 1.8 x the approach speed (depth units per second). Sector 1 runs about
+   110 bpm, and every sector and every saucer you destroy pushes it up. A new
+   tempo is taken only on a beat, and only half-way at a time, so it surges
+   rather than jumps. */
+const MUS = {mode: null, next: 0, step: 0, bar: 0, sps: 6, target: 6};
+const tempoFor = speed => 4 + 1.8*speed;
+const GAME_PROG = [40, 36, 38, 35];               // E  C  D  B  (bass octave)
+const GAME_QUAL = {40: [0, 3, 7], 36: [0, 4, 7], 38: [0, 4, 7], 35: [0, 4, 7]};
+const GAME_BASS = [0, 0, 12, 0, 7, 0, 12, 7];      // per eighth note, over the root
+const GAME_LEAD = [                                // per eighth note; 0 = rest
+  [64, 0, 67, 71, 0, 69, 67, 64],
+  [64, 0, 67, 72, 0, 71, 67, 0],
+  [66, 0, 69, 74, 0, 72, 71, 69],
+  [71, 0, 66, 63, 0, 66, 71, 0]];
+const TITLE_PROG = [45, 41, 43, 40];               // A  F  G  E
+const TITLE_QUAL = {45: [0, 3, 7], 41: [0, 4, 7], 43: [0, 4, 7], 40: [0, 4, 7]};
+const TITLE_LEAD = [
+  [69, 0, 72, 0, 76, 0, 74, 72],
+  [69, 0, 0, 0, 65, 0, 67, 69],
+  [71, 0, 74, 0, 79, 0, 77, 74],
+  [71, 0, 0, 0, 68, 0, 71, 0]];
+function playStep(t, s, bar) {
+  const d = 1/MUS.sps, b = A.mbus;
+  if (MUS.mode === 'title') {
+    const root = TITLE_PROG[bar % 4], ch = TITLE_QUAL[root];
+    if (s % 4 === 0) tone(t, mtof(root - 12 + (s === 8 ? 7 : 0)), d*3.5, {type: 'triangle', vol: 0.09, dest: b});
+    if (s % 2 === 0) tone(t, mtof(root + 12 + ch[(s >> 1) % 3]), d*1.6, {type: 'triangle', vol: 0.035, dest: b});
+    if (bar % 8 >= 4 && s % 2 === 0) {
+      const m = TITLE_LEAD[bar % 4][s >> 1];
+      if (m) tone(t, mtof(m), d*1.8, {type: 'pulse', vol: 0.03, dest: b});
+    }
+    if (s === 4 || s === 12) hiss(t, 0.03, {filt: 'highpass', f: 6000, vol: 0.02, dest: b});
+    return;
+  }
+  // 'game'
+  const root = GAME_PROG[bar % 4], ch = GAME_QUAL[root], sector = G.sector || 1;
+  if (s % 8 === 0) tone(t, 150, 0.12, {type: 'triangle', vol: 0.13, slide: 40, dest: b});   // kick
+  if (s % 8 === 4 && sector >= 2) hiss(t, 0.09, {filt: 'bandpass', f: 1800, vol: 0.05, dest: b});  // snare
+  if (s % 4 === 2) hiss(t, 0.025, {filt: 'highpass', f: 7000, vol: 0.025, dest: b});        // hat
+  if (s % 2 === 0) {        // the driving bass, triangle like the old chips
+    const m = root + GAME_BASS[s >> 1];
+    tone(t, mtof(m), d*1.7, {type: 'triangle', vol: 0.1, dest: b});
+    tone(t, mtof(m + 12), d*0.9, {type: 'pulse', vol: 0.012, dest: b});
+  }
+  const lead = bar % 8 >= 4;
+  // the arpeggio: every sixteenth on its own, every other one under the lead
+  if (!lead || s % 2 === 1) {
+    const i = [0, 1, 2, 1][s % 4] + (s >= 8 ? 1 : 0);
+    const m = root + 24 + (i >= 3 ? 12 : ch[i]);
+    tone(t, mtof(m), d*0.9, {type: 'pulse', vol: lead ? 0.012 : 0.02, dest: b});
+  }
+  if (lead && s % 2 === 0) {
+    const m = GAME_LEAD[bar % 4][s >> 1];
+    if (m) tone(t, mtof(m), d*1.8, {type: 'pulse', vol: 0.035, dest: b});
+  }
+  if (G.boss && s % 8 === 0)          // the sector ship's siren, over the top
+    tone(t, s ? 1050 : 520, d*8, {type: 'sawtooth', vol: 0.03, slide: s ? 520 : 1050, dest: b});
+}
+function scheduleMusic() {
+  const now = actx.currentTime;
+  if (MUS.next < now) MUS.next = now + 0.04;    // first run, or the page stalled
+  while (MUS.next < now + 0.12) {
+    if (MUS.step % 4 === 0) MUS.sps += (MUS.target - MUS.sps)*0.5;
+    playStep(MUS.next, MUS.step, MUS.bar);
+    MUS.next += 1/MUS.sps;
+    if (++MUS.step === 16) { MUS.step = 0; MUS.bar++; }
+  }
+}
+/* Which piece should be playing right now. null = silence (apart from
+   jingles and effects). */
+function musicMode() {
+  if (paused || document.hidden) return null;
+  if (state === 'title') return 'title';
+  if (state === 'play' || state === 'boss' || state === 'dead') return 'game';
+  return null;
+}
+function audioFrame() {
+  if (!A || !actx) return;
+  try {
+    const want = soundOn ? musicMode() : null;
+    MUS.target = want === 'game' ? tempoFor(G.speed) : 6;
+    if (want !== MUS.mode) {
+      MUS.mode = want;
+      if (want) { freshBus('mbus'); MUS.step = 0; MUS.bar = 0; MUS.next = 0; MUS.sps = MUS.target; }
+      else dropBus('mbus');
+    }
+    if (MUS.mode && audioLive()) scheduleMusic();
+    // blocker hum: louder the closer a blocker is to your beam
+    let near = 0;
+    if (!paused && (state === 'play' || state === 'boss') && G.ents) for (const e of G.ents) if (e.type === 'blocker') {
+      const v = e.mode === 'bottom' ? Math.max(0, 1 - Math.abs(wrapDelta(P.beam, e.beam))/4) : 0.45*(1 - e.z/Z_FAR);
+      near = Math.max(near, v);
+    }
+    lvl('hum', A.hum.gain, soundOn ? 0.07*near*near : 0, 0.08);
+  } catch (e) { console.warn('audio', e); }
+}
+function audioVisibility() {
+  if (!actx) return;
+  try {
+    if (document.hidden) actx.suspend().catch(() => {});
+    else ensureAudio();
+  } catch (e) {}
+}
+
+/* ---------------- input ---------------- */
+/* Everything collapses onto the eight NES buttons. Keyboard and every
+   connected pad are OR-ed together, so either works at any moment. */
+const BTN = ['up','down','left','right','a','b','select','start'];
+const KEYMAP = {
+  ArrowUp:'up', KeyW:'up', ArrowDown:'down', KeyS:'down', ArrowLeft:'left', KeyA:'left',
+  ArrowRight:'right', KeyD:'right', KeyZ:'a', KeyK:'a', KeyX:'b', KeyJ:'b',
+  ShiftLeft:'select', ShiftRight:'select', Enter:'start', NumpadEnter:'start'
+};
+const key = {}, keyTap = {}, held = {}, prevHeld = {}, pressed = {};
+let padCount = 0, pauseKey = false, note = '', noteT = 0;
+function footNote(s) { note = s; noteT = 3; }
+addEventListener('keydown', e => {
+  ensureAudio();                       // any key unlocks sound
+  if (e.target && e.target.closest && e.target.closest('#fxp') && e.code !== 'Escape') return;   // the settings sliders keep their arrows
+  if (e.code === 'KeyM' && !e.repeat) { setSound(!soundOn); return; }
+  if (e.code === 'KeyP' && !e.repeat) { pauseKey = true; return; }
+  if (!e.repeat && extraKey(e.code)) { e.preventDefault(); return; }
+  const b = KEYMAP[e.code]; if (!b) return;
+  e.preventDefault();
+  if (!e.repeat) keyTap[b] = true;     // catches taps shorter than one frame
+  key[b] = true;
+});
+addEventListener('keyup', e => { const b = KEYMAP[e.code]; if (b) key[b] = false; });
+addEventListener('blur', () => { for (const b of BTN) key[b] = false; });
+for (const ev of ['mousedown', 'pointerdown', 'touchend']) addEventListener(ev, ensureAudio);
+addEventListener('gamepadconnected', () => footNote('CONTROLLER CONNECTED'));
+addEventListener('gamepaddisconnected', () => footNote('CONTROLLER DISCONNECTED'));
+
+function pollInput() {
+  const pad = {};
+  let n = 0;
+  const pads = navigator.getGamepads ? navigator.getGamepads() : [];
+  for (const p of pads) {
+    if (!p) continue; n++;
+    const b = i => !!(p.buttons[i] && p.buttons[i].pressed);
+    const ax = p.axes[0] || 0, ay = p.axes[1] || 0;
+    /* Cheap NES-style USB pads often report the D-pad as axes 0/1 instead of
+       buttons 12-15, so both count. */
+    pad.up    = pad.up    || b(12) || ay < -0.5;
+    pad.down  = pad.down  || b(13) || ay >  0.5;
+    pad.left  = pad.left  || b(14) || ax < -0.5;
+    pad.right = pad.right || b(15) || ax >  0.5;
+    pad.a = pad.a || b(0); pad.b = pad.b || b(1);
+    pad.select = pad.select || b(8); pad.start = pad.start || b(9);
+  }
+  if (n > padCount) footNote('CONTROLLER CONNECTED');
+  padCount = n;
+  for (const b of BTN) {
+    held[b] = !!(key[b] || pad[b]);
+    if ((held[b] && !prevHeld[b]) || keyTap[b]) {
+      pressed[b] = true;
+      if (pad[b]) ensureAudio();      // may not count as a gesture in every browser
+    }
+    keyTap[b] = false;
+    prevHeld[b] = held[b];
+  }
+  if (pauseKey) { pressed.pause = true; pauseKey = false; }
+}
+
+/* ---------------- sprites ---------------- */
+/* Each sprite is a few strokes in its own frame: a runs across the lane
+   (-0.5..0.5 of its width), b runs up, away from the surface it rides on.
+   On the floor "up" is up; inside the tube "up" points at the axis, so a
+   saucer on the ceiling hangs upside down, the way Tempest drew things. */
+const P_ = (c, closed, ...pts) => ({c, closed, pts});
+const octagon = (cx, cy, r) => Array.from({length: 8}, (_, k) => [cx + r*Math.cos(k*Math.PI/4 + Math.PI/8), cy + r*Math.sin(k*Math.PI/4 + Math.PI/8)]);
+const VSPR = {
+  ship: {w: 0.26, parts: [
+    P_('#ffd23a', true, [-0.5,0.05],[-0.5,0.4],[-0.32,0.25],[-0.14,0.32],[0,0.62],[0.14,0.32],[0.32,0.25],[0.5,0.4],[0.5,0.05],[0.14,0.12],[-0.14,0.12]),
+    P_('#29c6ff', false, [-0.07,0.3],[0,0.45],[0.07,0.3]),
+    P_('#ff5a20', false, [-0.3,0.05],[-0.3,-0.05]), P_('#ff5a20', false, [0.3,0.05],[0.3,-0.05])]},
+  saucer: {w: 0.28, alt: 0.05, parts: [
+    P_('#f4f4ff', true, [-0.5,0.14],[-0.32,0.24],[0.32,0.24],[0.5,0.14],[0.3,0.05],[-0.3,0.05]),
+    P_('#7090ff', false, [-0.2,0.24],[-0.12,0.36],[0.12,0.36],[0.2,0.24]),
+    P_('#7090ff', false, [-0.3,0.145],[0.3,0.145])]},
+  chirper: {w: 0.2, alt: 0.12, parts: [
+    P_('#ffe23a', false, [-0.5,0.5],[-0.12,0.2],[0,0.3],[0.12,0.2],[0.5,0.5]),
+    P_('#ff7a1a', true, [0,0.3],[0.08,0.15],[0,0],[-0.08,0.15])]},
+  blocker: {w: 0.27, parts: [
+    P_('#1fbf3a', true, [-0.45,0.05],[-0.45,0.45],[-0.25,0.6],[0.25,0.6],[0.45,0.45],[0.45,0.05]),
+    P_('#7dff6a', false, [-0.22,0.35],[-0.1,0.35]), P_('#7dff6a', false, [0.1,0.35],[0.22,0.35]),
+    P_('#1fbf3a', false, [-0.45,0.05],[-0.52,-0.05]), P_('#1fbf3a', false, [0,0.05],[0,-0.05]), P_('#1fbf3a', false, [0.45,0.05],[0.52,-0.05])]},
+  bouncer: {w: 0.2, parts: [
+    P_('#ff6af0', true, ...octagon(0, 0.5, 0.5)),
+    P_('#ffffff', true, [0,0.75],[0.22,0.5],[0,0.25],[-0.22,0.5])]},
+  rejuv: {w: 0.2, alt: 0.05, parts: [
+    P_('#29e6ff', true, [0,1],[0.5,0.5],[0,0],[-0.5,0.5]),
+    P_('#ffffff', false, [0,0.75],[0,0.25]), P_('#ffffff', false, [-0.25,0.5],[0.25,0.5])]},
+  debris: {w: 0.2, parts: [
+    P_('#ff5040', false, [-0.5,0.1],[-0.25,0.45],[-0.05,0.15],[0.15,0.5],[0.35,0.12],[0.5,0.4]),
+    P_('#c01818', false, [-0.4,0.3],[0.4,0.25])]},
+  spark: {w: 0.09, alt: 0.05, parts: [
+    P_('#ff9a2a', false, [-0.5,0.5],[0.5,0.5]), P_('#ff9a2a', false, [0,0],[0,1]), P_('#ff9a2a', false, [-0.35,0.15],[0.35,0.85])]},
+  boss: {w: 0.95, alt: 0.25, parts: [
+    P_('#ff3a2a', true, [-0.5,0.2],[-0.38,0.36],[-0.15,0.44],[0.15,0.44],[0.38,0.36],[0.5,0.2],[0.42,0.12],[-0.42,0.12]),
+    P_('#ff6a3a', false, [-0.15,0.44],[-0.08,0.55],[0.08,0.55],[0.15,0.44]),
+    P_('#ffe23a', false, [-0.3,0.26],[-0.22,0.26]), P_('#ffe23a', false, [-0.04,0.28],[0.04,0.28]), P_('#ffe23a', false, [0.22,0.26],[0.3,0.26]),
+    P_('#ff9a2a', false, [-0.42,0.12],[-0.34,0.04],[-0.26,0.12],[-0.18,0.04],[-0.1,0.12],[-0.02,0.04],[0.06,0.12],[0.14,0.04],[0.22,0.12],[0.3,0.04],[0.38,0.12]),
+  ]},
+};
+/* Tube lanes are a little narrower than the floor's beams, and a star's
+   short edges narrower still, so sprites shrink to fit their lane. */
+function spriteScale(t) { return geo.kind === 'tube' ? Math.max(0.5, Math.min(1.15, t.w/LANE)) : 1; }
+function drawSprite(sp, lane, z, alt, flash, inten = 1) {
+  const t = track(lane), s = sp.w*spriteScale(t), al = alt === undefined ? (sp.alt || 0) : alt;
+  const p0 = proj(t.X + al*t.nx, t.Y + al*t.ny, z);
+  if (p0.k*s < 6) { dot(p0.x, p0.y, flash || sp.parts[0].c, inten); return; }   // too far to have a shape
+  for (const part of sp.parts) {
+    const pts = part.pts.map(([a, b]) => {
+      const u = a*s, v = al + b*s, q = proj(t.X + u*t.tx + v*t.nx, t.Y + u*t.ty + v*t.ny, z);
+      return [q.x, q.y];
+    });
+    poly(pts, flash || part.c, part.closed, inten);
+  }
+}
+/* The ship as a flat icon on the screen, for the lives row. */
+function icon(sp, x, y, size, inten = 0.9) {
+  for (const part of sp.parts) poly(part.pts.map(([a, b]) => [x + a*size, y - b*size]), part.c, part.closed, inten, false);
+}
+/* Inside the tube you are a claw on the rim, spanning your lane. */
+function drawClaw(lane, inten) {
+  const at = (u, z) => { const e = edgeAt(u), q = proj(e.X, e.Y, z); return [q.x, q.y]; };
+  poly([at(lane, Z_SHIP), at(lane + 0.5, Z_SHIP - 0.22), at(lane + 1, Z_SHIP),
+        at(lane + 0.78, Z_SHIP + 0.28), at(lane + 0.5, Z_SHIP + 0.1), at(lane + 0.22, Z_SHIP + 0.28)], pal.claw, true, inten);
+}
+
+/* ---------------- game state ---------------- */
+let state = 'title', paused = false, stateT = 0, showSide = DEMO && Q.has('side'), t0 = 0;
+const HI = {classic: 0, '360': 0, curl: 0};
+try { for (const m of MODES) HI[m] = +localStorage.getItem('vanishingPoint360.hi.' + m) || 0; } catch (e) {}
+const G = {speed: 1.9, scroll: 0, ents: [], sector: 1};
+const P = {lane: 2, beam: 2, beamU: 2, rep: 0, inv: 0};
+let parts = [], pops = [];
+const rnd = (a, b) => a + Math.random()*(b - a);
+const clampB = b => WRAP ? b : Math.max(0, Math.min(NB - 1, b));
+/* Enemies close in faster each sector, and a little faster with every saucer
+   you destroy in this one. The music's tempo is read from this same number. */
+const baseSpeed = s => Math.min(4.2, 1.9 + 0.3*(s - 1));
+const LASER_V = 22, TORP_V = 14;
+/* Sideways movers (chirpers, the sector ship) cross 5 beams in classic; in a
+   tube of 15 or 16 lanes they move faster so a crossing takes about as long. */
+const sideRate = () => geo.kind === 'tube' ? NB/5*0.7 : 1;
+
+/* Which geometry and colours a sector is played on. */
+function tubeIndex(s) { return MODE === '360' ? s - 1 : MODE === 'curl' && s % 3 === 0 ? s/3 - 1 : -1; }
+function geoFor(s) { const i = tubeIndex(s); return i < 0 ? FLATG : TUBES[i % TUBES.length]; }
+function palFor(s) { const i = tubeIndex(s); return i < 0 ? CLASSIC_PAL : PAL[(i + Math.floor(i/TUBES.length)) % PAL.length]; }
+
+/* Start on the beam, or the lane, nearest the bottom middle of the screen. */
+function placeShip() {
+  let best = 0, score = -Infinity;
+  if (geo.kind === 'beams') best = 2;
+  else for (let i = 0; i < NB; i++) { const t = track(i), s = t.Y - 0.3*Math.abs(t.X); if (s > score) { score = s; best = i; } }
+  P.lane = P.beam = P.beamU = best;
+}
+
+/* The title screen's background: the chosen game's geometry, cycling. */
+let attractI = 0, attractT = 0;
+function attract(reset) {
+  if (reset) attractI = 0;
+  attractT = 0;
+  let g = FLATG, p = CLASSIC_PAL;
+  if (MODE === '360') { g = TUBES[attractI % TUBES.length]; p = PAL[attractI % PAL.length]; }
+  else if (MODE === 'curl' && attractI % 2) { const i = (attractI >> 1) % TUBES.length; g = TUBES[i]; p = PAL[i % PAL.length]; }
+  attractI++;
+  if (g !== geo || p !== pal) setGeometry(g, p, true);
+}
+
+function setState(s) { state = s; stateT = 0; }
+function newGame() {
+  Object.assign(G, {score: 0, lives: 3, sector: START_SECTOR, nextLife: 10000});
+  P.inv = 0;
+  parts = []; pops = [];
+  startSector();
+}
+function startSector() {
+  Object.assign(G, {left: 15, torps: 3, ents: [], laser: null, torp: null, boss: null, bossKilled: false,
+    spawnT: 0.8, chirpT: rnd(4, 8), rejT: rnd(10, 18), blockT: rnd(5, 8), bounceT: rnd(7, 11)});
+  const g = geoFor(G.sector), p = palFor(G.sector);
+  if (g !== geo) setGeometry(g, p, true);
+  else { pal = p; if (state === 'title') placeShip(); }
+  setState('intro');
+  jingle('intro');
+}
+function addScore(n) {
+  G.score += n;
+  if (G.score >= G.nextLife) { G.nextLife += 10000; G.lives = Math.min(9, G.lives + 1); SFX.life(); }
+}
+function pop(lane, z, s, col) { const p = tpt(lane, z, 0.3); pops.push({x: p.x, y: p.y, s, col, t: 1}); }
+function boomAt(lane, z, col, n = 18, alt = 0.05) {
+  const p = tpt(lane, z, alt);
+  const sc = Math.min(7.5, p.k/90);
+  for (let i = 0; i < n; i++) {
+    const a = Math.random()*Math.PI*2, v = rnd(20, 90)*sc;
+    parts.push({x: p.x, y: p.y - 3*sc, vx: Math.cos(a)*v, vy: Math.sin(a)*v*0.6, t: rnd(0.4, 0.9), col: Math.random() < 0.5 ? col : '#ffffff'});
+  }
+}
+
+/* ---------------- spawning ---------------- */
+function count(type) { let n = 0; for (const e of G.ents) if (e.type === type && !e.flee) n++; return n; }
+function mk(type, lane, z, extra) {
+  const e = Object.assign({type, lane, tgt: lane, beam: lane, z, t: 0}, extra);
+  G.ents.push(e); return e;
+}
+function pickTurn(e) {
+  /* Most passes stop short and pull back; some dive all the way down the
+     beam through your row. More of them dive in later sectors. */
+  const dive = Math.random() < Math.min(0.55, 0.15 + 0.06*G.sector);
+  e.turnZ = dive ? 0 : rnd(1.7, 5);
+  e.mode = 'in';
+}
+function spawn(dt) {
+  const s = G.sector;
+  G.spawnT -= dt;
+  const maxS = Math.min(6, 2 + Math.ceil(s/2), G.left);
+  if (G.spawnT <= 0 && count('saucer') < maxS) {
+    const e = mk('saucer', (Math.random()*NB) | 0, Z_FAR, {hopT: rnd(0.5, 1.5), fireT: rnd(1.5, 4)});
+    pickTurn(e);
+    G.spawnT = rnd(0.5, 1.3)/(1 + 0.1*s);
+  }
+  if (s >= 2 && (G.chirpT -= dt) <= 0) {
+    const dir = Math.random() < 0.5 ? 1 : -1;
+    const lane = WRAP ? rnd(0, NB) : dir > 0 ? -0.9 : NB - 0.1;
+    mk('chirper', lane, rnd(2.5, 7), {dir, chirpT: 0, trav: 0});
+    G.chirpT = rnd(6, 11);
+  }
+  if (s >= 2 && (G.rejT -= dt) <= 0) {
+    if (!count('rejuv')) mk('rejuv', (Math.random()*NB) | 0, Z_FAR);
+    G.rejT = rnd(18, 30);
+  }
+  if (s >= 3 && (G.blockT -= dt) <= 0) {
+    if (count('blocker') < (s >= 6 ? 2 : 1)) {
+      let b; do b = (Math.random()*NB) | 0; while (b === P.beam);
+      mk('blocker', b, Z_FAR, {mode: 'down', slideT: 0});
+    }
+    G.blockT = rnd(7, 11);
+  }
+  if (s >= 4 && (G.bounceT -= dt) <= 0) {
+    if (count('bouncer') < (s >= 7 ? 2 : 1)) mk('bouncer', (Math.random()*NB) | 0, Z_FAR, {mode: 'in', hopT: 0.4, bounces: 0});
+    G.bounceT = rnd(9, 13);
+  }
+}
+
+/* ---------------- enemy behaviour ---------------- */
+/* Every enemy has a lane (a float, for drawing a hop in progress) and a beam
+   (the whole-number lane it counts as being on). All hit tests use beam +
+   depth only -- never pixels -- so they behave the same at any size and on
+   any geometry. Inside a closed tube lanes wrap: lane and target may run past
+   the end while a hop is under way, and are folded back once it lands. */
+function hopToward(e, dt, rate) {
+  if (e.lane < e.tgt) e.lane = Math.min(e.tgt, e.lane + rate*dt);
+  else if (e.lane > e.tgt) e.lane = Math.max(e.tgt, e.lane - rate*dt);
+  if (WRAP && e.lane === e.tgt) e.lane = e.tgt = mod(e.tgt, NB);
+  e.beam = WRAP ? mod(Math.round(e.lane), NB) : Math.round(e.lane);
+}
+/* A sideways crosser's beam: off the field counts as no beam at all. */
+const crossBeam = lane => WRAP ? mod(Math.round(lane), NB) : (lane > -0.5 && lane < NB - 0.5) ? Math.round(lane) : -9;
+function updateEnt(e, dt) {
+  const sp = G.speed;
+  e.t += dt;
+  if (e.flee) {                       // the sector is over: everything pulls back
+    e.z += sp*2.2*dt; hopToward(e, dt, 6);
+    return e.z < Z_FAR + 1;
+  }
+  switch (e.type) {
+    case 'saucer':
+      if (e.mode === 'in') {
+        e.z -= sp*(e.z > 8 ? 2.2 : 1)*dt;     // rush the far stretch, where they're specks
+        if (e.z <= e.turnZ) { e.mode = 'out'; e.backZ = rnd(6, 10); }
+      } else {
+        e.z += sp*0.8*dt;
+        if (e.z >= e.backZ) pickTurn(e);
+      }
+      if (e.z > 2 && (e.hopT -= dt) <= 0) {
+        e.tgt = clampB(e.tgt + (Math.random() < 0.5 ? -1 : 1));
+        e.hopT = rnd(0.6, 1.7)/(1 + 0.08*G.sector);
+      }
+      hopToward(e, dt, 6);
+      // from sector 2, saucers drop sparks straight down their beam
+      if (G.sector >= 2 && e.mode === 'in' && e.z > 3 && e.z < 11 && (e.fireT -= dt) <= 0) {
+        mk('spark', e.beam, e.z);
+        e.fireT = rnd(2.5, 5)/(1 + 0.1*G.sector);
+      }
+      return e.z > Z_GONE;
+    case 'spark':   e.z -= sp*2.2*dt; return e.z > Z_GONE;
+    case 'debris':  e.z -= sp*1.4*dt; return e.z > Z_GONE;
+    case 'rejuv':   e.z -= sp*0.5*dt; return e.z > Z_GONE;
+    case 'chirper': {
+      const v = 1.7*(1 + 0.05*G.sector)*sideRate();
+      e.lane += e.dir*v*dt; e.trav += v*dt;
+      e.beam = crossBeam(e.lane);
+      if ((e.chirpT -= dt) <= 0) { SFX.chirp(0.015 + 0.02*(1 - e.z/8)); e.chirpT = 0.5; }
+      return WRAP ? e.trav < NB : e.lane > -1.2 && e.lane < NB + 0.2;
+    }
+    case 'blocker':
+      /* Comes down a beam to your row, then slides one beam at a time toward
+         you. Lasers bounce off; only a torpedo or getting out of the way works. */
+      if (e.mode === 'down') {
+        e.z -= sp*1.3*dt;
+        if (e.z <= Z_SHIP) { e.z = Z_SHIP; e.mode = 'bottom'; e.t = 0; }
+      } else if (e.mode === 'bottom') {
+        if ((e.slideT -= dt) <= 0 && e.lane === e.tgt) {
+          if (P.beam !== e.beam) e.tgt = e.beam + Math.sign(wrapDelta(P.beam, e.beam));
+          e.slideT = 0.75/(1 + 0.07*G.sector);
+        }
+        if (e.t > 6) e.mode = 'up';
+      } else { e.z += sp*dt; if (e.z > Z_FAR) return false; }
+      hopToward(e, dt, 4);
+      return true;
+    case 'bouncer':
+      /* Zig-zags down, bounces off your row, and goes back up for another
+         try. Lasers glance off it. */
+      if (e.mode === 'in') {
+        e.z -= sp*1.25*dt;
+        if (e.z <= Z_SHIP + 0.12) { e.mode = 'out'; e.bounces++; e.backZ = rnd(4, 7); SFX.boing(); }
+      } else {
+        e.z += sp*1.6*dt;
+        if (e.z >= e.backZ) { if (e.bounces >= 3) e.flee = true; else e.mode = 'in'; }
+      }
+      if ((e.hopT -= dt) <= 0) {
+        const toward = Math.sign(wrapDelta(P.beam, e.tgt)) || (Math.random() < 0.5 ? -1 : 1);
+        e.tgt = clampB(e.tgt + (Math.random() < 0.6 ? toward : -toward));
+        e.hopT = 0.45/(1 + 0.05*G.sector);
+      }
+      hopToward(e, dt, 7);
+      return true;
+  }
+  return false;
+}
+
+/* What each weapon does to each thing it meets. 'kill' destroys it,
+   'deflect' stops the shot, 'spoil' turns a rejuvenator into debris,
+   'pass' lets the shot fly on. Torpedoes destroy anything. */
+const LASER_ON = {saucer: 'kill', chirper: 'kill', rejuv: 'spoil', blocker: 'deflect', bouncer: 'deflect', spark: 'pass', debris: 'pass'};
+const POINTS = {saucer: 40, chirper: 200, blocker: 300, bouncer: 400, spark: 20, debris: 50};
+const BOOM_COL = {saucer: '#c8d0ff', chirper: '#ffe23a', blocker: '#7dff6a', bouncer: '#ff6af0', spark: '#ff9a2a', debris: '#ff5040', rejuv: '#29e6ff'};
+
+function strike(e, weapon) {
+  const what = weapon === 'torp' ? (e.type === 'rejuv' ? 'spoil' : 'kill') : LASER_ON[e.type];
+  if (what === 'pass') return false;
+  if (what === 'deflect') { SFX.tink(); return true; }
+  if (what === 'spoil') {
+    e.type = 'debris'; SFX.spoil(); boomAt(e.lane, e.z, '#29e6ff', 8);
+    return true;
+  }
+  e.dead = true;
+  const pts = POINTS[e.type]*(e.type === 'saucer' ? G.sector : 1);
+  addScore(pts);
+  boomAt(e.lane, e.z, BOOM_COL[e.type]);
+  if (e.type === 'saucer') { G.left = Math.max(0, G.left - 1); SFX.hit(); }
+  else if (e.type === 'chirper') { SFX.hit(); SFX.bonus(); pop(e.lane, e.z, pts, '#ffe23a'); }
+  else { SFX.boom(false); pop(e.lane, e.z, pts, '#ffffff'); }
+  return true;
+}
+/* Move a shot up its beam and test what it swept past this step: anything on
+   the same beam whose depth lies between where the shot was and where it is
+   now (padded a little for things coming the other way). */
+function moveShot(s, v, weapon, dt) {
+  const z0 = s.z; s.z += v*dt;
+  for (const e of G.ents) {
+    if (e.dead || e.flee || e.beam !== s.beam) continue;
+    if (e.z >= z0 - 0.3 && e.z <= s.z + 0.1 && strike(e, weapon)) return false;
+  }
+  const b = G.boss;
+  if (b && b.beam === s.beam && b.z >= z0 - 0.3 && b.z <= s.z + 0.1) {
+    if (weapon === 'laser') { SFX.tink(); return false; }
+    // the sector ship goes down: a big bonus
+    const pts = 1000 + 500*G.sector;
+    addScore(pts); G.bossKilled = pts;
+    boomAt(b.lane, b.z, '#ff6a3a', 60, 0.25); boomAt(b.lane, b.z, '#ffe23a', 30, 0.25);
+    SFX.boom(true); pop(b.lane, b.z, pts, '#ffe23a');
+    G.boss = null;
+    return false;
+  }
+  return s.z < Z_FAR;
+}
+
+const DANGER = {saucer: 1, spark: 1, blocker: 1, bouncer: 1, debris: 1};
+function hitsShip(e) { return e.beam === P.beam && Math.abs(e.z - Z_SHIP) < 0.16; }
+function checkShip() {
+  for (const e of G.ents) {
+    if (e.dead || !hitsShip(e)) continue;
+    if (e.type === 'rejuv') {
+      e.dead = true; G.lives = Math.min(9, G.lives + 1); SFX.pickup();
+      pop(e.lane, e.z, '1UP', '#29e6ff');
+    } else if (DANGER[e.type] && (!DEMO || MORTAL) && P.inv <= 0) { die(); return; }
+  }
+}
+function die() {
+  boomAt(P.lane, Z_SHIP, pal.claw, 40); boomAt(P.lane, Z_SHIP, '#29c6ff', 20);
+  SFX.die();
+  G.lives--; G.laser = G.torp = null;
+  setState('dead');
+}
+/* The sector ship crosses the far end of the field. In a closed tube it
+   circles once instead, all the way round. */
+function startBoss() {
+  setState('boss');
+  const dir = Math.random() < 0.5 ? 1 : -1;
+  G.boss = {lane: WRAP ? rnd(0, NB) : dir > 0 ? -1.6 : NB + 0.6, dir, z: 8, beam: -9, trav: 0, rate: 1.25*sideRate()};
+  for (const e of G.ents) if (e.type !== 'spark' && e.type !== 'debris') e.flee = true;
+}
+function startClear() {
+  setState('clear');
+  G.boss = null;
+  for (const e of G.ents) if (e.type !== 'spark' && e.type !== 'debris') e.flee = true;
+  jingle('fanfare');
+}
+function gameOver() {
+  setState('over');
+  if (G.score > HI[MODE]) { HI[MODE] = G.score; try { localStorage.setItem('vanishingPoint360.hi.' + MODE, G.score); } catch (e) {} }
+  jingle('gameover');
+}
+
+/* ---------------- the ship ---------------- */
+function hop(d) {
+  if (WRAP) { P.beamU += d; P.beam = mod(P.beamU, NB); SFX.hop(); return; }
+  const b = clampB(P.beam + d);
+  if (b !== P.beam) { P.beam = P.beamU = b; SFX.hop(); }
+}
+function control(dt, armed, pr) {
+  /* One press = one hop. Holding the direction repeats after a short delay,
+     like a keyboard does, so you can cross the field without hammering. The
+     tube has three times the lanes, so it repeats faster there. */
+  const tubeR = geo.kind === 'tube';
+  for (const [k, d] of [['left', -1], ['right', 1]]) {
+    if (pr[k]) { hop(d); P.rep = tubeR ? 0.2 : 0.26; }
+    else if (held[k] && (P.rep -= dt) <= 0) { hop(d); P.rep = tubeR ? 0.065 : 0.11; }
+  }
+  const v = tubeR ? 20 : 14;
+  if (P.lane < P.beamU) P.lane = Math.min(P.beamU, P.lane + v*dt);
+  if (P.lane > P.beamU) P.lane = Math.max(P.beamU, P.lane - v*dt);
+  if (WRAP && P.lane === P.beamU) P.lane = P.beamU = P.beam;
+  if (!armed) return;
+  if (pr.a && !G.laser) { G.laser = {beam: P.beam, z: Z_SHIP + 0.05}; SFX.laser(); }
+  if (pr.b && !G.torp) {
+    if (G.torps > 0) { G.torps--; G.torp = {beam: P.beam, z: Z_SHIP + 0.05}; SFX.torp(); }
+    else SFX.empty();
+  }
+}
+
+/* ?demo's auto-pilot: line up under the nearest target and shoot; save
+   torpedoes for blockers, bouncers and the sector ship. It is invincible,
+   so it only has to look busy, not be good. */
+const BOT = {t: 0};
+function bot(dt) {
+  const out = {};
+  if ((BOT.t -= dt) > 0) return out;
+  let want = -1, weapon = 'a';
+  const b = G.boss;
+  if (b && G.torps > 0) {
+    const lead = b.lane + b.dir*b.rate*((b.z - Z_SHIP)/TORP_V);
+    want = WRAP ? mod(Math.round(lead), NB) : Math.round(lead); weapon = 'b';
+    if (want < 0 || want > NB - 1) want = -1;
+  }
+  if (want < 0) {
+    let best = null;
+    for (const e of G.ents) {
+      if (e.flee || e.dead || e.z > 8) continue;
+      if (e.type === 'saucer' || e.type === 'chirper' ||
+          (G.torps > 0 && (e.type === 'blocker' || e.type === 'bouncer') && e.z < 4)) {
+        if (!best || e.z < best.z) best = e;
+      }
+    }
+    if (best && best.beam >= 0) { want = best.beam; weapon = LASER_ON[best.type] === 'kill' ? 'a' : 'b'; }
+  }
+  if (want < 0 || want === P.beam) {
+    if (want === P.beam) out[weapon] = true;
+    BOT.t = 0.1;
+  } else { out[wrapDelta(want, P.beam) < 0 ? 'left' : 'right'] = true; BOT.t = geo.kind === 'tube' ? 0.07 : 0.13; }
+  return out;
+}
+
+/* ---------------- update ---------------- */
+function update(dt) {
+  if (pressed.select) showSide = !showSide;
+  const inPlay = state === 'play' || state === 'boss';
+  if (pressed.start || pressed.pause) {
+    if (state === 'title' && pressed.start) newGame();
+    else if (state === 'over' && pressed.start && stateT > 1.2) { setState('title'); attract(true); }
+    else if (inPlay || state === 'intro' || state === 'dead' || state === 'clear') {
+      paused = !paused; SFX.pause(paused);
+    }
+  }
+  if (paused) return;
+  stateT += dt; t0 += dt;
+  stepMorph(dt);
+  if (noteT > 0) noteT -= dt;
+  if (G.lives !== undefined) G.speed = baseSpeed(G.sector) + 0.02*(15 - (G.left || 15));
+  G.scroll += (state === 'title' || state === 'over' ? 1.6 : G.speed*1.1)*dt;
+  for (const p of parts) { p.x += p.vx*dt; p.y += p.vy*dt; p.vy += 100*dt; p.t -= dt; }
+  parts = parts.filter(p => p.t > 0);
+  for (const p of pops) { p.t -= dt*0.8; p.y -= 30*dt; }
+  pops = pops.filter(p => p.t > 0);
+
+  const pr = DEMO && state !== 'title' ? Object.assign({}, pressed, bot(dt)) : pressed;
+  switch (state) {
+    case 'title':
+      if (pressed.up || pressed.down || pickMode) {
+        MODE = pickMode || MODES[mod(MODES.indexOf(MODE) + (pressed.down ? 1 : -1), MODES.length)];
+        pickMode = null;
+        try { localStorage.setItem('vanishingPoint360.mode', MODE); } catch (e) {}
+        SFX.hop(); attract(true);
+      }
+      attractT += dt;
+      if (MODE !== 'classic' && attractT > 3.6 && !morphing()) attract(false);
+      break;
+    case 'intro':
+      control(dt, false, pr);
+      if (stateT > 2.0 && !morphing()) setState('play');
+      break;
+    case 'play': case 'boss':
+      if (P.inv > 0) P.inv -= dt;
+      control(dt, true, pr);
+      if (state === 'play') spawn(dt);
+      G.ents = G.ents.filter(e => !e.dead && updateEnt(e, dt));
+      if (G.laser && !moveShot(G.laser, LASER_V, 'laser', dt)) G.laser = null;
+      if (G.torp && !moveShot(G.torp, TORP_V, 'torp', dt)) G.torp = null;
+      G.ents = G.ents.filter(e => !e.dead);
+      checkShip();
+      if (state === 'play' && G.left <= 0) startBoss();
+      if (state === 'boss') {
+        const b = G.boss;
+        if (b) {
+          b.lane += b.dir*b.rate*dt; b.trav += b.rate*dt;
+          b.beam = crossBeam(b.lane);
+          if (WRAP ? b.trav > NB : b.lane < -1.8 || b.lane > NB + 0.8) G.boss = null;
+        }
+        if (!G.boss && stateT > 0.5) startClear();
+      }
+      break;
+    case 'clear':
+      G.ents = G.ents.filter(e => updateEnt(e, dt));
+      control(dt, false, pr);
+      if (stateT > 2.8) { G.sector++; startSector(); }
+      break;
+    case 'dead':
+      G.ents = G.ents.filter(e => updateEnt(e, dt));
+      if (stateT > 2.2) {
+        if (G.lives <= 0) { gameOver(); break; }
+        // the field is wiped and you come back blinking, safe for a moment
+        G.ents = []; G.boss = null; P.inv = 1.5;
+        if (G.left <= 0) startClear(); else setState('play');
+      }
+      break;
+  }
+}
+
+/* ---------------- drawing ---------------- */
+const STARS = [];
+for (let i = 0; i < 60; i++) STARS.push({x: Math.random()*W, y: 20 + Math.random()*(HOR - 30), p: Math.random()*6});
+function outline(z, col, i, hot) {
+  const pts = CUR.B.map(([X, Y]) => { const q = proj(X, Y, z); return [q.x, q.y]; });
+  poly(pts, col, false, i, hot);
+  if (CUR.closeA > 0.02) line(pts[NP-1][0], pts[NP-1][1], pts[0][0], pts[0][1], col, i*CUR.closeA);
+  return pts;
+}
+function drawField() {
+  const off = G.scroll % 1, bA = CUR.beamsA, mA = CUR.meshA;
+  const live = state !== 'title' && state !== 'over' && !morphing();
+  if (bA > 0.01) {
+    for (const s of STARS) dot(s.x, s.y, '#a0b4ff', bA*(0.2 + 0.45*Math.abs(Math.sin(t0*0.8 + s.p))));
+    line(0, CUR.vpy, W, CUR.vpy, '#2040b0', 0.7*bA);         // the horizon, where everything is born
+    /* Grid lines evenly spaced in depth, scrolling toward you. Even in z
+       means NOT even on screen: they bunch up toward the horizon, and that
+       bunching is what reads as distance. */
+    const zNear = CUR.F*EYE_H/(H - CUR.vpy) - CUR.c;
+    for (let k = 0; k <= Z_FAR + 1; k++) {
+      const z = k + 1 - off;
+      if (z < zNear || z > Z_FAR) continue;
+      const a = proj(laneX(-0.5), EYE_H, z), b = proj(laneX(4.5), EYE_H, z), br = Math.max(0.15, 1 - z/Z_FAR);
+      line(a.x, a.y, b.x, b.y, '#28dc6e', bA*(0.18 + 0.5*br));
+    }
+    // the beams, brightest near you, all meeting at the vanishing point
+    const ZS = [zNear, 1.6, 3, 6, 12, 40], IS = [1, 0.85, 0.65, 0.45, 0.28];
+    for (let i = 0; i < 5; i++) {
+      const mine = live && geo.kind === 'beams' && i === P.beam;
+      const col = mine ? '#8ac4ff' : '#3a6bff';
+      for (let s = 0; s < 5; s++) {
+        const a = proj(laneX(i), EYE_H, ZS[s]), b = proj(laneX(i), EYE_H, ZS[s + 1]);
+        line(a.x, a.y, b.x, b.y, col, bA*IS[s]*(mine ? 1.2 : 0.9));
+      }
+      const f = proj(laneX(i), EYE_H, 40);
+      line(f.x, f.y, CX, CUR.vpy, col, bA*0.2);
+    }
+    line(CX - 5, CUR.vpy, CX + 5, CUR.vpy, '#9fc0ff', bA); line(CX, CUR.vpy - 5, CX, CUR.vpy + 5, '#9fc0ff', bA);
+  }
+  if (mA > 0.01) {
+    const col = pal.line;
+    const near = outline(Z_SHIP, col, mA, true), far = outline(Z_FAR, col, 0.6*mA, true);
+    for (let k = 0; k < NP; k++) line(near[k][0], near[k][1], far[k][0], far[k][1], col, 0.7*mA);
+    // faint rings scrolling up the tube, for speed
+    for (let k = 1; k <= Z_FAR; k++) {
+      const z = k + 1 - off;
+      if (z <= Z_SHIP + 0.05 || z >= Z_FAR) continue;
+      outline(z, col, mA*(0.06 + 0.2*(1 - z/Z_FAR)), false);
+    }
+    if (live && geo.kind === 'tube') {      // your lane lights up
+      for (const u of [P.lane, P.lane + 1]) {
+        const e = edgeAt(u), a = proj(e.X, e.Y, Z_SHIP), b = proj(e.X, e.Y, Z_FAR);
+        line(a.x, a.y, b.x, b.y, pal.claw, 0.5);
+      }
+    }
+  }
+}
+/* A shot drawn as a short streak along its lane, from depth z to z + len. */
+function streak(beam, z, len, col, i = 1.2) {
+  const a = tpt(beam, z, 0.08), b = tpt(beam, z + len, 0.08);
+  line(a.x, a.y, b.x, b.y, col, i);
+}
+function drawThings() {
+  const list = G.ents.slice().sort((a, b) => b.z - a.z);
+  const b = G.boss;
+  if (b) drawSprite(VSPR.boss, b.lane, b.z, 0.25 + 0.03*Math.sin(t0*6));
+  for (const e of list) {
+    if (e.z > Z_FAR + 0.5) continue;
+    let flash = null;
+    if (e.type === 'debris' && (t0*12 | 0) % 2) flash = '#ff9a2a';
+    if (e.type === 'rejuv' && (t0*8 | 0) % 2) flash = '#ffffff';
+    if (e.type === 'spark' && (t0*20 | 0) % 2) flash = '#ffe23a';
+    const sp = VSPR[e.type];
+    const alt = e.type === 'chirper' ? sp.alt + 0.04*Math.sin(e.t*9) : undefined;
+    drawSprite(sp, e.lane, e.z, alt, flash);
+  }
+  if (G.laser) streak(G.laser.beam, G.laser.z, 0.25 + G.laser.z*0.08, (t0*30 | 0) % 2 ? '#ffffff' : '#ffe23a');
+  if (G.torp) {
+    const p = tpt(G.torp.beam, G.torp.z, 0.08), r = Math.max(3, p.k*0.025);
+    streak(G.torp.beam, Math.max(Z_SHIP, G.torp.z - 0.5), 0.5, '#c02010', 0.8);
+    poly([[p.x, p.y - r], [p.x + r, p.y], [p.x, p.y + r], [p.x - r, p.y]], (t0*24 | 0) % 2 ? '#ff5a20' : '#ffe23a', true, 1.2);
+  }
+  const alive = state !== 'dead' && state !== 'over' && state !== 'title' && !morphing();
+  if (alive && !(P.inv > 0 && (t0*12 | 0) % 2)) {
+    if (geo.kind === 'tube') drawClaw(P.lane, 1.15);
+    else drawSprite(VSPR.ship, P.lane, Z_SHIP, 0, null, 1.1);
+  }
+  for (const p of parts) line(p.x, p.y, p.x - p.vx*0.03, p.y - p.vy*0.03, p.col, Math.min(1.2, p.t*2));
+  for (const p of pops) text(p.s, p.x, p.y, 1.6, p.col, 'center', Math.min(1, p.t*1.5));
+}
+function drawHUD() {
+  // enemies left in this sector, counting down
+  text(G.left, 12, 10, 3.4, '#f4f4ff');
+  text('LEFT', 12 + textW(G.left, 3.4) + 10, 20, 1.6, '#7d8cc8');
+  text(String(G.score).padStart(6, '0'), CX, 10, 3.4, '#ffffff', 'center');
+  text('SECTOR ' + G.sector, W - 12, 10, 2, '#9fc0ff', 'right');
+  if (geo.kind === 'tube') text(geo.name, W - 12, 26, 1.5, pal.line, 'right');
+  // torpedoes left
+  for (let i = 0; i < 3; i++) {
+    const x = W - 20 - i*18, y = 52, on = i < G.torps;
+    poly([[x, y - 7], [x + 4, y], [x, y + 7], [x - 4, y]], on ? '#ff5a20' : '#502010', true, on ? 1 : 0.4, false);
+  }
+  for (let i = 0; i < Math.min(8, G.lives - (state === 'dead' ? 0 : 1)); i++) icon(VSPR.ship, 22 + i*24, H - 10, 18);
+  text(MODE_NAME[MODE], 12, 44, 1.4, '#4a5a90');
+}
+/* SIDE VIEW: the same scene seen from the side, to show where the picture
+   comes from. The eye is at the left, the field runs off to the right, and
+   the picture plane (the screen) stands at the ship's depth. A sight line
+   runs from the eye to the top and bottom of each object; where those lines
+   cross the plane is where the object is drawn. Farther objects make
+   flatter sight lines, which cross the plane closer to eye level (nearer the
+   middle of the screen) and closer together (smaller) -- similar triangles,
+   the same ratio proj() uses. Inside the tube the side view is a slice down
+   its length: the floor becomes the tube's bottom wall, and its ceiling
+   shows too. Depth is squeezed much more than height so the whole field
+   fits in the inset. Stretching one axis keeps straight lines straight and
+   keeps every crossing on the plane in the same order, so the picture stays
+   honest. */
+function drawSideView() {
+  const pw = 460, ph = 300, x0 = W - pw - 8, y0 = 70;
+  newLayer({x: x0, y: y0, w: pw, h: ph});
+  poly([[x0, y0], [x0 + pw, y0], [x0 + pw, y0 + ph], [x0, y0 + ph]], '#3050c0', true, 0.8, false);
+  text('SIDE VIEW', x0 + 10, y0 + 10, 1.6, '#9fc0ff');
+  text('SELECT', x0 + pw - 10, y0 + 10, 1.4, '#3a4a80', 'right');
+  const inTube = geo.kind === 'tube', c = CUR.c;
+  let yMin = 0, yMax = EYE_H;
+  if (inTube) { yMin = Math.min(...CUR.B.map(p => p[1])); yMax = Math.max(...CUR.B.map(p => p[1])); }
+  const ex = x0 + 40, zs = (pw - 80)/(Z_FAR + c);
+  const X = z => ex + (z + c)*zs;
+  const gy0 = y0 + 52, gh = ph - 116, ys = gh/(yMax - yMin);
+  const Y = v => gy0 + (v - yMin)*ys;
+  const eyeY = Y(0);
+  if (inTube) {
+    line(X(Z_SHIP), Y(yMax), X(Z_FAR), Y(yMax), pal.line, 0.9);
+    line(X(Z_SHIP), Y(yMin), X(Z_FAR), Y(yMin), pal.line, 0.9);
+    text('TUBE WALL', X(Z_FAR), Y(yMax) + 8, 1.3, pal.line, 'right', 0.7);
+    text('AXIS', X(Z_FAR), eyeY - 14, 1.3, '#3a5aa8', 'right');
+  } else {
+    line(ex - 15, Y(EYE_H), X(Z_FAR), Y(EYE_H), '#1fa84a', 0.9);
+    text('FLOOR', X(Z_FAR), Y(EYE_H) + 8, 1.3, '#1a7a3a', 'right');
+    text('EYE LEVEL', X(Z_FAR), eyeY - 14, 1.3, '#3a5aa8', 'right');
+  }
+  for (let x = ex; x < X(Z_FAR); x += 14) line(x, eyeY, x + 6, eyeY, '#28408a', 0.6);
+  // sight lines and the objects they reach
+  const objs = [];
+  const add = (lane, z, alt, oh, col) => { const t = track(lane); objs.push([z, t.Y + alt*t.ny, t.Y + (alt + oh)*t.ny, col]); };
+  for (const e of G.ents) if (e.z <= Z_FAR && !e.dead && e.beam >= 0) add(e.lane, e.z, VSPR[e.type].alt || 0, 0.18, BOOM_COL[e.type]);
+  if (G.boss) add(G.boss.lane, G.boss.z, 0.25, 0.3, '#ff6a3a');
+  for (const [z, yb, yt] of objs) {
+    if (z <= Z_SHIP) continue;
+    line(ex, eyeY, X(z), Y(yb), '#8c96c8', 0.25);
+    line(ex, eyeY, X(z), Y(yt), '#8c96c8', 0.25);
+  }
+  // the picture plane: the screen, standing at the ship's depth
+  const px = X(Z_SHIP);
+  line(px, Y(yMin) - 14, px, Y(yMax) + 6, '#e0e8ff', 0.9);
+  for (const [z, yb, yt, col] of objs) {
+    if (z <= Z_SHIP) continue;
+    line(X(z), Y(yt), X(z), Y(yb), col, 1.1);
+    // where the sight lines cross the plane: y on plane = y*(Z_SHIP + c)/(z + c)
+    const f = (Z_SHIP + c)/(z + c);
+    line(px - 4, Y(yt*f), px + 4, Y(yt*f), col, 1); line(px - 4, Y(yb*f), px + 4, Y(yb*f), col, 1);
+    line(px, Y(yt*f), px, Y(yb*f), col, 1);
+  }
+  // your ship stands right at the plane, so it is drawn full size
+  const me = track(P.lane);
+  line(px - 5, Y(me.Y), px + 5, Y(me.Y), pal.claw, 1.2);
+  line(px, Y(me.Y), px, Y(me.Y + 0.15*me.ny), pal.claw, 1.2);
+  line(ex - 5, eyeY, ex + 5, eyeY, '#ffffff', 1); line(ex, eyeY - 5, ex, eyeY + 5, '#ffffff', 1);
+  text('EYE', ex - 22, eyeY - 18, 1.3, '#ffffff');
+  text('SCREEN', px + 6, Y(yMin) - 22, 1.3, '#e0e8ff');
+  if (inTube) {
+    text('Y ON SCREEN = F*Y/(Z+C)', x0 + 10, y0 + ph - 46, 1.5, '#ffe23a');
+    text('FARTHER: NEARER THE CENTER + SMALLER', x0 + 10, y0 + ph - 24, 1.4, '#9fc0ff');
+  } else {
+    text('Y - HORIZON = F*H/Z', x0 + 10, y0 + ph - 46, 1.5, '#ffe23a');
+    text('FARTHER: HIGHER + SMALLER', x0 + 10, y0 + ph - 24, 1.4, '#9fc0ff');
+  }
+  newLayer(null);
+}
+function drawTitle() {
+  text('VANISHING', CX, 34, 6.4, '#ffe23a', 'center', 1.1);
+  const w = textW('POINT 360', 6.4), xs = CX - w/2;
+  text('POINT', xs, 88, 6.4, '#29c6ff', 'left', 1.1);
+  text('360', xs + 6*6*6.4, 88, 6.4, '#ff3a3a', 'left', 1.1);
+  MODES.forEach((m, i) => {
+    const y = 186 + i*66, on = m === MODE;
+    if (on) text('>', 214, y, 3.2, '#ffe23a', 'left', 1 - 0.4*((t0*3 | 0) % 2));
+    text(MODE_NAME[m], 252, y, 3.2, on ? '#ffe23a' : '#6070a8', 'left', on ? 1.1 : 0.8);
+    text(MODE_DESC[m], 252, y + 28, 1.5, on ? '#9fc0ff' : '#4a5a90', 'left', on ? 1 : 0.7);
+  });
+  text('UP / DOWN CHOOSES A GAME', CX, 392, 1.5, '#7d8cc8', 'center');
+  text('D-PAD HOP   A LASER   B TORPEDO   SELECT SIDE VIEW   START PLAY', CX, 428, 1.5, '#ffffff', 'center', 0.85);
+  text('KEYS: ARROWS  Z=A  X=B  SHIFT=SELECT  ENTER=START  M=MUTE', CX, 452, 1.3, '#4a5a90', 'center');
+  if ((t0*2 | 0) % 2) text('PRESS START', CX, 498, 3.4, '#ffffff', 'center');
+  if (HI[MODE]) text('HI ' + HI[MODE], CX, 548, 1.8, '#ffd23a', 'center');
+}
+function render(dt) {
+  layers = []; newLayer(null);
+  jx = OPT.flicker ? (Math.random() - 0.5)*0.5 : 0; jy = OPT.flicker ? (Math.random() - 0.5)*0.5 : 0;
+  INT = state === 'title' ? 0.4 : 1;
+  drawField();
+  INT = 1;
+  if (state !== 'title') { drawThings(); drawHUD(); }
+  const mid = 236;
+  if (state === 'title') drawTitle();
+  else if (state === 'intro') {
+    text('SECTOR ' + G.sector, CX, mid, 5, '#ffe23a', 'center', 1.1);
+    let tip = {1: 'SHOOT 15 WHITE SAUCERS', 2: 'YELLOW CHIRPERS: BONUS. DODGE SPARKS', 3: 'GREEN BLOCKERS: TORPEDO OR DODGE',
+      4: 'BOUNCERS SHRUG OFF LASERS'}[G.sector];
+    if (geo.kind === 'tube') {
+      text(geo.name, CX, mid + 44, 2.4, pal.line, 'center');
+      if (MODE === 'curl') tip = 'THE BEAMS CURL INTO A TUBE';
+      else if (G.sector === 1) tip = 'THE BEAMS WRAP AROUND: RIDE THE RIM';
+    }
+    if (tip) text(tip, CX, mid + 80, 1.7, '#9fc0ff', 'center');
+  } else if (state === 'boss' && stateT < 1.6) text('SECTOR SHIP! USE A TORPEDO', CX, mid, 2, '#ff6a3a', 'center');
+  else if (state === 'clear') {
+    text('SECTOR ' + G.sector + ' CLEAR', CX, mid, 3.6, '#7dff6a', 'center');
+    if (G.bossKilled) text('SECTOR SHIP BONUS ' + G.bossKilled, CX, mid + 40, 1.8, '#ffe23a', 'center');
+  } else if (state === 'dead' && G.lives <= 0 && stateT > 0.8) text('LAST SHIP LOST', CX, mid, 3.6, '#ff5040', 'center');
+  else if (state === 'over') {
+    text('GAME OVER', CX, mid - 30, 5, '#ff5040', 'center', 1.1);
+    text('SCORE ' + G.score + '   SECTOR ' + G.sector + '   ' + MODE_NAME[MODE], CX, mid + 30, 1.8, '#e0f4ff', 'center');
+    if (G.score >= HI[MODE] && G.score > 0) text('NEW HIGH SCORE', CX, mid + 56, 1.8, '#ffd23a', 'center');
+    if (stateT > 1.2 && (t0*2 | 0) % 2) text('PRESS START', CX, mid + 96, 3.4, '#ffffff', 'center');
+  }
+  if (showSide && state !== 'title') drawSideView();
+  if (paused) {
+    newLayer({x: 0, y: mid - 24, w: W, h: 76});
+    text('PAUSED', CX, mid, 5, '#ffffff', 'center');
+    newLayer(null);
+  }
+  // footer
+  text(VERSION, W - 120, H - 16, 1.3, '#2a3460', 'right');
+  if (!soundOn) text('MUTED (M)', CX, H - 16, 1.4, '#7d8cc8', 'center');
+  else if (!audioLive()) text('PRESS ANY KEY FOR SOUND', CX, H - 16, 1.4, '#7d8cc8', 'center');
+  if (noteT > 0) text(note, CX, H - 38, 1.6, '#7dff6a', 'center');
+  if (DEMO) {
+    text('DEMO', 12, H - 40, 1.4, '#3a4a80');
+    document.title = `VP360 ${MODE} ${state} s${G.sector} left${G.left} lives${G.lives} score${G.score} torps${G.torps} ents${(G.ents || []).map(e => e.type[0]).join('')}`;
+  }
+  paint(dt);
+}
+
+/* ---------------- phosphor settings ---------------- */
+const fxBtn = document.getElementById('fx'), fxPanel = document.getElementById('fxp');
+const PERSIST_STEPS = [[0.3, 'SHORT'], [0.62, 'MEDIUM'], [0.85, 'LONG']], GLOW_STEPS = [[0.5, 'LOW'], [1, 'MEDIUM'], [1.5, 'HIGH']];
+function saveFx() {
+  try { localStorage.setItem('vanishingPoint360.fx', JSON.stringify(OPT)); } catch (e) {}
+  document.getElementById('persist').value = OPT.persist;
+  document.getElementById('glow').value = OPT.glow;
+  document.getElementById('flicker').checked = OPT.flicker;
+  document.getElementById('pv').textContent = Math.round(OPT.persist*100) + '%';
+  document.getElementById('gv').textContent = Math.round(OPT.glow*100) + '%';
+}
+function nextStep(v, steps) { const i = steps.findIndex(([s]) => s > v + 0.01); return steps[i < 0 ? 0 : i]; }
+document.getElementById('persist').addEventListener('input', e => { OPT.persist = +e.target.value; saveFx(); });
+document.getElementById('glow').addEventListener('input', e => { OPT.glow = +e.target.value; saveFx(); });
+document.getElementById('flicker').addEventListener('change', e => { OPT.flicker = e.target.checked; saveFx(); });
+function showFx(on) {
+  fxPanel.hidden = !on; fxBtn.setAttribute('aria-expanded', String(on));
+  if (!on && fxPanel.contains(document.activeElement)) fxBtn.focus();
+}
+fxBtn.addEventListener('click', () => showFx(fxPanel.hidden));
+addEventListener('pointerdown', e => { if (!fxPanel.hidden && !fxPanel.contains(e.target) && e.target !== fxBtn) showFx(false); });
+saveFx();
+/* Extra keys beyond the eight NES buttons. Returns true when it used the key. */
+let pickMode = null;
+function extraKey(code) {
+  if (code === 'KeyV') { const [v, n] = nextStep(OPT.persist, PERSIST_STEPS); OPT.persist = v; saveFx(); footNote('PHOSPHOR ' + n); return true; }
+  if (code === 'KeyG') { const [v, n] = nextStep(OPT.glow, GLOW_STEPS); OPT.glow = v; saveFx(); footNote('GLOW ' + n); return true; }
+  if (code === 'KeyF') {
+    try { if (document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen().catch(() => {}); } catch (e) {}
+    return true;
+  }
+  if (code === 'Escape' && !fxPanel.hidden) { showFx(false); return true; }
+  if (state === 'title' && /^Digit[123]$/.test(code)) { pickMode = MODES[+code.slice(5) - 1]; return true; }
+  return false;
+}
+
+/* ---------------- loop ---------------- */
+/* Fixed 60 Hz simulation, decoupled from the display's refresh rate, so a
+   144 Hz monitor doesn't make the enemies faster. Button presses are latched
+   until a simulation step has seen them. */
+let last = performance.now(), accT = 0;
+function frame(now) {
+  const dt = Math.min(0.25, Math.max(0, (now - last)/1000)); last = now;
+  pollInput();
+  accT += dt;
+  let n = 0;
+  while (accT >= STEP && n < 8) {
+    update(STEP); accT -= STEP; n++;
+    for (const k in pressed) pressed[k] = false;
+  }
+  if (n >= 8) accT = 0;
+  render(Math.min(dt, 0.1));
+  audioFrame();
+  requestAnimationFrame(frame);
+}
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden && (state === 'play' || state === 'boss')) paused = true;
+  audioVisibility();
+});
+attract(true);
+if (DEMO) {
+  ensureAudio();   // only actually plays if the browser allows autoplay
+  newGame();
+  /* ?demo&warp=N runs N simulation steps up front -- headless browsers barely
+     tick requestAnimationFrame, and this lets a screenshot show real play. */
+  const warp = Math.min(60*600, parseInt(Q.get('warp')) || 0);
+  for (let i = 0; i < warp; i++) update(STEP);
+}
+requestAnimationFrame(frame);
+</script>

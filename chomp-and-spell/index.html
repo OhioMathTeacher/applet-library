@@ -17,8 +17,16 @@
   /* The canvas is drawn at arcade resolution and scaled up; pixelated keeps
      the bitmap font and tiles sharp instead of smeared. */
   canvas{image-rendering:pixelated;image-rendering:crisp-edges;display:block}
+  /* Size control. Deliberately a DOM button, not something drawn on the canvas:
+     letter keys type letters during a spelling round, so a keyboard shortcut
+     would have to be guarded in two places and would still collide one day. */
+  #size{position:fixed;right:10px;bottom:8px;z-index:5;font:12px/1 system-ui,sans-serif;
+        letter-spacing:.08em;color:#6b7280;background:#111;border:1px solid #333;
+        border-radius:5px;padding:6px 9px;cursor:pointer;opacity:.45;transition:opacity .15s}
+  #size:hover,#size:focus-visible{opacity:1;color:#e5e7eb;border-color:#666}
 </style>
 <canvas id="screen" width="336" height="392"></canvas>
+<button id="size" type="button" title="How big the screen is drawn. FIT keeps every pixel the same size; FILL uses all the height; FULL also hides the browser.">&#9974; FIT</button>
 <script>
 /* Shown quietly in the corner; bump with each release. */
 const VERSION = 'v0.3';
@@ -1823,13 +1831,65 @@ function drawMute() {
 }
 
 /* ---------- boot ---------- */
+/* FIT keeps every pixel the same size, which is right for pixel art but throws
+   away everything below the next whole step. On a 2x-scaled desktop the viewport
+   is about 864 CSS px tall, so 864/392 = 2.20 floors to 2 and the game sits a
+   whole notch smaller than it could -- and no window size fixes that, because
+   3x needs 1176px of height that is not there.
+
+   FILL takes the fractional scale instead. Some game pixels land on 2 screen
+   pixels and some on 3, which is slightly uneven up close and much bigger from
+   across a room. FULL is FILL without the browser chrome. */
+const SIZE_MODES = ['fit', 'fill', 'full'];
+let sizeMode = 'fit';
+
 function resize(cv) {
-  /* Whole-number scaling keeps every pixel the same size; only drop to a
-     fractional scale when the window is smaller than the native size. */
   const s = Math.min(innerWidth / W, innerHeight / H);
-  const k = s >= 1 ? Math.floor(s) : s;
+  const k = (sizeMode === 'fit' && s >= 1) ? Math.floor(s) : s;
   cv.style.width = Math.floor(W * k) + 'px';
   cv.style.height = Math.floor(H * k) + 'px';
+}
+
+/* The size control. Cycles FIT -> FILL -> FULL and remembers the choice.
+
+   FULL is not restored on load even when it was the last choice: entering
+   fullscreen needs a user gesture, so a page that tried would simply fail and
+   then disagree with its own button. It comes back as FILL, which is what the
+   screen actually looks like, and one click away from FULL again. */
+function initSizeControl(cv) {
+  const btn = document.getElementById('size');
+  if (!btn) return;
+  try {
+    const saved = localStorage.getItem('cs_size');
+    if (SIZE_MODES.includes(saved)) sizeMode = (saved === 'full') ? 'fill' : saved;
+  } catch (e) {}
+
+  const paint = () => { btn.innerHTML = '&#9974; ' + sizeMode.toUpperCase(); };
+
+  async function apply(next) {
+    sizeMode = next;
+    try { localStorage.setItem('cs_size', next); } catch (e) {}
+    try {
+      if (next === 'full' && !document.fullscreenElement) {
+        await document.documentElement.requestFullscreen();
+      } else if (next !== 'full' && document.fullscreenElement) {
+        await document.exitFullscreen();
+      }
+    } catch (e) {
+      sizeMode = 'fill';          // refused (iOS Safari, or no gesture) -- say so honestly
+    }
+    resize(cv); paint();
+  }
+
+  btn.addEventListener('click', () => {
+    apply(SIZE_MODES[(SIZE_MODES.indexOf(sizeMode) + 1) % SIZE_MODES.length]);
+  });
+  // Esc leaves fullscreen without touching the button, so follow the browser.
+  document.addEventListener('fullscreenchange', () => {
+    if (!document.fullscreenElement && sizeMode === 'full') sizeMode = 'fill';
+    resize(cv); paint();
+  });
+  paint();
 }
 
 function boot() {
@@ -1845,6 +1905,7 @@ function boot() {
   addEventListener('pointerdown', audioInit);
   document.addEventListener('visibilitychange', onVisibility);
   addEventListener('resize', () => resize(cv));
+  initSizeControl(cv);
   addEventListener('gamepadconnected', () => { padSeen = true; say('CONTROLLER CONNECTED'); });
   addEventListener('gamepaddisconnected', () => { padSeen = false; say('CONTROLLER UNPLUGGED'); });
   resize(cv);

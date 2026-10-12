@@ -41,7 +41,7 @@
 <script>
 "use strict";
 /* Shown quietly in the corner; bump with each release. */
-const VERSION = 'v0.2';
+const VERSION = 'v0.3';
 
 /* ============================================================
    Vanishing Point 360
@@ -796,6 +796,22 @@ function drawSprite(sp, lane, z, alt, flash, inten = 1) {
     poly(pts, flash || part.c, part.closed, inten);
   }
 }
+/* Your ship in Classic lies along its beam, nose pointing down the field,
+   and goes through proj() like everything else. So on an outer beam the
+   nose leans toward the vanishing point, and it swings as you hop. (v0.2
+   stood it up as a flat cutout, nose straight up on every beam: the pixel
+   original's habit, because raster sprites couldn't turn. Vector shapes
+   can.) The sprite's "up" becomes depth, stretched a little so the lean
+   reads; the hull rides just above the floor and the cockpit a bit higher. */
+const SHIP_LEN = 1.6;
+function drawShipFlat(lane, inten) {
+  const t = track(lane), s = VSPR.ship.w;
+  for (const part of VSPR.ship.parts) {
+    const lift = part.c === '#29c6ff' ? 0.07 : 0.03;
+    const pts = part.pts.map(([a, b]) => { const q = proj(t.X + a*s, t.Y - lift, Z_SHIP + b*s*SHIP_LEN); return [q.x, q.y]; });
+    poly(pts, part.c, part.closed, inten);
+  }
+}
 /* The ship as a flat icon on the screen, for the lives row. */
 function icon(sp, x, y, size, inten = 0.9) {
   for (const part of sp.parts) poly(part.pts.map(([a, b]) => [x + a*size, y - b*size]), part.c, part.closed, inten, false);
@@ -1311,7 +1327,7 @@ function drawThings() {
   const alive = state !== 'dead' && state !== 'over' && state !== 'title' && !morphing();
   if (alive && !(P.inv > 0 && (t0*12 | 0) % 2)) {
     if (geo.kind === 'tube') drawClaw(P.lane, 1.15);
-    else drawSprite(VSPR.ship, P.lane, Z_SHIP, 0, null, 1.1);
+    else drawShipFlat(P.lane, 1.1);
   }
   for (const p of parts) line(p.x, p.y, p.x - p.vx*0.03, p.y - p.vy*0.03, p.col, Math.min(1.2, p.t*2));
   for (const p of pops) text(p.s, p.x, p.y, 1.6, p.col, 'center', Math.min(1, p.t*1.5));

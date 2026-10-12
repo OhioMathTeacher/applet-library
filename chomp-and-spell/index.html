@@ -33,9 +33,9 @@ const IS_BROWSER = typeof window !== 'undefined' && typeof document !== 'undefin
 
 /* Hidden test switches: ?demo lets the computer play (for screenshots and
    soak tests), ?spell jumps straight to a spelling round with a sample rack,
-   ?rescue opens the rescue wheel with a sample rack, ?ticks=N fast-forwards
-   (see boot). */
-const FLAGS = { demo:false, spell:false, rescue:false };
+   ?rescue opens the rescue wheel with a sample rack, ?bonus opens the bonus
+   round's intermission, ?ticks=N fast-forwards (see boot). */
+const FLAGS = { demo:false, spell:false, rescue:false, bonus:false };
 
 /* the palette — early-80s arcade, everything drawn comes from here */
 const PAL = {
@@ -203,7 +203,7 @@ const G = {
   player:null, ghosts:[], dots:null, dotsLeft:0, letters:[], pending:[],
   tick:0, modeIdx:0, modeT:0, frightT:0, frightMax:1, chain:0, freeze:0, popup:null,
   timer:0, paused:false, toast:null, spell:null, extraGiven:false, muted:false,
-  rescue:null, rescueUsed:false
+  rescue:null, rescueUsed:false, inter:null, bonus:null
 };
 /* Scatter/chase alternation in ticks (60 per second); even index = scatter. */
 const MODES = [420, 1200, 420, 1200, 300, 1200, 300, Infinity];
@@ -543,7 +543,11 @@ function updateWheel() {
 }
 
 function startPuzzle(cat) {
-  const options = cat.words.map(w => makePuzzle(w, G.rack)).filter(Boolean);
+  /* From level 4 on, the word is 6-8 letters when the rack can solve one;
+     otherwise any word the rack can solve, so a rescue is never lost to this. */
+  const all = cat.words.map(w => makePuzzle(w, G.rack)).filter(Boolean);
+  const long = G.level >= 4 ? all.filter(pz => pz.word.length >= 6) : [];
+  const options = long.length ? long : all;
   const pz = options[Math.floor(Math.random() * options.length)];
   G.rescue = {cat, word:pz.word, hidden:pz.hidden,
               shown:new Set([...pz.word].filter(ch => !pz.hidden.has(ch))),
@@ -707,6 +711,130 @@ function updateSpell() {
   } else if (acted) S.confirm = false;
 }
 
+/* ---------- bonus round ----------
+   The intermission: after every third level, a short cartoon, then 90
+   seconds to find as many words as you can in your rack. Unlike the spelling
+   round nothing is spent, so TEA, EAT, ATE and SEAT all count; it's about
+   how many, not which. A flat 100 a word. Afterwards it shows the longest
+   words you missed. Then the level's spelling round. */
+const BONUS_EVERY = 3, BONUS_TICKS = 90 * 60, BONUS_PTS = 100, BONUS_MIN = 3, CARTOON = 300;
+
+/* Every listed word the rack can build, tiles reusable across words but
+   not within one. */
+function rackWords(letters) {
+  const have = {};
+  for (const ch of letters) have[ch] = (have[ch] || 0) + 1;
+  const out = [];
+  for (const w of words()) {
+    if (w.length < BONUS_MIN) continue;
+    const W2 = w.toUpperCase(), need = {};
+    let ok = true;
+    for (const ch of W2) { need[ch] = (need[ch] || 0) + 1; if (need[ch] > (have[ch] || 0)) { ok = false; break; } }
+    if (ok) out.push(W2);
+  }
+  return out;
+}
+
+function afterClear() {
+  if (G.level % BONUS_EVERY === 0) {
+    const possible = rackWords(G.rack);
+    if (possible.length) return startIntermission(possible);
+  }
+  startSpelling();
+}
+
+function startIntermission(possible) {
+  G.state = 'intermission';
+  G.inter = {t:0, possible};
+  G.frightT = 600;   // the cartoon's blue ghost shouldn't flash
+}
+
+function updateIntermission() {
+  const I = G.inter;
+  if (I.t < CARTOON) { I.t++; if (pressed.start || pressed.a) I.t = CARTOON; return; }
+  if (pressed.start || pressed.a || (FLAGS.demo && ++I.t > CARTOON + 90)) startBonus(I.possible);
+}
+
+function startBonus(possible) {
+  G.state = 'bonus'; G.inter = null;
+  typedQueue.length = 0;
+  G.bonus = {tiles:G.rack.slice(), possible, cursor:0, word:[], found:[], t:BONUS_TICKS,
+             pts:0, msg:'', msgColor:PAL.white, msgT:0, demoT:0, missed:null};
+  sfx('start');
+}
+
+function bonusMsg(text, color = PAL.white) { const B = G.bonus; B.msg = text; B.msgColor = color; B.msgT = 120; }
+
+function bonusAdd(i) {
+  const B = G.bonus;
+  if (i < 0 || i >= B.tiles.length) return;
+  if (B.word.includes(i)) { sfx('nope'); return bonusMsg('ALREADY IN THE WORD', PAL.grey); }
+  B.word.push(i); sfx('place', B.word.length);
+}
+
+function bonusType(ch) {
+  const B = G.bonus;
+  const free = i => B.tiles[i] === ch && !B.word.includes(i);
+  const i = free(B.cursor) ? B.cursor : B.tiles.findIndex((_, k) => free(k));
+  if (i < 0) { sfx('nope'); return bonusMsg('NO FREE ' + ch + ' TILE', PAL.bad); }
+  B.cursor = i; bonusAdd(i);
+}
+
+function bonusSubmit() {
+  const B = G.bonus, w = B.word.map(i => B.tiles[i]).join('');
+  B.word = [];
+  if (w.length < BONUS_MIN) { sfx('nope'); return bonusMsg('WORDS NEED 3+ LETTERS', PAL.grey); }
+  if (B.found.includes(w)) { sfx('bad'); return bonusMsg('ALREADY FOUND ' + w, PAL.bad); }
+  if (!isWord(w)) { sfx('bad'); return bonusMsg(w + ' IS NOT IN THE LIST', PAL.bad); }
+  B.found.push(w); B.pts += BONUS_PTS; addScore(BONUS_PTS);
+  bonusMsg(w + ' +' + BONUS_PTS, PAL.good); sfx('word', BONUS_PTS);
+}
+
+function updateBonus() {
+  const B = G.bonus, n = B.tiles.length;
+  if (B.msgT > 0) B.msgT--;
+  if (B.missed) {   // time's up: the results wait for Start
+    typedQueue.length = 0;
+    if (B.hold > 0) B.hold--;
+    else if (pressed.start || pressed.a || FLAGS.demo) { G.bonus = null; startSpelling(); }
+    return;
+  }
+  B.t--;
+  /* the clock ticks every second, every half second for the last ten */
+  if (B.t > 0 && B.t % (B.t <= 600 ? 30 : 60) === 0) sfx('tick', B.t);
+  if (B.t <= 0 || B.found.length === B.possible.length) return endBonus();
+  if (FLAGS.demo) return demoBonus();
+  const was = B.cursor;
+  if (pressed.left)  B.cursor = (B.cursor + n - 1) % n;
+  if (pressed.right) B.cursor = (B.cursor + 1) % n;
+  if (pressed.up   && B.cursor >= 8)    B.cursor -= 8;
+  if (pressed.down && B.cursor + 8 < n) B.cursor += 8;
+  if (B.cursor !== was) sfx('move');
+  if (pressed.a) bonusAdd(B.cursor);
+  while (typedQueue.length) bonusType(typedQueue.shift());
+  if (pressed.b && B.word.length) { B.word.pop(); sfx('back'); }
+  if (pressed.start) bonusSubmit();
+}
+
+/* Missed words, longest first: the long ones are the ones worth seeing. */
+function endBonus() {
+  const B = G.bonus;
+  B.word = [];
+  B.missed = B.possible.filter(w => !B.found.includes(w)).sort((a, b) => b.length - a.length || (a < b ? -1 : 1));
+  B.hold = 60;
+  sfx(B.missed.length ? 'buzzer' : 'clear');
+}
+
+function demoBonus() {
+  const B = G.bonus;
+  if (++B.demoT % 30) return;
+  const w = B.possible.find(x => !B.found.includes(x));
+  if (!w) return;
+  B.word = [];
+  for (const ch of w) B.word.push(B.tiles.findIndex((c, i) => c === ch && !B.word.includes(i)));
+  bonusSubmit();
+}
+
 function nextLevel() { G.level++; setupLevel(); }
 
 /* ---------- demo player ----------
@@ -809,7 +937,7 @@ function pollInput() {
 let shiftClean = false;   // Shift fires Select on release, and only if nothing was typed with it
 function onKeyDown(e) {
   audioInit();
-  const spelling = G.state === 'spell' || G.state === 'puzzle';   // letter keys type letters
+  const spelling = ['spell', 'puzzle', 'bonus'].includes(G.state);   // letter keys type letters
   if (e.key !== 'Shift') shiftClean = false;
   if (spelling && /^[a-zA-Z]$/.test(e.key) && !e.ctrlKey && !e.metaKey && !e.altKey) {
     typedQueue.push(e.key.toUpperCase()); e.preventDefault(); return;
@@ -1002,6 +1130,17 @@ function sfx(kind, arg) {
         seq([72, 76, 79, 84, 0, 79, 84, 88], 0.07, 'square', 0.04, 0.12);
         seq([0, 0, 0, 0, 0, 0, 0, 0, 84, 88, 91], 0.07, 'triangle', 0.07, 0.4);
         break;
+      /* bonus round clock: tick-tock, sharper and louder for the last ten seconds */
+      case 'tick': {
+        const last = arg <= 600, tock = Math.floor(arg / (last ? 30 : 60)) % 2;
+        tone(last ? (tock ? 1500 : 2000) : (tock ? 900 : 1200), 0.03, 'square', last ? 0.06 : 0.035);
+        hiss(SFX, now, 0.02, last ? 0.05 : 0.03, 5000);
+        break;
+      }
+      case 'buzzer':
+        tone(98, 0.7, 'square', 0.06); tone(104, 0.7, 'square', 0.05);
+        hiss(SFX, now, 0.4, 0.03, 1500);
+        break;
       /* round-end tally: a rising tick per count, then a closing cadence */
       case 'tally': tone(hz(72 + Math.round(24 * (arg || 0))), 0.03, 'square', 0.025); break;
       case 'tallyEnd':
@@ -1030,6 +1169,8 @@ const FRIGHT_BASS = [45,0,46,0, 45,0,44,0,  45,0,48,0, 47,0,46,0];
 const SPELL_CHORDS = [[65,69,72,76], [62,65,69,72], [58,62,65,69], [60,64,67,70]];
 const SPELL_ROOTS = [41, 38, 46, 48], SPELL_TUNE = [81, 77, 74, 76];
 const SPELL_ARP = [0, 2, 1, 3, 2, 1, 3, 2];
+const BONUS_BASS = [45,57,45,57, 45,57,45,57, 41,53,41,53, 44,56,44,56];
+const BONUS_LEAD = [69,72,76,72, 69,72,76,72, 77,76,74,72, 71,72,74,71];
 const JINGLE = [
   {type:'square', vol:0.045, notes:[[1,67,1],[2,71,1],[3,74,1],[4,79,2],[6,78,1],[7,79,1],[8,81,2],[10,79,1],[11,74,1],[12,76,1],[13,78,1],[14,79,4]]},
   {type:'triangle', vol:0.11, notes:[[1,43,3],[4,47,2],[6,50,2],[8,48,2],[10,47,2],[12,50,2],[14,43,4]]},
@@ -1094,6 +1235,26 @@ const SCENES = {
     }
     return d;
   },
+  /* the cartoon: the title tune, quicker */
+  inter(s, t) {
+    const i = s.step++ % 32, d = 0.1;
+    if (TITLE_LEAD[i]) blip(s.bus, t, hz(TITLE_LEAD[i]), d * 1.6, 'square', 0.03);
+    if (TITLE_BASS[i]) blip(s.bus, t, hz(TITLE_BASS[i]), d * 0.9, 'triangle', 0.1);
+    if (i % 2) hiss(s.bus, t, 0.025, 0.015, 7000);
+    return d;
+  },
+  /* the bonus round: a driving minor ostinato that speeds up the whole 90
+     seconds (about 150 to 375 bpm), steps up a semitone every 30 seconds and
+     once more for the last ten */
+  bonus(s, t) {
+    const B = G.bonus, p = B ? 1 - B.t / BONUS_TICKS : 0;
+    const d = 0.2 - 0.12 * p, up = Math.min(2, Math.floor(p * 3)) + (B && B.t <= 600 ? 1 : 0);
+    const i = s.step++ % 16;
+    blip(s.bus, t, hz(BONUS_BASS[i] + up), d * 0.9, 'triangle', 0.1);
+    if (BONUS_LEAD[i]) blip(s.bus, t, hz(BONUS_LEAD[i] + up), d * 1.5, 'square', 0.02);
+    if (i % 2) hiss(s.bus, t, 0.02, 0.015, 7000);
+    return d;
+  },
   /* calmer thinking music for the spelling round: slow arpeggios, a soft tune */
   spell(s, t) {
     const i = s.step++ % 32, bar = i >> 3, b = i & 7, d = 0.27;
@@ -1110,6 +1271,8 @@ function wantedScene() {
     case 'ready': return 'ready';
     case 'play': return G.paused ? null : 'maze';
     case 'spell': case 'spelldone': case 'puzzle': return 'spell';
+    case 'intermission': return 'inter';
+    case 'bonus': return G.bonus && !G.bonus.missed ? 'bonus' : null;
     default: return null;   // dying and clear have their own effect; game over is quiet
   }
 }
@@ -1175,7 +1338,13 @@ function update() {
       if (--G.timer <= 0) afterDeath();
       break;
     case 'clear':
-      if (--G.timer <= 0) startSpelling();
+      if (--G.timer <= 0) afterClear();
+      break;
+    case 'intermission':
+      updateIntermission();
+      break;
+    case 'bonus':
+      updateBonus();
       break;
     case 'spell':
       updateSpell();
@@ -1543,11 +1712,101 @@ function drawPuzzle() {
   }
 }
 
+function drawChomper(x, y, rad, dir, mouth) {
+  const rot = [-Math.PI/2, Math.PI, Math.PI/2, 0][dir];
+  ctx.fillStyle = PAL.chomp; ctx.beginPath();
+  ctx.moveTo(x, y); ctx.arc(x, y, rad, rot + mouth, rot - mouth + Math.PI*2); ctx.closePath(); ctx.fill();
+}
+
+/* Pac-Man's intermissions, our way: Blinky chases the chomper off one side,
+   then a giant chomper chases a blue letter-ghost back, towing BONUS. Then
+   the rules, and the round waits for Start. */
+function drawIntermission() {
+  const I = G.inter, t = I.t, y = 180, mouth = 0.05 + 0.6 * Math.abs(Math.sin(G.frame * 0.25));
+  if (t < CARTOON / 2) {
+    const x = W + 20 - t * (W + 80) / (CARTOON / 2);
+    drawChomper(x, y, 7, LEFT, mouth);
+    drawGhost({x:x + 32, y:y - HUD_H, state:'active', frightened:false, color:PAL.blinky, dir:LEFT});
+  } else if (t < CARTOON) {
+    const x = -30 + (t - CARTOON / 2) * (W + 200) / (CARTOON / 2);
+    drawGhost({x, y:y - HUD_H, state:'active', frightened:true, ch:'W', color:PAL.blinky, dir:RIGHT});
+    drawChomper(x - 48, y, 22, RIGHT, mouth);
+    'BONUS'.split('').forEach((ch, i) => drawTile(x - 186 + i*22, y - 9, 18, ch, {scale:2, border:PAL.power}));
+  } else {
+    drawText('BONUS ROUND!', W/2, 40, PAL.chomp, 3, 'center');
+    const lines = [
+      ['FIND AS MANY WORDS AS YOU CAN', PAL.white],
+      ['IN 90 SECONDS.', PAL.white],
+      ['', PAL.white],
+      ['YOUR TILES ARE NOT USED UP:', PAL.good],
+      ['USE THEM AGAIN AND AGAIN.', PAL.good],
+      ['', PAL.white],
+      ['WORDS NEED 3+ LETTERS.', PAL.grey],
+      [BONUS_PTS + ' POINTS A WORD.', PAL.grey],
+    ];
+    lines.forEach(([s2, c], i) => drawText(s2, W/2, 92 + i*12, c, 1, 'center'));
+    G.rack.forEach((ch, i) => drawTile(W/2 - (Math.min(G.rack.length, 8) * 22 - 4) / 2 + (i & 7) * 22, 210 + (i >> 3) * 24, 18, ch, {scale:2}));
+    if (Math.floor(G.frame / 30) % 2 === 0) drawText('PRESS START', W/2, 300, PAL.chomp, 2, 'center');
+  }
+}
+
+function bonusTilePos(i) { return {x:8 + (i & 7) * 40, y:62 + (i >> 3) * 42}; }
+
+function drawBonus() {
+  const B = G.bonus, secs = Math.ceil(B.t / 60), done = !!B.missed;
+  drawText('BONUS ROUND', 8, 8, PAL.chomp, 2);
+  const late = B.t <= 600, flash = late && Math.floor(B.t / 15) % 2 === 0;
+  drawText(String(Math.max(secs, 0)), W - 8, 4, flash ? PAL.white : (late ? PAL.bad : PAL.white), 3, 'right');
+  const frac = Math.max(B.t, 0) / BONUS_TICKS;
+  ctx.fillStyle = '#222'; ctx.fillRect(8, 30, W - 16, 6);
+  ctx.fillStyle = frac > 0.33 ? PAL.good : late ? PAL.bad : PAL.gold;
+  ctx.fillRect(8, 30, Math.round((W - 16) * frac), 6);
+  drawText('FOUND ' + B.found.length, 8, 44, PAL.white);
+  drawText('+' + B.pts, W - 8, 44, PAL.good, 1, 'right');
+  B.tiles.forEach((ch, i) => {
+    const {x, y} = bonusTilePos(i), inWord = B.word.includes(i);
+    drawTile(x, y, 36, ch, {scale:3, face: inWord ? '#A08850' : PAL.tile, border: inWord ? PAL.gold : PAL.tileInk});
+    if (!done && i === B.cursor && Math.floor(G.frame / 10) % 3) {
+      ctx.strokeStyle = PAL.chomp; ctx.lineWidth = 2; ctx.strokeRect(x - 2, y - 2, 40, 40);
+    }
+  });
+  const wy = 156, w = B.word.map(i => B.tiles[i]).join('');
+  for (let i = 0; i < w.length; i++) drawTile(8 + i*20, wy, 18, w[i], {scale:2});
+  if (!done && !w.length && Math.floor(G.frame / 20) % 2) { ctx.fillStyle = PAL.chomp; ctx.fillRect(8, wy + 16, 18, 2); }
+  if (B.msgT > 0 && !done) drawText(B.msg, W - 8, wy + 6, B.msgColor, 1, 'right');
+  if (!done) {
+    B.found.slice(-36).forEach((f, i) => drawText(f, 8 + Math.floor(i / 12) * 112, 186 + (i % 12) * 11, PAL.white));   // the latest 36
+    drawText('A ADD  B BACK  START SUBMIT', W/2, 334, PAL.grey, 1, 'center');
+    drawText('OR TYPE LETTERS, ENTER, BACKSPACE', W/2, 346, PAL.dim, 1, 'center');
+    return;
+  }
+  ctx.fillStyle = '#000'; ctx.fillRect(0, 180, W, H - 180);
+  drawText(B.missed.length ? "TIME'S UP!" : 'YOU FOUND THEM ALL!', W/2, 186, B.missed.length ? PAL.bad : PAL.good, 2, 'center');
+  /* No "12 of N": a full rack holds thousands of dictionary words, and that
+     number would only discourage. The longest misses teach more. */
+  drawText('YOU FOUND ' + B.found.length + ' WORD' + (B.found.length === 1 ? '' : 'S') + '  +' + B.pts, W/2, 210, PAL.white, 1, 'center');
+  if (B.missed.length) {
+    drawText('LONGEST WORDS YOU MISSED', W/2, 232, PAL.grey, 1, 'center');
+    /* as many as fit on four lines, longest first */
+    const rows = [[]];
+    for (const m of B.missed) {
+      const row = rows[rows.length - 1];
+      if (textWidth(row.concat(m).join('  ')) <= W - 16) row.push(m);
+      else if (rows.length < 4) rows.push([m]);
+      else break;
+    }
+    rows.forEach((r, i) => drawText(r.join('  '), W/2, 246 + i*12, PAL.chomp, 1, 'center'));
+  }
+  if (B.hold <= 0 && Math.floor(G.frame / 30) % 2 === 0) drawText('PRESS START FOR THE SPELLING ROUND', W/2, 340, PAL.chomp, 1, 'center');
+}
+
 function draw() {
   ctx.fillStyle = PAL.bg; ctx.fillRect(0, 0, W, H);
   if (G.state === 'title') drawTitle();
   else if (G.state === 'spell' || G.state === 'spelldone') drawSpell();
   else if (G.state === 'wheel') drawWheel();
+  else if (G.state === 'intermission') drawIntermission();
+  else if (G.state === 'bonus') drawBonus();
   else if (G.state === 'puzzle') drawPuzzle();
   else drawPlay();
   drawToast();
@@ -1558,7 +1817,7 @@ function draw() {
    mute state stays on screen wherever you are. */
 function drawMute() {
   if (!G.muted) return;
-  const inMaze = !['title', 'spell', 'spelldone', 'wheel', 'puzzle'].includes(G.state);
+  const inMaze = !['title', 'spell', 'spelldone', 'wheel', 'puzzle', 'intermission', 'bonus'].includes(G.state);
   if (inMaze) drawText('MUTE', W - 10 - textWidth(VERSION), 14, PAL.grey, 1, 'right');
   else drawText('MUTE', W - 4, 4, PAL.grey, 1, 'right');
 }
@@ -1580,7 +1839,7 @@ function boot() {
   wallFlash = bakeWalls(PAL.white);
   G.hi = loadHi();
   const q = new URLSearchParams(location.search);
-  FLAGS.demo = q.has('demo'); FLAGS.spell = q.has('spell'); FLAGS.rescue = q.has('rescue');
+  FLAGS.demo = q.has('demo'); FLAGS.spell = q.has('spell'); FLAGS.rescue = q.has('rescue'); FLAGS.bonus = q.has('bonus');
   addEventListener('keydown', onKeyDown);
   addEventListener('keyup', onKeyUp);
   addEventListener('pointerdown', audioInit);
@@ -1594,6 +1853,11 @@ function boot() {
     newGame();
     G.rack = 'QUIZEATRSNOLDE'.split('');
     startSpelling();
+  }
+  if (FLAGS.bonus) {
+    newGame();
+    G.level = 3; G.rack = 'TEASRNLOID'.split('');
+    startIntermission(rackWords(G.rack));
   }
   if (FLAGS.rescue) {
     newGame();

@@ -20,6 +20,12 @@ Move over your tiles with the D-pad and press A to guess, or just type the
 letter.
 If no word can be solved with your tiles, there's no rescue.
 
+**Bonus round.** After every third level there's an intermission, then
+90 seconds to find as many words as you can in your rack (3+ letters, 100
+points each). Nothing is used up, so TEA, EAT, ATE and SEAT all count. The
+clock and the music speed up as time runs out. Afterwards you see the longest
+words you missed, and then that level's spelling round.
+
 When the dots are gone, the **spelling round** begins:
 
 - Build words from your rack. Each tile can be used **once in the whole

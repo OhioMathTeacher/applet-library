@@ -124,7 +124,7 @@ def load_game(entry, index_html):
     if isinstance(entry, str):
         folder = entry
         title, intro, sections = readme_parts((HERE / folder / "README.md").read_text(encoding="utf-8"))
-        return {"id": folder, "name": title, "play": folder + "/", "intro": intro,
+        return {"id": folder, "name": title, "play": "../" + folder + "/", "intro": intro,
                 "sections": sections, "icon": icon(folder),
                 "teaching": json.loads((HERE / folder / "teaching.json").read_text(encoding="utf-8"))}
     title, intro, sections = readme_parts(committed((HERE / entry["readme"]).resolve()))
@@ -145,52 +145,55 @@ CSS = """
 html,body{margin:0;background:#fff;color:var(--ink)}
 body{font-family:"Libre Franklin",system-ui,sans-serif;-webkit-font-smoothing:antialiased;line-height:1.55}
 a{color:inherit}
-.wrap{max-width:900px;margin:0 auto;padding:28px 16px 64px}
+.wrap{max-width:1180px;margin:0 auto;padding:28px 16px 64px}
 .crumbs{font-size:14px;color:var(--muted)}
 .crumbs a{text-decoration:none}
 .crumbs a:hover{text-decoration:underline}
 .crumbs span{color:var(--ink);font-weight:700}
 h1{font-size:36px;font-weight:800;letter-spacing:-.01em;margin:14px 0 8px}
-.lead{font-size:18px;color:var(--muted);margin:0 0 14px;max-width:44em}
-.note{background:var(--tile);padding:14px 16px;font-size:16px;margin:18px 0 0}
-.jump{display:flex;flex-wrap:wrap;gap:8px 18px;margin:18px 0 0;font-size:15px;font-weight:700}
-.jump a{text-decoration:none;border-bottom:1.5px solid var(--ink)}
-.game{margin-top:44px;padding-top:28px;border-top:3px solid var(--ink)}
-.ghead{display:grid;grid-template-columns:150px minmax(0,1fr);gap:22px;align-items:start}
-.tile{width:150px;height:150px;background:var(--tile);display:flex;align-items:center;justify-content:center}
-.tile svg{width:72px;height:72px;overflow:visible}
+.lead{font-size:18px;color:var(--muted);margin:0 0 14px;max-width:46em}
+.note{background:var(--tile);padding:14px 16px;font-size:16px;margin:18px 0 0;max-width:52em}
+.games{display:grid;grid-template-columns:repeat(var(--cols,2),minmax(0,1fr));gap:18px;margin-top:28px}
+.game{display:flex;flex-direction:column;border:2px solid var(--ink);border-radius:10px;padding:20px;background:#fff}
+.ghead{display:flex;align-items:center;gap:14px;margin-bottom:10px}
+.tile{flex:none;width:76px;height:76px;background:var(--tile);border-radius:8px;display:flex;align-items:center;justify-content:center}
+.tile svg{width:44px;height:44px;overflow:visible}
 .ic{stroke:var(--ink);stroke-width:2.5;stroke-linejoin:round}
 .ic-thin{fill:none;stroke:var(--ink);stroke-width:2;stroke-linecap:round}
-h2{font-size:28px;font-weight:800;margin:4px 0 6px}
-.intro{font-size:17px;color:var(--muted);margin:0 0 14px}
+h2{font-size:24px;font-weight:800;margin:4px 0 0;line-height:1.15}
+.intro{font-size:16px;color:var(--muted);margin:0 0 6px}
 .status{display:inline-block;padding:2px 9px;font-size:12px;font-weight:700;letter-spacing:.02em;
   border:1.5px solid var(--ink);border-radius:3px}
 .status.ready{background:var(--green);color:#fff;border-color:var(--green)}
 .status.building{background:var(--yellow)}
 .btn{display:inline-block;padding:10px 18px;font-weight:700;font-size:15px;text-decoration:none;
-  border:2px solid var(--ink);border-radius:6px}
-.btn.play{background:var(--ink);color:#fff}
+  border:2px solid var(--ink);border-radius:6px;text-align:center}
+.push{flex:1}
+.btn.play{background:var(--ink);color:#fff;margin-top:16px}
 .btn:hover{background:var(--tile);color:var(--ink)}
-h3{font-size:17px;font-weight:800;margin:22px 0 6px}
+h3{font-size:15px;font-weight:800;margin:16px 0 6px}
 h4{font-size:15px;margin:16px 0 6px}
-p,li{font-size:16px}
+p,li{font-size:15px}
 ul{padding-left:1.2em;margin:0 0 8px}
 li{margin:0 0 5px}
 .none{color:var(--muted);margin:0}
-table{border-collapse:collapse;width:100%;font-size:14.5px;margin:6px 0 12px}
+.scroll{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:13.5px;margin:6px 0 12px}
 th,td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--rule);vertical-align:top}
 code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.9em;background:var(--tile);padding:1px 4px}
-details{margin-top:18px}
-details summary{cursor:pointer;font-size:17px;font-weight:800}
+details{margin-top:12px;border-top:1px solid var(--rule);padding-top:10px}
+details summary{cursor:pointer;font-size:15px;font-weight:800}
 details[open] summary{margin-bottom:8px}
 .ask{margin-top:48px;padding:20px 22px;background:var(--tile)}
 .ask h2{font-size:22px;margin:0 0 6px}
-@media (max-width:620px){.ghead{grid-template-columns:84px minmax(0,1fr);gap:14px}
-  .tile{width:84px;height:84px}.tile svg{width:44px;height:44px}h1{font-size:28px}h2{font-size:23px}}
+@media (max-width:1000px){.games{grid-template-columns:repeat(min(var(--cols,2),2),minmax(0,1fr))}}
+@media (max-width:640px){.games{grid-template-columns:minmax(0,1fr)}h1{font-size:28px}}
 """
 
 
 def game_block(g) -> str:
+    """One card: icon, status and name, the intro, what it teaches, then Play at the
+    bottom. The longer material folds away inside the card."""
     t, e = g["teaching"], html.escape
     ready = t["status"] == "ready"
     badge = ('<span class="status ready">Ready to use</span>' if ready
@@ -199,8 +202,8 @@ def game_block(g) -> str:
     play = ('<a class="btn play" href="' + e(g["play"]) + '"'
             + (' target="_blank" rel="noopener"' if ext else "") + ">▶ Play " + e(g["name"]) + "</a>")
     out = ['<section class="game" id="' + e(g["id"]) + '"><div class="ghead"><span class="tile">' + g["icon"]
-           + "</span><div>" + badge + "<h2>" + e(g["name"]) + '</h2><p class="intro">'
-           + inline(" ".join(g["intro"].split())) + "</p>" + play + "</div></div>"]
+           + "</span><div>" + badge + "<h2>" + e(g["name"]) + "</h2></div></div>"
+           + '<p class="intro">' + inline(" ".join(g["intro"].split())) + "</p>"]
     if ready:
         out.append("<h3>What students practice</h3><ul>"
                    + "".join("<li>" + inline(x) + "</li>" for x in t.get("practice", [])) + "</ul>")
@@ -210,15 +213,16 @@ def game_block(g) -> str:
         now = t.get("now", [])
         out.append("<h3>In it now</h3>" + ("<ul>" + "".join("<li>" + inline(x) + "</li>" for x in now) + "</ul>"
                                          if now else '<p class="none">Nothing yet. It is a game for now.</p>'))
+    out.append('<div class="push"></div>')
     ideas = t.get("considering", [])
     if ideas:
-        out.append("<h3>Ideas we are considering</h3><ul>"
-                   + "".join("<li>" + inline(i["text"]) + "</li>" for i in ideas) + "</ul>")
+        out.append("<details><summary>Ideas we are considering</summary><ul>"
+                   + "".join("<li>" + inline(i["text"]) + "</li>" for i in ideas) + "</ul></details>")
     if g["sections"]:
         body = "\n".join(("<h4>" + inline(h) + "</h4>" if h.lower() != "how to play" else "") + markdown(b)
                          for h, b in g["sections"])
-        out.append("<details><summary>How to play</summary>" + body + "</details>")
-    out.append("</section>")
+        out.append('<details><summary>How to play</summary><div class="scroll">' + body + "</div></details>")
+    out.append(play + "</section>")
     return "\n".join(out)
 
 
@@ -235,10 +239,9 @@ def page(fam, index_html: str) -> str:
         parts.append('<p class="note">' + e(which) + " playable now and still becoming "
                      + ("teaching tools" if len(building) > 1 else "a teaching tool")
                      + ". The gameplay came first, on purpose; the teaching is being added one game at a "
-                     "time. Each game below says what it has so far and what we are considering.</p>")
-    parts.append('<nav class="jump">' + "".join('<a href="#' + e(g["id"]) + '">' + e(g["name"]) + "</a>"
-                                                for g in games) + "</nav>")
-    parts += [game_block(g) for g in games]
+                     "time. Each card says what the game has so far and what we are considering.</p>")
+    parts.append('<div class="games" style="--cols:' + str(min(len(games), 4)) + '">'
+                 + "\n".join(game_block(g) for g in games) + "</div>")
     fb = fam.get("feedback_doc", "").strip()
     if fb:
         parts.append('<section class="ask"><h2>Help us make them educational</h2><p>How could we turn '

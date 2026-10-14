@@ -19,8 +19,10 @@ html,body{margin:0;background:#fff;color:var(--ink)}
 body{font-family:"Libre Franklin",system-ui,sans-serif;-webkit-font-smoothing:antialiased;line-height:1.55}
 a{color:inherit}
 .wrap{max-width:900px;margin:0 auto;padding:28px 16px 64px}
-.back{font-size:14px;color:var(--muted);text-decoration:none}
-.back:hover{text-decoration:underline}
+.crumbs{font-size:14px;color:var(--muted)}
+.crumbs a{text-decoration:none}
+.crumbs a:hover{text-decoration:underline}
+.crumbs span{color:var(--ink);font-weight:700}
 h1{font-size:36px;font-weight:800;letter-spacing:-.01em;margin:14px 0 8px}
 .lead{font-size:18px;color:var(--muted);margin:0 0 14px;max-width:44em}
 .note{background:var(--tile);padding:14px 16px;font-size:16px;margin:18px 0 0}
@@ -62,7 +64,7 @@ details[open] summary{margin-bottom:8px}
 </head>
 <body>
 <main class="wrap">
-<a class="back" href="../?section=games">← Retro Educational Games</a>
+<nav class="crumbs" aria-label="You are here"><a href="../">Applet Library</a> › <a href="../?section=games">Retro Educational Games</a> › <span>Shooting games</span></nav>
 <h1>Shooting games</h1><p class="lead">Four shooters: a maze with the lights out, a five-beam horizon drawn two ways, and a city by the sea under attack.</p>
 <p class="note">All of these games are playable now and still becoming teaching tools. The gameplay came first, on purpose; the teaching is being added one game at a time. Each game below says what it has so far and what we are considering.</p>
 <nav class="jump"><a href="#circuit-breaker">Circuit Breaker</a><a href="#vanishing-point">Vanishing Point</a><a href="#vanishing-point-360">Vanishing Point 360</a><a href="#tidewall">Tidewall</a></nav>
@@ -135,6 +137,6 @@ details[open] summary{margin-bottom:8px}
 <p><b>Raiders:</b> skiff 100, barge 250 (takes two hits), hawk 300 (fast), bandit 1000 (stays high and bombs from the top band, from wave 3). A bomb shot out of the air is 50. Each wave you hold earns a bonus for everything still standing. Waves get faster.</p></details>
 </section>
 </main>
-<script src="../site-header.js" data-current="home" defer></script>
+<script src="../site-header.js" data-current="games" defer></script>
 </body>
 </html>

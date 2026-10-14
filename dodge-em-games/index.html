@@ -19,8 +19,10 @@ html,body{margin:0;background:#fff;color:var(--ink)}
 body{font-family:"Libre Franklin",system-ui,sans-serif;-webkit-font-smoothing:antialiased;line-height:1.55}
 a{color:inherit}
 .wrap{max-width:900px;margin:0 auto;padding:28px 16px 64px}
-.back{font-size:14px;color:var(--muted);text-decoration:none}
-.back:hover{text-decoration:underline}
+.crumbs{font-size:14px;color:var(--muted)}
+.crumbs a{text-decoration:none}
+.crumbs a:hover{text-decoration:underline}
+.crumbs span{color:var(--ink);font-weight:700}
 h1{font-size:36px;font-weight:800;letter-spacing:-.01em;margin:14px 0 8px}
 .lead{font-size:18px;color:var(--muted);margin:0 0 14px;max-width:44em}
 .note{background:var(--tile);padding:14px 16px;font-size:16px;margin:18px 0 0}
@@ -62,7 +64,7 @@ details[open] summary{margin-bottom:8px}
 </head>
 <body>
 <main class="wrap">
-<a class="back" href="../?section=games">← Retro Educational Games</a>
+<nav class="crumbs" aria-label="You are here"><a href="../">Applet Library</a> › <a href="../?section=games">Retro Educational Games</a> › <span>Dodge-&#x27;em games</span></nav>
 <h1>Dodge-&#x27;em games</h1><p class="lead">Get across, or get up, without getting hit: toads crossing a road on a rainy night, and a climber on a twelve-floor building.</p>
 <p class="note">All of these games are playable now and still becoming teaching tools. The gameplay came first, on purpose; the teaching is being added one game at a time. Each game below says what it has so far and what we are considering.</p>
 <nav class="jump"><a href="#hop-count">Hop Count</a><a href="#twelve-stories">Twelve Stories</a></nav>
@@ -113,6 +115,6 @@ details[open] summary{margin-bottom:8px}
 <p>Points: for every window climbed, more on higher floors; a bonus for each new floor; a roof bonus plus ten points for every second left on the clock. The high score is kept in this browser.</p></details>
 </section>
 </main>
-<script src="../site-header.js" data-current="home" defer></script>
+<script src="../site-header.js" data-current="games" defer></script>
 </body>
 </html>

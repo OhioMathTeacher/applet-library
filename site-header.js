@@ -1,24 +1,28 @@
-// Shared site header, matching the Applet Library's Google Site so a visitor who
-// lands on a GitHub page can always get back to it. Any page can include it:
-//   <script src="https://ohiomathteacher.github.io/applet-library/site-header.js" data-current="teaching-learning" defer></script>
-// data-current names the menu item to underline ("auto" reads ?section= on the library page).
-// Skipped when the page is embedded, because the Google Site already shows its own header.
+// Shared site header for the Applet Library. Any page in it can include it:
+//   <script src="../site-header.js" data-current="games" defer></script>
+// The library on GitHub is the only home: every menu item is one of its own sections.
+// data-current names the item to underline: home, talks, teaching, games, utilities or
+// research ("auto" reads ?section= on the library page itself).
+// Skipped inside an iframe, so a page embedded elsewhere does not show two headers.
 (function () {
   if (window.top !== window.self) return;
 
-  const SITE = 'https://sites.google.com/miamioh.edu/applet-library/';
-  const MENU = [
-    ['Home', 'home'],
-    ['Talks', 'talks'],
-    ['Teaching & Learning', 'teaching-learning'],
-    ['Utilities', 'utilities'],
-    ['Research', 'research'],
-  ];
-  const SECTION_PAGE = { talks: 'talks', teaching: 'teaching-learning', utilities: 'utilities', research: 'research' };
-
   const me = document.currentScript;
+  // The library's root is wherever this script lives, so links work live and from a local copy.
+  const ROOT = new URL('./', (me && me.src) || location.href).href;
+  const MENU = [
+    ['Home', 'home', ''],
+    ['Talks', 'talks', '?section=talks'],
+    ['Teaching & Learning', 'teaching', '?section=teaching'],
+    ['Games', 'games', '?section=games'],
+    ['Utilities', 'utilities', '?section=utilities'],
+    ['Research', 'research', '?section=research'],
+  ];
+  const OLD = { 'teaching-learning': 'teaching' };   // the name pages used before
+
   let current = (me && me.dataset.current) || '';
-  if (current === 'auto') current = SECTION_PAGE[new URLSearchParams(location.search).get('section')] || 'home';
+  if (current === 'auto') current = new URLSearchParams(location.search).get('section') || 'home';
+  current = OLD[current] || current;
 
   const style = document.createElement('style');
   style.textContent = `
@@ -41,7 +45,7 @@
   const header = document.createElement('header');
   header.className = 'sh';
   header.innerHTML = `
-    <a class="sh-brand" href="${SITE}home">
+    <a class="sh-brand" href="${ROOT}">
       <svg viewBox="0 0 64 64" aria-hidden="true">
         <g stroke="#121212" stroke-linejoin="round" stroke-linecap="round">
           <rect x="4" y="4" width="56" height="56" rx="8" fill="#fff" stroke-width="3.5"/>
@@ -55,8 +59,8 @@
       <span>Applet Library</span>
     </a>
     <nav class="sh-nav" aria-label="Applet Library">
-      ${MENU.map(([label, page]) =>
-        `<a href="${SITE}${page}"${page === current ? ' aria-current="page"' : ''}>${label.replace('&', '&amp;')}</a>`).join('')}
+      ${MENU.map(([label, id, q]) =>
+        `<a href="${ROOT}${q}"${id === current ? ' aria-current="page"' : ''}>${label.replace('&', '&amp;')}</a>`).join('')}
     </nav>`;
 
   document.head.appendChild(style);

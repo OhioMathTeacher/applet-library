@@ -146,8 +146,10 @@ html,body{margin:0;background:#fff;color:var(--ink)}
 body{font-family:"Libre Franklin",system-ui,sans-serif;-webkit-font-smoothing:antialiased;line-height:1.55}
 a{color:inherit}
 .wrap{max-width:900px;margin:0 auto;padding:28px 16px 64px}
-.back{font-size:14px;color:var(--muted);text-decoration:none}
-.back:hover{text-decoration:underline}
+.crumbs{font-size:14px;color:var(--muted)}
+.crumbs a{text-decoration:none}
+.crumbs a:hover{text-decoration:underline}
+.crumbs span{color:var(--ink);font-weight:700}
 h1{font-size:36px;font-weight:800;letter-spacing:-.01em;margin:14px 0 8px}
 .lead{font-size:18px;color:var(--muted);margin:0 0 14px;max-width:44em}
 .note{background:var(--tile);padding:14px 16px;font-size:16px;margin:18px 0 0}
@@ -224,7 +226,8 @@ def page(fam, index_html: str) -> str:
     e = html.escape
     games = [load_game(x, index_html) for x in fam["games"]]
     building = [g for g in games if g["teaching"]["status"] != "ready"]
-    parts = ['<a class="back" href="../?section=games">← Retro Educational Games</a>',
+    parts = ['<nav class="crumbs" aria-label="You are here"><a href="../">Applet Library</a> › '
+             '<a href="../?section=games">Retro Educational Games</a> › <span>' + e(fam["name"]) + "</span></nav>",
              "<h1>" + e(fam["name"]) + '</h1><p class="lead">' + inline(fam["blurb"]) + "</p>"]
     if building:
         which = ("All of these games are" if len(building) == len(games)
@@ -251,7 +254,7 @@ def page(fam, index_html: str) -> str:
             '<link href="https://fonts.googleapis.com/css2?family=Libre+Franklin:wght@400;500;700;800&display=swap" rel="stylesheet">\n'
             "<style>" + CSS + "</style>\n</head>\n<body>\n<main class=\"wrap\">\n"
             + "\n".join(parts) + "\n</main>\n"
-            '<script src="../site-header.js" data-current="home" defer></script>\n'
+            '<script src="../site-header.js" data-current="games" defer></script>\n'
             "</body>\n</html>\n")
 
 

@@ -1,0 +1,5 @@
+<svg viewBox="0 0 64 64" aria-hidden="true">
+<path d="M22 32 L37.6 23 A18 18 0 1 0 37.6 41 Z" style="fill:var(--yellow)" class="ic"/>
+<rect x="42" y="22" width="18" height="20" rx="3" fill="#fff" class="ic"/>
+<path d="M46.5 37 L51 26 L55.5 37 M48 33.5 H54" fill="none" class="ic-thin"/>
+</svg>

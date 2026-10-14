@@ -1,0 +1,68 @@
+{
+  "_comment": "The game families on the library page. make-notes.py builds one landing page per family, in a folder named by its id. A game in this repo is named by its folder (its README.md and teaching.json are read from there); a game with its own live site gives url, readme (a path to its README in a sibling repo, read at HEAD), and teaching inline.",
+  "families": [
+    {
+      "id": "maze-games",
+      "name": "Maze games",
+      "blurb": "Two Pac-Man mazes, played from both sides. In Chomp & Spell you eat letters and spell words with them; in Haunt you are the ghosts.",
+      "feedback_doc": "",
+      "games": [
+        "chomp-and-spell",
+        "haunt"
+      ]
+    },
+    {
+      "id": "shooting-games",
+      "name": "Shooting games",
+      "blurb": "Four shooters: a maze with the lights out, a five-beam horizon drawn two ways, and a city by the sea under attack.",
+      "feedback_doc": "",
+      "games": [
+        "circuit-breaker",
+        "vanishing-point",
+        "vanishing-point-360",
+        "tidewall"
+      ]
+    },
+    {
+      "id": "dodge-em-games",
+      "name": "Dodge-'em games",
+      "blurb": "Get across, or get up, without getting hit: toads crossing a road on a rainy night, and a climber on a twelve-floor building.",
+      "feedback_doc": "",
+      "games": [
+        "hop-count",
+        "twelve-stories"
+      ]
+    },
+    {
+      "id": "adventure-games",
+      "name": "Adventure games",
+      "blurb": "Explore and find things: draw a dungeon and walk through it, or document the animals of the Amazon rainforest by lantern.",
+      "feedback_doc": "",
+      "games": [
+        {
+          "id": "dragonkeep",
+          "name": "Dragonkeep",
+          "url": "https://dragonkeep.mathaiproject.org/",
+          "readme": "../dragons-keep/README.md",
+          "howto": [
+            "The two modes",
+            "You win by not killing the dragon"
+          ],
+          "intro": "Draw a dungeon floor plan and walk through it. Volume, surface area, and a dragon you win by not killing.",
+          "teaching": {
+            "status": "ready",
+            "practice": [
+              "Measuring a floor plan as they draw it: area, perimeter, volume, wall area and surface area update with every cell.",
+              "Same volume, different wall: two rooms with the same area can have very different perimeters.",
+              "Surface area is not additive: push two rooms together and the shared wall stops being surface.",
+              "The square-cube law: double every dimension and the volume grows eight times while the wall grows four."
+            ],
+            "thinking": "A floor plan raised to a ceiling height is a prism. Students draw the prism, the game measures it, and then they walk through it, so every number is something they can see and step through.",
+            "considering": []
+          }
+        },
+        "lantern-run"
+      ]
+    }
+  ]
+}

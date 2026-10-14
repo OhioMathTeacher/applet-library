@@ -1,0 +1,14 @@
+{
+  "_comment": "Teaching content for this game's notes page. make-notes.py builds pedagogical-notes.html from this and README.md. 'by' says whose idea it is (todd or claude); it is never shown on the page.",
+  "feedback_doc": "",
+  "status": "building",
+  "now": [
+    "Select shows a side view of how the five beams are drawn in linear perspective."
+  ],
+  "considering": [
+    {
+      "text": "Why parallel lines appear to meet, and where the vanishing point has to go.",
+      "by": "claude"
+    }
+  ]
+}

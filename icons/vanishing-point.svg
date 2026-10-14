@@ -1,0 +1,6 @@
+<svg viewBox="0 0 64 64" aria-hidden="true">
+<rect x="6" y="6" width="52" height="52" rx="4" fill="var(--ink)" class="ic"/>
+<path d="M8 20 H56" stroke="var(--teal)" stroke-width="1.5"/>
+<path d="M32 20 L10 56 M32 20 L21 56 M32 20 V56 M32 20 L43 56 M32 20 L54 56" fill="none" stroke="var(--blue)" stroke-width="2"/>
+<path d="M26 50 L32 43 L38 50 Z" style="fill:var(--yellow)"/>
+</svg>

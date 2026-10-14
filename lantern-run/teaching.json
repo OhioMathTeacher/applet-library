@@ -1,0 +1,22 @@
+{
+  "_comment": "Teaching content for this game's notes page. make-notes.py builds pedagogical-notes.html from this and README.md. 'by' says whose idea it is (todd or claude); it is never shown on the page.",
+  "feedback_doc": "",
+  "status": "building",
+  "now": [
+    "A field journal records one true fact about each of the 24 species you document, across the four layers of the rainforest (floor, understory, canopy, emergent), by night and by day."
+  ],
+  "considering": [
+    {
+      "text": "Richer facts about each animal.",
+      "by": "todd"
+    },
+    {
+      "text": "A sketch of each animal in the journal.",
+      "by": "todd"
+    },
+    {
+      "text": "Hints about which layer of the forest an animal lives in.",
+      "by": "todd"
+    }
+  ]
+}

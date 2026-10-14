@@ -1,0 +1,16 @@
+{
+  "_comment": "Teaching content for this game's notes page. make-notes.py builds pedagogical-notes.html from this and README.md. 'by' says whose idea it is (todd or claude); it is never shown on the page.",
+  "feedback_doc": "",
+  "status": "building",
+  "now": [],
+  "considering": [
+    {
+      "text": "The shutters open and close on a cycle: find the pattern and predict the safe moment.",
+      "by": "claude"
+    },
+    {
+      "text": "A short story for each floor's tenant.",
+      "by": "claude"
+    }
+  ]
+}

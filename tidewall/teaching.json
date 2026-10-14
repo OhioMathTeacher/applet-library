@@ -1,0 +1,16 @@
+{
+  "_comment": "Teaching content for this game's notes page. make-notes.py builds pedagogical-notes.html from this and README.md. 'by' says whose idea it is (todd or claude); it is never shown on the page.",
+  "feedback_doc": "",
+  "status": "building",
+  "now": [],
+  "considering": [
+    {
+      "text": "The angles of the three cannons, and where their shots cross.",
+      "by": "claude"
+    },
+    {
+      "text": "The rising tide as a graph over time.",
+      "by": "claude"
+    }
+  ]
+}

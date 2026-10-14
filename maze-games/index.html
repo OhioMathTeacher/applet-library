@@ -1,0 +1,108 @@
+<!--
+  GENERATED FILE - DO NOT EDIT
+  Built from families.json, each game's README.md and teaching.json by: python3 make-notes.py
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Maze games · Applet Library</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Libre+Franklin:wght@400;500;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--ink:#121212;--muted:#363636;--rule:#dcdcdc;--tile:#f7f6f3;--yellow:#f7da21;--green:#6aaa64;
+  --blue:#6f95e8;--purple:#b582d6;--pink:#f4a3c0;--teal:#5cc4b8;--orange:#f39b4a}
+*{box-sizing:border-box}
+html,body{margin:0;background:#fff;color:var(--ink)}
+body{font-family:"Libre Franklin",system-ui,sans-serif;-webkit-font-smoothing:antialiased;line-height:1.55}
+a{color:inherit}
+.wrap{max-width:900px;margin:0 auto;padding:28px 16px 64px}
+.back{font-size:14px;color:var(--muted);text-decoration:none}
+.back:hover{text-decoration:underline}
+h1{font-size:36px;font-weight:800;letter-spacing:-.01em;margin:14px 0 8px}
+.lead{font-size:18px;color:var(--muted);margin:0 0 14px;max-width:44em}
+.note{background:var(--tile);padding:14px 16px;font-size:16px;margin:18px 0 0}
+.jump{display:flex;flex-wrap:wrap;gap:8px 18px;margin:18px 0 0;font-size:15px;font-weight:700}
+.jump a{text-decoration:none;border-bottom:1.5px solid var(--ink)}
+.game{margin-top:44px;padding-top:28px;border-top:3px solid var(--ink)}
+.ghead{display:grid;grid-template-columns:150px minmax(0,1fr);gap:22px;align-items:start}
+.tile{width:150px;height:150px;background:var(--tile);display:flex;align-items:center;justify-content:center}
+.tile svg{width:72px;height:72px;overflow:visible}
+.ic{stroke:var(--ink);stroke-width:2.5;stroke-linejoin:round}
+.ic-thin{fill:none;stroke:var(--ink);stroke-width:2;stroke-linecap:round}
+h2{font-size:28px;font-weight:800;margin:4px 0 6px}
+.intro{font-size:17px;color:var(--muted);margin:0 0 14px}
+.status{display:inline-block;padding:2px 9px;font-size:12px;font-weight:700;letter-spacing:.02em;
+  border:1.5px solid var(--ink);border-radius:3px}
+.status.ready{background:var(--green);color:#fff;border-color:var(--green)}
+.status.building{background:var(--yellow)}
+.btn{display:inline-block;padding:10px 18px;font-weight:700;font-size:15px;text-decoration:none;
+  border:2px solid var(--ink);border-radius:6px}
+.btn.play{background:var(--ink);color:#fff}
+.btn:hover{background:var(--tile);color:var(--ink)}
+h3{font-size:17px;font-weight:800;margin:22px 0 6px}
+h4{font-size:15px;margin:16px 0 6px}
+p,li{font-size:16px}
+ul{padding-left:1.2em;margin:0 0 8px}
+li{margin:0 0 5px}
+.none{color:var(--muted);margin:0}
+table{border-collapse:collapse;width:100%;font-size:14.5px;margin:6px 0 12px}
+th,td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--rule);vertical-align:top}
+code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.9em;background:var(--tile);padding:1px 4px}
+details{margin-top:18px}
+details summary{cursor:pointer;font-size:17px;font-weight:800}
+details[open] summary{margin-bottom:8px}
+.ask{margin-top:48px;padding:20px 22px;background:var(--tile)}
+.ask h2{font-size:22px;margin:0 0 6px}
+@media (max-width:620px){.ghead{grid-template-columns:84px minmax(0,1fr);gap:14px}
+  .tile{width:84px;height:84px}.tile svg{width:44px;height:44px}h1{font-size:28px}h2{font-size:23px}}
+</style>
+</head>
+<body>
+<main class="wrap">
+<a class="back" href="../?section=games">← Retro Educational Games</a>
+<h1>Maze games</h1><p class="lead">Two Pac-Man mazes, played from both sides. In Chomp &amp; Spell you eat letters and spell words with them; in Haunt you are the ghosts.</p>
+<p class="note">Haunt is playable now and still becoming a teaching tool. The gameplay came first, on purpose; the teaching is being added one game at a time. Each game below says what it has so far and what we are considering.</p>
+<nav class="jump"><a href="#chomp-and-spell">Chomp &amp; Spell</a><a href="#haunt">Haunt</a></nav>
+<section class="game" id="chomp-and-spell"><div class="ghead"><span class="tile"><svg viewBox="0 0 64 64" aria-hidden="true">
+<path d="M22 32 L37.6 23 A18 18 0 1 0 37.6 41 Z" style="fill:var(--yellow)" class="ic"/>
+<rect x="42" y="22" width="18" height="20" rx="3" fill="#fff" class="ic"/>
+<path d="M46.5 37 L51 26 L55.5 37 M48 33.5 H54" fill="none" class="ic-thin"/>
+</svg></span><div><span class="status ready">Ready to use</span><h2>Chomp &amp; Spell</h2><p class="intro">Eat the letters, then spell the words. A retro maze game for an NES-style controller.</p><a class="btn play" href="chomp-and-spell/">▶ Play Chomp &amp; Spell</a></div></div>
+<h3>What students practice</h3><ul><li>Building words from a limited rack of letters.</li><li>Deciding whether to spend a tile now or save it for a longer word: each tile can be used once in the whole round.</li><li>Reasoning about which letters are likely, in a Wheel of Fortune style rescue puzzle.</li><li>Finding every word hidden in the same letters (TEA, EAT, ATE, SEAT) in the bonus round, then seeing the longest words they missed.</li></ul>
+<h3>The thinking it makes visible</h3><p>Planning with scarce resources. Scrabble scoring rewards rare letters, so a student has to weigh a sure word now against a better one later, and the rack carries over from level to level.</p>
+<h3>Ideas we are considering</h3><ul><li>A teacher's own word list, so the spelling round uses a unit's vocabulary.</li><li>Showing the best possible word after each round, as a learning moment.</li></ul>
+<details><summary>How to play</summary><p>Clear every dot in the maze while four ghosts chase you. The power pellets are <b>letters</b>: eating one puts that letter in your <b>rack</b> at the bottom of the screen and turns the ghosts blue. Blue ghosts carry letters too; eat one for points and its letter. Each letter you eat makes a new bonus letter pop up somewhere else a moment later. Bonus letters don't scare the ghosts and vanish if you leave them too long.</p>
+<p><b>Caught by a ghost?</b> Once per level you get a rescue (RESCUE shows in the corner while you still have it). Spin the wheel for a category, then solve a word from it Wheel of Fortune style: pick a tile from your rack, and if that letter is in the word it fills in everywhere. Solve it and you keep your life; three misses and you lose it. Every tile you guess is used up, right or wrong. Move over your tiles with the D-pad and press A to guess, or just type the letter. If no word can be solved with your tiles, there's no rescue.</p>
+<p><b>Bonus round.</b> After every third level there's an intermission, then 90 seconds to find as many words as you can in your rack (3+ letters, 100 points each). Nothing is used up, so TEA, EAT, ATE and SEAT all count. The clock and the music speed up as time runs out. Afterwards you see the longest words you missed, and then that level's spelling round.</p>
+<p>When the dots are gone, the <b>spelling round</b> begins:</p>
+<ul><li>Build words from your rack. Each tile can be used <b>once in the whole round</b>, so choose: QUIZ now, or save the U for something longer?</li><li>Words must be 2–8 letters and in the game's word list.</li><li>A word scores its Scrabble letter values, plus a bonus for 5+ letters, times 10.</li><li>Tiles you don't spend carry over to the next level (the rack holds 16).</li></ul>
+<p>You start with 3 lives and earn one more at 10,000 points.</p>
+<h4>Controls</h4><table><thead><tr><th>Button</th><th>Keyboard</th><th>In the maze</th><th>In the spelling round</th></tr></thead><tbody><tr><td>D-pad</td><td>Arrows or WASD</td><td>Move (turns wait for the next opening)</td><td>Move the cursor over your tiles</td></tr><tr><td>A</td><td>Z or K</td><td>—</td><td>Add the highlighted tile to the word</td></tr><tr><td>B</td><td>X or J</td><td>—</td><td>Remove the last letter (Backspace)</td></tr><tr><td>Start</td><td>Enter (or P)</td><td>Pause</td><td>Submit the word</td></tr><tr><td>Select</td><td>Shift</td><td>—</td><td>Finish the round (press twice)</td></tr></tbody></table>
+<p>In the spelling round, keyboard players can also just <b>type letters</b>, then Enter to submit and Backspace to undo. M toggles sound (anywhere but the spelling round, where M is a letter); MUTE shows in the corner while it's off.</p>
+<p>A USB gamepad works through the browser's Gamepad API; press any button on it once the page is open so the browser notices it.</p></details>
+</section>
+<section class="game" id="haunt"><div class="ghead"><span class="tile"><svg viewBox="0 0 64 64" aria-hidden="true">
+<path d="M12 58 V30 C12 17 21 8 32 8 C43 8 52 17 52 30 V58 L45 51 L38.5 58 L32 51 L25.5 58 L19 51 Z" style="fill:var(--purple)" class="ic"/>
+<ellipse cx="24" cy="29" rx="5" ry="6" fill="#fff" class="ic-thin"/>
+<ellipse cx="40" cy="29" rx="5" ry="6" fill="#fff" class="ic-thin"/>
+<circle cx="25.5" cy="30" r="2" fill="var(--ink)"/>
+<circle cx="41.5" cy="30" r="2" fill="var(--ink)"/>
+</svg></span><div><span class="status building">Under construction</span><h2>Haunt</h2><p class="intro">You are the ghosts. A retro maze game for an NES-style controller. The computer plays Pac-Man; you steer one ghost at a time and switch between the others. Catch him before he clears the maze.</p><a class="btn play" href="haunt/">▶ Play Haunt</a></div></div>
+<h3>In it now</h3><p class="none">Nothing yet. It is a game for now.</p>
+<h3>Ideas we are considering</h3><ul><li>Distance on a grid: counting steps around the walls versus a straight line.</li><li>Planning together to corner someone instead of chasing them.</li></ul>
+<details><summary>How to play</summary><h4>Rules</h4><ul><li><b>Any ghost that touches Pac-Man catches him.</b> The ghost you steer is a little faster than he is and can run him down from behind (<b>GOTCHA!</b>). The others run on autopilot and are slower than him, so they can't chase him down, but they can close a trap: block a corridor, sit on the last dots, come in from the other end. A catch by an autopilot ghost is a <b>TRAPPED!</b> and scores 1.5x.</li><li>A catch scores (200 + 5 x dots left) x level x the mode's multiplier. Pac-Man eating a frightened ghost costs you 100.</li><li>If Pac-Man clears the maze you lose a life and the level restarts.</li><li>Power pellets turn your ghosts blue and slow for a few seconds.</li><li>Pac-Man gets faster and smarter level by level: by level 5 he reads the maze for pincers and dead ends and avoids corridors where ghosts are closing from both ends.</li></ul>
+<h4>Modes</h4><p>Pick on the title screen with the D-pad, then Start or A. The choice and a separate high score for each mode are remembered.</p>
+<table><thead><tr><th>Mode</th><th>Ghosts</th><th>Catch multiplier</th></tr></thead><tbody><tr><td>EASY</td><td>4</td><td>x1</td></tr><tr><td>NORMAL</td><td>3</td><td>x1.5</td></tr><tr><td>HARD</td><td>2</td><td>x2</td></tr><tr><td>SOLO</td><td>1 (just you)</td><td>x3</td></tr></tbody></table>
+<p>In SOLO there is nobody to switch to, so A, B and Select do nothing. Your ghost is still faster than Pac-Man at every level, so it can be won.</p>
+<h4>Sound</h4><p>Chiptune music plays the whole time you are playing, synthesized in the browser (no audio files). Its tempo follows the ghosts' speed and climbs as the dots run out; when Pac-Man eats a power pellet it switches to a jittery "you're the prey now" loop. <b>M</b> mutes and unmutes (remembered). Sound stops while paused and when the tab is hidden.</p>
+<table><thead><tr><th>Button</th><th>Keyboard</th><th>Does</th></tr></thead><tbody><tr><td>D-pad</td><td>Arrows or WASD</td><td>Steer your ghost (turns are buffered)</td></tr><tr><td>A</td><td>Z or K</td><td>Switch to the next ghost</td></tr><tr><td>B</td><td>X or J</td><td>Switch to the previous ghost</td></tr><tr><td>Select</td><td>Shift</td><td>Switch to the ghost nearest Pac-Man</td></tr><tr><td>Start</td><td>Enter (or P to pause)</td><td>Start, pause, resume</td></tr><tr><td></td><td>1-4</td><td>Pick a ghost directly</td></tr><tr><td></td><td>M</td><td>Mute / unmute</td></tr></tbody></table>
+<p>On the title screen the D-pad picks the mode. After Game Over, Start goes back to the title screen.</p>
+<p>Ghost order is red, pink, cyan, orange. A gamepad works through the browser's standard mapping; pads that report the D-pad as a stick work too.</p></details>
+</section>
+</main>
+<script src="../site-header.js" data-current="home" defer></script>
+</body>
+</html>

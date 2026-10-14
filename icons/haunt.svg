@@ -1,0 +1,7 @@
+<svg viewBox="0 0 64 64" aria-hidden="true">
+<path d="M12 58 V30 C12 17 21 8 32 8 C43 8 52 17 52 30 V58 L45 51 L38.5 58 L32 51 L25.5 58 L19 51 Z" style="fill:var(--purple)" class="ic"/>
+<ellipse cx="24" cy="29" rx="5" ry="6" fill="#fff" class="ic-thin"/>
+<ellipse cx="40" cy="29" rx="5" ry="6" fill="#fff" class="ic-thin"/>
+<circle cx="25.5" cy="30" r="2" fill="var(--ink)"/>
+<circle cx="41.5" cy="30" r="2" fill="var(--ink)"/>
+</svg>

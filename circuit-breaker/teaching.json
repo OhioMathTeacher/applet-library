@@ -1,0 +1,16 @@
+{
+  "_comment": "Teaching content for this game's notes page. make-notes.py builds pedagogical-notes.html from this and README.md. 'by' says whose idea it is (todd or claude); it is never shown on the page.",
+  "feedback_doc": "",
+  "status": "building",
+  "now": [],
+  "considering": [
+    {
+      "text": "Mapping a space you can only see a little of at a time.",
+      "by": "claude"
+    },
+    {
+      "text": "Budgeting six bullets.",
+      "by": "claude"
+    }
+  ]
+}

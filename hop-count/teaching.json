@@ -1,0 +1,18 @@
+{
+  "_comment": "Teaching content for this game's notes page. make-notes.py builds pedagogical-notes.html from this and README.md. 'by' says whose idea it is (todd or claude); it is never shown on the page.",
+  "feedback_doc": "",
+  "status": "building",
+  "now": [
+    "Field notes explain why toads cross roads on rainy spring nights: to return to the pond where they were born, helped along by volunteers with buckets."
+  ],
+  "considering": [
+    {
+      "text": "The hop counter as a math hook.",
+      "by": "todd"
+    },
+    {
+      "text": "Finding the fewest hops for a crossing.",
+      "by": "claude"
+    }
+  ]
+}

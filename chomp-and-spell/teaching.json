@@ -1,0 +1,22 @@
+{
+  "_comment": "Teaching content for this game's notes page. make-notes.py builds pedagogical-notes.html from this and README.md. 'by' says whose idea it is (todd or claude); it is never shown on the page.",
+  "feedback_doc": "",
+  "status": "ready",
+  "practice": [
+    "Building words from a limited rack of letters.",
+    "Deciding whether to spend a tile now or save it for a longer word: each tile can be used once in the whole round.",
+    "Reasoning about which letters are likely, in a Wheel of Fortune style rescue puzzle.",
+    "Finding every word hidden in the same letters (TEA, EAT, ATE, SEAT) in the bonus round, then seeing the longest words they missed."
+  ],
+  "thinking": "Planning with scarce resources. Scrabble scoring rewards rare letters, so a student has to weigh a sure word now against a better one later, and the rack carries over from level to level.",
+  "considering": [
+    {
+      "text": "A teacher's own word list, so the spelling round uses a unit's vocabulary.",
+      "by": "todd"
+    },
+    {
+      "text": "Showing the best possible word after each round, as a learning moment.",
+      "by": "todd"
+    }
+  ]
+}

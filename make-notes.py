@@ -151,12 +151,17 @@ a{color:inherit}
 .crumbs a:hover{text-decoration:underline}
 .crumbs span{color:var(--ink);font-weight:700}
 h1{font-size:36px;font-weight:800;letter-spacing:-.01em;margin:14px 0 8px}
-.lead{font-size:18px;color:var(--muted);margin:0 0 14px;max-width:46em}
-.note{background:var(--tile);padding:14px 16px;font-size:16px;margin:18px 0 0;max-width:52em}
+.lead{font-size:18px;color:var(--muted);margin:0 0 14px}
+.note{background:#f3ece0;border-left:4px solid #c9a46a;border-radius:6px;padding:14px 18px;font-size:16px;margin:18px 0 0}
 .games{display:grid;grid-template-columns:repeat(var(--cols,2),minmax(0,1fr));gap:18px;margin-top:28px}
-.game{display:flex;flex-direction:column;border:2px solid var(--ink);border-radius:10px;padding:20px;background:#fff}
-.ghead{display:flex;align-items:center;gap:14px;margin-bottom:10px}
-.tile{flex:none;width:76px;height:76px;background:var(--tile);border-radius:8px;display:flex;align-items:center;justify-content:center}
+.game{--wash:#eef1f5;--deep:#4f6a9a;display:flex;flex-direction:column;border:1.5px solid var(--deep);border-top-width:6px;
+  border-radius:10px;padding:20px;background:var(--wash)}
+.game.c0{--wash:#eaf1f7;--deep:#4f6f96}
+.game.c1{--wash:#f6ece6;--deep:#a0694a}
+.game.c2{--wash:#e8f2ec;--deep:#4f8064}
+.game.c3{--wash:#f1eaf4;--deep:#7d5f8f}
+.ghead{display:flex;align-items:flex-start;gap:14px;margin-bottom:10px}
+.tile{flex:none;width:76px;height:76px;background:#fff;border-radius:8px;display:flex;align-items:center;justify-content:center}
 .tile svg{width:44px;height:44px;overflow:visible}
 .ic{stroke:var(--ink);stroke-width:2.5;stroke-linejoin:round}
 .ic-thin{fill:none;stroke:var(--ink);stroke-width:2;stroke-linecap:round}
@@ -169,9 +174,9 @@ h2{font-size:24px;font-weight:800;margin:4px 0 0;line-height:1.15}
 .btn{display:inline-block;padding:10px 18px;font-weight:700;font-size:15px;text-decoration:none;
   border:2px solid var(--ink);border-radius:6px;text-align:center}
 .push{flex:1}
-.btn.play{background:var(--ink);color:#fff;margin-top:16px}
-.btn:hover{background:var(--tile);color:var(--ink)}
-h3{font-size:15px;font-weight:800;margin:16px 0 6px}
+.btn.play{background:var(--deep);border-color:var(--deep);color:#fff;margin-top:16px}
+.btn:hover{background:#fff;color:var(--deep)}
+h3{font-size:15px;font-weight:800;margin:16px 0 6px;color:var(--deep)}
 h4{font-size:15px;margin:16px 0 6px}
 p,li{font-size:15px}
 ul{padding-left:1.2em;margin:0 0 8px}
@@ -181,7 +186,7 @@ li{margin:0 0 5px}
 table{border-collapse:collapse;width:100%;font-size:13.5px;margin:6px 0 12px}
 th,td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--rule);vertical-align:top}
 code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.9em;background:var(--tile);padding:1px 4px}
-details{margin-top:12px;border-top:1px solid var(--rule);padding-top:10px}
+details{margin-top:12px;border-top:1px solid color-mix(in srgb,var(--deep) 30%,transparent);padding-top:10px}
 details summary{cursor:pointer;font-size:15px;font-weight:800}
 details[open] summary{margin-bottom:8px}
 .ask{margin-top:48px;padding:20px 22px;background:var(--tile)}
@@ -191,7 +196,7 @@ details[open] summary{margin-bottom:8px}
 """
 
 
-def game_block(g) -> str:
+def game_block(g, n: int = 0) -> str:
     """One card: icon, status and name, the intro, what it teaches, then Play at the
     bottom. The longer material folds away inside the card."""
     t, e = g["teaching"], html.escape
@@ -200,8 +205,8 @@ def game_block(g) -> str:
              else '<span class="status building">Under construction</span>')
     ext = g["play"].startswith("http")
     play = ('<a class="btn play" href="' + e(g["play"]) + '"'
-            + (' target="_blank" rel="noopener"' if ext else "") + ">▶ Play " + e(g["name"]) + "</a>")
-    out = ['<section class="game" id="' + e(g["id"]) + '"><div class="ghead"><span class="tile">' + g["icon"]
+            + (' target="_blank" rel="noopener"' if ext else "") + ' aria-label="Play ' + e(g["name"]) + '">▶ Play</a>')
+    out = ['<section class="game c' + str(n % 4) + '" id="' + e(g["id"]) + '"><div class="ghead"><span class="tile">' + g["icon"]
            + "</span><div>" + badge + "<h2>" + e(g["name"]) + "</h2></div></div>"
            + '<p class="intro">' + inline(" ".join(g["intro"].split())) + "</p>"]
     if ready:
@@ -241,7 +246,7 @@ def page(fam, index_html: str) -> str:
                      + ". The gameplay came first, on purpose; the teaching is being added one game at a "
                      "time. Each card says what the game has so far and what we are considering.</p>")
     parts.append('<div class="games" style="--cols:' + str(min(len(games), 4)) + '">'
-                 + "\n".join(game_block(g) for g in games) + "</div>")
+                 + "\n".join(game_block(g, i) for i, g in enumerate(games)) + "</div>")
     fb = fam.get("feedback_doc", "").strip()
     if fb:
         parts.append('<section class="ask"><h2>Help us make them educational</h2><p>How could we turn '

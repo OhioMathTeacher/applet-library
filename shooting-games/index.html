@@ -24,12 +24,17 @@ a{color:inherit}
 .crumbs a:hover{text-decoration:underline}
 .crumbs span{color:var(--ink);font-weight:700}
 h1{font-size:36px;font-weight:800;letter-spacing:-.01em;margin:14px 0 8px}
-.lead{font-size:18px;color:var(--muted);margin:0 0 14px;max-width:46em}
-.note{background:var(--tile);padding:14px 16px;font-size:16px;margin:18px 0 0;max-width:52em}
+.lead{font-size:18px;color:var(--muted);margin:0 0 14px}
+.note{background:#f3ece0;border-left:4px solid #c9a46a;border-radius:6px;padding:14px 18px;font-size:16px;margin:18px 0 0}
 .games{display:grid;grid-template-columns:repeat(var(--cols,2),minmax(0,1fr));gap:18px;margin-top:28px}
-.game{display:flex;flex-direction:column;border:2px solid var(--ink);border-radius:10px;padding:20px;background:#fff}
-.ghead{display:flex;align-items:center;gap:14px;margin-bottom:10px}
-.tile{flex:none;width:76px;height:76px;background:var(--tile);border-radius:8px;display:flex;align-items:center;justify-content:center}
+.game{--wash:#eef1f5;--deep:#4f6a9a;display:flex;flex-direction:column;border:1.5px solid var(--deep);border-top-width:6px;
+  border-radius:10px;padding:20px;background:var(--wash)}
+.game.c0{--wash:#eaf1f7;--deep:#4f6f96}
+.game.c1{--wash:#f6ece6;--deep:#a0694a}
+.game.c2{--wash:#e8f2ec;--deep:#4f8064}
+.game.c3{--wash:#f1eaf4;--deep:#7d5f8f}
+.ghead{display:flex;align-items:flex-start;gap:14px;margin-bottom:10px}
+.tile{flex:none;width:76px;height:76px;background:#fff;border-radius:8px;display:flex;align-items:center;justify-content:center}
 .tile svg{width:44px;height:44px;overflow:visible}
 .ic{stroke:var(--ink);stroke-width:2.5;stroke-linejoin:round}
 .ic-thin{fill:none;stroke:var(--ink);stroke-width:2;stroke-linecap:round}
@@ -42,9 +47,9 @@ h2{font-size:24px;font-weight:800;margin:4px 0 0;line-height:1.15}
 .btn{display:inline-block;padding:10px 18px;font-weight:700;font-size:15px;text-decoration:none;
   border:2px solid var(--ink);border-radius:6px;text-align:center}
 .push{flex:1}
-.btn.play{background:var(--ink);color:#fff;margin-top:16px}
-.btn:hover{background:var(--tile);color:var(--ink)}
-h3{font-size:15px;font-weight:800;margin:16px 0 6px}
+.btn.play{background:var(--deep);border-color:var(--deep);color:#fff;margin-top:16px}
+.btn:hover{background:#fff;color:var(--deep)}
+h3{font-size:15px;font-weight:800;margin:16px 0 6px;color:var(--deep)}
 h4{font-size:15px;margin:16px 0 6px}
 p,li{font-size:15px}
 ul{padding-left:1.2em;margin:0 0 8px}
@@ -54,7 +59,7 @@ li{margin:0 0 5px}
 table{border-collapse:collapse;width:100%;font-size:13.5px;margin:6px 0 12px}
 th,td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--rule);vertical-align:top}
 code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.9em;background:var(--tile);padding:1px 4px}
-details{margin-top:12px;border-top:1px solid var(--rule);padding-top:10px}
+details{margin-top:12px;border-top:1px solid color-mix(in srgb,var(--deep) 30%,transparent);padding-top:10px}
 details summary{cursor:pointer;font-size:15px;font-weight:800}
 details[open] summary{margin-bottom:8px}
 .ask{margin-top:48px;padding:20px 22px;background:var(--tile)}
@@ -68,7 +73,7 @@ details[open] summary{margin-bottom:8px}
 <nav class="crumbs" aria-label="You are here"><a href="../">Applet Library</a> › <a href="../?section=games">Retro Educational Games</a> › <span>Shooting games</span></nav>
 <h1>Shooting games</h1><p class="lead">Four shooters: a maze with the lights out, a five-beam horizon drawn two ways, and a city by the sea under attack.</p>
 <p class="note">All of these games are playable now and still becoming teaching tools. The gameplay came first, on purpose; the teaching is being added one game at a time. Each card says what the game has so far and what we are considering.</p>
-<div class="games" style="--cols:4"><section class="game" id="circuit-breaker"><div class="ghead"><span class="tile"><svg viewBox="0 0 64 64" aria-hidden="true">
+<div class="games" style="--cols:4"><section class="game c0" id="circuit-breaker"><div class="ghead"><span class="tile"><svg viewBox="0 0 64 64" aria-hidden="true">
 <rect x="6" y="6" width="52" height="52" rx="4" fill="var(--ink)" class="ic"/>
 <circle cx="38" cy="38" r="14" style="fill:var(--teal)" class="ic-thin"/>
 <path d="M24 38 H52 M38 24 V52" stroke="var(--ink)" stroke-width="2.5"/>
@@ -85,8 +90,8 @@ details[open] summary{margin-bottom:8px}
 <ul><li><b>Gun</b>: it appears somewhere in the maze. Walk over it to get 6 shots. When it's empty, a new gun turns up somewhere else after a few seconds. It glints now and then.</li><li><b>Bats and spiders</b>: touching one stuns you for 2 seconds. Shoot them for points. The spider lives in the web, top left. Bats can fly into the bunker.</li><li><b>Robots</b>: they hunt you, and one shot from a robot kills you. Destroy one and a tougher one replaces it: gray, then blue, then white (takes 2 hits), then red. From red on, robot shots break the bunker doors. The robot's eyes show in the dark, and you can hear it walking when it's close.</li><li><b>Bunker</b>: the green room in the middle. Robots and spiders can't get in and robot shots can't get through its doors, until the doors are broken.</li></ul>
 <p><b>Sound</b>: there's a soundtrack the whole time you play: the hum of the blown fuse, a heartbeat bass, and eerie arpeggios. Its tempo is the robot's walking pace, and it speeds up as the robot gets closer to you. Each new robot colour adds layers. Inside the bunker the music goes muffled. Browsers only start sound after a key press or click; a gamepad button may not count in every browser, so press any key once if it's silent.</p>
 <p>Points: spider 50, bat 100, robot 150 × its number. Extra life every 5,000.</p></div></details>
-<a class="btn play" href="../circuit-breaker/">▶ Play Circuit Breaker</a></section>
-<section class="game" id="vanishing-point"><div class="ghead"><span class="tile"><svg viewBox="0 0 64 64" aria-hidden="true">
+<a class="btn play" href="../circuit-breaker/" aria-label="Play Circuit Breaker">▶ Play</a></section>
+<section class="game c1" id="vanishing-point"><div class="ghead"><span class="tile"><svg viewBox="0 0 64 64" aria-hidden="true">
 <rect x="6" y="6" width="52" height="52" rx="4" fill="var(--ink)" class="ic"/>
 <path d="M8 20 H56" stroke="var(--teal)" stroke-width="1.5"/>
 <path d="M32 20 L10 56 M32 20 L21 56 M32 20 V56 M32 20 L43 56 M32 20 L54 56" fill="none" stroke="var(--blue)" stroke-width="2"/>
@@ -99,8 +104,8 @@ details[open] summary{margin-bottom:8px}
 <table><thead><tr><th>Button</th><th>Keyboard</th><th>Does</th></tr></thead><tbody><tr><td>D-pad</td><td>Arrows</td><td>Hop from beam to beam.</td></tr><tr><td>A</td><td>Z or K</td><td>Laser.</td></tr><tr><td>B</td><td>X or J</td><td>Torpedo: three per sector. Torpedoes destroy anything; lasers bounce off some things.</td></tr><tr><td>Select</td><td>Shift</td><td>Side view: the same scene seen from the side, showing how the picture is drawn in perspective.</td></tr><tr><td>Start</td><td>Enter</td><td>Play / pause.</td></tr></tbody></table>
 <p>M mutes the sound. A standard USB gamepad works too.</p>
 <p>Later sectors bring new things down the beams: yellow chirpers are a bonus, sparks are to dodge, and green blockers can only be torpedoed or avoided.</p></div></details>
-<a class="btn play" href="../vanishing-point/">▶ Play Vanishing Point</a></section>
-<section class="game" id="vanishing-point-360"><div class="ghead"><span class="tile"><svg viewBox="0 0 64 64" aria-hidden="true">
+<a class="btn play" href="../vanishing-point/" aria-label="Play Vanishing Point">▶ Play</a></section>
+<section class="game c2" id="vanishing-point-360"><div class="ghead"><span class="tile"><svg viewBox="0 0 64 64" aria-hidden="true">
 <rect x="6" y="6" width="52" height="52" rx="4" fill="var(--ink)" class="ic"/>
 <circle cx="32" cy="32" r="21" fill="none" stroke="var(--blue)" stroke-width="2"/>
 <circle cx="32" cy="32" r="4" fill="none" stroke="var(--blue)" stroke-width="1.5"/>
@@ -118,8 +123,8 @@ details[open] summary{margin-bottom:8px}
 <p>Later sectors bring new things down the beams: yellow chirpers are a bonus, sparks are to dodge, and green blockers can only be torpedoed or avoided.</p>
 <p>The screen is drawn the way a 1981 vector monitor drew it: lines of light on phosphor that glow and fade, brighter at the corners where the beam turned. The <b>size</b> button in the corner cycles FIT (the whole picture), FILL (the world widens to your window's shape, no black bars) and FULL (FILL with the browser hidden; not offered on iPhone, which doesn't allow it). The <b>PHOSPHOR</b> button next to it sets how long the glow lasts, how much it blooms, and whether the beam flickers. V and G step through the same settings from the keyboard, and F toggles fullscreen.</p>
 <p>High scores are kept for each game separately, in this browser on this computer.</p></div></details>
-<a class="btn play" href="../vanishing-point-360/">▶ Play Vanishing Point 360</a></section>
-<section class="game" id="tidewall"><div class="ghead"><span class="tile"><svg viewBox="0 0 64 64" aria-hidden="true">
+<a class="btn play" href="../vanishing-point-360/" aria-label="Play Vanishing Point 360">▶ Play</a></section>
+<section class="game c3" id="tidewall"><div class="ghead"><span class="tile"><svg viewBox="0 0 64 64" aria-hidden="true">
 <rect x="6" y="6" width="52" height="52" rx="4" fill="var(--ink)" class="ic"/>
 <path d="M32 42 L18 10 H26 Z M32 42 L44 10 H52 Z" style="fill:var(--yellow)" opacity="0.4"/>
 <rect x="14" y="36" width="6" height="10" style="fill:var(--yellow)"/>
@@ -139,7 +144,7 @@ details[open] summary{margin-bottom:8px}
 <p>A standard USB gamepad works too, including cheap pads that report the D-pad as an analog stick. On the keyboard, M also turns sound on or off.</p>
 <p>Browsers start sound only after a key press or click (a gamepad button may not count), so press any key once if it is silent.</p>
 <p><b>Raiders:</b> skiff 100, barge 250 (takes two hits), hawk 300 (fast), bandit 1000 (stays high and bombs from the top band, from wave 3). A bomb shot out of the air is 50. Each wave you hold earns a bonus for everything still standing. Waves get faster.</p></div></details>
-<a class="btn play" href="../tidewall/">▶ Play Tidewall</a></section></div>
+<a class="btn play" href="../tidewall/" aria-label="Play Tidewall">▶ Play</a></section></div>
 </main>
 <script src="../site-header.js" data-current="games" defer></script>
 </body>

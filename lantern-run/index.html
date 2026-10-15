@@ -19,7 +19,7 @@
 <canvas id="c"></canvas>
 <script>
 "use strict";
-const VERSION = 'v0.3';
+const VERSION = 'v0.4';
 
 /* ============================================================
    Lantern Run
@@ -953,16 +953,138 @@ function drawCaimanEyes() {
   for (const h of caimanHeads()) { rect(h.x - 7, HUD + FLOOR + 1, 2, 1, '#ff3020'); rect(h.x - 3, HUD + FLOOR + 1, 2, 1, '#ff3020'); }
 }
 
+/* THE ZOOLOGIST, in pixels (Todd, 2026-10-15: "slightly more high res, like you
+   might see in Pitfall or maybe even some Nintendo NES games"). Same footprint as
+   the eight rectangles it replaces, 12 by 22 with the feet on the bottom row, so
+   nothing that collides with her moves; the pixels go into a hat with a brim, a
+   face, a satchel strap, a belt, boots, and arms and legs that change with what
+   she is doing. Drawn facing right, mirrored for left. Letters are colours. */
+const ZOO_PAL = {"H":"#c8a165","h":"#8a6a3a","S":"#f2b49a","E":"#1a1a1a","K":"#b5a36a","L":"#6b4423","B":"#4a2c14","T":"#6b6438","O":"#2e1d10"};
+const ZOO_UPPER = [
+    "....HHHH....",
+    "...HHHHHH...",
+    ".hhhhhhhhhh.",
+    "....SSSS....",
+    "....SSSES...",
+    "....SSSS....",
+    ".....SS.....",
+    "....KKKK....",
+    "....KLKK....",
+    "....KKLK....",
+    "....KKKL....",
+    "....KKKK....",
+    "....BBBB...."];
+/* [column, row, colour] laid over the upper body: sleeves and hands */
+const ZOO_ARMS = {
+  down:[[8,8,"K"],[8,9,"K"],[8,10,"K"],[9,11,"S"],[3,8,"K"],[3,9,"K"],[3,10,"K"],[3,11,"S"]],
+  fwd:[[8,8,"K"],[9,9,"K"],[10,9,"S"],[3,8,"K"],[2,9,"K"],[1,10,"S"]],
+  back:[[8,8,"K"],[8,9,"K"],[9,10,"S"],[3,8,"K"],[3,9,"K"],[4,10,"S"]],
+  up:[[8,7,"K"],[9,6,"K"],[9,5,"S"],[3,7,"K"],[2,6,"K"],[2,5,"S"]],
+  climb1:[[8,7,"K"],[8,6,"K"],[8,5,"S"],[3,8,"K"],[3,9,"S"]],
+  climb2:[[3,7,"K"],[3,6,"K"],[3,5,"S"],[8,8,"K"],[8,9,"S"]],
+  back2:[[8,8,"K"],[9,9,"S"],[3,8,"K"],[2,9,"K"],[2,10,"S"]],
+  raise:[[8,7,"K"],[9,6,"K"],[9,5,"S"],[3,8,"K"],[3,9,"K"],[3,10,"K"],[3,11,"S"]],
+  bino:[[8,7,"K"],[9,6,"S"],[3,7,"K"],[4,6,"K"]]
+};
+const ZOO_LEGS = {
+  stand:[
+    "....TTTT....",
+    "....TTTT....",
+    "....TT.TT...",
+    "....TT.TT...",
+    "....TT.TT...",
+    "....TT.TT...",
+    "....TT.TT...",
+    "....OO.OO...",
+    "....OOO.OOO."],
+  stride:[
+    "....TTTT....",
+    "...TTTTTT...",
+    "..TTT..TTT..",
+    "..TT....TT..",
+    ".TT......TT.",
+    ".TT......TT.",
+    "OO.......TT.",
+    "O........OO.",
+    ".........OOO"],
+  pass:[
+    "....TTTT....",
+    "....TTTTT...",
+    "....TT.TTT..",
+    "....TT..TT..",
+    "....TT.TT...",
+    "....TT.OO...",
+    "....TT......",
+    "....OO......",
+    "....OOO....."],
+  jump:[
+    "....TTTT....",
+    "...TTTTTT...",
+    "..TT...TTT..",
+    "..TT....TT..",
+    ".OO....TT...",
+    ".O.....OOO..",
+    "............",
+    "............",
+    "............"],
+  climb1:[
+    "....TTTT....",
+    "....TT.TT...",
+    "....TT.TT...",
+    "....TT.OO...",
+    "....TT......",
+    "....OO......",
+    "............",
+    "............",
+    "............"],
+  climb2:[
+    "....TTTT....",
+    "....TT.TT...",
+    "....TT.TT...",
+    "....OO.TT...",
+    ".......TT...",
+    ".......OO...",
+    "............",
+    "............",
+    "............"]
+};
+const zooCache = {};
+function zooFrame(arms, legs) {
+  const k = arms + '/' + legs;
+  if (!zooCache[k]) {
+    const g = ZOO_UPPER.map(r => r.split('')).concat(ZOO_LEGS[legs].map(r => r.split('')));
+    for (const [c, r, ch] of ZOO_ARMS[arms]) g[r][c] = ch;
+    zooCache[k] = g;
+  }
+  return zooCache[k];
+}
+function drawZoo(x, y, f, arms, legs) {
+  const g = zooFrame(arms, legs);
+  for (let r = 0; r < g.length; r++) for (let c = 0; c < 12; c++) {
+    const ch = g[r][c];
+    if (ch === '.') continue;
+    ctx.fillStyle = ZOO_PAL[ch];
+    ctx.fillRect(f > 0 ? x - 6 + c : x + 5 - c, y - 22 + r, 1, 1);
+  }
+}
+
 function drawPlayer() {
   if (state === 'dying' && Math.floor(P.deadT*10) % 2) return;
   if (P.inv > 0 && Math.floor(P.inv*12) % 2) return;
   const x = Math.round(P.x), y = HUD + Math.round(P.y), f = P.face;
-  const leg = P.ground && Math.abs(P.vx) > 20 ? Math.floor(P.run) % 2 : (P.ground ? 0 : 1);
-  rect(x - 3, y - 6, 2, 6 - leg*2, C.brown); rect(x + 1, y - 6 + leg*2, 2, 6 - leg*2, C.brown);  // legs
-  rect(x - 4, y - 13, 8, 7, C.khaki);                                                            // shirt
-  rect(x - 3, y - 17, 6, 4, C.pink);                                                             // face
-  rect(x - 5, y - 19, 10, 2, C.tan); rect(x - 3, y - 21, 6, 2, C.tan);                           // hat
-  rect(x + f*2 - (f < 0 ? 1 : 0), y - 16, 1, 1, '#000');                                         // eye
+  /* the pose: climbing, on the vine, in the air, running (four frames on
+     the distance run), or standing; holding B raises the lantern or the
+     binoculars */
+  let arms = 'down', legs = 'stand';
+  if (P.climb) { const k = Math.floor(P.y / 6) % 2 ? '1' : '2'; arms = 'climb' + k; legs = 'climb' + k; }
+  else if (P.swing || !P.ground) { arms = 'up'; legs = 'jump'; }
+  else if (Math.abs(P.vx) > 20) {
+    const s = Math.floor(P.run) % 4;
+    legs = s % 2 ? 'pass' : 'stride';
+    arms = ['fwd', 'back', 'back2', 'back'][s];
+  }
+  if (!P.climb && !P.swing && held.b) arms = isDay() ? 'bino' : 'raise';
+  drawZoo(x, y, f, arms, legs);
   if (isDay()) {
     /* by day the lantern hangs at the belt; B brings up the binoculars */
     rect(x - f*5 - 1, y - 10, 2, 3, '#7a7050');

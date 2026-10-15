@@ -90,7 +90,8 @@ details[open] summary{margin-bottom:8px}
 <p>You start with 3 lives and earn one more at 10,000 points.</p>
 <h4>Controls</h4><table><thead><tr><th>Button</th><th>Keyboard</th><th>In the maze</th><th>In the spelling round</th></tr></thead><tbody><tr><td>D-pad</td><td>Arrows or WASD</td><td>Move (turns wait for the next opening)</td><td>Move the cursor over your tiles</td></tr><tr><td>A</td><td>Z or K</td><td>—</td><td>Add the highlighted tile to the word</td></tr><tr><td>B</td><td>X or J</td><td>—</td><td>Remove the last letter (Backspace)</td></tr><tr><td>Start</td><td>Enter (or P)</td><td>Pause</td><td>Submit the word</td></tr><tr><td>Select</td><td>Shift</td><td>—</td><td>Finish the round (press twice)</td></tr></tbody></table>
 <p>In the spelling round, keyboard players can also just <b>type letters</b>, then Enter to submit and Backspace to undo. M toggles sound (anywhere but the spelling round, where M is a letter); MUTE shows in the corner while it's off.</p>
-<p>A USB gamepad works through the browser's Gamepad API; press any button on it once the page is open so the browser notices it.</p></div></details>
+<p>A USB gamepad works through the browser's Gamepad API; press any button on it once the page is open so the browser notices it.</p>
+<p>The first time you plug in a pad the browser doesn't recognise (most cheap USB pads), the game asks you to press A, B, Select and Start, and remembers the answer for every game on the site. Add <code>?padsetup</code> to the address to ask again.</p></div></details>
 <a class="btn play" href="../chomp-and-spell/" aria-label="Play Chomp &amp; Spell">▶ Play</a></section>
 <section class="game c1" id="haunt"><div class="ghead"><span class="tile"><svg viewBox="0 0 64 64" aria-hidden="true">
 <path d="M12 58 V30 C12 17 21 8 32 8 C43 8 52 17 52 30 V58 L45 51 L38.5 58 L32 51 L25.5 58 L19 51 Z" style="fill:var(--purple)" class="ic"/>
@@ -109,7 +110,8 @@ details[open] summary{margin-bottom:8px}
 <h4>Sound</h4><p>Chiptune music plays the whole time you are playing, synthesized in the browser (no audio files). Its tempo follows the ghosts' speed and climbs as the dots run out; when Pac-Man eats a power pellet it switches to a jittery "you're the prey now" loop. <b>M</b> mutes and unmutes (remembered). Sound stops while paused and when the tab is hidden.</p>
 <table><thead><tr><th>Button</th><th>Keyboard</th><th>Does</th></tr></thead><tbody><tr><td>D-pad</td><td>Arrows or WASD</td><td>Steer your ghost (turns are buffered)</td></tr><tr><td>A</td><td>Z or K</td><td>Switch to the next ghost</td></tr><tr><td>B</td><td>X or J</td><td>Switch to the previous ghost</td></tr><tr><td>Select</td><td>Shift</td><td>Switch to the ghost nearest Pac-Man</td></tr><tr><td>Start</td><td>Enter (or P to pause)</td><td>Start, pause, resume</td></tr><tr><td></td><td>1-4</td><td>Pick a ghost directly</td></tr><tr><td></td><td>M</td><td>Mute / unmute</td></tr></tbody></table>
 <p>On the title screen the D-pad picks the mode. After Game Over, Start goes back to the title screen.</p>
-<p>Ghost order is red, pink, cyan, orange. A gamepad works through the browser's standard mapping; pads that report the D-pad as a stick work too.</p></div></details>
+<p>Ghost order is red, pink, cyan, orange. A gamepad works through the browser's standard mapping; pads that report the D-pad as a stick work too.</p>
+<p>The first time you plug in a pad the browser doesn't recognise (most cheap USB pads), the game asks you to press A, B, Select and Start, and remembers the answer for every game on the site. Add <code>?padsetup</code> to the address to ask again.</p></div></details>
 <a class="btn play" href="../haunt/" aria-label="Play Haunt">▶ Play</a></section></div>
 </main>
 <script src="../site-header.js" data-current="games" defer></script>

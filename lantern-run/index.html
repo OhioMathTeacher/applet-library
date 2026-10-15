@@ -19,7 +19,7 @@
 <canvas id="c"></canvas>
 <script>
 "use strict";
-const VERSION = 'v0.2';
+const VERSION = 'v0.3';
 
 /* ============================================================
    Lantern Run
@@ -230,8 +230,24 @@ const KEYMAP = {
 const key = {}, keyTap = {}, held = {}, prevHeld = {}, pressed = {};
 let footMsg = '', footT = 0;
 const footNote = m => { footMsg = m; footT = 3; };
+
+/* Darkness on or off (Todd, 2026-10-14). On is the game as designed: by night
+   you see only what the lantern reaches. Off lifts the dark so the whole
+   forest shows at night; the lantern still decides what you can document.
+   A player's choice, so it is kept in this browser. B on the title or pause
+   screen flips it (the only screens with a button to spare), and L on a
+   keyboard flips it any time. */
+let darkOn = true;
+try { darkOn = localStorage.getItem('lantern-run-darkness') !== 'off'; } catch (e) {}
+function setDark(on) {
+  darkOn = on;
+  try { localStorage.setItem('lantern-run-darkness', on ? 'on' : 'off'); } catch (e) {}
+  footNote(on ? 'DARKNESS ON: LANTERN ONLY' : 'DARKNESS OFF: SEE THE WHOLE FOREST');
+}
+
 addEventListener('keydown', e => {
   ensureAudio();
+  if (e.code === 'KeyL' && !e.repeat) { e.preventDefault(); setDark(!darkOn); return; }
   const b = KEYMAP[e.code]; if (!b) return;
   e.preventDefault();
   if (!e.repeat) keyTap[b] = true;
@@ -680,11 +696,12 @@ function update(dt) {
     return;
   }
   if (state === 'title' || state === 'over' || state === 'won') {
+    if (pressed.b) setDark(!darkOn);
     if (pressed.start) newGame();
     return;
   }
   if (pressed.start) { state = state === 'pause' ? 'play' : (state === 'play' ? 'pause' : state); return; }
-  if (state === 'pause') return;
+  if (state === 'pause') { if (pressed.b) setDark(!darkOn); return; }
 
   /* Dusk and dawn. The cast changes over at the darkest-brightest middle. */
   if (turning) {
@@ -959,7 +976,7 @@ function drawPlayer() {
 
 function drawDarkness() {
   const night = 1 - light;
-  if (night <= 0.001) return;
+  if (night <= 0.001 || !darkOn) return;
   const lp = lanternPos(), r = lightR();
   dctx.globalCompositeOperation = 'source-over';
   dctx.clearRect(0, 0, W, PH);
@@ -1062,6 +1079,7 @@ function drawTitle() {
   ];
   rows.forEach((r, i) => text(r, W/2, 84 + i*12, C.white, 'center'));
   if (Math.floor(nightT*2) % 2) text('PRESS START', W/2, 210, C.ltgreen, 'center', 12);
+  text('B  DARKNESS ' + (darkOn ? 'ON' : 'OFF'), W/2, 224, C.gray, 'center');
   if (!live()) text('PRESS ANY KEY FOR SOUND', W/2, 236, C.yellow, 'center');
   text(VERSION, W - 4, H - 12, C.gray, 'right');
 }
@@ -1080,7 +1098,8 @@ function draw() {
   drawObserve();
   drawHud();
   if (state === 'journal') drawJournal();
-  if (state === 'pause') { panel('PAUSED'); text('START TO GO ON   SELECT FOR THE JOURNAL', W/2, HUD + 110, C.white, 'center'); }
+  if (state === 'pause') { panel('PAUSED'); text('START TO GO ON   SELECT FOR THE JOURNAL', W/2, HUD + 110, C.white, 'center');
+    text('B  DARKNESS ' + (darkOn ? 'ON' : 'OFF'), W/2, HUD + 124, C.gray, 'center'); }
   if (state === 'dying') text(P.cause, W/2, HUD + 100, C.red, 'center', 10);
   if (state === 'over') {
     panel('EXPEDITION OVER');

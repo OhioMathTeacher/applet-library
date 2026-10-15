@@ -11,6 +11,8 @@ To document a species, **hold B** and **stand still** with the animal in view un
 - **By night** you see only what your lantern reaches. Holding B raises it so you see further. Animals' eyes shine in the dark before you can see the rest of them.
 - **By day** you can see everything, and so can they. Holding B brings up binoculars, so you can observe from much further away (face the animal). Run near a shy animal and it bolts: birds fly off, monkeys scatter, an iguana drops off its branch. Creep (hold B while moving) to get closer.
 
+**Darkness on or off:** press **B** on the title screen or the pause screen (or **L** on a keyboard, any time). With darkness off you see the whole forest at night, not just the lantern's circle. You still need the lantern on an animal to document it. The game remembers your choice in this browser.
+
 **Switching night and day:** open the field journal with **Select** and press **B**. Dusk or dawn falls over two seconds, and the night animals slip away as the day ones come out, or the other way round. Nocturnal species only appear at night, diurnal ones only by day. Jaguars, anacondas and caimans are about at both times.
 
 | Button | Keyboard | Does |

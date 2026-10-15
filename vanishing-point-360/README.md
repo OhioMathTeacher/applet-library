@@ -20,6 +20,8 @@ Choose a game on the title screen with Up and Down, then press Start.
 
 M mutes the sound. A standard USB gamepad works too.
 
+The first time you plug in a pad the browser doesn't recognise (most cheap USB pads), the game asks you to press A, B, Select and Start, and remembers the answer for every game on the site. Add `?padsetup` to the address to ask again.
+
 On a phone or tablet a touch controller appears: a D-pad, B and A, Select and Start. Held upright, it sits under the screen like a Game Boy; turned sideways, the D-pad and buttons move into the margins beside the screen. On an iPhone, Share → Add to Home Screen opens it without Safari's bars.
 
 Later sectors bring new things down the beams: yellow chirpers are a bonus, sparks are to dodge, and green blockers can only be torpedoed or avoided.

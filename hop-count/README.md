@@ -24,6 +24,8 @@ Each toad has a time bar. You have four toads, and an extra one at 10,000 points
 
 A standard USB gamepad works too, including cheap pads that report the D-pad as an analog stick.
 
+The first time you plug in a pad the browser doesn't recognise (most cheap USB pads), the game asks you to press A, B, Select and Start, and remembers the answer for every game on the site. Add `?padsetup` to the address to ask again.
+
 Browsers start sound only after a key press or click (a gamepad button may not count), so press any key once if it is silent.
 
 Points: 10 for each new row you reach, 50 for getting home plus 10 for every second left on the clock, 200 each for a bucket ride, a mayfly and bringing a male home, and 1,000 for clearing a level. The **hop count** at the top is how many hops you've taken this level.

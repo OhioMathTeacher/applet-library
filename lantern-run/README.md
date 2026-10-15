@@ -25,6 +25,8 @@ To document a species, **hold B** and **stand still** with the animal in view un
 
 A standard USB gamepad works too, including cheap pads that report the D-pad as an analog stick.
 
+The first time you plug in a pad the browser doesn't recognise (most cheap USB pads), the game asks you to press A, B, Select and Start, and remembers the answer for every game on the site. Add `?padsetup` to the address to ask again.
+
 **The jungle** is a loop: keep going one way and you come back to where you started. Creeks cross the forest floor. Some have a vine to swing across; caimans live in others, and you can hop across their heads while their jaws are shut. At night, lightning lights the whole forest now and then. Look while you can.
 
 **Watch out for**: jaguars, anacondas and the fer-de-lance (it can sense your warmth in total darkness). A vampire bat bite costs you time, and so does touching a poison dart frog: never touch one. A startled armadillo jumps straight up.

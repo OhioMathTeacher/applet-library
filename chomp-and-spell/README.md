@@ -53,6 +53,8 @@ spelling round, where M is a letter); MUTE shows in the corner while it's off.
 A USB gamepad works through the browser's Gamepad API; press any button on it
 once the page is open so the browser notices it.
 
+The first time you plug in a pad the browser doesn't recognise (most cheap USB pads), the game asks you to press A, B, Select and Start, and remembers the answer for every game on the site. Add `?padsetup` to the address to ask again.
+
 ## Play
 
 **Live**: https://ohiomathteacher.github.io/applet-library/chomp-and-spell/

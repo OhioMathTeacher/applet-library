@@ -62,6 +62,8 @@ back to the title screen.
 Ghost order is red, pink, cyan, orange. A gamepad works through the browser's
 standard mapping; pads that report the D-pad as a stick work too.
 
+The first time you plug in a pad the browser doesn't recognise (most cheap USB pads), the game asks you to press A, B, Select and Start, and remembers the answer for every game on the site. Add `?padsetup` to the address to ask again.
+
 ## Play
 
 **Live**: https://ohiomathteacher.github.io/applet-library/haunt/

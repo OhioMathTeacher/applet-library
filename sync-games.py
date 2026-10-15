@@ -16,7 +16,10 @@ rest of the repo are never copied.
 
 No storage keys are rewritten: each game already namespaces
 its one localStorage key (the high score), and the game repos are not published
-to Pages, so nothing else on this origin shares them.
+to Pages, so nothing else on this origin shares them. The one key shared on
+purpose is 'padinput-v1', the controller button setup from pad-input.js: a pad
+set up in one game is known to all of them. New games should paste in
+pad-input.js (the canonical copy lives at the root of this repo).
 """
 import sys
 import pathlib

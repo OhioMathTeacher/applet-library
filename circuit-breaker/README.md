@@ -16,6 +16,8 @@ The fuse is blown: you see only what your light reaches. Find the gun, shoot wha
 
 A standard USB gamepad works too. Pads that report the D-pad as an analog stick (common on cheap NES-style pads) are handled.
 
+The first time you plug in a pad the browser doesn't recognise (most cheap USB pads), the game asks you to press A, B, Select and Start, and remembers the answer for every game on the site. Add `?padsetup` to the address to ask again.
+
 **What's in the dark**
 
 - **Gun**: it appears somewhere in the maze. Walk over it to get 6 shots. When it's empty, a new gun turns up somewhere else after a few seconds. It glints now and then.

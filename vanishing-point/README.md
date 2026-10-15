@@ -16,6 +16,8 @@ Five beams run off to a single vanishing point on the horizon. Hop between them,
 
 M mutes the sound. A standard USB gamepad works too.
 
+The first time you plug in a pad the browser doesn't recognise (most cheap USB pads), the game asks you to press A, B, Select and Start, and remembers the answer for every game on the site. Add `?padsetup` to the address to ask again.
+
 Later sectors bring new things down the beams: yellow chirpers are a bonus, sparks are to dodge, and green blockers can only be torpedoed or avoided.
 
 ## Play

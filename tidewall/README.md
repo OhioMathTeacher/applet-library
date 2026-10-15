@@ -25,6 +25,8 @@ Six buildings and three cannon posts stand on a sea wall. Raiders fly across the
 
 A standard USB gamepad works too, including cheap pads that report the D-pad as an analog stick. On the keyboard, M also turns sound on or off.
 
+The first time you plug in a pad the browser doesn't recognise (most cheap USB pads), the game asks you to press A, B, Select and Start, and remembers the answer for every game on the site. Add `?padsetup` to the address to ask again.
+
 Browsers start sound only after a key press or click (a gamepad button may not count), so press any key once if it is silent.
 
 **Raiders:** skiff 100, barge 250 (takes two hits), hawk 300 (fast), bandit 1000 (stays high and bombs from the top band, from wave 3). A bomb shot out of the air is 50. Each wave you hold earns a bonus for everything still standing. Waves get faster.

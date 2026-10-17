@@ -318,7 +318,7 @@ HEAD = '''<!doctype html>
 <link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:ital,wght@0,400;0,700;0,800;1,400&family=Rubik:wght@600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css"></head><body><div class="stripe"></div><div class="wrap">'''
 
-FOOT = '''<footer>Written for middle-grades teachers by Todd Edwards, Miami University. Every picture on these pages was computed from the real numbers.</footer></div></body></html>'''
+FOOT = '''<footer>Written for middle-grades teachers by Todd Edwards, Technology Educator Alliance. Every picture on these pages was computed from the real numbers.</footer></div></body></html>'''
 
 def page(i, p):
     prev_p = PROBLEMS[i - 1] if i > 0 else None

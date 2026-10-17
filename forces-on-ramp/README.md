@@ -97,5 +97,5 @@ When an object sits on a ramp tilted at angle θ:
 
 ## Credits
 
-Developed for students, faculty, and staff at Miami University.  
+Developed by Todd Edwards, Technology Educator Alliance.  
 Designed to support McKenzie Sorce's revised Hot Wheels inquiry lesson on F=ma.

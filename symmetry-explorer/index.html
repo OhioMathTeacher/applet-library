@@ -1,0 +1,886 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>
+/* Page basics */
+:root{padding-top:env(safe-area-inset-top, 0px); padding-bottom:env(safe-area-inset-bottom, 0px)}
+body{margin:0; font-size:14px}
+img{max-width:100%}
+[hidden]{display:none !important}
+</style>
+<title>Symmetry Explorer</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Zilla+Slab:wght@500;700&display=swap">
+<style>
+/* Layout: a workbench. The paper cutout sits on the left, the gallery of ways it fits on the right; they stack on phones. */
+:root{
+  --bg:#EEF0EA; --surface:#F8F9F5; --ink:#1F2629; --muted:#5B666B; --line:#C8CEC4;
+  --accent:#2D5E8A; --accent-soft:#DCE6EF; --accent-ink:#FFFFFF;
+  --front:#E3A23C; --front-edge:#9C6517; --back:#5A98A6; --back-edge:#2B5A65; --hole:#DDE1D7; --sheet:#E2E5DB; --hole-deep:#7C857B; --num:#1A1F22;
+  --good:#2F7A4C; --bad:#B0442C;
+  --display:"Zilla Slab", Georgia, serif; --body:"Atkinson Hyperlegible", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#161A1D; --surface:#1E2428; --ink:#E5E8E2; --muted:#9BA5AA; --line:#3A444A;
+  --accent:#8DB7DD; --accent-soft:#25384A; --accent-ink:#10202E;
+  --front:#D9973A; --front-edge:#F0C27A; --back:#5FA3B1; --back-edge:#A7D3DC; --hole:#262D32; --sheet:#2C3439; --hole-deep:#08090A; --num:#141819;
+  --good:#7CC795; --bad:#EE8C74;
+  color-scheme:dark;
+}}
+:root[data-theme="dark"]{
+  --bg:#161A1D; --surface:#1E2428; --ink:#E5E8E2; --muted:#9BA5AA; --line:#3A444A;
+  --accent:#8DB7DD; --accent-soft:#25384A; --accent-ink:#10202E;
+  --front:#D9973A; --front-edge:#F0C27A; --back:#5FA3B1; --back-edge:#A7D3DC; --hole:#262D32; --sheet:#2C3439; --hole-deep:#08090A; --num:#141819;
+  --good:#7CC795; --bad:#EE8C74;
+  color-scheme:dark;
+}
+body{background:var(--bg); color:var(--ink); font:16px/1.5 var(--body)}
+.wrap{max-width:1400px; margin:0 auto; padding-inline:16px; padding-block:10px 14px; display:flex; flex-direction:column; gap:10px; box-sizing:border-box}
+header{display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:4px 20px}
+h1{font:700 1.5rem/1.1 var(--display); margin:0; text-wrap:balance}
+h2{font:700 1.15rem/1.2 var(--display); margin:0; text-wrap:balance}
+.lede{margin:0; color:var(--muted)}
+header > div:first-child{flex:1 1 100%}
+.view{display:flex; flex-direction:column; gap:10px; flex:1; min-height:0}
+.view[hidden], .stepview[hidden]{display:none}
+.stepview{display:flex; flex-direction:column; gap:12px}
+.steps{display:flex; flex-wrap:wrap; align-items:center; gap:6px}
+.step{font:inherit; font-size:.98rem; color:var(--muted); background:transparent; border:0; border-radius:999px; padding:.3rem .6rem .3rem .3rem; display:inline-flex; align-items:center; gap:8px; cursor:pointer}
+.step:hover{color:var(--ink)}
+.step:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+.step-n{width:1.7em; height:1.7em; border-radius:50%; border:1.5px solid var(--line); display:inline-flex; align-items:center; justify-content:center; font-weight:700; font-variant-numeric:tabular-nums}
+.step[aria-current="step"]{color:var(--ink); font-weight:700; background:var(--accent-soft)}
+.step[aria-current="step"] .step-n{background:var(--accent); border-color:var(--accent); color:var(--accent-ink)}
+.step-link{width:28px; height:2px; background:var(--line)}
+.titlebar{display:flex; flex-wrap:wrap; align-items:center; gap:8px 16px}
+.titlebar{flex:1 1 100%}
+.titlebar .parts{margin-right:auto}
+header > .steps{flex:1 1 100%; flex-wrap:nowrap; justify-content:flex-start; gap:10px}
+.step{white-space:nowrap}
+#next{margin-left:6px}
+@media (max-width:860px){ header > .steps{flex-wrap:wrap} }
+.parts{display:inline-flex; border:1px solid var(--line); border-radius:999px; padding:3px; gap:2px; background:var(--surface)}
+.part{font:inherit; font-size:.9rem; color:var(--muted); background:transparent; border:0; border-radius:999px; padding:.3rem .8rem; cursor:pointer}
+.part[aria-pressed="true"]{background:var(--accent); color:var(--accent-ink); font-weight:700}
+.part:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+.step:disabled{opacity:.5; cursor:default}
+.badge{position:absolute; top:4px; right:6px; background:var(--accent); color:var(--accent-ink); font-weight:700; font-size:.8rem; border-radius:999px; padding:.1rem .5rem}
+.card-pos.picked{border:2px solid var(--accent)}
+.card-pos.right{border:2px solid var(--good)}
+.gallery{flex-basis:0}
+.equation{display:flex; align-items:center; justify-content:center; gap:14px; flex-wrap:wrap; padding:8px; border-radius:10px; background:var(--bg); border:1px solid var(--line)}
+.equation figure{margin:0; display:flex; flex-direction:column; align-items:center; gap:2px; font-size:.85rem; color:var(--muted); font-weight:700}
+.equation .slot{width:96px; height:96px; border-radius:8px; border:1px solid var(--line); background:var(--surface); display:flex; align-items:center; justify-content:center; font:700 2rem var(--display); color:var(--muted)}
+.equation .slot svg{width:100%; height:100%}
+.equation .op{font:700 1.1rem var(--display); color:var(--ink)}
+.equation .slot.result{border:2px solid var(--good)}
+.combo-log{list-style:none; margin:0; padding:0; display:flex; flex-wrap:wrap; gap:6px; max-height:5.5em; overflow:auto}
+.combo-log li{background:var(--accent-soft); border-radius:999px; padding:.15rem .6rem; font-weight:700; font-size:.9rem; font-variant-numeric:tabular-nums}
+.shapes{align-items:center; gap:10px}
+.shapes label{font-weight:700}
+#shape-select{font:inherit; font-size:1.05rem; font-weight:700; color:var(--ink); background:var(--bg); border:1px solid var(--line); border-radius:8px; padding:.4rem 2rem .4rem .7rem; cursor:pointer}
+#shape-select:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+.predict input{width:4em}
+.verdict{flex:1 1 220px}
+.rule-card{width:100%; max-width:860px; margin-inline:auto; box-sizing:border-box; overflow:auto; flex:1; min-height:0}
+.rule-banner{margin:0; padding:.55rem .75rem; border-left:4px solid var(--accent); background:var(--accent-soft); border-radius:6px; font-weight:700}
+@media (min-width:861px){ .stepview{flex:1; min-height:0} }
+.rule-scroll{flex:none; overflow-x:auto}
+.rule-table{border-collapse:collapse; width:100%; font-variant-numeric:tabular-nums}
+.rule-table th, .rule-table td{text-align:left; padding:.3rem .6rem; border-bottom:1px solid var(--line)}
+.rule-table thead th{font-size:.8rem; letter-spacing:.05em; text-transform:uppercase; color:var(--muted)}
+.rule-table tbody th{font-weight:700}
+.rule-table input{width:4.5em; font:inherit; color:var(--ink); background:var(--bg); border:1px solid var(--line); border-radius:6px; padding:.25rem .4rem}
+.rule-table .muted{color:var(--muted); font-style:italic}
+.rule-label{font-weight:700}
+#rule-text{font:inherit; color:var(--ink); background:var(--bg); border:1px solid var(--line); border-radius:8px; padding:.6rem .7rem; resize:none; flex:1 1 auto; min-height:3.5em}
+#rule-text:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+.sheet{fill:var(--sheet); stroke:var(--line); stroke-width:1}
+.hole-deep{fill:var(--hole-deep)}
+#stage.empty .piece, #stage.empty .handle, #stage.empty .axis, #stage.empty .axis-hit, #stage.empty .axis-over{display:none}
+#stage.empty{cursor:pointer}
+.shapes{display:flex; flex-wrap:wrap; gap:6px}
+.grid{display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:16px; align-items:start}
+@media (max-width:860px){ .grid{grid-template-columns:minmax(0,1fr)} }
+.card{background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:14px 16px; display:flex; flex-direction:column; gap:10px; min-width:0}
+.between{justify-content:space-between}
+/* On a laptop or desktop screen, everything fits in one window: the stage and the gallery shrink to fit */
+@media (min-width:861px){
+  html, body{height:100%}
+  .wrap{height:100%}
+  .grid{flex:1; min-height:0; align-items:stretch}
+  .card{min-height:0}
+  #stage{flex:1 1 0; min-height:0; max-width:none !important}
+  .gallery{flex:1; min-height:0; overflow-y:auto; align-content:start; padding:4px}
+}
+.hint{margin:0; color:var(--muted); font-size:.95rem}
+.legend{display:flex; gap:16px; justify-content:center; color:var(--muted); font-size:.9rem}
+.legend span{display:inline-flex; align-items:center; gap:6px}
+.sw{width:14px; height:14px; border-radius:3px; display:inline-block}
+.sw.front{background:var(--front)} .sw.back{background:var(--back)}
+.row{display:flex; flex-wrap:wrap; gap:8px; align-items:center}
+.btn{font:inherit; font-size:.95rem; color:var(--ink); background:var(--bg); border:1px solid var(--line); border-radius:8px; padding:.5rem .75rem; cursor:pointer}
+.btn:hover:not(:disabled){border-color:var(--accent)}
+.btn:focus-visible, input:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+.btn:disabled{opacity:.45; cursor:default}
+.btn[aria-pressed="true"]{background:var(--accent); color:var(--accent-ink); border-color:var(--accent)}
+.btn.primary{background:var(--accent); color:var(--accent-ink); border-color:var(--accent)}
+.btn.quiet{background:transparent}
+.tip{margin:0; font-size:1rem; min-height:1.5em}
+.tip.bad{color:var(--bad); font-weight:700}
+.tip.good{color:var(--good); font-weight:700}
+.tip.step{font:700 1.15rem/1.3 var(--display); color:var(--accent)}
+.predict{display:flex; flex-wrap:wrap; align-items:center; gap:8px}
+.predict input{width:4.5em; font:inherit; color:var(--ink); background:var(--bg); border:1px solid var(--line); border-radius:6px; padding:.3rem .4rem}
+.gallery{display:grid; grid-template-columns:repeat(auto-fill, minmax(124px, 1fr)); gap:10px}
+.card-pos{position:relative; aspect-ratio:1; width:100%; font:inherit; color:var(--muted); background:var(--bg); border:1px solid var(--line); border-radius:10px; padding:4px; display:flex; align-items:center; justify-content:center; font-size:.8rem; font-variant-numeric:tabular-nums; cursor:pointer; container-type:inline-size}
+.card-pos .cap{position:absolute; top:4px; left:8px}
+.card-pos:hover{border-color:var(--accent)}
+.card-pos:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+.card-pos[aria-pressed="true"]{background:var(--accent-soft)}
+.face{width:100%; height:100%; display:flex; align-items:center; justify-content:center}
+.gallery svg{width:100%; height:100%}
+.map{list-style:none; margin:0; padding:0; font:700 clamp(.65rem, 10cqi, 1.4rem)/1.35 var(--body); color:var(--ink); font-variant-numeric:tabular-nums}
+.map li{white-space:nowrap}
+.axis-knob{fill:var(--surface); stroke:var(--muted); stroke-width:3; cursor:pointer}
+.axis-knob.sel{fill:var(--accent); stroke:var(--accent)}
+.spot-bg{fill:var(--surface); stroke:var(--line); stroke-width:1.5; pointer-events:none}
+.spot{fill:var(--ink); font:700 14px var(--body); text-anchor:middle; dominant-baseline:central; pointer-events:none}
+.gallery .spot{font-size:19px}
+.gallery .spot-bg{r:14px}
+.gallery .new{animation:pop 1s ease-out}
+.gallery .again{animation:flash 1.2s ease-out}
+@keyframes pop{0%{transform:scale(1.18); border-color:var(--accent)} 100%{transform:scale(1)}}
+@keyframes flash{0%,60%{border-color:var(--accent); box-shadow:0 0 0 3px var(--accent)} 100%{box-shadow:0 0 0 0 transparent}}
+@media (prefers-reduced-motion: reduce){ .gallery .new, .gallery .again{animation:none; border-color:var(--accent)} }
+.empty{margin:0; color:var(--muted); font-size:.95rem; grid-column:1/-1}
+.count{margin:0; font:700 1.1rem var(--display); font-variant-numeric:tabular-nums}
+.verdict{margin:0; min-height:1.5em}
+.verdict.good{color:var(--good); font-weight:700}
+#stage{width:100%; max-width:360px; align-self:center; display:block; touch-action:none; user-select:none; -webkit-user-select:none}
+.hole{fill:var(--hole); stroke:var(--muted); stroke-width:1.5; stroke-dasharray:5 4}
+.axis{stroke:var(--muted); stroke-width:3.5; stroke-dasharray:4 7; stroke-linecap:round; pointer-events:none}
+.axis.sel{stroke:var(--accent); stroke-width:5; stroke-dasharray:none}
+.axis-hit{stroke:transparent; stroke-width:20; cursor:pointer}
+.axis-label{fill:var(--muted); font:700 15px var(--body); text-anchor:middle; dominant-baseline:central; cursor:pointer}
+.axis-label.sel{fill:var(--accent); font-size:19px}
+.cut{stroke-width:2.5; stroke-linejoin:round; cursor:grab}
+.cut.front{fill:var(--front); stroke:var(--front-edge)}
+.cut.back{fill:var(--back); stroke:var(--back-edge)}
+#stage.misfit .cut{stroke:var(--bad); stroke-width:3.5; stroke-dasharray:7 5}
+.num{fill:var(--num); font:700 24px var(--body); text-anchor:middle; dominant-baseline:central; pointer-events:none}
+.gallery .num{font-size:30px}
+.handle{fill:transparent; stroke:var(--muted); stroke-width:1.5; cursor:grab; pointer-events:all}
+.axis-over{display:none; stroke:var(--accent); stroke-width:4; pointer-events:none}
+.axis-over.sel{display:inline}
+#stage.dragging .cut, #stage.dragging .handle{cursor:grabbing}
+#stage.armed .cut, #stage.armed .handle{cursor:pointer}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="titlebar">
+      <h1>Symmetry Explorer</h1>
+      <div class="parts" role="group" aria-label="Session">
+        <button class="part" id="part-1" data-part="1">Part 1: Find the moves</button>
+        <button class="part" id="part-2" data-part="2">Part 2: Combine moves</button>
+      </div>
+      <button class="btn quiet" id="fullscreen">Full screen</button>
+    </div>
+    <nav class="steps" aria-label="Steps">
+      <button class="btn" id="prev">&larr; Back</button>
+      <button class="step" data-step="1"></button>
+      <span class="step-link" aria-hidden="true"></span>
+      <button class="step" data-step="2"></button>
+      <span class="step-link" aria-hidden="true"></span>
+      <button class="step" data-step="3"></button>
+      <button class="btn primary" id="next">Next &rarr;</button>
+    </nav>
+    <p class="lede" id="lede"></p>
+  </header>
+
+  <div class="stepview" id="play-view">
+  <main class="grid">
+    <section class="card">
+      <div class="shapes" id="shapes"></div>
+      <svg id="stage" viewBox="-150 -150 300 300" role="img" aria-label="The paper cutout and the hole it came from"></svg>
+      <p class="tip" id="tip"></p>
+      <div class="row between" id="stage-controls">
+        <div class="row">
+          <button class="btn primary" id="drop">Drop the cutout in</button>
+          <button class="btn quiet" id="reset">Put it back the way it started</button>
+        </div>
+        <div class="legend"><span><i class="sw front"></i>Front</span><span><i class="sw back"></i>Back</span></div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="view" id="fits-view">
+        <div class="row between">
+          <h2>Ways it fits</h2>
+          <label class="predict" for="predict"><span id="predict-text">Your prediction:</span>
+            <input type="number" id="predict" min="1" max="99" inputmode="numeric" placeholder="?">
+          </label>
+          <p class="count" id="count"></p>
+        </div>
+        <p class="rule-banner" id="rule-banner" hidden></p>
+        <div class="gallery" id="gallery"></div>
+        <div class="row">
+          <button class="btn quiet" id="startover">Start this shape over</button>
+          <p class="verdict" id="verdict" aria-live="polite"></p>
+        </div>
+      </div>
+
+      <div class="view" id="combine-view" hidden>
+        <div class="row between">
+          <h2>Do two moves</h2>
+          <p class="count" id="combo-count"></p>
+        </div>
+        <p class="hint" id="combo-hint"></p>
+        <div class="gallery" id="combo-cards"></div>
+        <div class="equation" id="combo-eq" aria-live="polite"></div>
+        <div class="row">
+          <button class="btn" id="combo-clear">Back to start for a new pair</button>
+        </div>
+      </div>
+    </section>
+  </main>
+  </div>
+
+  <div class="stepview" id="rule-view" hidden>
+    <section class="card rule-card">
+      <h2>What you counted</h2>
+      <p class="hint">A fold line worked if the shape, flipped over it, fit the hole. Shapes you have not finished in step 1 say “not counted yet.”</p>
+      <div class="rule-scroll">
+        <table class="rule-table">
+          <thead><tr><th scope="col">Shape</th><th scope="col">Fold lines that worked</th><th scope="col">Ways it fits</th></tr></thead>
+          <tbody id="rule-rows"></tbody>
+        </table>
+      </div>
+      <label class="rule-label" for="rule-text">Write a rule that predicts how many ways a shape fits its hole.</label>
+      <textarea id="rule-text" rows="4" placeholder="My rule:"></textarea>
+    </section>
+  </div>
+</div>
+
+<script>
+const TAU = Math.PI * 2;
+const NS = "http://www.w3.org/2000/svg";
+// 2x2 matrices stored as [a, b, c, d] = [[a, b], [c, d]]
+const mul = (A, B) => [A[0]*B[0]+A[1]*B[2], A[0]*B[1]+A[1]*B[3], A[2]*B[0]+A[3]*B[2], A[2]*B[1]+A[3]*B[3]];
+const rot = a => [Math.cos(a), -Math.sin(a), Math.sin(a), Math.cos(a)];
+const refl = t => [Math.cos(2*t), Math.sin(2*t), Math.sin(2*t), -Math.cos(2*t)];
+const squash = s => [1, 0, 0, s];
+const I = [1, 0, 0, 1];
+const apply = (M, [x, y]) => [M[0]*x + M[1]*y, M[2]*x + M[3]*y];
+const det = M => M[0]*M[3] - M[1]*M[2];
+const same = (A, B) => A.every((v, i) => Math.abs(v - B[i]) < 1e-4);
+const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const wait = ms => new Promise(res => setTimeout(res, ms));
+
+// ---- Shapes. Every shape is centred on its balance point, so turns happen about the origin.
+const R = 100;
+function regular(n, start) {
+  return Array.from({ length: n }, (_, i) => { const a = start - i * TAU / n; return [R * Math.cos(a), R * Math.sin(a)]; });
+}
+function centred(V) {
+  const cx = V.reduce((s, v) => s + v[0], 0) / V.length, cy = V.reduce((s, v) => s + v[1], 0) / V.length;
+  return V.map(([x, y]) => [x - cx, y - cy]);
+}
+// Fold lines through each corner and the centre (for triangles these are the medians)
+const throughCorners = V => V.map(([x, y]) => Math.atan2(y, x));
+const regularLines = (n, start) => Array.from({ length: n }, (_, j) => start + j * Math.PI / n);
+
+const SHAPES = [
+  { id: "equilateral", name: "Equilateral triangle", short: "the equilateral triangle", V: regular(3, Math.PI/2), lines: regularLines(3, Math.PI/2) },
+  { id: "square", name: "Square", short: "the square", V: regular(4, Math.PI/4), lines: regularLines(4, Math.PI/4) },
+  { id: "pentagon", name: "Regular pentagon", short: "the regular pentagon", V: regular(5, Math.PI/2), lines: regularLines(5, Math.PI/2) },
+  { id: "rectangle", name: "Rectangle", short: "the rectangle", V: [[-88, 50], [88, 50], [88, -50], [-88, -50]],
+    lines: [0, Math.PI/2, Math.atan2(50, 88), Math.atan2(-50, 88)] },
+  { id: "isosceles", name: "Isosceles triangle", short: "the isosceles triangle", V: centred([[0, 96], [46, -54], [-46, -54]]) },
+  { id: "scalene", name: "Scalene triangle", short: "the scalene triangle", V: centred([[-25, 100], [90, -40], [-80, -55]]) },
+];
+// Three blades that all lean the same way: it turns into itself, but no flip fits
+function pinwheel() {
+  const pts = [];
+  for (let k = 0; k < 3; k++) {
+    const a = Math.PI/2 - k * TAU/3, b = a - 85 * Math.PI/180;
+    pts.push([100 * Math.cos(a), 100 * Math.sin(a)], [48 * Math.cos(b), 48 * Math.sin(b)]);
+  }
+  return pts;
+}
+const KITE = centred([[0, 100], [55, 30], [0, -85], [-55, 30]]);
+// Step 3: shapes for testing a rule
+const TEST_SHAPES = [
+  { id: "parallelogram", name: "Parallelogram", short: "the parallelogram", V: [[-55, 45], [95, 45], [55, -45], [-95, -45]],
+    lines: [0, Math.PI/2, Math.atan2(45, 95), Math.atan2(45, -55)] },
+  { id: "kite", name: "Kite", short: "the kite", V: KITE,
+    lines: [Math.PI/2, 0, Math.atan2(KITE[1][1], KITE[1][0]), Math.atan2(KITE[3][1], KITE[3][0])] },
+  { id: "rhombus", name: "Rhombus", short: "the rhombus", V: [[0, 100], [62, 0], [0, -100], [-62, 0]],
+    lines: [Math.PI/2, 0, Math.atan2(50, 31), Math.atan2(50, -31)] },
+  { id: "pinwheel", name: "Pinwheel", short: "the pinwheel", V: pinwheel(), lines: regularLines(3, Math.PI/2) },
+];
+SHAPES.forEach(s => { if (!s.lines) s.lines = throughCorners(s.V).map(a => ((a % Math.PI) + Math.PI) % Math.PI); });
+TEST_SHAPES.forEach(analyse);
+
+// Does the shape, moved by G, cover its hole exactly?
+function fits(G, V) {
+  return V.every(v => { const [x, y] = apply(G, v); return V.some(([a, b]) => Math.hypot(x - a, y - b) < .5); });
+}
+function analyse(shape) {
+  const V = shape.V;
+  let turns = 1;
+  for (let k = 2; k <= 12; k++) if (fits(rot(TAU / k), V)) turns = k;
+  shape.turns = turns;
+  shape.total = turns + shape.lines.filter(t => fits(refl(t), V)).length;
+  shape.rmax = Math.max(...V.map(([x, y]) => Math.hypot(x, y)));
+}
+SHAPES.forEach(analyse);
+
+// ---- State
+const state = { shape: SHAPES[0], G: I, busy: false, axis: null, saved: {}, open: new Set(), step: 1, last: {}, part: 1, locked: false,
+  combo: { first: null, second: null, phase: "pick" }, pairs: 0 };
+const svg = document.getElementById("stage");
+const TIP = "Drag a corner to turn the shape. Click a fold line to flip the shape over it.";
+let V, S, drag = null;
+
+function load() {
+  try {
+    const s = JSON.parse(localStorage.getItem("symmetry-found") || "null");
+    if (s && typeof s === "object") state.saved = s;
+  } catch (e) { /* storage unavailable: start fresh */ }
+}
+function save() {
+  try { localStorage.setItem("symmetry-found", JSON.stringify(state.saved)); } catch (e) { /* storage unavailable */ }
+}
+function record() {
+  const id = state.shape.id;
+  if (!state.saved[id] || !Array.isArray(state.saved[id].found)) state.saved[id] = { found: [], predict: "" };
+  return state.saved[id];
+}
+
+// ---- Drawing
+function el(tag, attrs, parent) {
+  const e = document.createElementNS(NS, tag);
+  for (const k in attrs) e.setAttribute(k, attrs[k]);
+  if (parent) parent.appendChild(e);
+  return e;
+}
+const pts = arr => arr.map(([x, y]) => `${x.toFixed(2)},${(-y).toFixed(2)}`).join(" ");
+
+function drawShape(box, G, interactive) {
+  box.innerHTML = "";
+  if (interactive) {
+    // A sheet of card with the hole cut out of it. Its shadow falls into the hole so the hole reads as a hole.
+    const defs = el("defs", {}, box);
+    const f = el("filter", { id: "lift", x: "-20%", y: "-20%", width: "140%", height: "140%" }, defs);
+    el("feDropShadow", { dx: 0, dy: 2.5, stdDeviation: 3.5, "flood-opacity": .5 }, f);
+    el("polygon", { class: "hole-deep", points: pts(V) }, box);
+    const E = 140;
+    el("path", { class: "sheet", "fill-rule": "evenodd", filter: "url(#lift)",
+      d: `M${-E},${-E}H${E}V${E}H${-E}Z M${pts(V).split(" ").join(" L")}Z` }, box);
+  } else {
+    el("polygon", { class: "hole", points: pts(V) }, box);
+  }
+  const piece = el("g", { class: "piece" }, box);
+  const p = el("polygon", { class: "cut" }, piece);
+  const labels = V.map((_, i) => { const t = el("text", { class: "num" }, piece); t.textContent = i + 1; return t; });
+  const axes = [];
+  if (interactive) {
+    const rm = state.shape.rmax, end = Math.min(rm + 44, 148);
+    state.shape.lines.forEach((th, j) => {
+      const c = Math.cos(th), s = Math.sin(th), L = "ABCDEFGH"[j];
+      const xy = r => ({ x1: -r*c, y1: r*s, x2: r*c, y2: -r*s });
+      // The dashed line sits under the paper, so the paper stays clean. A chosen line shows across the paper.
+      const line = el("line", { class: "axis", ...xy(end) });
+      box.insertBefore(line, piece);
+      const over = el("line", { class: "axis-over", ...xy(end) }, box);
+      // The whole length of the line is clickable, across the paper too
+      const hit = el("line", { class: "axis-hit", ...xy(end + 6) }, box);
+      const a = { theta: th, letter: L, line, label: over };
+      axes.push(a);
+      [hit].forEach(h => {
+        // One click on a fold line flips the shape over it
+        h.addEventListener("click", () => { if (!state.busy && !state.locked) flip(a); });
+      });
+    });
+  }
+  // The corners of the hole are lettered, right on the corner. They stay put while the paper moves.
+  V.forEach(([x, y], j) => {
+    el("circle", { class: "spot-bg", r: 11, cx: x, cy: -y }, box);
+    const t = el("text", { class: "spot", x, y: -y }, box);
+    t.textContent = SPOTS[j];
+  });
+  // Each corner handle is a ring that rides with the paper. When the paper sits in the hole,
+  // the ring circles the corner's letter. Handles go on top so a corner on a fold line can still be dragged.
+  const handles = interactive ? V.map(() => el("circle", { class: "handle", r: 16 }, box)) : [];
+  const parts = { p, labels, handles, axes, piece };
+  paint(parts, G);
+  return parts;
+}
+const SPOTS = "ABCDEF";
+
+// At first only the hole shows. The cutout is dropped in on request.
+function setEmpty(empty) {
+  svg.classList.toggle("empty", empty);
+  document.getElementById("drop").hidden = !empty;
+  document.getElementById("reset").hidden = empty;
+  if (empty) tip("This is the hole the cutout left in the sheet. Drop the cutout in to start.");
+}
+function drop() {
+  if (state.busy || !svg.classList.contains("empty")) return;
+  setEmpty(false);
+  const dur = reduced ? 0 : 900;
+  S.piece.animate([{ transform: "translate(0px, -60px) scale(1.18)", opacity: 0 }, { transform: "none", opacity: 1 }],
+    { duration: dur, easing: "cubic-bezier(.3,.7,.4,1)" });
+  S.handles.forEach(h => h.animate([{ opacity: 0 }, { opacity: 0, offset: .7 }, { opacity: 1 }], { duration: dur }));
+  // Dropping it in is the first way it fits, so it goes in the gallery
+  setBusy(true);
+  setTimeout(() => {
+    setBusy(false);
+    found(I);
+    tip("It fits. That is one way. " + TIP);
+  }, dur);
+}
+// For each lettered corner of the hole, which numbered corner of the paper sits there now
+function mapping(G) {
+  return V.map(spot => V.findIndex(v => { const [x, y] = apply(G, v); return Math.hypot(x - spot[0], y - spot[1]) < .5; }) + 1);
+}
+function paint(parts, G) {
+  const corners = V.map(v => apply(G, v)), d = det(G);
+  parts.p.setAttribute("points", pts(corners));
+  parts.p.setAttribute("class", d >= 0 ? "cut front" : "cut back");
+  parts.labels.forEach((t, i) => {
+    const [x, y] = apply(G, [V[i][0] * .6, V[i][1] * .6]);
+    t.setAttribute("x", x.toFixed(2)); t.setAttribute("y", (-y).toFixed(2));
+    t.setAttribute("opacity", Math.min(1, Math.abs(d) * 1.6).toFixed(2));
+  });
+  parts.handles.forEach((h, i) => { h.setAttribute("cx", corners[i][0].toFixed(2)); h.setAttribute("cy", (-corners[i][1]).toFixed(2)); });
+}
+function thumb(G) {
+  const box = el("svg", { viewBox: "-121 -121 242 242", "aria-hidden": "true" });
+  drawShape(box, G, false);
+  return box;
+}
+
+// ---- Motion
+function run(anim, M, dur) {
+  return new Promise(res => {
+    const G0 = state.G, t0 = performance.now();
+    function frame(now) {
+      const t = dur ? Math.min(1, (now - t0) / dur) : 1;
+      const e = t < .5 ? 2*t*t : 1 - Math.pow(-2*t + 2, 2) / 2;
+      if (t < 1) { paint(S, mul(anim(e), G0)); requestAnimationFrame(frame); }
+      else { state.G = mul(M, G0); paint(S, state.G); res(); }
+    }
+    requestAnimationFrame(frame);
+  });
+}
+const flipAnim = th => t => mul(mul(rot(th), squash(1 - 2*t)), rot(-th));
+function setBusy(b) {
+  state.busy = b;
+  document.querySelectorAll("#reset, #shape-select, #startover").forEach(x => x.disabled = b);
+}
+function tip(text, kind) {
+  const t = document.getElementById("tip");
+  t.textContent = text;
+  t.className = "tip" + (kind ? " " + kind : "");
+}
+function selectAxis(a) {
+  state.axis = a;
+  S.axes.forEach(x => { x.line.classList.toggle("sel", x === a); x.label.classList.toggle("sel", x === a); });
+  svg.classList.toggle("armed", !!a);
+  tip(a ? "This fold line is chosen. Click the shape to flip it over the line." : TIP);
+}
+
+async function flip(a) {
+  setBusy(true);
+  selectAxis(null);
+  const before = state.G;
+  // The chosen line shows across the paper while the shape flips over it
+  a.line.classList.add("sel"); a.label.classList.add("sel");
+  await run(flipAnim(a.theta), refl(a.theta), reduced ? 0 : 800);
+  if (fits(state.G, V)) {
+    if (state.part === 2) comboMove(before); else found(before);
+  } else {
+    // Paper that does not fit gets flipped back, the way it would on a desk
+    svg.classList.add("misfit");
+    tip("Flipped over that line, it doesn't fit the hole. Flipping it back.", "bad");
+    await wait(1400);
+    await run(flipAnim(a.theta), refl(a.theta), reduced ? 0 : 600);
+    svg.classList.remove("misfit");
+  }
+  a.line.classList.remove("sel"); a.label.classList.remove("sel");
+  setBusy(false);
+}
+
+// ---- Turning by dragging
+function svgPoint(e) {
+  const q = new DOMPoint(e.clientX, e.clientY).matrixTransform(svg.getScreenCTM().inverse());
+  return [q.x, -q.y];
+}
+svg.addEventListener("pointerdown", e => {
+  if (state.busy || state.locked) return;
+  if (svg.classList.contains("empty")) { drop(); return; }
+  const c = e.target.classList;
+  const onShape = c.contains("cut") || c.contains("handle");
+  if (!onShape) {
+    if (!c.contains("axis-hit") && !c.contains("axis-knob") && state.axis) selectAxis(null);
+    return;
+  }
+  e.preventDefault();
+  if (state.axis) { flip(state.axis); return; }
+  const [x, y] = svgPoint(e);
+  if (Math.hypot(x, y) < 12) return;
+  drag = { a0: Math.atan2(y, x), d: 0, id: e.pointerId, moved: false };
+  svg.setPointerCapture(e.pointerId);
+  svg.classList.add("dragging");
+});
+svg.addEventListener("pointermove", e => {
+  if (!drag || e.pointerId !== drag.id) return;
+  const [x, y] = svgPoint(e);
+  let d = Math.atan2(y, x) - drag.a0;
+  while (d - drag.d > Math.PI) d -= TAU;
+  while (d - drag.d < -Math.PI) d += TAU;
+  drag.d = d;
+  if (Math.abs(d) > .03) drag.moved = true;
+  paint(S, mul(rot(d), state.G));
+});
+async function endDrag(e) {
+  if (!drag || e.pointerId !== drag.id) return;
+  const { d, moved } = drag, step = TAU / state.shape.turns, k = Math.round(d / step), target = k * step;
+  drag = null;
+  svg.classList.remove("dragging");
+  if (!moved) { paint(S, state.G); tip("To flip the shape, click a fold line. To turn it, drag a corner."); return; }
+  setBusy(true);
+  const before = state.G;
+  // Let go and the paper settles into the nearest position that fits the hole
+  await run(t => rot(d + (target - d) * t), rot(target), reduced ? 0 : 260);
+  setBusy(false);
+  const missed = Math.abs(d - target) > .45;
+  if (same(state.G, before) && missed) {
+    tip("It doesn't fit there, so it slid back to where it was.", "bad");
+  } else {
+    if (state.part === 2) { if (same(state.G, before)) tip("That put it right back where it was."); else comboMove(before); }
+    else found(before, missed);
+  }
+}
+svg.addEventListener("pointerup", endDrag);
+svg.addEventListener("pointercancel", endDrag);
+
+// ---- The gallery of positions found
+function found(before, slid) {
+  const rec = record(), G = state.G;
+  const i = rec.found.findIndex(f => same(f, G));
+  const lead = slid ? "It slid to the nearest spot where it fits. " : "";
+  if (i >= 0) {
+    renderGallery(null, i);
+    tip(lead + "You already found this one.", "");
+  } else {
+    rec.found.push(G.map(v => Math.round(v * 1e6) / 1e6));
+    save();
+    renderGallery(rec.found.length - 1, null);
+    tip(lead + "That's a new one.", "good");
+  }
+  const v = document.getElementById("verdict");
+  v.textContent = ""; v.className = "verdict";
+  // Finding the last one is announced right away, so nobody has to remember to check
+  if (i < 0 && rec.found.length === state.shape.total) {
+    rec.done = true; save();
+    v.className = "verdict good";
+    v.textContent = "You found them all! Nice work!";
+  }
+}
+// Size the cards so every one found shows in full, with no scrolling
+function fitCards(g) {
+  const n = g.querySelectorAll(".card-pos").length;
+  if (!n || innerWidth <= 860) { g.style.gridTemplateColumns = ""; return; }
+  const W = g.clientWidth - 8, H = g.clientHeight - 8, gap = 10;
+  let best = 0, cols = 1;
+  for (let c = 1; c <= n; c++) {
+    const r = Math.ceil(n / c), s = Math.min((W - gap * (c - 1)) / c, (H - gap * (r - 1)) / r);
+    if (s > best) { best = s; cols = c; }
+  }
+  best = Math.max(60, Math.min(best, 260));
+  g.style.gridTemplateColumns = `repeat(${cols}, ${Math.floor(best)}px)`;
+}
+function fitGallery() { fitCards(document.getElementById("gallery")); fitCards(document.getElementById("combo-cards")); }
+const fitObserver = new ResizeObserver(() => fitGallery());
+fitObserver.observe(document.getElementById("gallery"));
+fitObserver.observe(document.getElementById("combo-cards"));
+
+function renderGallery(fresh, again) {
+  const rec = record(), box = document.getElementById("gallery");
+  box.innerHTML = "";
+  if (!rec.found.length) {
+    const p = document.createElement("p"); p.className = "empty";
+    p.textContent = "Each new way the shape fits its hole will show up here.";
+    box.appendChild(p);
+  }
+  rec.found.forEach((G, i) => {
+    // Each card is a button: click to see where each corner went, click again for the picture
+    const f = document.createElement("button");
+    f.type = "button";
+    f.className = "card-pos" + (i === fresh ? " new" : "") + (i === again ? " again" : "");
+    const showMap = state.open.has(i);
+    f.setAttribute("aria-pressed", String(showMap));
+    const face = document.createElement("div"); face.className = "face";
+    const map = mapping(G);
+    if (showMap) {
+      const ul = document.createElement("ul"); ul.className = "map";
+      map.forEach((n, j) => { const li = document.createElement("li"); li.textContent = `${SPOTS[j]} → ${n}`; ul.appendChild(li); });
+      face.appendChild(ul);
+    } else {
+      face.appendChild(thumb(G));
+    }
+    f.appendChild(face);
+    f.setAttribute("aria-label", `Position ${i + 1}: ` + map.map((n, j) => `${SPOTS[j]} holds corner ${n}`).join(", "));
+    const cap = document.createElement("span"); cap.className = "cap"; cap.textContent = `#${i + 1}`; f.appendChild(cap);
+    f.onclick = () => { if (state.open.has(i)) state.open.delete(i); else state.open.add(i); renderGallery(null, null); };
+    box.appendChild(f);
+  });
+  document.getElementById("count").textContent = `Found: ${rec.found.length}`;
+  fitGallery();
+}
+
+// ---- Shape picker and controls
+function setup(shape) {
+  state.shape = shape; state.G = I; state.axis = null; state.open = new Set();
+  state.last[state.part + "-" + state.step] = shape;
+  V = shape.V;
+  S = drawShape(svg, I, true);
+  selectAxis(null);
+  setEmpty(true);
+  const sel = document.getElementById("shape-select");
+  if (sel) sel.value = shape.id;
+  svg.setAttribute("aria-label", `The ${shape.name.toLowerCase()} cutout and the hole it came from`);
+  document.getElementById("predict").value = record().predict || "";
+  document.getElementById("verdict").textContent = "";
+  document.getElementById("verdict").className = "verdict";
+  renderGallery(null, null);
+}
+
+const picker = document.getElementById("shapes");
+function buildPicker(list) {
+  picker.innerHTML = "";
+  const label = document.createElement("label");
+  label.htmlFor = "shape-select"; label.textContent = "Shape";
+  const sel = document.createElement("select");
+  sel.id = "shape-select";
+  list.forEach(s => { const o = document.createElement("option"); o.value = s.id; o.textContent = s.name; sel.appendChild(o); });
+  sel.onchange = () => { const s = list.find(x => x.id === sel.value); if (s && !state.busy) setup(s); };
+  picker.append(label, sel);
+}
+
+document.getElementById("drop").onclick = drop;
+document.getElementById("reset").onclick = () => {
+  if (state.busy) return;
+  selectAxis(null);
+  state.G = I; paint(S, I);
+  tip("Back where it started.");
+};
+document.getElementById("predict").oninput = e => { record().predict = e.target.value; save(); };
+document.getElementById("startover").onclick = () => {
+  if (state.busy) return;
+  state.saved[state.shape.id] = { found: [], predict: "" };
+  save(); setup(state.shape);
+};
+
+// ---- Make a rule
+function ruleData() {
+  if (!state.saved.rule || typeof state.saved.rule !== "object") state.saved.rule = { text: "", lines: {} };
+  return state.saved.rule;
+}
+function renderRule() {
+  const rule = ruleData(), body = document.getElementById("rule-rows");
+  body.innerHTML = "";
+  SHAPES.forEach(s => {
+    const rec = state.saved[s.id], tr = document.createElement("tr");
+    // Finding every position counts as done, whether or not the check button was pressed
+    const done = !!(rec && (rec.done || (Array.isArray(rec.found) && rec.found.length === s.total)));
+    const name = document.createElement("th"); name.scope = "row"; name.textContent = s.name;
+    // Both counts fill in once the shape is finished in step 1
+    const lines = document.createElement("td"), ways = document.createElement("td");
+    lines.textContent = done ? String(s.lines.filter(t => fits(refl(t), s.V)).length) : "not counted yet";
+    ways.textContent = done ? String(s.total) : "not counted yet";
+    if (!done) { lines.className = "muted"; ways.className = "muted"; }
+    tr.append(name, lines, ways);
+    body.appendChild(tr);
+  });
+  document.getElementById("rule-text").value = rule.text || "";
+}
+document.getElementById("rule-text").oninput = e => { ruleData().text = e.target.value; save(); };
+
+// ---- Steps. Part 1: count the ways, make a rule, test the rule. Part 2: combine moves.
+const STEPS = {
+  1: { label: "Count the ways", lede: "Cut a shape out of paper and it leaves a hole. How many different ways can the cutout drop back into its hole? Make a prediction first.",
+       prev: null, next: "Next: make a rule \u2192", shapes: SHAPES, predict: "Your prediction:" },
+  2: { label: "Make a rule", lede: "Look at what you counted. What pattern do you see? Write it as a rule.",
+       prev: "\u2190 Back: count the ways", next: "Next: test your rule \u2192" },
+  3: { label: "Test your rule", lede: "Here are new shapes. Before you count, use your rule to predict. Then count and see if your rule holds.",
+       prev: "\u2190 Back: make a rule", next: null, shapes: TEST_SHAPES, predict: "Your rule predicts:" },
+};
+const STEPS2 = {
+  1: { label: "Do two moves", lede: "Each card from Part 1 is a move: the move that takes the shape from the start to that picture. What happens when you do one move and then another?",
+       prev: null, next: null },
+  2: { label: "Fill the table", soon: true },
+  3: { label: "Same or different?", soon: true },
+};
+function renderStepper() {
+  const steps = state.part === 1 ? STEPS : STEPS2;
+  document.querySelectorAll(".steps .step").forEach(b => {
+    const n = +b.dataset.step, st = steps[n];
+    b.innerHTML = `<span class="step-n">${n}</span>${st.label}${st.soon ? " (soon)" : ""}`;
+    b.disabled = !!st.soon;
+    if (n === state.step) b.setAttribute("aria-current", "step"); else b.removeAttribute("aria-current");
+  });
+  document.querySelectorAll(".parts .part").forEach(b => b.setAttribute("aria-pressed", String(+b.dataset.part === state.part)));
+}
+function setStep(n) {
+  if (state.busy) return;
+  state.step = n;
+  const steps = state.part === 1 ? STEPS : STEPS2, st = steps[n];
+  if (!st || st.soon) return;
+  renderStepper();
+  document.getElementById("lede").textContent = st.lede;
+  const prev = document.getElementById("prev"), next = document.getElementById("next");
+  prev.title = st.prev || ""; prev.hidden = !st.prev;
+  next.title = st.next || ""; next.hidden = !st.next;
+  const part2 = state.part === 2;
+  state.locked = false;
+  document.getElementById("play-view").hidden = !part2 && n === 2;
+  document.getElementById("rule-view").hidden = part2 || n !== 2;
+  document.getElementById("fits-view").hidden = part2;
+  document.getElementById("combine-view").hidden = !part2;
+  document.getElementById("shapes").hidden = part2;
+  document.getElementById("stage-controls").hidden = part2;
+  if (part2) { startCombine(); return; }
+  if (n === 2) { renderRule(); return; }
+  document.getElementById("predict-text").textContent = st.predict;
+  const banner = document.getElementById("rule-banner"), text = (ruleData().text || "").trim();
+  banner.hidden = n !== 3;
+  banner.textContent = text ? `Your rule: ${text}` : "You have not written a rule yet. Go back to step 2 to write one.";
+  buildPicker(st.shapes);
+  setup(state.last[state.part + "-" + n] || st.shapes[0]);
+}
+function setPart(p) {
+  if (state.busy) return;
+  state.part = p;
+  setStep(1);
+}
+document.querySelectorAll(".steps .step").forEach(b => b.onclick = () => setStep(+b.dataset.step));
+document.querySelectorAll(".parts .part").forEach(b => b.onclick = () => setPart(+b.dataset.part));
+document.getElementById("prev").onclick = () => setStep(state.step - 1);
+document.getElementById("next").onclick = () => setStep(state.step + 1);
+
+// ---- Part 2, step 1: do two moves. The cards from Part 1 are the moves.
+// Students move the shape by hand. After each move the app names the card that move matches.
+const COMBO_SHAPE = SHAPES[0];
+const comboEl = id => document.getElementById(id);
+const transpose = M => [M[0], M[2], M[1], M[3]];   // undoes a turn or flip
+function comboCards() {
+  const rec = state.saved[COMBO_SHAPE.id];
+  return rec && Array.isArray(rec.found) ? rec.found : [];
+}
+const cardOf = M => comboCards().findIndex(G => same(G, M));
+function startCombine() {
+  buildPicker([COMBO_SHAPE]);
+  setup(COMBO_SHAPE);
+  setEmpty(false);
+  state.combo = { first: null, second: null, result: null };
+  const ready = comboCards().length === COMBO_SHAPE.total;
+  state.locked = !ready;
+  comboEl("combo-hint").textContent = ready
+    ? "Each card is a move: it takes the shape from the start to that picture. Make two moves on the shape, then look at the line under the cards."
+    : `First find all ${COMBO_SHAPE.total} ways for the ${COMBO_SHAPE.name.toLowerCase()} in Part 1. Its cards are the moves you will use here.`;
+  tip(ready ? "Make a first move: drag a corner to turn, or click a fold line to flip." : "");
+  renderCombo();
+}
+function renderCombo() {
+  const box = comboEl("combo-cards"), cards = comboCards(), c = state.combo;
+  box.innerHTML = "";
+  if (cards.length !== COMBO_SHAPE.total) {
+    const b = document.createElement("button");
+    b.className = "btn primary"; b.textContent = "Go to Part 1";
+    b.onclick = () => setPart(1);
+    box.appendChild(b);
+  } else {
+    cards.forEach((G, i) => {
+      const f = document.createElement("div");
+      f.className = "card-pos";
+      const face = document.createElement("div"); face.className = "face"; face.appendChild(thumb(G)); f.appendChild(face);
+      const cap = document.createElement("span"); cap.className = "cap"; cap.textContent = `#${i + 1}`; f.appendChild(cap);
+      box.appendChild(f);
+    });
+  }
+  renderEquation();
+  comboEl("combo-count").textContent = `Pairs done: ${state.pairs}`;
+  fitCards(box);
+  requestAnimationFrame(() => fitCards(box));   // measure again once the page has laid out
+}
+// One line that says what happened: first move, then second move, equals one card
+function renderEquation() {
+  const eq = comboEl("combo-eq"), c = state.combo, cards = comboCards();
+  eq.innerHTML = "";
+  eq.hidden = cards.length !== COMBO_SHAPE.total;
+  const slot = (i, label, cls) => {
+    const f = document.createElement("figure"), d = document.createElement("div");
+    d.className = "slot" + (cls ? " " + cls : "");
+    if (i === null || i === undefined) d.textContent = "?"; else d.appendChild(thumb(cards[i]));
+    const cap = document.createElement("figcaption");
+    cap.textContent = i === null || i === undefined ? label : `${label}: #${i + 1}`;
+    f.append(d, cap);
+    return f;
+  };
+  const op = t => { const s = document.createElement("span"); s.className = "op"; s.textContent = t; return s; };
+  eq.append(slot(c.first, "1st move"), op("then"), slot(c.second, "2nd move"), op("="), slot(c.result, "same as", c.result !== null && c.result !== undefined ? "result" : ""));
+}
+// Called after each hand move that fits. "before" is where the shape was before this move.
+function comboMove(before) {
+  const c = state.combo;
+  const move = cardOf(mul(state.G, transpose(before)));
+  if (move < 0) return;
+  if (c.first === null || c.second !== null) {
+    state.combo = { first: move, second: null, result: null, firstM: comboCards()[move] };
+    tip(`First move: the same as card #${move + 1}. Now make a second move.`);
+  } else {
+    c.second = move;
+    c.result = cardOf(mul(comboCards()[move], c.firstM));
+    state.pairs++;
+    tip(`Card #${c.first + 1}, then card #${move + 1}, does the same as card #${c.result + 1}.`, "good");
+  }
+  renderCombo();
+}
+comboEl("combo-clear").onclick = () => {
+  if (state.busy) return;
+  state.combo = { first: null, second: null, result: null };
+  state.G = I; paint(S, I);
+  tip("Back at the start. Make a first move.");
+  renderCombo();
+};
+
+// Full screen hides the browser's bars and the page around this one
+const fsBtn = document.getElementById("fullscreen");
+fsBtn.onclick = async () => {
+  try {
+    if (document.fullscreenElement) await document.exitFullscreen();
+    else await document.documentElement.requestFullscreen();
+  } catch (e) {
+    tip("This browser would not go full screen here. Try your browser's own full screen (F11, or Control-Command-F on a Mac).");
+  }
+};
+document.addEventListener("fullscreenchange", () => {
+  fsBtn.textContent = document.fullscreenElement ? "Exit full screen" : "Full screen";
+  fitGallery();
+});
+if (!document.fullscreenEnabled) fsBtn.hidden = true;
+
+load();
+if (location.hash === "#part2") state.part = 2;
+setStep(1);
+</script>
+
+</body>
+</html>

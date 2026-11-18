@@ -43,6 +43,9 @@ Enhanced unit circle with three new features: **Predict Signs Mode** (purple but
 ### 💰 [Mortgage Payment Visualizer](https://ohiomathteacher.github.io/applet-library/mortgage-visualizer/)
 Watch the principal-vs-interest split on a monthly mortgage payment over the full life of the loan. See how slowly the balance drops in early years, and how the ratio flips over time. Built from Savannah Strack's compound interest field lesson feedback.
 
+### 🌈 [Sine Kaleidoscope](https://kaleidosine.mathaiproject.org/)
+An animated color picture. Every pixel's hue, saturation and value come from three formulas in x, y, r, θ and t, and the formulas that are drawing are always shown. Nineteen templates each start from one idea in school math and tie it to a person, a work or a tradition. Inspired by a Desmos talk by Steve Phelps. Free for teaching and learning, with no commercial use (PolyForm Noncommercial license).
+
 ### 📐 [Pell Explorer](../../Ohio-Journal-Summer-2026/Apps/pell-explorer/index.html)
 Explore the mathematics of Pell’s equation and its solutions, inspired by the work of Indian mathematicians. Visualize integer solutions and patterns interactively.
 

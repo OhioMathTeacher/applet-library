@@ -50,7 +50,7 @@ body { background: var(--parchment); color: var(--ink); font-family: var(--sans)
 .btn.sm { padding: 6px 11px; font-size: 15px; } .btn:disabled { opacity: .45; cursor: not-allowed; }
 .note { font-size: 13.5px; color: var(--muted); }
 
-.head p { margin: 2px 0 18px; color: var(--muted); max-width: 100ch; }
+.head p { margin: 2px 0 18px; color: var(--muted); }
 
 /* ── Telefone ──────────────────────────────────────────────────────────────────
    Generation Loss as a game of telephone: a strip of rounds, the page under it,
@@ -176,6 +176,24 @@ body.present .tele-cord .tele-tab { width: 68px; height: 68px; }
 body.present .tele-cord .tele-tab .n { font-size: 15px; } body.present .tele-cord .tele-tab .pct { font-size: 17px; }
 body.present .tele-cord::before { -webkit-mask-size: 26px 78px; mask-size: 26px 78px; }
 #presentBtn[aria-pressed="true"] { background: var(--highlight-soft); }
+
+/* The four views are separate, numbered buttons, as plain to find as Start over and AI Revise,
+   so the order reads as "go through these": filled when chosen. */
+.tele-modes { border: 0; border-radius: 0; background: none; overflow: visible; gap: 8px; flex-wrap: wrap; }
+.tele-modes label, .tele-modes label:first-child { font-size: 15px; font-weight: 600; color: var(--accent); padding: 7px 14px 7px 8px;
+  border: 1px solid var(--accent); border-radius: 7px; }
+.tele-modes .num { display: inline-grid; place-items: center; width: 22px; height: 22px; margin-right: 7px; border-radius: 50%;
+  font-style: normal; font-size: 13px; border: 1.5px solid currentColor; }
+.tele-modes label:hover { background: var(--highlight-soft); color: var(--accent); }
+.tele-modes label:has(input:checked) { background: var(--accent); }
+.tele-modes input:checked + span { color: var(--parchment); font-weight: 600; }
+/* Prompt view: the instructions in a margin note, then the page the machine was handed. */
+.tele-ask-sent { font-family: var(--sans); color: var(--ink); background: var(--highlight-soft); border-left: 4px solid var(--cord);
+  border-radius: 4px; padding: 10px 14px; margin: 0 0 16px; white-space: pre-wrap; }
+.tele-sent { white-space: pre-wrap; }
+/* With four bigger buttons, keep Figures on the same row on a wide screen: the label gives way
+   (it already ellipsizes) instead of the row wrapping. */
+@media (min-width: 1100px){ .tele-under { flex-wrap: nowrap; } }
 
 /* ⚠ ORDER IS LOAD-BEARING. These overrides and the base rules above have identical
    specificity -- textarea.tele-page is one element plus one class either way -- so the
@@ -904,6 +922,7 @@ const DB = { tele: { passes: [''], asked: [] } };
     if (raw && Array.isArray(raw.passes) && raw.passes.length){
       DB.tele.passes = raw.passes.map(x => String(x == null ? '' : x));
       DB.tele.asked = Array.isArray(raw.asked) ? raw.asked : [];
+      DB.tele.prompts = Array.isArray(raw.prompts) ? raw.prompts : [];
       if (raw.ended) DB.tele.ended = raw.ended;
     }
   } catch(e){}
@@ -933,9 +952,10 @@ function renderTele(){
     +     '<div class="tele-under">'
     +       '<div class="tele-label" id="teleLabel"></div>'
     +       '<div class="tele-modes" role="radiogroup" aria-label="What to show on this round">'
-    +         '<label><input type="radio" name="teleMode" value="left" ' + (teleMode === 'left' ? 'checked' : '') + '><span>What’s left</span></label>'
-    +         '<label><input type="radio" name="teleMode" value="changed" ' + (teleMode === 'changed' ? 'checked' : '') + '><span>What this round changed</span></label>'
-    +         '<label><input type="radio" name="teleMode" value="lost" ' + (teleMode === 'lost' ? 'checked' : '') + '><span>What’s lost</span></label>'
+    +         '<label><input type="radio" name="teleMode" value="left" ' + (teleMode === 'left' ? 'checked' : '') + '><span><i class="num">1</i>What’s left</span></label>'
+    +         '<label><input type="radio" name="teleMode" value="changed" ' + (teleMode === 'changed' ? 'checked' : '') + '><span><i class="num">2</i>What this round changed</span></label>'
+    +         '<label><input type="radio" name="teleMode" value="lost" ' + (teleMode === 'lost' ? 'checked' : '') + '><span><i class="num">3</i>What’s lost</span></label>'
+    +         '<label><input type="radio" name="teleMode" value="prompt" ' + (teleMode === 'prompt' ? 'checked' : '') + '><span><i class="num">4</i>Prompt</span></label>'
     +       '</div>'
     +       '<div class="tele-statwrap" id="teleStatWrap">'
     +         '<button class="btn ghost sm tele-statbtn" id="teleStatBtn" aria-expanded="false" aria-controls="teleStats" title="The figures for this round">'
@@ -1023,7 +1043,10 @@ function teleDiffOf(a, b, key){
   return out;
 }
 const teleParas = t => String(t || '').split(/\n\s*\n/).map(p => '<p>' + escHtml(p.trim()).replace(/\n/g, '<br>') + '</p>').join('');
-const telePrompt = () => TELE_ASKS.filter((_, i) => teleOn[i]).map(a => a.say).join(' ') + ' Return only the revised text.';
+// The firm line is there because a model asked to "correct" a famous poem may answer with a
+// note about why it won't, and that note then becomes the next round. Revising is the game.
+const TELE_FIRM = 'Always return a revised version of the text, even if it is literary, well known, or unconventional on purpose. Do not comment on it, explain your changes, or ask questions.';
+const telePrompt = () => TELE_ASKS.filter((_, i) => teleOn[i]).map(a => a.say).join(' ') + ' ' + TELE_FIRM + ' Return only the revised text.';
 const teleAskedShort = () => TELE_ASKS.filter((_, i) => teleOn[i]).map(a => a.short).join(' · ');
 
 // ── the three requests, on one line
@@ -1056,7 +1079,7 @@ function teleStripRow(){
   document.getElementById('teleStopBtn').addEventListener('click', () => { teleStop = true; });
   document.getElementById('teleReset').addEventListener('click', () => {
     if (!confirm('Clear round 0 and every round after it?')) return;
-    DB.tele.passes = ['']; DB.tele.asked = []; delete DB.tele.ended; teleCur = 0; saveDB(); teleSay(''); renderTele();
+    DB.tele.passes = ['']; DB.tele.asked = []; DB.tele.prompts = []; delete DB.tele.ended; teleCur = 0; saveDB(); teleSay(''); renderTele();
     const ed = document.getElementById('teleEditor'); if (ed) ed.focus();
   });
 }
@@ -1097,7 +1120,22 @@ function teleSheet(){
   } else {
     const why = DB.tele.asked[teleCur];
     const made = '<b>Round ' + teleCur + '</b> · machine output' + (why ? ' · asked to ' + escHtml(why) : '');
-    if (shown === 'lost'){
+    if (shown === 'prompt'){
+      // Exactly what the machine was handed to make this round, as it was sent: the
+      // instructions, then the previous round inside the quote marks. Shown in that
+      // previous round's look, since that is the page it was given.
+      const sent = (DB.tele.prompts || [])[teleCur];
+      label.innerHTML = '<b>Round ' + teleCur + '</b> · the prompt that made it, word for word';
+      if (sheet){ const g = teleDrain(teleCur - 1); sheet.style.setProperty('--f', g.toFixed(3)); sheet.dataset.hand = teleHand(g); }
+      if (!sent){
+        view.innerHTML = '<div class="tele-page"><p>This round was made before Telefone kept its prompts, so there is nothing exact to show. Start over to record them.</p></div>';
+      } else {
+        const cut = sent.indexOf('\n\n"""\n');
+        const ask = cut >= 0 ? sent.slice(0, cut) : sent, body = cut >= 0 ? sent.slice(cut + 2) : '';
+        view.innerHTML = '<div class="tele-page tele-prompt"><div class="tele-ask-sent">' + escHtml(ask) + '</div>'
+          + (body ? '<div class="tele-sent">' + escHtml(body) + '</div>' : '') + '</div>';
+      }
+    } else if (shown === 'lost'){
       // Round ZERO against this round, insertions dropped: your page with its holes
       // marked, so the % in the tab strip has a body to point at.
       label.innerHTML = '<b>Round ' + teleCur + '</b> · your page — struck through is everything gone by this round';
@@ -1121,7 +1159,7 @@ function teleSheet(){
 function teleSetZero(text, repaint){
   DB.tele.passes[0] = text;
   if (DB.tele.passes.length > 1){
-    DB.tele.passes.length = 1; DB.tele.asked.length = 1;
+    DB.tele.passes.length = 1; DB.tele.asked.length = 1; (DB.tele.prompts || []).length = 0;
     delete DB.tele.ended; teleCur = 0;
     teleStripRow(); teleSay('');
   }
@@ -1154,8 +1192,9 @@ function teleClean(text){
   if (/\[…cut off — /.test(t)) throw new Error('The reply was cut off — the page is too long for one round. Trim round 0 and start over.');
   return t;
 }
-function teleAddPass(text, why){
+function teleAddPass(text, why, sent){
   DB.tele.passes.push(text); DB.tele.asked[DB.tele.passes.length - 1] = why; teleCur = DB.tele.passes.length - 1;
+  (DB.tele.prompts || (DB.tele.prompts = []))[teleCur] = sent;
   const end = teleEnding();
   if (end) DB.tele.ended = end;
   saveDB();
@@ -1201,11 +1240,12 @@ async function teleRun(count){
       if (teleStop){ teleSay('Stopped at round ' + (DB.tele.passes.length - 1) + '. The rounds so far are kept.'); break; }
       const n = DB.tele.passes.length;
       const why = teleAskedShort();
-      let text = '', got = false;
+      let text = '', got = false, sent = '';
       for (let attempt = 0; attempt <= TELE_RETRIES && !teleStop; attempt++){
         teleSay('Round ' + n + ': the machine is revising round ' + (n - 1) + '…');
         try {
-          text = teleClean(await callModel(telePrompt() + '\n\n"""\n' + DB.tele.passes[n - 1] + '\n"""', { maxTokens: 2500, throwErrors: true }));
+          sent = telePrompt() + '\n\n"""\n' + DB.tele.passes[n - 1] + '\n"""';
+          text = teleClean(await callModel(sent, { maxTokens: 2500, throwErrors: true }));
           got = true; break;
         } catch(e){
           // Anything that is not the meter -- a dead key, a retired model -- is yours to
@@ -1217,7 +1257,7 @@ async function teleRun(count){
       if (!got){ teleSay('Stopped at round ' + (DB.tele.passes.length - 1) + '. The rounds so far are kept.'); break; }
       if (!text){ teleSay('The machine returned nothing — try again.', true); break; }
       if (DB.tele.passes.length < TELE_MAX) teleSay('');
-      teleAddPass(text, why);
+      teleAddPass(text, why, sent);
     }
   } catch(e){
     teleSay((e && e.message) || String(e), true);
@@ -1235,6 +1275,8 @@ document.getElementById('dlBtn').addEventListener('click', () => {
   P.forEach((t, i) => {
     lines.push('─'.repeat(66));
     lines.push('ROUND ' + i + (i === 0 ? ' (yours)' : '') + ' — ' + telePct(i) + '% of your words remaining');
+    const sent = (DB.tele.prompts || [])[i];
+    if (sent) lines.push('Prompt: ' + sent.split('\n\n"""\n')[0]);
     lines.push('─'.repeat(66), '', String(t || '').trim(), '');
   });
   if (DB.tele.ended) lines.push(TELE_END_SAY[DB.tele.ended.why](DB.tele.ended), '');
@@ -1257,7 +1299,7 @@ document.getElementById('dlBtn').addEventListener('click', () => {
 //
 // ⚠ BUMP BUILD.date WHENEVER THIS FILE CHANGES, or the check will keep reporting an
 //   update that the reader has, in fact, already got.
-const BUILD = { version: '1.3.0', date: '2026-11-22' };
+const BUILD = { version: '1.4.0', date: '2026-11-22' };
 const REPO = 'OhioMathTeacher/applet-library';
 const SELF = 'telefone/index.html';
 

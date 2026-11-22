@@ -28,9 +28,14 @@ watching what each round erases.
 
 ## Reading a round
 
-Each tab wears the share of your words still standing, so the tab strip
-*is* the chart — there is no separate graph. Any round past 0 can be read
-three ways:
+Each round is a knot on a phone cord, and each knot wears the share of
+your words still standing, so the cord *is* the chart — there is no
+separate graph. The page drains to match: round 0 is typed in blue ink,
+and as your words disappear the ink fades to gray and the typewriter
+gives way to a plain font. At the floor (below) it is fully gray.
+Press **Presenter** or P to make everything big for a projector.
+
+Any round past 0 can be read three ways:
 
 - **What's left** — the machine's text as it stands
 - **What this round changed** — this round against the one before it

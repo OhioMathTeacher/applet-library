@@ -3,6 +3,8 @@
 // The library on GitHub is the only home: every menu item is one of its own sections.
 // data-current names the item to underline: home, talks, teaching, games, utilities or
 // research ("auto" reads ?section= on the library page itself).
+// The brand in the corner is the Technology Educator Alliance's and goes to its site. Home is
+// the way back to the library.
 // Skipped inside an iframe, so a page embedded elsewhere does not show two headers.
 (function () {
   if (window.top !== window.self) return;
@@ -28,8 +30,10 @@
   style.textContent = `
     .sh { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 24px;
           border-bottom: 1px solid #e8e8e8; background: #fff; font-family: "Libre Franklin", system-ui, sans-serif; }
-    .sh-brand { display: flex; align-items: center; gap: 12px; color: #212121; text-decoration: none; font-size: 20px; }
-    .sh-brand svg { width: 40px; height: 40px; flex-shrink: 0; }
+    .sh-brand { display: flex; align-items: center; gap: 12px; color: #1D5C4F; text-decoration: none; flex: none; }
+    .sh-brand img { width: 52px; height: 52px; display: block; flex-shrink: 0; }
+    .sh-brand span { font-weight: 700; font-size: 14px; line-height: 1.2; letter-spacing: .07em; text-transform: uppercase; }
+    .sh-brand:hover span { text-decoration: underline; }
     .sh-nav { display: flex; flex-wrap: wrap; gap: 4px 24px; }
     .sh-nav a { color: #6b6b6b; text-decoration: none; font-size: 15px; padding: 6px 0; border-bottom: 2px solid transparent; }
     .sh-nav a:hover { color: #212121; }
@@ -45,18 +49,9 @@
   const header = document.createElement('header');
   header.className = 'sh';
   header.innerHTML = `
-    <a class="sh-brand" href="${ROOT}">
-      <svg viewBox="0 0 64 64" aria-hidden="true">
-        <g stroke="#121212" stroke-linejoin="round" stroke-linecap="round">
-          <rect x="4" y="4" width="56" height="56" rx="8" fill="#fff" stroke-width="3.5"/>
-          <path d="M32 4 V60 M4 32 H60" fill="none" stroke-width="2.5"/>
-          <circle cx="18" cy="18" r="7.5" fill="#f7da21" stroke-width="2.5"/>
-          <rect x="39" y="11" width="14" height="14" fill="#5cc4b8" stroke-width="2.5"/>
-          <path d="M18 38 L26 51 H10 Z" fill="#f39b4a" stroke-width="2.5"/>
-          <path d="M46 37 L54 45 L46 53 L38 45 Z" fill="#6f95e8" stroke-width="2.5"/>
-        </g>
-      </svg>
-      <span>Applet Library</span>
+    <a class="sh-brand" href="https://mathaiproject.org/">
+      <img src="${ROOT}image/tea-seal.png" alt="" width="52" height="52">
+      <span>Technology<br>Educator Alliance</span>
     </a>
     <nav class="sh-nav" aria-label="Applet Library">
       ${MENU.map(([label, id, q]) =>
